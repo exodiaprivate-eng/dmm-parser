@@ -1,0 +1,79 @@
+//! Hand-corrected: IDA-derived parser for `DetectDetailInfo.pabgb`.
+//!
+//! Per IDA sub_1415BE000: u16 key, CString string_key, u8 is_blocked,
+//! fixed-size array of 0x3B (59) DetectSenseData entries via sub_1410D9B70.
+//!
+//! DetectSenseData is the same recursive type from `tables::detect_info`.
+
+use crate::binary::*;
+use crate::tables::detect_info::DetectSenseData;
+use std::io::{self, Write};
+
+const DETAIL_LIST_LEN: usize = 0x3B; // 59 fixed entries per IDA sub_1415BE000
+
+#[derive(Debug)]
+pub struct DetectDetailInfo<'a> {
+    pub key: u16,
+    pub string_key: CString<'a>,
+    pub is_blocked: u8,
+    pub detect_detail_data_list_new: Vec<DetectSenseData>,
+}
+
+impl<'a> DetectDetailInfo<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let key = u16::read_from(data, offset)?;
+        let string_key = CString::read_from(data, offset)?;
+        let is_blocked = u8::read_from(data, offset)?;
+        let mut detect_detail_data_list_new = Vec::with_capacity(DETAIL_LIST_LEN);
+        for _ in 0..DETAIL_LIST_LEN {
+            detect_detail_data_list_new.push(DetectSenseData::read_from(data, offset)?);
+        }
+        Ok(Self { key, string_key, is_blocked, detect_detail_data_list_new })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.string_key.write_to(w)?;
+        self.is_blocked.write_to(w)?;
+        if self.detect_detail_data_list_new.len() != DETAIL_LIST_LEN {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "detect_detail_data_list_new must have exactly {} entries (got {})",
+                    DETAIL_LIST_LEN,
+                    self.detect_detail_data_list_new.len()
+                ),
+            ));
+        }
+        for entry in &self.detect_detail_data_list_new {
+            entry.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\detectdetailinfo.pabgb";
+
+    #[test]
+    fn roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(DetectDetailInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+        let mut out = Vec::with_capacity(data.len());
+        for item in &items {
+            item.write_to(&mut out).unwrap();
+        }
+        assert_eq!(out, data, "detectdetailinfo roundtrip bytes mismatch");
+    }
+}

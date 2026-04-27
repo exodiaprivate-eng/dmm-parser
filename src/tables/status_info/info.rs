@@ -1,0 +1,81 @@
+//! Hand-corrected: IDA-derived parser for `StatusInfo.pabgb`.
+//!
+//! Per IDA sub_1410FC1A0: 34 fields matching mac binary __cstring order.
+//! Two CArrays: _reserveSlotInfoList (CArray<{u32+u32}>) and _statLevelData
+//! (CArray<u64>). All "lookup" subs (sub_1411006D0/sub_141101A40/etc.) read
+//! 4 bytes from disk; preserved as u32 for round-trip.
+
+use crate::binary::*;
+use crate::py_binary_struct;
+
+py_binary_struct! {
+    pub struct ReserveSlotEntry {
+        pub slot_a: u32,
+        pub slot_b: u32,
+    }
+}
+
+py_binary_struct! {
+    pub struct StatusInfo<'a> {
+        pub key: u32,
+        pub string_key: CString<'a>,
+        pub is_blocked: u8,
+        pub regenerate_type: u8,
+        pub status_index_xxxxx: u32,
+        pub is_hard_coded: u8,
+        pub use_init_value_zero: u8,
+        pub min_resistance_status_info: u32,
+        pub max_resistance_status_info: u32,
+        pub is_resistance_stat: u8,
+        pub is_elemental_stat: u8,
+        pub block_regen_on_min_stat_tick: [u8; 8],
+        pub decrease_on_item_broken: u8,
+        pub buff_info: u32,
+        pub actual_status_key_to_refer: u32,
+        pub stat_type: u8,
+        pub static_stat_type: u8,
+        pub elemental_stat_type: u8,
+        pub active_knowledge_info: u32,
+        pub send_gimmick_event_key_for_stat_changed: u32,
+        pub reserve_slot_info_list: CArray<ReserveSlotEntry>,
+        pub use_limit_hit_min_stat: u8,
+        pub use_limit_hit_max_stat: u8,
+        pub status_key_hash_code32: u32,
+        pub min_hash_code32: u32,
+        pub max_hash_code32: u32,
+        pub is_full_recover_when_revived: u8,
+        pub use_percent: u8,
+        pub is_repeat_update_from_server: u8,
+        pub stat_level_data: CArray<u64>,
+        pub is_reset_on_revive: u8,
+        pub not_enough_resource_message: u32,
+        pub ui_template_name: u32,
+        pub ui_component_name: u32,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\statusinfo.pabgb";
+
+    #[test]
+    fn roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(StatusInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+        let mut out = Vec::with_capacity(data.len());
+        for item in &items {
+            item.write_to(&mut out).unwrap();
+        }
+        assert_eq!(out, data, "statusinfo roundtrip bytes mismatch");
+    }
+}
