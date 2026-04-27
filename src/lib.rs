@@ -1,9 +1,10 @@
-mod binary;
-mod crypto;
-mod item_info;
+pub mod binary;
+pub mod crypto;
+pub mod item_info;
+pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;
-mod tables;
+pub mod tables;
 
 use pyo3::prelude::*;
 

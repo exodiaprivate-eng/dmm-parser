@@ -2,10 +2,10 @@ mod primitives;
 mod types;
 mod arrays;
 pub(crate) mod trie;
-pub(crate) mod papgt;
-pub(crate) mod pamt;
-pub(crate) mod paz;
-pub(crate) mod paloc;
+pub mod papgt;
+pub mod pamt;
+pub mod paz;
+pub mod paloc;
 pub mod variant;
 pub mod variants;
 
@@ -192,6 +192,29 @@ macro_rules! py_binary_struct {
                 $(<$ty as WritePyValue>::write_from_py(w, &get_field(d, stringify!($field))?)?;)*
                 Ok(())
             }
+
+            // JSON-value mirror of the dict bridge above. Mod managers
+            // running pure-Rust (no embedded Python) read the live binary
+            // into a `serde_json::Value` tree, mutate it by field path,
+            // then serialize back through `write_from_json_dict`. Field
+            // names match Python's exactly.
+            pub fn to_json_dict(&self) -> ::serde_json::Map<String, ::serde_json::Value> {
+                use $crate::json_traits::ToJsonValue;
+                let mut d = ::serde_json::Map::new();
+                $(d.insert(stringify!($field).to_string(), self.$field.to_json_value());)*
+                d
+            }
+
+            pub fn write_from_json_dict(
+                w: &mut Vec<u8>,
+                d: &::serde_json::Map<String, ::serde_json::Value>,
+            ) -> ::std::io::Result<()> {
+                use $crate::json_traits::{WriteJsonValue, get_field};
+                $(<$ty as WriteJsonValue>::write_from_json(w, get_field(d, stringify!($field))?)
+                    .map_err(|e| ::std::io::Error::new(e.kind(),
+                        format!("{}.{}: {}", stringify!($name), stringify!($field), e)))?;)*
+                Ok(())
+            }
         }
 
         impl $(< $lt >)? $crate::python_traits::ToPyValue for $name $(< $lt >)? {
@@ -203,6 +226,31 @@ macro_rules! py_binary_struct {
         impl $(< $lt >)? $crate::python_traits::WritePyValue for $name $(< $lt >)? {
             fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
                 Self::write_from_py_dict(w, obj.cast::<pyo3::types::PyDict>()?)
+            }
+        }
+
+        impl $(< $lt >)? $crate::json_traits::ToJsonValue for $name $(< $lt >)? {
+            fn to_json_value(&self) -> ::serde_json::Value {
+                ::serde_json::Value::Object(self.to_json_dict())
+            }
+        }
+
+        impl $(< $lt >)? $crate::json_traits::WriteJsonValue for $name $(< $lt >)? {
+            fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> ::std::io::Result<()> {
+                let obj = v.as_object().ok_or_else(|| ::std::io::Error::new(
+                    ::std::io::ErrorKind::InvalidData,
+                    format!("expected object for {}, got {:?}",
+                        stringify!($name),
+                        match v {
+                            ::serde_json::Value::Null => "null",
+                            ::serde_json::Value::Bool(_) => "bool",
+                            ::serde_json::Value::Number(_) => "number",
+                            ::serde_json::Value::String(_) => "string",
+                            ::serde_json::Value::Array(_) => "array",
+                            ::serde_json::Value::Object(_) => "object",
+                        }),
+                ))?;
+                Self::write_from_json_dict(w, obj)
             }
         }
     };

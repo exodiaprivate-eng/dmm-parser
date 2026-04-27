@@ -1,6 +1,65 @@
 use std::io::{self, Write};
 
-use super::{BinaryRead, BinaryReadTracked, BinaryWrite, FieldRange, push_index, pop_path};
+use super::{BinaryRead, BinaryReadTracked, BinaryWrite, FieldRange, pop_path, push_index};
+use crate::json_traits::{ToJsonValue, WriteJsonValue};
+
+// Generic [u8; N] — covers any const-size byte array. Used by tables/* for
+// directly-read bytes that aren't lookups or strings.
+impl<'a, const N: usize> BinaryRead<'a> for [u8; N] {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        super::check_remaining(data, *offset, N)?;
+        let arr: [u8; N] = data[*offset..*offset + N].try_into().unwrap();
+        *offset += N;
+        Ok(arr)
+    }
+}
+
+impl<const N: usize> BinaryWrite for [u8; N] {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        w.write_all(self)
+    }
+}
+
+impl<'a, const N: usize> BinaryReadTracked<'a> for [u8; N] {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let mut out = [0u8; N];
+        for i in 0..N {
+            let saved = push_index(path, i);
+            out[i] = u8::read_tracked(data, offset, path, ranges)?;
+            pop_path(path, saved);
+        }
+        Ok(out)
+    }
+}
+
+impl<const N: usize> ToJsonValue for [u8; N] {
+    fn to_json_value(&self) -> serde_json::Value {
+        serde_json::Value::Array(self.iter().map(|x| serde_json::Value::from(*x)).collect())
+    }
+}
+
+impl<const N: usize> WriteJsonValue for [u8; N] {
+    fn write_from_json(w: &mut Vec<u8>, v: &serde_json::Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("expected array of {} u8, got non-array", N),
+        ))?;
+        if arr.len() != N {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("expected {} elements for [u8; {}], got {}", N, N, arr.len())));
+        }
+        for elem in arr {
+            <u8 as WriteJsonValue>::write_from_json(w, elem)?;
+        }
+        Ok(())
+    }
+}
+
 
 impl<'a> BinaryRead<'a> for [f32; 3] {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
@@ -13,6 +72,21 @@ impl<'a> BinaryRead<'a> for [f32; 3] {
 }
 
 impl BinaryWrite for [f32; 3] {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        for v in self {
+            v.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> BinaryRead<'a> for [u32; 2] {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok([u32::read_from(data, offset)?, u32::read_from(data, offset)?])
+    }
+}
+
+impl BinaryWrite for [u32; 2] {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         for v in self {
             v.write_to(w)?;
@@ -41,22 +115,7 @@ impl BinaryWrite for [u32; 4] {
     }
 }
 
-// Generic [u8; N] - covers N=3 (Porter's original impl) plus all sizes
-// emitted by generated tables/ modules (e.g. NattKh's direct_15B fields).
-impl<'a, const N: usize> BinaryRead<'a> for [u8; N] {
-    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        super::check_remaining(data, *offset, N)?;
-        let arr: [u8; N] = data[*offset..*offset + N].try_into().unwrap();
-        *offset += N;
-        Ok(arr)
-    }
-}
-
-impl<const N: usize> BinaryWrite for [u8; N] {
-    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        w.write_all(self)
-    }
-}
+// [u8; 3] specific impls removed — covered by generic [u8; N] above.
 
 // ── Fixed-size array tracked reads ──────────────────────────────────────────
 // Each element is reported as `<path>[i]` so the byte layout is preserved.
@@ -95,15 +154,34 @@ impl<'a> BinaryReadTracked<'a> for [u32; 4] {
     }
 }
 
-impl<'a, const N: usize> BinaryReadTracked<'a> for [u8; N] {
+impl<'a> BinaryReadTracked<'a> for [u32; 2] {
     fn read_tracked(
         data: &'a [u8],
         offset: &mut usize,
         path: &mut String,
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
-        let mut out = [0u8; N];
-        for i in 0..N {
+        let mut out = [0u32; 2];
+        for i in 0..2 {
+            let saved = push_index(path, i);
+            out[i] = u32::read_tracked(data, offset, path, ranges)?;
+            pop_path(path, saved);
+        }
+        Ok(out)
+    }
+}
+
+// [u8; 3] BinaryReadTracked impl removed — covered by generic [u8; N] above.
+#[allow(dead_code)]
+fn _u8_3_tracked_placeholder<'a>(
+    data: &'a [u8],
+    offset: &mut usize,
+    path: &mut String,
+    ranges: &mut Vec<FieldRange>,
+) -> io::Result<[u8; 3]> {
+    {
+        let mut out = [0u8; 3];
+        for i in 0..3 {
             let saved = push_index(path, i);
             out[i] = u8::read_tracked(data, offset, path, ranges)?;
             pop_path(path, saved);

@@ -1,13 +1,14 @@
 use std::io::{self, Write};
 
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3::exceptions::PyValueError;
 
 use super::keys::*;
 use crate::binary::*;
-use crate::python_traits::{ToPyValue, WritePyValue, get_field};
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use crate::python_traits::{ToPyValue, WritePyValue, get_field};
 
 // ── Simple structs ──────────────────────────────────────────────────────────
 
@@ -250,11 +251,9 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct PatternParamString<'a> {
         pub flag: u8,
-        // Verified against item #810 in iteminfo_1.0.4.0.pabgb: actual byte layout
-        // is LocalizableString (u8 category + u64 index + CString) not bare CString.
-        // Plain CString happened to "work" for items 0..809 because their
-        // param_string_list was always empty (count=0).
-        pub param_string: LocalizableString<'a>,
+        pub unk_flag_2: u8,
+        pub unk_value: [u32; 2],
+        pub param_string: CString<'a>,
     }
 }
 
@@ -298,8 +297,12 @@ impl<'a> BinaryRead<'a> for SubItem {
             3 => SubItemValue::Character(CharacterKey::read_from(data, offset)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_from(data, offset)?),
             14 => SubItemValue::None,
-            _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("unknown SubItem type: {}", type_id))),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("unknown SubItem type: {}", type_id),
+                ));
+            }
         };
         Ok(SubItem { type_id, value })
     }
@@ -322,8 +325,12 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
             14 => SubItemValue::None,
-            _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("unknown SubItem type: {}", type_id))),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("unknown SubItem type: {}", type_id),
+                ));
+            }
         };
         pop_path(path, saved);
         Ok(SubItem { type_id, value })
@@ -367,7 +374,70 @@ impl WritePyValue for SubItem {
                 w.extend_from_slice(&v.to_le_bytes());
             }
             14 => {}
-            _ => return Err(PyValueError::new_err(format!("invalid SubItem type_id: {}", type_id))),
+            _ => {
+                return Err(PyValueError::new_err(format!(
+                    "invalid SubItem type_id: {}",
+                    type_id
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+// JSON mirror of the Python bridge above. SubItem is a tagged union
+// where `type_id` selects which variant of `value` is in the wire
+// format: 0/3/9 → u32 key, 14 → no value bytes. JSON form is a flat
+// `{type_id, value}` dict, with `value: null` for the no-payload case.
+impl ToJsonValue for SubItem {
+    fn to_json_value(&self) -> ::serde_json::Value {
+        let mut d = ::serde_json::Map::new();
+        d.insert("type_id".to_string(), ::serde_json::Value::from(self.type_id));
+        let v = match &self.value {
+            SubItemValue::Item(k) => ::serde_json::Value::from(k.0),
+            SubItemValue::Character(k) => ::serde_json::Value::from(k.0),
+            SubItemValue::Gimmick(k) => ::serde_json::Value::from(k.0),
+            SubItemValue::None => ::serde_json::Value::Null,
+        };
+        d.insert("value".to_string(), v);
+        ::serde_json::Value::Object(d)
+    }
+}
+
+impl WriteJsonValue for SubItem {
+    fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> ::std::io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("expected object for SubItem, got {:?}", v),
+        ))?;
+        let type_id = json_get_field(obj, "type_id")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "SubItem.type_id: expected u8 number"))?;
+        if type_id > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("SubItem.type_id {} out of u8 range", type_id)));
+        }
+        let type_id = type_id as u8;
+        w.push(type_id);
+        match type_id {
+            0 | 3 | 9 => {
+                let value = json_get_field(obj, "value")?;
+                let n = value.as_u64().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("SubItem.value: expected u32 number, got {:?}", value),
+                ))?;
+                if n > u32::MAX as u64 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("SubItem.value {} out of u32 range", n)));
+                }
+                w.extend_from_slice(&(n as u32).to_le_bytes());
+            }
+            14 => {} // no payload
+            _ => {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("invalid SubItem.type_id: {}", type_id)));
+            }
         }
         Ok(())
     }
@@ -416,10 +486,19 @@ impl<'a> BinaryRead<'a> for SealableItemInfo<'a> {
             2 => SealableValue::String(CString::read_from(data, offset)?),
             3 => SealableValue::Character(CharacterKey::read_from(data, offset)?),
             4 => SealableValue::Tribe(TribeInfoKey::read_from(data, offset)?),
-            _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("unknown SealableItemInfo type: {}", type_tag))),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("unknown SealableItemInfo type: {}", type_tag),
+                ));
+            }
         };
-        Ok(SealableItemInfo { type_tag, item_key, unknown0, value })
+        Ok(SealableItemInfo {
+            type_tag,
+            item_key,
+            unknown0,
+            value,
+        })
     }
 }
 
@@ -449,11 +528,20 @@ impl<'a> BinaryReadTracked<'a> for SealableItemInfo<'a> {
             2 => SealableValue::String(CString::read_tracked(data, offset, path, ranges)?),
             3 => SealableValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             4 => SealableValue::Tribe(TribeInfoKey::read_tracked(data, offset, path, ranges)?),
-            _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("unknown SealableItemInfo type: {}", type_tag))),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("unknown SealableItemInfo type: {}", type_tag),
+                ));
+            }
         };
         pop_path(path, saved);
-        Ok(SealableItemInfo { type_tag, item_key, unknown0, value })
+        Ok(SealableItemInfo {
+            type_tag,
+            item_key,
+            unknown0,
+            value,
+        })
     }
 }
 
@@ -509,7 +597,95 @@ impl WritePyValue for SealableItemInfo<'_> {
                 w.extend_from_slice(&(s.len() as u32).to_le_bytes());
                 w.extend_from_slice(s.as_bytes());
             }
-            _ => return Err(PyValueError::new_err(format!("invalid sealable type_tag: {}", type_tag))),
+            _ => {
+                return Err(PyValueError::new_err(format!(
+                    "invalid sealable type_tag: {}",
+                    type_tag
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+// JSON mirror of the Python bridge for SealableItemInfo. Wire format:
+// `[type_tag:u8][item_key:u32][unknown0:u64][value:variant]`.
+// `type_tag` selects the variant of `value`: 0/1/3/4 are u32 keys,
+// 2 is a CString (length-prefixed UTF-8 + null padding handled by
+// the wire layer).
+impl ToJsonValue for SealableItemInfo<'_> {
+    fn to_json_value(&self) -> ::serde_json::Value {
+        let mut d = ::serde_json::Map::new();
+        d.insert("type_tag".to_string(), ::serde_json::Value::from(self.type_tag));
+        d.insert("item_key".to_string(), ::serde_json::Value::from(self.item_key.0));
+        d.insert("unknown0".to_string(), ::serde_json::Value::from(self.unknown0));
+        let v = match &self.value {
+            SealableValue::Item(k) => ::serde_json::Value::from(k.0),
+            SealableValue::Gimmick(k) => ::serde_json::Value::from(k.0),
+            SealableValue::String(s) => ::serde_json::Value::from(s.data.to_string()),
+            SealableValue::Character(k) => ::serde_json::Value::from(k.0),
+            SealableValue::Tribe(k) => ::serde_json::Value::from(k.0),
+        };
+        d.insert("value".to_string(), v);
+        ::serde_json::Value::Object(d)
+    }
+}
+
+impl WriteJsonValue for SealableItemInfo<'_> {
+    fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> ::std::io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("expected object for SealableItemInfo, got {:?}", v),
+        ))?;
+        let type_tag = json_get_field(obj, "type_tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "SealableItemInfo.type_tag: expected u8 number"))?;
+        if type_tag > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("SealableItemInfo.type_tag {} out of u8 range", type_tag)));
+        }
+        let type_tag = type_tag as u8;
+        let item_key = json_get_field(obj, "item_key")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "SealableItemInfo.item_key: expected u32 number"))?;
+        if item_key > u32::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("SealableItemInfo.item_key {} out of u32 range", item_key)));
+        }
+        let unknown0 = json_get_field(obj, "unknown0")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "SealableItemInfo.unknown0: expected u64 number"))?;
+        w.push(type_tag);
+        w.extend_from_slice(&(item_key as u32).to_le_bytes());
+        w.extend_from_slice(&unknown0.to_le_bytes());
+        let value = json_get_field(obj, "value")?;
+        match type_tag {
+            0 | 1 | 3 | 4 => {
+                let n = value.as_u64().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("SealableItemInfo.value: expected u32 number for tag={}", type_tag),
+                ))?;
+                if n > u32::MAX as u64 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("SealableItemInfo.value {} out of u32 range", n)));
+                }
+                w.extend_from_slice(&(n as u32).to_le_bytes());
+            }
+            2 => {
+                let s = value.as_str().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "SealableItemInfo.value: expected string for tag=2",
+                ))?;
+                w.extend_from_slice(&(s.len() as u32).to_le_bytes());
+                w.extend_from_slice(s.as_bytes());
+            }
+            _ => {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("invalid SealableItemInfo.type_tag: {}", type_tag)));
+            }
         }
         Ok(())
     }

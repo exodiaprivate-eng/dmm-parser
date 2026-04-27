@@ -1,4 +1,5 @@
 use crate::binary::{BinaryRead, BinaryReadTracked, BinaryWrite, FieldRange};
+use crate::json_traits::{ToJsonValue, WriteJsonValue};
 use crate::python_traits::{ToPyValue, WritePyValue};
 use pyo3::prelude::*;
 use std::io::{self, Write};
@@ -23,8 +24,7 @@ macro_rules! define_key {
             ) -> io::Result<Self> {
                 // Delegate to the inner primitive's tracked read so the
                 // recorded range carries the correct path and byte span.
-                <$inner as BinaryReadTracked>::read_tracked(data, offset, path, ranges)
-                    .map($name)
+                <$inner as BinaryReadTracked>::read_tracked(data, offset, path, ranges).map($name)
             }
         }
 
@@ -43,6 +43,21 @@ macro_rules! define_key {
         impl WritePyValue for $name {
             fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
                 <$inner as WritePyValue>::write_from_py(w, obj)
+            }
+        }
+
+        // JSON-value mirror of the Python bridge — keys serialize as their
+        // raw inner number so spec-compliant mod files can write
+        // `"key": 391518535` instead of `{"value": 391518535}`.
+        impl ToJsonValue for $name {
+            fn to_json_value(&self) -> ::serde_json::Value {
+                self.0.to_json_value()
+            }
+        }
+
+        impl WriteJsonValue for $name {
+            fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> ::std::io::Result<()> {
+                <$inner as WriteJsonValue>::write_from_json(w, v)
             }
         }
     };

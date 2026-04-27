@@ -23,7 +23,31 @@
 
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{json, Value};
 use std::io::{self, Write};
+
+// Helper: serialize anything that implements BinaryWrite as base64 string.
+fn bw_to_b64<T: BinaryWrite>(v: &T) -> Value {
+    let mut bytes = Vec::new();
+    v.write_to(&mut bytes).expect("vec write infallible");
+    Value::String(B64.encode(&bytes))
+}
+
+// Helper: read base64 string and write its raw bytes to w.
+fn b64_to_w(w: &mut Vec<u8>, v: &Value, field: &str) -> io::Result<()> {
+    let s = v.as_str().ok_or_else(|| io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("{}: expected base64 string", field),
+    ))?;
+    let bytes = B64.decode(s).map_err(|e| io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("{}: invalid base64: {}", field, e),
+    ))?;
+    w.extend_from_slice(&bytes);
+    Ok(())
+}
 
 /// `[u8 absent_flag][BuffData if absent_flag == 0]` per sub_1419D9C70.
 /// 1 = absent (skip), 0 = present (read BuffData). Inverted from typical COptional.
@@ -274,6 +298,206 @@ impl<'a> SkillInfo<'a> {
         self.video_path.write_to(w)?;
         Ok(())
     }
+}
+
+// ── JSON support ─────────────────────────────────────────────────────────────
+//
+// SkillInfo's simple fields (key, string_key, is_blocked, etc.) are exposed
+// as JSON for direct field editing via v3 mods.
+//
+// The polymorphic field `buff_level_list` (CArray<CArray<BuffDataOptional>>)
+// is serialized as base64 of its raw bytes — Tier 2 blob-tail equivalent.
+// Mod authors can clone a whole `buff_level_list` from another skill via
+// `set` with the base64 value, but cannot drill into individual buffs yet.
+// Field-level BuffData JSON (per-variant ToJsonValue across 120 variants) is
+// the next step once needed.
+
+impl ToJsonValue for GraphData {
+    fn to_json_value(&self) -> Value {
+        json!({"a": self.a, "b": self.b, "c": self.c, "d": self.d})
+    }
+}
+impl WriteJsonValue for GraphData {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "GraphData: expected object"))?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "d")?)?;
+        Ok(())
+    }
+}
+
+impl ToJsonValue for ResourceStat {
+    fn to_json_value(&self) -> Value {
+        json!({
+            "a": self.a, "lookup_b": self.lookup_b, "c": self.c,
+            "d": self.d, "lookup_e": self.lookup_e, "lookup_f": self.lookup_f,
+        })
+    }
+}
+impl WriteJsonValue for ResourceStat {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "ResourceStat: expected object"))?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "c")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "d")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_e")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_f")?)?;
+        Ok(())
+    }
+}
+
+impl ToJsonValue for ResourceItem {
+    fn to_json_value(&self) -> Value {
+        json!({"lookup": self.lookup, "value": self.value})
+    }
+}
+impl WriteJsonValue for ResourceItem {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "ResourceItem: expected object"))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "value")?)?;
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for SkillInfo<'a> {
+    fn to_json_value(&self) -> Value {
+        json!({
+            "key": self.key,
+            "string_key": self.string_key.data,
+            "is_blocked": self.is_blocked,
+            "cooltime": self.cooltime,
+            "buff_level_list": bw_to_b64(&self.buff_level_list),
+            "skill_group_key": self.skill_group_key,
+            "parent_skill": self.parent_skill,
+            "learn_level": self.learn_level,
+            "apply_type": self.apply_type,
+            "icon_path": self.icon_path,
+            "need_upgrade_item_info": self.need_upgrade_item_info,
+            "need_upgrade_item_count_graph": self.need_upgrade_item_count_graph.to_json_value(),
+            "need_upgrade_experience_graph": self.need_upgrade_experience_graph.to_json_value(),
+            "usable_character_info_list": self.usable_character_info_list.to_json_value(),
+            "usable_condition": self.usable_condition.to_json_value(),
+            "learn_knowledge_info": self.learn_knowledge_info,
+            "faction_info": self.faction_info,
+            "use_resource_stat_list": self.use_resource_stat_list.to_json_value(),
+            "use_resource_item_list": self.use_resource_item_list.to_json_value(),
+            "use_driver_resource_stat_list": self.use_driver_resource_stat_list.to_json_value(),
+            "use_battery_stat": self.use_battery_stat,
+            "is_ui_use_allowed": self.is_ui_use_allowed,
+            "is_learn_use_artifact": self.is_learn_use_artifact,
+            "allow_skill_with_low_resource": self.allow_skill_with_low_resource,
+            "is_use_child_pattern_description_buff_data": self.is_use_child_pattern_description_buff_data,
+            "damage_type": self.damage_type,
+            "ui_type": self.ui_type,
+            "reserve_slot_info_list": self.reserve_slot_info_list.to_json_value(),
+            "max_level": self.max_level,
+            "skill_group_key_list": self.skill_group_key_list.to_json_value(),
+            "buff_sustain_flag": self.buff_sustain_flag,
+            "dev_skill_name": self.dev_skill_name.data,
+            "dev_skill_desc": self.dev_skill_desc.data,
+            "video_path": self.video_path,
+        })
+    }
+}
+
+impl<'a> WriteJsonValue for SkillInfo<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "SkillInfo: expected object"))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cooltime")?)?;
+        b64_to_w(w, json_get_field(obj, "buff_level_list")?, "buff_level_list")?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_group_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parent_skill")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "learn_level")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "apply_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "icon_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_upgrade_item_info")?)?;
+        <GraphData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_upgrade_item_count_graph")?)?;
+        <GraphData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_upgrade_experience_graph")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "usable_character_info_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "usable_condition")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "learn_knowledge_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info")?)?;
+        <CArray<ResourceStat> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_resource_stat_list")?)?;
+        <CArray<ResourceItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_resource_item_list")?)?;
+        <CArray<ResourceStat> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_driver_resource_stat_list")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_battery_stat")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_ui_use_allowed")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_learn_use_artifact")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "allow_skill_with_low_resource")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_use_child_pattern_description_buff_data")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "damage_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_type")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reserve_slot_info_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_group_key_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_sustain_flag")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_name")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_desc")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "video_path")?)?;
+        Ok(())
+    }
+}
+
+/// Parse a skill.pabgb body into a Vec of skill JSON dicts. Mirror of
+/// `parse_iteminfo_to_json`. Used by DMM for v3 SkillInfo mod application.
+///
+/// Each SkillInfo entry is self-delimiting (its fields self-describe their
+/// own length), so this function iterates the body without needing pabgh
+/// boundaries — same calling convention as `parse_iteminfo_to_json`.
+///
+/// If a pabgh is available, prefer `parse_skill_to_json_with_pabgh` for
+/// per-entry boundary verification.
+pub fn parse_skill_to_json(data: &[u8]) -> io::Result<Vec<Value>> {
+    let mut items = Vec::new();
+    let mut offset = 0;
+    while offset < data.len() {
+        let remaining = data.len() - offset;
+        let item = SkillInfo::read_with_size(data, &mut offset, remaining)?;
+        items.push(item.to_json_value());
+    }
+    Ok(items)
+}
+
+/// Variant of `parse_skill_to_json` that uses the pabgh sister file to
+/// verify each entry's byte boundaries. Useful for mod-time validation.
+pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<Vec<Value>> {
+    use crate::binary::variant::{entry_ranges, load_pabgh_offsets_from_bytes};
+    let entries = load_pabgh_offsets_from_bytes(pabgh).ok_or_else(|| io::Error::new(
+        io::ErrorKind::InvalidData, "pabgh parse failed"))?;
+    let ranges = entry_ranges(&entries, data.len());
+    let mut items = Vec::with_capacity(ranges.len());
+    for (_k, s, e) in ranges {
+        let mut c = s;
+        let item = SkillInfo::read_with_size(data, &mut c, e - s)?;
+        if c != e {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("SkillInfo entry under/over-consumed: {}/{}", c - s, e - s)));
+        }
+        items.push(item.to_json_value());
+    }
+    Ok(items)
+}
+
+/// Inverse of `parse_skill_to_json`: write a sequence of skill dicts back
+/// to pabgb bytes.
+pub fn serialize_skill_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
+    let mut out = Vec::with_capacity(items.len() * 512);
+    for (i, v) in items.iter().enumerate() {
+        SkillInfo::write_from_json(&mut out, v).map_err(|e| io::Error::new(
+            e.kind(), format!("skill[{}]: {}", i, e)))?;
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

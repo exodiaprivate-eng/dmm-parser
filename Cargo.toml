@@ -8,13 +8,15 @@ license-file = "LICENSE"
 
 [lib]
 name = "dmm_parser"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 pyo3 = { version = "0.27.2", features = ["abi3-py312"] }
 chacha20_crate = { package = "chacha20", version = "0.10.0" }
 lz4_flex = "0.11"
 flate2 = "1.0"
+serde_json = "1.0"
+base64 = "0.22"
 
 [dev-dependencies]
 tempfile = "3"

@@ -124,8 +124,13 @@ pub fn is_valid_cstring(data: &[u8], start: usize, end: usize) -> bool {
 /// Returns None if the file is missing.
 pub fn load_pabgh_offsets(pabgh_path: &str) -> Option<Vec<(u32, usize)>> {
     let bytes = std::fs::read(pabgh_path).ok()?;
-    // pabgh module isn't exposed yet; parse inline.
-    let pabgh = parse_pabgh_inline(&bytes)?;
+    load_pabgh_offsets_from_bytes(&bytes)
+}
+
+/// Same as `load_pabgh_offsets` but accepts a pre-loaded byte slice. Used by
+/// in-memory mod application where the caller already has the pabgh bytes.
+pub fn load_pabgh_offsets_from_bytes(bytes: &[u8]) -> Option<Vec<(u32, usize)>> {
+    let pabgh = parse_pabgh_inline(bytes)?;
     let mut entries = pabgh;
     entries.sort_by_key(|e| e.1);
     Some(entries)

@@ -1,6 +1,6 @@
+use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use pyo3::exceptions::PyKeyError;
 
 use crate::binary::{CArray, COptional, CString, LocalizableString};
 
@@ -84,6 +84,23 @@ impl WritePyValue for [f32; 3] {
     }
 }
 
+impl ToPyValue for [u32; 2] {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
+    }
+}
+
+impl WritePyValue for [u32; 2] {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let list = obj.cast::<PyList>()?;
+        for item in list.iter() {
+            let v: u32 = item.extract()?;
+            w.extend_from_slice(&v.to_le_bytes());
+        }
+        Ok(())
+    }
+}
+
 impl ToPyValue for [u32; 4] {
     fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
@@ -101,25 +118,20 @@ impl WritePyValue for [u32; 4] {
     }
 }
 
-// Generic [u8; N] - exposed to Python as a `bytes` object, accepting bytes
-// or any iterable of ints on write. Covers all generated tables/ structs
-// that use raw byte arrays for unmapped reader fields.
+// Generic [u8; N] — covers any const-size byte array used across tables/.
 impl<const N: usize> ToPyValue for [u8; N] {
     fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        use pyo3::types::PyBytes;
-        Ok(PyBytes::new(py, self).into_any().unbind())
+        Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
     }
 }
 
 impl<const N: usize> WritePyValue for [u8; N] {
     fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
-        let v: Vec<u8> = obj.extract()?;
-        if v.len() != N {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                format!("expected [u8; {}], got {} bytes", N, v.len())
-            ));
+        let list = obj.cast::<PyList>()?;
+        for item in list.iter() {
+            let v: u8 = item.extract()?;
+            w.push(v);
         }
-        w.extend_from_slice(&v);
         Ok(())
     }
 }

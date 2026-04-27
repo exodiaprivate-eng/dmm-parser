@@ -1,7 +1,44 @@
 use super::keys::*;
 use super::structs::*;
 use crate::binary::*;
+use crate::json_traits::ToJsonValue;
 use crate::py_binary_struct;
+use std::io;
+
+/// Parse the entire iteminfo binary into a `Vec<serde_json::Value>` of
+/// item dicts. Mirrors the Python `parse_iteminfo_from_bytes(data)` function
+/// but runs without a Python interpreter — used by Rust mod managers (DMM)
+/// for v3 mod application.
+///
+/// Each dict's shape matches `ItemInfo::to_json_dict()`. Field names match
+/// the v3 mod format spec verbatim.
+pub fn parse_iteminfo_to_json(data: &[u8]) -> io::Result<Vec<::serde_json::Value>> {
+    let mut items = Vec::new();
+    let mut offset = 0;
+    while offset < data.len() {
+        let item = ItemInfo::read_from(data, &mut offset)?;
+        items.push(item.to_json_value());
+    }
+    Ok(items)
+}
+
+/// Inverse of `parse_iteminfo_to_json`: write a sequence of item dicts back
+/// to bytes. Each value must be an object whose shape matches what
+/// `ItemInfo::to_json_dict()` produces.
+pub fn serialize_iteminfo_from_json(items: &[::serde_json::Value]) -> io::Result<Vec<u8>> {
+    let mut out = Vec::with_capacity(items.len() * 256);
+    for (i, v) in items.iter().enumerate() {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("item[{}]: expected object, got {:?}", i, v),
+        ))?;
+        ItemInfo::write_from_json_dict(&mut out, obj).map_err(|e| io::Error::new(
+            e.kind(),
+            format!("item[{}]: {}", i, e),
+        ))?;
+    }
+    Ok(out)
+}
 
 py_binary_struct! {
     pub struct ItemInfo<'a> {
