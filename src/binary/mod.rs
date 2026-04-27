@@ -2,6 +2,7 @@ mod primitives;
 mod types;
 mod arrays;
 pub(crate) mod trie;
+pub mod pabgh;
 pub mod papgt;
 pub mod pamt;
 pub mod paz;
