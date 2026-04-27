@@ -1,6 +1,6 @@
 [package]
 name = "dmm-parser"
-version = "1.3.3"
+version = "0.1.0"
 edition = "2024"
 authors = ["exodiaprivate-eng", "potter4208467 (Discord)"]
 description = "Pabgb parser for the DMM mod loader. Source-available, restricted to DMM-affiliated use."
