@@ -1,24 +1,42 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed parser.
 //!
-//! Reader: `sub_1410D6420` in CrimsonDesert.exe (Win build).
+//! Reader (Mac CrimsonDesert_Steam):
+//!   - Entry-level: `sub_10185B044` at 0x10185B044.
+//!   - `_boardDataGroupList` element reader: `sub_10185ADC4` at 0x10185ADC4
+//!     (Korean error strings inside name every BoardDataGroup field).
 //!
-//! Wire reads, in order (canonical names from Mac Korean error strings):
-//!   1. u32 key                              (_key)
-//!   2. CString string_key                   (_stringKey)
-//!   3. u8 is_blocked                        (_isBlocked)
-//!   4. CArray<BoardSubItem> board_data_list (_boardDataList,
-//!      sub_141118F10: each item is u32 raw + u32 lookup sub_1410FF5C0
-//!      + u32 lookup sub_1410FF430, total 12 wire bytes per element)
-//!   5. _boardDataGroupList (sub_141118D60 → struct +40, CArray of
-//!      72-byte items) ← TAIL STARTS HERE
+//! Wire layout (in order; canonical names from Mac Korean error strings):
+//!   BoardInfo (sub_10185B044):
+//!     1. u32 key
+//!     2. CString string_key
+//!     3. u8  is_blocked
+//!     4. CArray<BoardSubItem> board_data_list
+//!     5. CArray<BoardDataGroup> board_data_group_list
 //!
-//! Steps 1-4 are typed; step 5 lives in `tail_blob`.
-//! Inner BoardSubItem field names (`u32_a`, `lookup_b`, `lookup_c`)
-//! kept as placeholders — Mac error strings only leak the
-//! BoardInfo-level field names, not the sub-struct semantics.
+//!   BoardSubItem (sub_141118F10 / Mac equiv) — element of board_data_list:
+//!     - u32 u32_a (raw)
+//!     - u32 lookup_b (sub_1410FF5C0 lookup hash)
+//!     - u32 lookup_c (sub_1410FF430 lookup hash)
+//!     Total 12 wire bytes.
+//!
+//!   BoardDataGroup (sub_10185ADC4) — element of board_data_group_list:
+//!     1. [u8;8] spawn_percent      (sub_1006B3DA0 = vtable[2] width 8;
+//!        kept opaque so f64/u64 NaN canonicalization can't break the
+//!        byte-perfect round-trip)
+//!     2. u32 total_rate            (sub_1006B3D80 = u32 reader)
+//!     3. u8  category              (vtable[2] width 1)
+//!     4. LocalizableString name    (sub_1006D8484, struct stride 32)
+//!     5. u32 condition             (ConditionKey hash; runtime looks up
+//!        to u16 at struct +48 via StaticInfoWrapper<ConditionKey,
+//!        ConditionInfo, ConditionInfoManager, unsigned short>)
+//!     6. u32 player_condition      (same ConditionKey lookup pattern at
+//!        struct +50)
+//!     7. CArray<BoardSubItem> board_data_list (same shape as outer)
+//!     C++ struct slot stride is 72 bytes (with 3+4 bytes of memory
+//!     padding around `_category` and the `_condition`/`_playerCondition`
+//!     u16 lookup results) — wire is tightly packed.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -29,14 +47,26 @@ py_binary_struct! {
     }
 }
 
-pabgh_typed_blob_table! {
+py_binary_struct! {
+    pub struct BoardDataGroup<'a> {
+        pub spawn_percent: [u8; 8],
+        pub total_rate: u32,
+        pub category: u8,
+        pub name: LocalizableString<'a>,
+        pub condition: u32,
+        pub player_condition: u32,
+        pub board_data_list: CArray<BoardSubItem>,
+    }
+}
+
+py_binary_struct! {
     pub struct BoardInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub board_data_list: CArray<BoardSubItem>,
+        pub board_data_group_list: CArray<BoardDataGroup<'a>>,
     }
-    tail: tail_blob;
 }
 
 #[cfg(test)]
@@ -54,11 +84,10 @@ mod tests {
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            items.push(
-                BoardInfo::read_with_size(&data, &mut c, e - s)
-                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
-            );
-            assert_eq!(c, *e);
+            let item = BoardInfo::read_from(&data, &mut c)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            assert_eq!(c, *e, "entry {} k=0x{:x} consumed {} of {} bytes", i, k, c - s, e - s);
+            items.push(item);
         }
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
