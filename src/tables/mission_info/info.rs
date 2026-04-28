@@ -2,24 +2,23 @@
 //!
 //! Reader: `sub_1410ED0E0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 lookup_20 (sub_141102CB0 → qword_145F0EF20)
-//!   5. sub_1411049D0 → struct +24 (unknown 16-byte slot helper)
-//!      ← TAIL STARTS HERE
-//!   6. (After tail) sub_1411068C0, inline CArray<sub_1410ED7D0
-//!      16-byte items>, sub_1410FF890, 2× sub_1411069E0,
-//!      sub_141106AE0, sub_141100510, sub_14110DE30, u16, sub_1410EC8B0
-//!      (80-byte!), 4× LocalizableString, sub_141102D90, sub_14110DCE0,
-//!      sub_14110DB10, sub_1410FF430, 2× u16, u32, 14× u8,
-//!      sub_141BD4120 (4-byte). 50+ wire reads in body.
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                          (_key)
+//!   2. CString string_key               (_stringKey)
+//!   3. u8 is_blocked                    (_isBlocked)
+//!   4. u32 parent_quest                 (_parentQuest, sub_141102CB0
+//!      → qword_145F0EF20 lookup)
+//!   5. _subMissionList (sub_1411049D0 → struct +24, unknown 16-byte
+//!      slot helper) ← TAIL STARTS HERE
+//!   6. (body) _executeStageList, _branchMissionList, _startPlayerList,
+//!      _fieldReviveList, _giveUpFieldReviveList, _triggerVolumeData,
+//!      _rewardList, _resultDataList, _rewardInventoryKey, _uiDesc, …
+//!      50+ wire reads in body.
 //!
 //! Steps 1-4 are typed. The mission body has many helpers; reopens
 //! cleanly when each is decoded.
 //!
-//! New helper: `sub_141102CB0` = u32 lookup at qword_145F0EF20.
+//! Helper: `sub_141102CB0` = u32 lookup at qword_145F0EF20.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -29,7 +28,7 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_20: u32,
+        pub parent_quest: u32,
     }
     tail: tail_blob;
 }

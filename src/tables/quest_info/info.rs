@@ -2,24 +2,19 @@
 //!
 //! Reader: `sub_1410F4620` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u8 byte_17
-//!   5. u8 byte_18
-//!   6. LocalizableString name
-//!   7. LocalizableString desc
-//!   8. sub_141106F50 (thunk → sub_14B99E300, deep) → struct +88
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                          (_key)
+//!   2. CString string_key               (_stringKey)
+//!   3. u8 is_blocked                    (_isBlocked)
+//!   4. u8 quest_type                    (_questType)
+//!   5. u8 quest_category                (_questCategory)
+//!   6. LocalizableString name           (_name)
+//!   7. LocalizableString desc           (_desc)
+//!   8. _questGroupInfo (sub_141106F50 thunk → sub_14B99E300, deep)
 //!      ← TAIL STARTS HERE
-//!
-//! Steps 1-7 are typed (7 fields). Tail captures sub_141106F50 onward
-//! with many more body fields (sub_141100860, sub_1410DDBC0,
-//! sub_141D8EF30, sub_1410FF890, sub_141107270, sub_141102EF0, inline
-//! CArray<u16> at qword_145F12678, sub_1411049D0, sub_141101610,
-//! sub_141102D90, 2× sub_141102D20, 3× read_u32_lookup_DA30, 2× u32,
-//! CString, sub_141102D20, sub_1410A9D40, CString, sub_14110AD30,
-//! sub_1411049D0, sub_1410FF430, 3× u8, u32).
+//!   9. (body) _factionInfo, _factionStateData, _branchData,
+//!      _startPlayerList, _branchDataList, _executorQuestList,
+//!      _gaugeList, …
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -29,8 +24,8 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub byte_17: u8,
-        pub byte_18: u8,
+        pub quest_type: u8,
+        pub quest_category: u8,
         pub name: LocalizableString<'a>,
         pub desc: LocalizableString<'a>,
     }
