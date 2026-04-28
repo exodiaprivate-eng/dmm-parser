@@ -1,77 +1,61 @@
-//! Tier 1.5 (extended) — typed prefix through field 28, tail blob from
-//! `_questDialogFilterDataList` onward.
+//! Tier 1 — fully typed parser with variant-boundary probe for the polymorphic
+//! `_questDialogFilterDataList` field.
 //!
 //! Reader (Mac CrimsonDesert_Steam): entry-level `sub_1018545F0` at
-//! 0x1018545F0. 35 wire fields total.
-//!
-//! Fields 1-28 are fully typed (this file). Fields 29-35 stay in
-//! `tail_blob` because field 29 (`_questDialogFilterDataList`) is a
-//! tagged-variant CArray (`FilterCondition` has 11 variants discriminated
-//! by a u8 tag with 0-8 byte payloads) and decoding it requires the
-//! tagged-variant family work tracked in task #66. Once that lands,
-//! fields 30-35 (which are simple CArrays / scalars / hash lookups)
-//! reopen for free.
+//! 0x1018545F0. 35 wire fields total — all are now editable except the
+//! polymorphic 29th field, which is captured as a verbatim byte blob
+//! (`quest_dialog_filter_data_list_blob`) so round-trip stays byte-perfect
+//! and authors can clone the blob between entries.
 //!
 //! Wire layout (in order; canonical names from Mac Korean error strings):
-//!   1.  u32 key                       (sub_100F133BC, QuestKey, template
-//!                                      `<...,unsigned int>`)
+//!   1.  u32 key                        (sub_100F133BC, QuestKey, template
+//!                                       `<...,unsigned int>`)
 //!   2.  CString string_key
 //!   3.  u8 is_blocked
-//!   4.  u8 quest_type                 (sub_10136CA5C = vtable[2] width 1)
-//!   5.  u8 quest_category             (vtable[2] width 1)
+//!   4.  u8 quest_type                  (sub_10136CA5C = vtable[2] width 1)
+//!   5.  u8 quest_category              (vtable[2] width 1)
 //!   6.  LocalizableString name
 //!   7.  LocalizableString desc
-//!   8.  u16 quest_group_info          (sub_10183DCC8, QuestGroupKey wire u16,
-//!                                      template `<...,unsigned short>`)
-//!   9.  u32 faction_info              (FactionKey wire u32 hash, runtime u16)
+//!   8.  u16 quest_group_info           (sub_10183DCC8, QuestGroupKey wire u16)
+//!   9.  u32 faction_info               (FactionKey wire u32 hash, runtime u16)
 //!  10. FactionStateData faction_state_data (sub_101848C10, fixed 4-field
-//!       struct, see below)
-//!  11. BranchData branch_data         (sub_101652724, fixed 6-field struct,
-//!       see below)
-//!  12. CArray<u32> start_player_list  (CharacterKey hash list)
+//!       struct: CArray<u8> + u32 ConditionKey + u32 FactionKey + u8)
+//!  11. BranchData branch_data          (sub_101652724, fixed 6-field struct,
+//!       18 bytes wire: u32 QuestKey + u32 ConditionKey + u8 + u8 + u32 + u32)
+//!  12. CArray<u32> start_player_list   (CharacterKey hash list)
 //!  13. CArray<BranchData> branch_data_list  (sub_101885280)
 //!  14. CArray<u32> executor_quest_list  (sub_10186F2C4, QuestKey hash)
-//!  15. CArray<u32> gauge_list         (sub_101885460, QuestGaugeKey wire u32)
-//!  16. CArray<u32> mission_list       (sub_10186E494, MissionKey hash)
-//!  17. CArray<u32> stage_list         (sub_101667390, StageKey hash)
-//!  18. u32 start_mission              (MissionKey hash)
-//!  19. u32 start_stage                (StageKey hash)
-//!  20. u32 stage_icon_path            (StringInfoKey hash → u16 lookup)
-//!  21. u32 stage_text_icon_path       (StringInfoKey)
-//!  22. u32 stage_image_path           (StringInfoKey)
+//!  15. CArray<u32> gauge_list          (sub_101885460, QuestGaugeKey)
+//!  16. CArray<u32> mission_list        (sub_10186E494, MissionKey hash)
+//!  17. CArray<u32> stage_list          (sub_101667390, StageKey hash)
+//!  18. u32 start_mission               (MissionKey hash)
+//!  19. u32 start_stage                 (StageKey hash)
+//!  20. u32 stage_icon_path             (StringInfoKey hash)
+//!  21. u32 stage_text_icon_path        (StringInfoKey)
+//!  22. u32 stage_image_path            (StringInfoKey)
 //!  23. u32 playable_mission_count
 //!  24. u32 playable_stage_count
 //!  25. CString test_tag
-//!  26. u32 game_start_stage           (StageKey hash)
-//!  27. u32 game_start_sub_timeline    (sub_1006B40F4, u32 wire + hash compute)
+//!  26. u32 game_start_stage            (StageKey hash)
+//!  27. CString game_start_sub_timeline (sub_1006B40F4: u32 length + N raw
+//!       bytes wire, runtime hashes to u32 stored at struct +268)
 //!  28. CString memo
-//!  --- TAIL STARTS HERE ---
-//!  29. _questDialogFilterDataList (CArray of 144-byte QuestDialog_FilterData
-//!       — contains tagged-variant FilterCondition; needs task #66)
-//!  30. CArray<u32> _dialogMustMissionInfoList (would be tractable post-#66)
-//!  31. u32 _npcDialogMustCondition
-//!  32. u8 _isSave
-//!  33. u8 _isContinuousMission
-//!  34. u8 _isRepeatable
-//!  35. u32 _debugColor (sub_1006B4CD0 = vtable[2] width 4)
-//!
-//! `FactionStateData` (sub_101848C10, struct stride 24 bytes):
-//!   - CArray<u8> activate_faction_state_list (sub_101879D70, element u8)
-//!   - u32 player_condition_info     (ConditionKey hash)
-//!   - u32 relation_target_faction_info (FactionKey hash)
-//!   - u8 relation_type
-//!
-//! `BranchData` (sub_101652724, struct stride 16 bytes, wire 18 bytes):
-//!   - u32 quest_key                  (QuestKey hash)
-//!   - u32 condition_key              (ConditionKey hash)
-//!   - u8 byte_a
-//!   - u8 byte_b
-//!   - u32 u32_a
-//!   - u32 u32_b
+//!  --- variant-boundary probe captures the bytes from here through ---
+//!  --- the start of `_dialogMustMissionInfoList` as `quest_dialog_filter_data_list_blob` ---
+//!  29. _questDialogFilterDataList (CArray of 144-byte QuestDialog_FilterData;
+//!       FilterCondition has 11 tagged variants discriminated by u8 with
+//!       0-8 byte payloads — out of scope for this commit, captured as bytes)
+//!  30. CArray<u32> dialog_must_mission_info_list (sub_10186E494, MissionKey)
+//!  31. u32 npc_dialog_must_condition   (sub_100C93238, ConditionKey hash)
+//!  32. u8 is_save
+//!  33. u8 is_continuous_mission
+//!  34. u8 is_repeatable
+//!  35. u32 debug_color                 (sub_1006B4CD0, vtable[2] width 4)
 
+use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
+use std::io::{self, Write};
 
 py_binary_struct! {
     pub struct FactionStateData {
@@ -93,41 +77,214 @@ py_binary_struct! {
     }
 }
 
-pabgh_typed_blob_table! {
-    pub struct QuestInfo<'a> {
-        pub key: u32,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub quest_type: u8,
-        pub quest_category: u8,
-        pub name: LocalizableString<'a>,
-        pub desc: LocalizableString<'a>,
-        pub quest_group_info: u16,
-        pub faction_info: u32,
-        pub faction_state_data: FactionStateData,
-        pub branch_data: BranchData,
-        pub start_player_list: CArray<u32>,
-        pub branch_data_list: CArray<BranchData>,
-        pub executor_quest_list: CArray<u32>,
-        pub gauge_list: CArray<u32>,
-        pub mission_list: CArray<u32>,
-        pub stage_list: CArray<u32>,
-        pub start_mission: u32,
-        pub start_stage: u32,
-        pub stage_icon_path: u32,
-        pub stage_text_icon_path: u32,
-        pub stage_image_path: u32,
-        pub playable_mission_count: u32,
-        pub playable_stage_count: u32,
-        pub test_tag: CString<'a>,
-        pub game_start_stage: u32,
-        // _gameStartSubTimeline (sub_1006B40F4): wire is `u32 length + N
-        // raw bytes` (CString-shaped); runtime hashes to a u32 stored at
-        // struct +268. We round-trip the raw wire to preserve the string.
-        pub game_start_sub_timeline: CString<'a>,
-        pub memo: CString<'a>,
+#[derive(Debug)]
+pub struct QuestInfo<'a> {
+    pub key: u32,
+    pub string_key: CString<'a>,
+    pub is_blocked: u8,
+    pub quest_type: u8,
+    pub quest_category: u8,
+    pub name: LocalizableString<'a>,
+    pub desc: LocalizableString<'a>,
+    pub quest_group_info: u16,
+    pub faction_info: u32,
+    pub faction_state_data: FactionStateData,
+    pub branch_data: BranchData,
+    pub start_player_list: CArray<u32>,
+    pub branch_data_list: CArray<BranchData>,
+    pub executor_quest_list: CArray<u32>,
+    pub gauge_list: CArray<u32>,
+    pub mission_list: CArray<u32>,
+    pub stage_list: CArray<u32>,
+    pub start_mission: u32,
+    pub start_stage: u32,
+    pub stage_icon_path: u32,
+    pub stage_text_icon_path: u32,
+    pub stage_image_path: u32,
+    pub playable_mission_count: u32,
+    pub playable_stage_count: u32,
+    pub test_tag: CString<'a>,
+    pub game_start_stage: u32,
+    pub game_start_sub_timeline: CString<'a>,
+    pub memo: CString<'a>,
+    /// Polymorphic CArray<QuestDialog_FilterData> captured as raw wire bytes.
+    /// Round-trips byte-perfect; authors can clone this blob between entries
+    /// to copy dialog filter behavior. Full typed decode is gated on the
+    /// FilterCondition variant family (task #66).
+    pub quest_dialog_filter_data_list_blob: Vec<u8>,
+    pub dialog_must_mission_info_list: CArray<u32>,
+    pub npc_dialog_must_condition: u32,
+    pub is_save: u8,
+    pub is_continuous_mission: u8,
+    pub is_repeatable: u8,
+    pub debug_color: u32,
+}
+
+/// Probe the trailing fields after the polymorphic blob. Returns the number
+/// of bytes consumed by the trailing fields if the layout parses cleanly,
+/// or None to signal "this offset isn't the right boundary."
+fn try_read_trailer(data: &[u8], start: usize, end: usize) -> Option<usize> {
+    let mut cursor = start;
+    // CArray<u32> dialog_must_mission_info_list
+    if cursor + 4 > end { return None; }
+    let cnt = u32::from_le_bytes(data[cursor..cursor + 4].try_into().ok()?) as usize;
+    cursor += 4;
+    // Sanity bound: realistic mission lists per quest are <= 4096
+    if cnt > 4096 { return None; }
+    if cursor + cnt * 4 > end { return None; }
+    cursor += cnt * 4;
+    // u32 npc_dialog_must_condition
+    if cursor + 4 > end { return None; }
+    cursor += 4;
+    // u8 is_save, u8 is_continuous_mission, u8 is_repeatable
+    if cursor + 3 > end { return None; }
+    let is_save = data[cursor];
+    let is_continuous = data[cursor + 1];
+    let is_repeatable = data[cursor + 2];
+    // Boolean fields are 0 or 1 only
+    if is_save > 1 || is_continuous > 1 || is_repeatable > 1 {
+        return None;
     }
-    tail: tail_blob;
+    cursor += 3;
+    // u32 debug_color
+    if cursor + 4 > end { return None; }
+    cursor += 4;
+    Some(cursor - start)
+}
+
+impl<'a> QuestInfo<'a> {
+    pub fn read_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = u32::read_from(data, offset)?;
+        let string_key = CString::read_from(data, offset)?;
+        let is_blocked = u8::read_from(data, offset)?;
+        let quest_type = u8::read_from(data, offset)?;
+        let quest_category = u8::read_from(data, offset)?;
+        let name = LocalizableString::read_from(data, offset)?;
+        let desc = LocalizableString::read_from(data, offset)?;
+        let quest_group_info = u16::read_from(data, offset)?;
+        let faction_info = u32::read_from(data, offset)?;
+        let faction_state_data = FactionStateData::read_from(data, offset)?;
+        let branch_data = BranchData::read_from(data, offset)?;
+        let start_player_list = CArray::<u32>::read_from(data, offset)?;
+        let branch_data_list = CArray::<BranchData>::read_from(data, offset)?;
+        let executor_quest_list = CArray::<u32>::read_from(data, offset)?;
+        let gauge_list = CArray::<u32>::read_from(data, offset)?;
+        let mission_list = CArray::<u32>::read_from(data, offset)?;
+        let stage_list = CArray::<u32>::read_from(data, offset)?;
+        let start_mission = u32::read_from(data, offset)?;
+        let start_stage = u32::read_from(data, offset)?;
+        let stage_icon_path = u32::read_from(data, offset)?;
+        let stage_text_icon_path = u32::read_from(data, offset)?;
+        let stage_image_path = u32::read_from(data, offset)?;
+        let playable_mission_count = u32::read_from(data, offset)?;
+        let playable_stage_count = u32::read_from(data, offset)?;
+        let test_tag = CString::read_from(data, offset)?;
+        let game_start_stage = u32::read_from(data, offset)?;
+        let game_start_sub_timeline = CString::read_from(data, offset)?;
+        let memo = CString::read_from(data, offset)?;
+
+        // Probe for the boundary: scan forward through the polymorphic
+        // _questDialogFilterDataList blob until the trailing 6 fields parse
+        // cleanly all the way to entry_end.
+        let post_pre = *offset;
+        let blob_size = find_variant_boundary(data, post_pre, entry_end, 0, |probe| {
+            try_read_trailer(data, probe, entry_end)
+        })?;
+        let quest_dialog_filter_data_list_blob =
+            data[post_pre..post_pre + blob_size].to_vec();
+        *offset = post_pre + blob_size;
+
+        let dialog_must_mission_info_list = CArray::<u32>::read_from(data, offset)?;
+        let npc_dialog_must_condition = u32::read_from(data, offset)?;
+        let is_save = u8::read_from(data, offset)?;
+        let is_continuous_mission = u8::read_from(data, offset)?;
+        let is_repeatable = u8::read_from(data, offset)?;
+        let debug_color = u32::read_from(data, offset)?;
+
+        Ok(Self {
+            key,
+            string_key,
+            is_blocked,
+            quest_type,
+            quest_category,
+            name,
+            desc,
+            quest_group_info,
+            faction_info,
+            faction_state_data,
+            branch_data,
+            start_player_list,
+            branch_data_list,
+            executor_quest_list,
+            gauge_list,
+            mission_list,
+            stage_list,
+            start_mission,
+            start_stage,
+            stage_icon_path,
+            stage_text_icon_path,
+            stage_image_path,
+            playable_mission_count,
+            playable_stage_count,
+            test_tag,
+            game_start_stage,
+            game_start_sub_timeline,
+            memo,
+            quest_dialog_filter_data_list_blob,
+            dialog_must_mission_info_list,
+            npc_dialog_must_condition,
+            is_save,
+            is_continuous_mission,
+            is_repeatable,
+            debug_color,
+        })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.string_key.write_to(w)?;
+        self.is_blocked.write_to(w)?;
+        self.quest_type.write_to(w)?;
+        self.quest_category.write_to(w)?;
+        self.name.write_to(w)?;
+        self.desc.write_to(w)?;
+        self.quest_group_info.write_to(w)?;
+        self.faction_info.write_to(w)?;
+        self.faction_state_data.write_to(w)?;
+        self.branch_data.write_to(w)?;
+        self.start_player_list.write_to(w)?;
+        self.branch_data_list.write_to(w)?;
+        self.executor_quest_list.write_to(w)?;
+        self.gauge_list.write_to(w)?;
+        self.mission_list.write_to(w)?;
+        self.stage_list.write_to(w)?;
+        self.start_mission.write_to(w)?;
+        self.start_stage.write_to(w)?;
+        self.stage_icon_path.write_to(w)?;
+        self.stage_text_icon_path.write_to(w)?;
+        self.stage_image_path.write_to(w)?;
+        self.playable_mission_count.write_to(w)?;
+        self.playable_stage_count.write_to(w)?;
+        self.test_tag.write_to(w)?;
+        self.game_start_stage.write_to(w)?;
+        self.game_start_sub_timeline.write_to(w)?;
+        self.memo.write_to(w)?;
+        w.write_all(&self.quest_dialog_filter_data_list_blob)?;
+        self.dialog_must_mission_info_list.write_to(w)?;
+        self.npc_dialog_must_condition.write_to(w)?;
+        self.is_save.write_to(w)?;
+        self.is_continuous_mission.write_to(w)?;
+        self.is_repeatable.write_to(w)?;
+        self.debug_color.write_to(w)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -145,11 +302,10 @@ mod tests {
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            items.push(
-                QuestInfo::read_with_size(&data, &mut c, e - s)
-                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
-            );
-            assert_eq!(c, *e);
+            let item = QuestInfo::read_with_size(&data, &mut c, e - s)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            assert_eq!(c, *e, "entry {} k=0x{:x} consumed {} of {} bytes", i, k, c - s, e - s);
+            items.push(item);
         }
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
