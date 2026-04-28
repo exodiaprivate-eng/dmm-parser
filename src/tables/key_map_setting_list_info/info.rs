@@ -1,29 +1,38 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed parser.
 //!
-//! Reader (Mac CrimsonDesert_Steam): `sub_101851F00` at 0x101851F00
-//! (size 0xdc, tiny). Pabgb dump path is `keymap.pabgb` (822 B).
+//! Reader (Mac CrimsonDesert_Steam): `sub_101851F00`. KeySetting
+//! element reader: `sub_101881CD4` (each element is a 3-field struct).
 //!
-//! Wire reads, in order:
-//!   1. u32 key                  (sub_100F1AC74, width 4)
-//!   2. CString string_key       (sub_1006B3F50, struct +8)
-//!   3. u8 is_blocked            (sub_1006B3CC0, struct +16)
-//!      ← TAIL STARTS HERE
-//!   4. (tail) _keyMapSettingList (sub_101881CD4, struct +24, unknown
-//!      CArray-like helper)
+//! Wire layout:
+//!   1. u32 key
+//!   2. CString string_key
+//!   3. u8 is_blocked
+//!   4. CArray<KeySetting> key_map_setting_list
 //!
-//! Stop at field 3 because the tail helper is unknown (likely
-//! CArray<KeyMapSetting> with polymorphic or composite element type).
+//! KeySetting element (40-byte struct, variable wire size):
+//!   - CString setting_name        (_settingName)
+//!   - CArray<CString> keyboard_map_list (_keyboardMapList,
+//!     sub_100667710 = CArray<CString>)
+//!   - CArray<CString> gamepad_map_list  (_gamePadMapList, same helper)
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
 
-pabgh_typed_blob_table! {
+py_binary_struct! {
+    pub struct KeySetting<'a> {
+        pub setting_name: CString<'a>,
+        pub keyboard_map_list: CArray<CString<'a>>,
+        pub gamepad_map_list: CArray<CString<'a>>,
+    }
+}
+
+py_binary_struct! {
     pub struct KeyMapSettingListInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
+        pub key_map_setting_list: CArray<KeySetting<'a>>,
     }
-    tail: tail_blob;
 }
 
 #[cfg(test)]
@@ -40,14 +49,13 @@ mod tests {
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            items.push(
-                KeyMapSettingListInfo::read_with_size(&data, &mut c, e - s)
-                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
-            );
-            assert_eq!(c, *e);
+            let item = KeyMapSettingListInfo::read_from(&data, &mut c)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            assert_eq!(c, *e, "entry {} k=0x{:x} consumed {} of {} bytes", i, k, c - s, e - s);
+            items.push(item);
         }
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
-        assert_eq!(out, data, "keymapsettinglistinfo (keymap.pabgb) roundtrip mismatch");
+        assert_eq!(out, data, "keymap roundtrip mismatch");
     }
 }
