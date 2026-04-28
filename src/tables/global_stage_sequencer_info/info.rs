@@ -1,19 +1,21 @@
 //! Tier 1.5 — typed prefix + tail blob.
 //!
 //! Reader: `sub_1410E8BF0` in CrimsonDesert.exe (Win build).
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. CString chart_name (a second CString — game uses it as the
-//!      sequencer's chart asset path)
-//!   5. u32 lookup_a (sub_141104340 → qword_145F0E9B8 dict, stored as u32)
-//!   6. COptional<SequencerStageChartDesc> (sub_141110D30 → uses
-//!      sub_141D8C6D0 polymorphic dispatcher) ← TAIL STARTS HERE
-//!   7. COptional<...> (sub_1411057F0)
-//!   8. u8, u8, u32, u32, u32 (cooldown / interval scalars)
-//!   9. u16 lookup (sub_1410FF430 → qword_145F0E9C0)
-//!  10. CArray<SequencerStageChartDesc> (sub_141110B70 → polymorphic)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                           (_key)
+//!   2. CString string_key                (_stringKey)
+//!   3. u8 is_blocked                     (_isBlocked)
+//!   4. CString group_name                (_groupName — sequencer's
+//!      group/chart name)
+//!   5. u32 group_leader_info             (_groupLeaderInfo,
+//!      sub_141104340 → qword_145F0E9B8 dict)
+//!   6. COptional<SequencerStageChartDesc> (_loadingTargetInfo,
+//!      sub_141110D30 → sub_141D8C6D0 polymorphic dispatcher)
+//!      ← TAIL STARTS HERE
+//!   7. (body) _gameEventExecuteData, _useReserve, _ignorePlayerState,
+//!      _playerBehaviorSpaceRadius, _playerBehaviorFloorCheckDistance,
+//!      _playerBehaviorSpaceCheckOffsetY, _playerBehaviorPlayCondition,
+//!      _sequencerDescList (CArray<SequencerStageChartDesc> polymorphic)
 //!
 //! Steps 1-5 are typed; everything from step 6 lives in `tail_blob`. The
 //! polymorphic descriptors and cooldown scalars stay opaque until task
@@ -28,8 +30,8 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub chart_name: CString<'a>,
-        pub lookup_a: u32,
+        pub group_name: CString<'a>,
+        pub group_leader_info: u32,
     }
     tail: tail_blob;
 }

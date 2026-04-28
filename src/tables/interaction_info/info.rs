@@ -2,19 +2,21 @@
 //!
 //! Reader: `sub_1410DFBA0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u8 byte_17
-//!   5. u8 byte_18
-//!   6. u8 byte_19
-//!   7. LocalizableString name
-//!   8. u8 u8_56
-//!   9. sub_141E2BEB0 → struct +64 (CArray of 168-byte composite
-//!      items with 30+ helpers, way over budget) ← TAIL STARTS HERE
-//!  10. sub_141114DD0 (CArray with conditional alloc + nested helper)
-//!  11. ... (many more body fields including sub_141D8C6D0 polymorphic
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                            (_key)
+//!   2. CString string_key                 (_stringKey)
+//!   3. u8 is_blocked                      (_isBlocked)
+//!   4. u8 interaction_type                (_interactionType)
+//!   5. u8 interaction_show_ui_type        (_interactionShowUIType)
+//!   6. u8 preemption_type                 (_preemptionType)
+//!   7. LocalizableString interaction_name (_interactionName)
+//!   8. u8 pivot_selection_target          (_pivotSelectionTarget)
+//!   9. sub_141E2BEB0 → struct +64 (_interactionPivotList: CArray of
+//!      168-byte composite items with 30+ helpers, way over budget)
+//!      ← TAIL STARTS HERE
+//!  10. (body) _interactionConditionDataList, _autoInteractionType,
+//!      _categoryInfo, _inputKeyMapName, _buttonClickType,
+//!      _keyboardClickType, … (sub_141D8C6D0 polymorphic
 //!      GameCondition tree at struct +112)
 //!
 //! Steps 1-8 are typed. Step 9 onward is tail. The InteractionInfo
@@ -29,11 +31,11 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub byte_17: u8,
-        pub byte_18: u8,
-        pub byte_19: u8,
-        pub name: LocalizableString<'a>,
-        pub u8_56: u8,
+        pub interaction_type: u8,
+        pub interaction_show_ui_type: u8,
+        pub preemption_type: u8,
+        pub interaction_name: LocalizableString<'a>,
+        pub pivot_selection_target: u8,
     }
     tail: tail_blob;
 }

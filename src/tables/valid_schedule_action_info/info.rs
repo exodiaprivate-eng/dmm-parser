@@ -2,19 +2,17 @@
 //!
 //! Reader: `sub_1410FB840` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key (via sub_141BF6600 wrapper)
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. CArray<u32> ref_list_a (sub_141101AB0: u32 count + N×u32)
-//!   5. u8 byte_40
-//!   6. CArray<CString> string_list (sub_14106BAC0: u32 count + N×CString)
-//!   7. sub_1410FB680 (composite: 2× CArray<CString>, sub_1410FF9A0,
-//!      sub_1410FFD30, sub_141102570, sub_1410FFC20, [u8;16],
-//!      sub_141108AE0 — 4 unknown helpers exceed budget) ← TAIL STARTS HERE
-//!
-//! Steps 1-6 are typed; everything from step 7 lives in `tail_blob`.
-//! Reopens cleanly when the unknown helper family is decoded.
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                              (_key, sub_141BF6600 wrapper)
+//!   2. CString string_key                   (_stringKey)
+//!   3. u8 is_blocked                        (_isBlocked)
+//!   4. CArray<u32> action_name_hash_list    (_actionNameHashList,
+//!      sub_141101AB0: u32 count + N×u32)
+//!   5. u8 type_                             (_type — `type` is reserved
+//!      in Rust, suffixed with underscore)
+//!   6. CArray<CString> keyword_lower_string_list (_keywordLowerStringList,
+//!      sub_14106BAC0)
+//!   7. _convertingData (sub_1410FB680 composite) ← TAIL STARTS HERE
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -24,9 +22,9 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub ref_list_a: CArray<u32>,
-        pub byte_40: u8,
-        pub string_list: CArray<CString<'a>>,
+        pub action_name_hash_list: CArray<u32>,
+        pub type_: u8,
+        pub keyword_lower_string_list: CArray<CString<'a>>,
     }
     tail: tail_blob;
 }
