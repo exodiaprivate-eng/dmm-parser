@@ -2,23 +2,23 @@
 //!
 //! Reader: `sub_1410EDA00` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u16 lookup_26 (sub_141105A10 → qword_145F15028)
-//!   5. u8 byte_28
-//!   6. sub_141114A80 → struct +32 (unknown helper)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                  (_key)
+//!   2. CString string_key       (_stringKey)
+//!   3. u8 is_blocked            (_isBlocked)
+//!   4. u16 craft_tool_info      (_craftToolInfo, sub_141105A10 →
+//!      qword_145F15028 lookup)
+//!   5. u8 item_consume_type     (_itemConsumeType)
 //!      ← TAIL STARTS HERE
-//!   7. (After tail) sub_1411006D0, sub_1410A9D40, 6× u8,
-//!      sub_141103420, sub_14110D970, read_u32_lookup_DA10,
-//!      sub_14106BAC0 (CArray<CString>), 2× LocalizableString,
-//!      3× sub_1410FF050, LocalizableString, 2× sub_141100510.
+//!   6. _conditionList, _needKnowledgeInfo, _craftTagName,
+//!      _isFromItemInfo, _isResultItemForWarehouse, _isWithSealedItem,
+//!      _isApplyEnchantLevel, _isMaterialItemOnlySameItemNo,
+//!      _isAllowMaterialItemSelfSame, _fixedMaterialDataList, …
 //!
 //! Steps 1-5 are typed. The body has many more fields with unknown
 //! helpers; reopens cleanly when decoded.
 //!
-//! New helper: `sub_141105A10` = u16 lookup at qword_145F15028.
+//! Helper: `sub_141105A10` = u16 lookup at qword_145F15028.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -28,8 +28,8 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_26: u16,
-        pub byte_28: u8,
+        pub craft_tool_info: u16,
+        pub item_consume_type: u8,
     }
     tail: tail_blob;
 }
