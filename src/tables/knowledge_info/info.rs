@@ -2,29 +2,32 @@
 //!
 //! Reader: `sub_1410E36C0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 lookup_18 (read_u32_lookup_DA30)
-//!   5. u8 byte_20
-//!   6. u8 byte_21
-//!   7. u32 lookup_22 (sub_141100860 → qword_145F0DA48)
-//!   8. u32 lookup_24 (sub_141101D50 → qword_145F0EEE8)
-//!   9. u32 lookup_26 (sub_1410FEBE0 → qword_145F0DA68)
-//!  10. CArray<u32> list_32 (sub_1410FF890 → qword_145F0DA08)
-//!  11. CArray<u32> list_48 (sub_141104540 → qword_145F0DA38)
-//!  12. CArray<u16> list_64 (sub_1410FFAC0 → qword_145F0DA80)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                       (_key)
+//!   2. CString string_key            (_stringKey)
+//!   3. u8 is_blocked                 (_isBlocked)
+//!   4. u32 ui_texture_name           (_uiTextureName, read_u32_lookup_DA30)
+//!   5. u8 is_default                 (_isDefault)
+//!   6. u8 expand_mercenary_type      (_expandMercenaryType)
+//!   7. u32 faction_info              (_factionInfo, sub_141100860 →
+//!      qword_145F0DA48)
+//!   8. u32 faction_node_info         (_factionNodeInfo, sub_141101D50
+//!      → qword_145F0EEE8)
+//!   9. u32 skill_info                (_skillInfo, sub_1410FEBE0 →
+//!      qword_145F0DA68)
+//!  10. CArray<u32> character_info_list (_characterInfoList,
+//!      sub_1410FF890 → qword_145F0DA08)
+//!  11. CArray<u32> gimmick_info_list   (_gimmickInfoList,
+//!      sub_141104540 → qword_145F0DA38)
+//!  12. CArray<u16> region_info_list    (_regionInfoList,
+//!      sub_1410FFAC0 → qword_145F0DA80)
 //!  13. sub_141101610 → struct +80 (unknown helper) ← TAIL STARTS HERE
-//!  14. (After tail) 3× u8, read_u32_lookup_DA30, inline CArray of
-//!      9-byte items, sub_141104650, sub_141113F00, sub_141104760,
-//!      sub_1411006D0, sub_141104760, sub_141113D80, sub_1410FF5C0,
-//!      u8, [u8;12], sub_141102D20, sub_1410FEBE0.
+//!  14. (body) _stageInfoList, _isShowUI, _isShowUIAlert, …
 //!
 //! Steps 1-12 are typed. The knowledge body has many more fields
 //! interleaved with unknowns; reopens cleanly.
 //!
-//! New helpers: `sub_141100860` = u32 lookup at qword_145F0DA48;
+//! Helpers: `sub_141100860` = u32 lookup at qword_145F0DA48;
 //! `sub_1410FF890` = CArray<u32> at qword_145F0DA08;
 //! `sub_141104540` = CArray<u32> at qword_145F0DA38.
 
@@ -36,15 +39,15 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_18: u32,
-        pub byte_20: u8,
-        pub byte_21: u8,
-        pub lookup_22: u32,
-        pub lookup_24: u32,
-        pub lookup_26: u32,
-        pub list_32: CArray<u32>,
-        pub list_48: CArray<u32>,
-        pub list_64: CArray<u16>,
+        pub ui_texture_name: u32,
+        pub is_default: u8,
+        pub expand_mercenary_type: u8,
+        pub faction_info: u32,
+        pub faction_node_info: u32,
+        pub skill_info: u32,
+        pub character_info_list: CArray<u32>,
+        pub gimmick_info_list: CArray<u32>,
+        pub region_info_list: CArray<u16>,
     }
     tail: tail_blob;
 }

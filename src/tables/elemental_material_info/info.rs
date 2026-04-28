@@ -1,24 +1,29 @@
 //! Tier 1.5 — typed prefix + tail blob.
 //!
 //! Reader: `sub_1410DC8F0` in CrimsonDesert.exe (Win build).
-//! Wire reads, in order:
-//!   1. u32 key (via `sub_141BF6840` writer wrapper)
-//!   2. CString string_key
-//!   3. u8 byte_16
-//!   4. u8 byte_17
-//!   5. CString second_string
-//!   6. u32 u32_32, u32_36, u32_40, u32_44, u32_48, u32_52
-//!   7. u8 u8_56
-//!   8. sub_1411166F0 (CArray of 24-byte elements via sub_1411168A0
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                                   (_key, sub_141BF6840
+//!      writer wrapper)
+//!   2. CString string_key                        (_stringKey)
+//!   3. u8 is_blocked                             (_isBlocked) — was
+//!      mis-named `byte_16` in initial Tier 1.5 promotion
+//!   4. u8 elemental_material_system_type         (_elementalMaterialSystemType)
+//!   5. CString elemental_material_key            (_elementalMaterialKey)
+//!   6. u32 total_fuel_amount                     (_totalFuelAmount)
+//!   7. u32 fuel_standard_obb_size                (_fuelStandardObbSize)
+//!   8. u32 fuel_end_passive_skill_key            (_fuelEndPassiveSkillKey)
+//!   9. u32 fuel_end_passive_skill_level          (_fuelEndPassiveSkillLevel)
+//!  10. u32 fuel_end_active_skill_key             (_fuelEndActiveSkillKey)
+//!  11. u32 fuel_end_active_skill_level           (_fuelEndActiveSkillLevel)
+//!  12. u8 use_temperature_transfer_margin        (_useTemperatureTransferMargin)
+//!  13. sub_1411166F0 (CArray of 24-byte elements via sub_1411168A0
 //!      sub-helper) ← TAIL STARTS HERE
-//!   9. 2× sub_141102B30 (unknown helpers)
-//!  10. inline CArray (u32 count + N×(u32+u32) at struct +112)
-//!  11. 8-iteration loop reading u32 each (struct +128..+156)
-//!  12. u8 (struct +160)
-//!  13. CArray<sub_1410DC7F0> at struct +168 (16-byte elements)
-//!  14. u8 (struct +184)
+//!  14. (body) _elementalMaterialStateDataList, _minStatList,
+//!      _maxStatList, _parentMaterialKeyListDeprecatedXXX, _flag,
+//!      _isSystemType, _elementalMaterialStatDataList,
+//!      _sceneObjectSpawnableType, …
 //!
-//! Steps 1-7 are typed; everything from step 8 lives in `tail_blob`.
+//! Steps 1-12 are typed; everything from step 13 lives in `tail_blob`.
 //! `sub_1411166F0` exceeds the 3-IDA-call budget (nested
 //! `sub_1411168A0`); reopens cleanly when the array helper family is
 //! decoded.
@@ -30,16 +35,16 @@ pabgh_typed_blob_table! {
     pub struct ElementalMaterialInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
-        pub byte_16: u8,
-        pub byte_17: u8,
-        pub second_string: CString<'a>,
-        pub u32_32: u32,
-        pub u32_36: u32,
-        pub u32_40: u32,
-        pub u32_44: u32,
-        pub u32_48: u32,
-        pub u32_52: u32,
-        pub u8_56: u8,
+        pub is_blocked: u8,
+        pub elemental_material_system_type: u8,
+        pub elemental_material_key: CString<'a>,
+        pub total_fuel_amount: u32,
+        pub fuel_standard_obb_size: u32,
+        pub fuel_end_passive_skill_key: u32,
+        pub fuel_end_passive_skill_level: u32,
+        pub fuel_end_active_skill_key: u32,
+        pub fuel_end_active_skill_level: u32,
+        pub use_temperature_transfer_margin: u8,
     }
     tail: tail_blob;
 }

@@ -2,23 +2,24 @@
 //!
 //! Reader: `sub_1410FD200` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 unk_u32_a
-//!   5. u32 unk_u32_b
-//!   6. 28-byte block via sub_141E2BB80 — reads u64+u64+u64+u32 (3 large
-//!      identifiers and a flag/count). Treated as `[u8; 28]` for now.
-//!   7. sub_1410FF430 lookup ← TAIL STARTS HERE
-//!  ...(many helpers including a CArray that uses sub_1410E2030
-//!     polymorphic dispatcher)...
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                   (_key)
+//!   2. CString string_key        (_stringKey)
+//!   3. u8 is_blocked             (_isBlocked)
+//!   4. u32 min_level             (_minLevel)
+//!   5. u32 max_level             (_maxLevel)
+//!   6. [u8; 28] exp              (_exp; sub_141E2BB80 reads
+//!      u64+u64+u64+u32 — 3 large identifiers + a flag/count, kept
+//!      as raw bytes for round-trip)
+//!   7. _conditionInfo (sub_1410FF430 lookup) ← TAIL STARTS HERE
+//!   8. _alertComponentName, _alertComponentNameForVaryExp,
+//!      _knowledgeInfo, _buffInfo, _moneyInfo, _rewardDropSetInfo,
+//!      _subLevelExpDataList, _additionalRewardList, … (more body
+//!      fields, plus a CArray with sub_1410E2030 polymorphic dispatch)
 //!
 //! Step 6 is typed because sub_141E2BB80 is just 4 sequential primitive
 //! reads. Tail starts at step 7 because the chain after it includes
-//! sub_1410E2030 (polymorphic) embedded in a CArray, and decoding the
-//! intervening helpers individually doesn't justify the cost — they go
-//! into the tail blob alongside the polymorphic CArray.
+//! sub_1410E2030 (polymorphic) embedded in a CArray.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -28,9 +29,9 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub unk_u32_a: u32,
-        pub unk_u32_b: u32,
-        pub block_28: [u8; 28],
+        pub min_level: u32,
+        pub max_level: u32,
+        pub exp: [u8; 28],
     }
     tail: tail_blob;
 }
