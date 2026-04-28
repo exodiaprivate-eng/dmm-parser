@@ -2,31 +2,32 @@
 //!
 //! Reader: `sub_1410FCD20` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u16 key (pabgh format 2)
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 lookup_18 (sub_1410FF5C0 → qword_145F0DA00)
-//!   5. CArray<u32> sub_a_list (sub_1410FFF10 → qword_145F0DA00)
-//!   6. [u8; 8] raw_40
-//!   7. u8 u8_48
-//!   8. CArray<u64> u64_list at struct +56 (inline u32 count +
-//!      N×u64)
-//!   9. u32 lookup_72 (sub_1410FF430 → qword_145F0E9C0)
-//!  10. u32 u32_76
-//!  11. u32 u32_80
-//!  12. u32 u32_84
-//!  13. u32 u32_88
-//!  14. u8 u8_92
-//!  15. inline CArray of 88-byte items via sub_1410FC8F0 → struct +96
-//!      ← TAIL STARTS HERE
-//!  16. sub_1411002A0 (16-byte slot, twice at +112 and +128)
-//!  17. u32, 3× u8 trailing
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u16 key                                  (_key, pabgh format 2)
+//!   2. CString string_key                       (_stringKey)
+//!   3. u8 is_blocked                            (_isBlocked)
+//!   4. u32 exchange_item_info_for_buy           (_exchangeItemInfoForBuy,
+//!      sub_1410FF5C0 → qword_145F0DA00)
+//!   5. CArray<u32> exchange_item_info_list_for_sell
+//!      (_exchangeItemInfoListForSell, sub_1410FFF10 → qword_145F0DA00)
+//!   6. [u8; 8] sell_percents                    (_sellPercents)
+//!   7. u8 store_type                            (_storeType)
+//!   8. CArray<u64> price_increase_percent_list  (_priceIncreasePercentList,
+//!      inline u32 count + N×u64)
+//!   9. u32 sellable_character_condition_logic   (_sellableCharacterConditionLogic,
+//!      sub_1410FF430 → qword_145F0E9C0)
+//!  10. u32 reset_hour                           (_resetHour)
+//!  11. u32 reset_day                            (_resetDay)
+//!  12. u32 buyable_stock_count                  (_buyableStockCount)
+//!  13. u32 sellable_stock_count                 (_sellableStockCount)
+//!  14. u8 sellable_type                         (_sellableType)
+//!  15. _stockDataList (inline CArray of 88-byte items via sub_1410FC8F0
+//!      → struct +96) ← TAIL STARTS HERE
+//!  16. (body) sub_1411002A0 16-byte slots, u32 + 3× u8 trailing
 //!
 //! Steps 1-14 are typed; everything from step 15 is in `tail_blob`.
 //!
-//! New helper: `sub_1410FFF10` = CArray<u32> hash-keyed at
-//! qword_145F0DA00.
+//! Helper: `sub_1410FFF10` = CArray<u32> hash-keyed at qword_145F0DA00.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -36,17 +37,17 @@ pabgh_typed_blob_table! {
         pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_18: u32,
-        pub sub_a_list: CArray<u32>,
-        pub raw_40: [u8; 8],
-        pub u8_48: u8,
-        pub u64_list: CArray<u64>,
-        pub lookup_72: u32,
-        pub u32_76: u32,
-        pub u32_80: u32,
-        pub u32_84: u32,
-        pub u32_88: u32,
-        pub u8_92: u8,
+        pub exchange_item_info_for_buy: u32,
+        pub exchange_item_info_list_for_sell: CArray<u32>,
+        pub sell_percents: [u8; 8],
+        pub store_type: u8,
+        pub price_increase_percent_list: CArray<u64>,
+        pub sellable_character_condition_logic: u32,
+        pub reset_hour: u32,
+        pub reset_day: u32,
+        pub buyable_stock_count: u32,
+        pub sellable_stock_count: u32,
+        pub sellable_type: u8,
     }
     tail: tail_blob;
 }
