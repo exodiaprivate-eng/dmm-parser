@@ -2,28 +2,27 @@
 //!
 //! Reader: `sub_1410EBEB0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 lookup_18 (read_u32_lookup_DA30)
-//!   5. u16 lookup_20 (sub_141103610 → qword_145F15038)
-//!   6. u32 lookup_22 (sub_1410FF5C0 → qword_145F0DA00)
-//!   7. u32 u32_24
-//!   8. u32 u32_28
-//!   9. u32 u32_32
-//!  10. u16 u16_36
-//!  11. LocalizableString name
-//!  12. LocalizableString desc
-//!  13. LocalizableString extra
-//!  14. sub_14110E340 → struct +136 (unknown helper) ← TAIL STARTS HERE
-//!  15. (After tail) inline CArray<{u16+u32}=6B> at struct +152
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                                  (_key)
+//!   2. CString string_key                       (_stringKey)
+//!   3. u8 is_blocked                            (_isBlocked)
+//!   4. u32 icon_path                            (_iconPath, read_u32_lookup_DA30)
+//!   5. u16 store_info                           (_storeInfo, sub_141103610 → qword_145F15038)
+//!   6. u32 coupon_item_info                     (_couponItemInfo, sub_1410FF5C0 → qword_145F0DA00)
+//!   7. u32 npc_greet_friendly                   (_npcGreetFriendly)
+//!   8. u32 npc_function_type_flag               (_npcFunctionTypeFlag)
+//!   9. u32 shop_scenekey                        (_shopScenekey)
+//!  10. u16 exchange_group_key                   (_exchangeGroupKey)
+//!  11. LocalizableString exchange_button_text   (_exchangeButtonText)
+//!  12. LocalizableString shop_name              (_shopName)
+//!  13. LocalizableString interaction_name       (_interactionName)
+//!  14. _dyeColorGroupDataList (sub_14110E340 → struct +136) ← TAIL STARTS HERE
+//!  15. (body) _dyeTextureSetDataList, …
 //!
 //! Steps 1-13 are typed. The unknown helper sub_14110E340 wraps the
 //! NpcInfo body proper; reopens cleanly when decoded.
 //!
-//! New helper mapped: `sub_141103610` = single u16 lookup at
-//! qword_145F15038 (wire 2).
+//! Helper: `sub_141103610` = single u16 lookup at qword_145F15038 (wire 2).
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -33,16 +32,16 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_18: u32,
-        pub lookup_20: u16,
-        pub lookup_22: u32,
-        pub u32_24: u32,
-        pub u32_28: u32,
-        pub u32_32: u32,
-        pub u16_36: u16,
-        pub name: LocalizableString<'a>,
-        pub desc: LocalizableString<'a>,
-        pub extra: LocalizableString<'a>,
+        pub icon_path: u32,
+        pub store_info: u16,
+        pub coupon_item_info: u32,
+        pub npc_greet_friendly: u32,
+        pub npc_function_type_flag: u32,
+        pub shop_scenekey: u32,
+        pub exchange_group_key: u16,
+        pub exchange_button_text: LocalizableString<'a>,
+        pub shop_name: LocalizableString<'a>,
+        pub interaction_name: LocalizableString<'a>,
     }
     tail: tail_blob;
 }

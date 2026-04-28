@@ -2,23 +2,22 @@
 //!
 //! Reader: `sub_1410DE7A0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 lookup_18 (sub_1411006D0 → qword_145F0DA28)
-//!   5. u32 lookup_20 (sub_1411035A0 → qword_145F1A740)
-//!   6. u32 lookup_22 (sub_141101D50 → qword_145F0EEE8)
-//!   7. u16 lookup_24 (sub_141103610 → qword_145F15038)
-//!   8. u16 lookup_26 (sub_1411036C0 → qword_145F113A0)
-//!   9. CString second_string
-//!  10. CArray<u32> list_a (sub_141102FF0 → qword_145F0EEE8)
-//!  11. CArray<u32> list_b (sub_141102FF0)
-//!  12. [u8; 12] raw_72
-//!  13. u32 u32_84
-//!  14. sub_141115FD0 → struct +88 (unknown helper) ← TAIL STARTS HERE
-//!  15. (After tail) sub_141115D90, sub_141101610, sub_141115BA0,
-//!      inline CArray<280-byte items> via sub_1410DDE60, lots more.
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                                  (_key)
+//!   2. CString string_key                       (_stringKey)
+//!   3. u8 is_blocked                            (_isBlocked)
+//!   4. u32 knowledge_info                       (_knowledgeInfo)
+//!   5. u32 skill_tree_info                      (_skillTreeInfo)
+//!   6. u32 connect_research_node_info           (_connectResearchNodeInfo)
+//!   7. u16 store_info                           (_storeInfo)
+//!   8. u16 royal_supply_info                    (_royalSupplyInfo)
+//!   9. CString memo                             (_memo)
+//!  10. CArray<u32> child_faction_info_list      (_childFactionInfoList)
+//!  11. CArray<u32> node_line_main_faction_info_list (_nodeLineMainFactionInfoList)
+//!  12. [u8; 12] world_position                  (_worldPosition, vec3)
+//!  13. u32 node_radius                          (_nodeRadius, f32-as-u32)
+//!  14. _applySkillDataList (sub_141115FD0 → struct +88) ← TAIL STARTS HERE
+//!  15. (body) _resourceItemList, …
 //!
 //! Steps 1-13 are typed. The body has many more typed-shaped fields
 //! interleaved with unknowns; reopens cleanly when the helper family
@@ -37,16 +36,16 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_18: u32,
-        pub lookup_20: u32,
-        pub lookup_22: u32,
-        pub lookup_24: u16,
-        pub lookup_26: u16,
-        pub second_string: CString<'a>,
-        pub list_a: CArray<u32>,
-        pub list_b: CArray<u32>,
-        pub raw_72: [u8; 12],
-        pub u32_84: u32,
+        pub knowledge_info: u32,
+        pub skill_tree_info: u32,
+        pub connect_research_node_info: u32,
+        pub store_info: u16,
+        pub royal_supply_info: u16,
+        pub memo: CString<'a>,
+        pub child_faction_info_list: CArray<u32>,
+        pub node_line_main_faction_info_list: CArray<u32>,
+        pub world_position: [u8; 12],
+        pub node_radius: u32,
     }
     tail: tail_blob;
 }

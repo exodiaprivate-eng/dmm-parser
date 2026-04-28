@@ -2,17 +2,19 @@
 //!
 //! Reader: `sub_1410E1E60` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u16 key (pabgh format 2)
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u8 byte_17
-//!   5. u32 lookup_18 (sub_1410FF430 → qword_145F0E9C0)
-//!   6. u32 lookup_20 (sub_1410FF430)
-//!   7. u32 lookup_22 (sub_1410FF430)
-//!   8. sub_1415BE5E0(&v11, a1) → struct +24 (POLYMORPHIC variant
-//!      allocator with vtable-dispatched destructor) ← TAIL STARTS HERE
-//!   9. (After tail) u8 at struct +32
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u16 key                       (_key, pabgh format 2)
+//!   2. CString string_key            (_stringKey)
+//!   3. u8 is_blocked                 (_isBlocked)
+//!   4. u8 game_event_type            (_gameEventType)
+//!   5. u32 player_condition          (_playerCondition, sub_1410FF430
+//!      → qword_145F0E9C0)
+//!   6. u32 event_condition           (_eventCondition, sub_1410FF430)
+//!   7. u32 target_condition          (_targetCondition, sub_1410FF430)
+//!   8. _gameEventHandlerData (sub_1415BE5E0 → struct +24, POLYMORPHIC
+//!      variant allocator with vtable-dispatched destructor)
+//!      ← TAIL STARTS HERE
+//!   9. (tail) _isPendOnBattleState (u8 at struct +32)
 //!
 //! Steps 1-7 are typed; step 8 onward (the polymorphic
 //! GameEventHandler variant + trailing u8) lives in `tail_blob`.
@@ -25,10 +27,10 @@ pabgh_typed_blob_table! {
         pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub byte_17: u8,
-        pub lookup_18: u32,
-        pub lookup_20: u32,
-        pub lookup_22: u32,
+        pub game_event_type: u8,
+        pub player_condition: u32,
+        pub event_condition: u32,
+        pub target_condition: u32,
     }
     tail: tail_blob;
 }
