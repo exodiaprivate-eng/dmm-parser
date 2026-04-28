@@ -3,19 +3,21 @@
 //! Reader: `sub_1410E6FC0` in CrimsonDesert.exe (Win build). Massive
 //! 7205-byte function, 100+ wire reads in the body.
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. CString second_string
-//!   5. u32 lookup_40 (sub_141104AE0 → qword_145F11D70)
-//!   6. u16 lookup_42 (inline → qword_145F15960)
-//!   7. sub_141118470 → struct +48 (unknown helper)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                       (_key)
+//!   2. CString string_key            (_stringKey)
+//!   3. u8 is_blocked                 (_isBlocked)
+//!   4. CString prefab_path           (_prefabPath)
+//!   5. u32 gimmick_group_info        (_gimmickGroupInfo, sub_141104AE0
+//!      → qword_145F11D70 lookup)
+//!   6. u16 breakable_object_info     (_breakableObjectInfo, inline →
+//!      qword_145F15960 lookup)
 //!      ← TAIL STARTS HERE
-//!   8. (After tail) ~80 more body fields including 2× u8,
-//!      sub_141101AB0, u32, LocalizableString, 2× CString,
-//!      sub_141104D20, sub_141102990, sub_1411125E0, inline CArray
-//!      via sub_141C7F8B0, many more.
+//!   7. _gimmickInteractionOverrideDataList,
+//!      _useInteractionUISocket, _useSubPartForInteraction,
+//!      _propertyList, _gimmickNameHash, _gimmickName,
+//!      _emojiTextureID, _devMemo, _gimmickChartParameterList, …
+//!      (~80 more body fields)
 //!
 //! Steps 1-6 are typed (6 fields). Body has 100+ wire reads.
 
@@ -27,9 +29,9 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub second_string: CString<'a>,
-        pub lookup_40: u32,
-        pub lookup_42: u16,
+        pub prefab_path: CString<'a>,
+        pub gimmick_group_info: u32,
+        pub breakable_object_info: u16,
     }
     tail: tail_blob;
 }
