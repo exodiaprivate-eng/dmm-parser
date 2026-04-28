@@ -4,27 +4,27 @@
 //! 8616-byte function — largest pabgb reader in the binary. Reader
 //! string xref via " CharacterInfo" (with leading space) at 0x144ae12e0.
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. LocalizableString name
-//!   5. LocalizableString desc
-//!   6. u32 lookup_88 (read_u32_lookup_DA30)
-//!   7. u32 lookup_90 (read_u32_lookup_DA30)
-//!   8. CString cstring_96
-//!   9. u8 byte_104
-//!  10. u8 byte_105
-//!  11. u32 lookup_106 (inline → qword_145F0EF30)
-//!  12. u32 lookup_108 (inline → qword_145F15060)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                       (_key)
+//!   2. CString string_key            (_stringKey)
+//!   3. u8 is_blocked                 (_isBlocked)
+//!   4. LocalizableString name        (_characterName)
+//!   5. LocalizableString desc        (_characterDesc)
+//!   6. u32 ui_icon_path              (_uiIconPath, read_u32_lookup_DA30)
+//!   7. u32 category                  (_category, read_u32_lookup_DA30)
+//!   8. CString character_edit_name   (_characterEditName)
+//!   9. u8 spawn_actor_type           (_spawnActorType)
+//!  10. u8 none_player_sub_type       (_nonePlayerSubType)
+//!  11. u32 equip_info                (_equipInfo, inline → qword_145F0EF30)
+//!  12. u32 npc_info                  (_npcInfo, inline → qword_145F15060)
 //!  13. sub_1411007B0 → struct +110 (unknown helper)
 //!      ← TAIL STARTS HERE
-//!  14. (After tail) 8 raw + 8 raw, u8, 2-iter loop with
-//!      sub_1410FF340 + sub_1411003E0, sub_141100860, 7×
-//!      read_u32_lookup_DA30, u32, 2× read_u32_lookup_DA30,
-//!      sub_1411008D0, u32, read_u32_lookup_DA30, 2× u32, 3× u8,
-//!      sub_141100950, LocalizableString, sub_1410FF340, u8, u16,
-//!      sub_1410E0380, ~80 trailing u8s, more.
+//!  14. (body, in tail blob) _vehicleInfo, _callMercenaryCoolTime,
+//!      _callMercenarySpawnDuration, _mercenaryCoolTimeType,
+//!      _childVehicleList, _factionInfo, _upperActionChartPackageGroupName,
+//!      _lowerActionChartPackageGroupName, _characterGamePlayDataName,
+//!      _appearanceName, _characterPrefabPath, _skeletonName, …
+//!      (~100 more body fields)
 //!
 //! Steps 1-12 are typed (12 fields). Body has 100+ wire reads.
 
@@ -38,13 +38,13 @@ pabgh_typed_blob_table! {
         pub is_blocked: u8,
         pub name: LocalizableString<'a>,
         pub desc: LocalizableString<'a>,
-        pub lookup_88: u32,
-        pub lookup_90: u32,
-        pub cstring_96: CString<'a>,
-        pub byte_104: u8,
-        pub byte_105: u8,
-        pub lookup_106: u32,
-        pub lookup_108: u32,
+        pub ui_icon_path: u32,
+        pub category: u32,
+        pub character_edit_name: CString<'a>,
+        pub spawn_actor_type: u8,
+        pub none_player_sub_type: u8,
+        pub equip_info: u32,
+        pub npc_info: u32,
     }
     tail: tail_blob;
 }
