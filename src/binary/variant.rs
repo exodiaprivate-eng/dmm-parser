@@ -189,6 +189,81 @@ macro_rules! pabgh_blob_table {
     };
 }
 
+/// "Tier 1.5" hybrid table: explicit typed prefix fields followed by an
+/// opaque `tail_blob: Vec<u8>` covering everything from the first un-decoded
+/// helper to the end of the entry. Round-trips byte-perfectly via pabgh
+/// entry sizes (the tail captures whatever the typed prefix didn't consume).
+///
+/// Field-level mod targeting works for every typed prefix field; the tail
+/// stays a single byte-blob until the next decode pass extends the schema.
+///
+/// Usage:
+/// ```ignore
+/// pabgh_typed_blob_table! {
+///     pub struct MyInfo<'a> {
+///         pub key: u16,
+///         pub string_key: CString<'a>,
+///         pub is_blocked: u8,
+///         pub lookup_a: u32,
+///         // ... any number of typed BinaryRead/BinaryWrite fields ...
+///     }
+///     tail: tail_blob;
+/// }
+/// ```
+///
+/// The macro emits `read_with_size(data, &mut offset, entry_size)` and
+/// `write_to(&self, w)` directly on the struct. Use the same pabgh-driven
+/// loop pattern as the original `pabgh_blob_table!` to round-trip.
+#[macro_export]
+macro_rules! pabgh_typed_blob_table {
+    (
+        $(#[$meta:meta])*
+        pub struct $name:ident<'a> {
+            $(pub $field:ident : $ty:ty),* $(,)?
+        }
+        tail: $tail:ident;
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug)]
+        pub struct $name<'a> {
+            $(pub $field: $ty,)*
+            pub $tail: Vec<u8>,
+        }
+
+        impl<'a> $name<'a> {
+            pub fn read_with_size(
+                data: &'a [u8],
+                offset: &mut usize,
+                entry_size: usize,
+            ) -> std::io::Result<Self> {
+                use $crate::binary::BinaryRead;
+                let entry_start = *offset;
+                let entry_end = entry_start + entry_size;
+                $(let $field = <$ty as BinaryRead>::read_from(data, offset)?;)*
+                if *offset > entry_end {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "{} typed prefix overran entry: consumed {} of {} bytes",
+                            stringify!($name), *offset - entry_start, entry_size
+                        ),
+                    ));
+                }
+                let $tail = data[*offset..entry_end].to_vec();
+                *offset = entry_end;
+                Ok(Self { $($field,)* $tail })
+            }
+
+            pub fn write_to(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+                use $crate::binary::BinaryWrite;
+                $(self.$field.write_to(w)?;)*
+                w.write_all(&self.$tail)?;
+                Ok(())
+            }
+        }
+    };
+}
+
 /// Inline minimal pabgh parser supporting all 3 known formats.
 /// Returns Vec<(key, offset)> on success, None on unknown layout.
 fn parse_pabgh_inline(data: &[u8]) -> Option<Vec<(u32, usize)>> {
