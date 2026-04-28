@@ -2,24 +2,32 @@
 //!
 //! Reader: `sub_1410E4450` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 lookup_18 (sub_141104AE0 → qword_145F11D70)
-//!   5. [u8; 8] raw_24
-//!   6. [u8; 8] raw_32
-//!   7. sub_141113BF0 → struct +40 (unknown helper)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                                  (_key)
+//!   2. CString string_key                       (_stringKey)
+//!   3. u8 is_blocked                            (_isBlocked)
+//!   4. u32 main_gimmick_group_info_of_combination
+//!      (_mainGimmickGroupInfoOfCombination, sub_141104AE0 →
+//!      qword_145F11D70 lookup)
+//!   5. [u8; 8] battery_init_capacity            (_batteryInitCapacity)
+//!   6. [u8; 8] battery_total_capacity           (_batteryTotalCapacity)
 //!      ← TAIL STARTS HERE
-//!   8. (After tail) sub_141101AB0, sub_141102990, CString, 2× u8,
-//!      [u8;12], 2× u8 trailing, sub_141113A50 ×2, sub_141104540,
-//!      sub_1411138C0, sub_1411135E0, u32, u8, sub_141101960,
-//!      sub_14106BAC0, sub_141113410, [u8;8], u32, u8, ~50 more u8s
-//!      and lookups, sub_141C79D00 etc.
+//!   7. _linkSignalGroupList, _propertyList, _gimmickTagList,
+//!      _gimmickChartPath, _gimmickType, _gimmickPlacementStyle,
+//!      _gimmickInterfaceType, _gimmickRemoteCatchableData,
+//!      _autoTargetingConstraintDataList, _gimmickConstraintDataList,
+//!      _gimmickInfoList, _gameEventHandlerList,
+//!      _unlockableIDataList, _defaultSpawnReasonHash,
+//!      _initialBodyMotionType,
+//!      _sequencerLevelAllowGimmickEventKeyList,
+//!      _sequencerLevelConnectAliasNameList, _gimmickAliasDataList,
+//!      _logoutTimeAfterBreak, _attackByCollisionInfoListKey,
+//!      _useSlidingMotionProperty, _isEditorUseable,
+//!      _isGetKnowledgeWhenGetItem, _isUseConstrainSound, …
 //!
 //! Steps 1-6 are typed (6 fields). Body has 100+ wire reads.
 //!
-//! New helper: `sub_141104AE0` = u32 lookup at qword_145F11D70.
+//! Helper: `sub_141104AE0` = u32 lookup at qword_145F11D70.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -29,9 +37,9 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_18: u32,
-        pub raw_24: [u8; 8],
-        pub raw_32: [u8; 8],
+        pub main_gimmick_group_info_of_combination: u32,
+        pub battery_init_capacity: [u8; 8],
+        pub battery_total_capacity: [u8; 8],
     }
     tail: tail_blob;
 }
