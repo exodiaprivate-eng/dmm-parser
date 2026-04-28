@@ -2,20 +2,27 @@
 //!
 //! Reader: `sub_1410DA3D0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. CString second_string
-//!   5. u8 byte_32
-//!   6. u32 lookup_34 (read_u32_lookup_DA30)
-//!   7. u32 lookup_36 (sub_1411006D0 → qword_145F0DA28)
-//!   8-9. 2× u32 inline lookups at qword_145F0EF10 (lookup_a, lookup_b)
-//!  10-11. 2× u32 inline lookups at qword_145F0DA08 (lookup_c, lookup_d)
-//!  12. sub_141100370 → struct +46 (unknown helper) ← TAIL STARTS HERE
-//!  13. (After tail) sub_141102410, sub_1411024C0, sub_141100860,
-//!      read_u32_lookup_DA30, sub_141117AC0, sub_141117920,
-//!      13× sub_141128990 loop, u8, u32.
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                              (_key)
+//!   2. CString string_key                   (_stringKey)
+//!   3. u8 is_blocked                        (_isBlocked)
+//!   4. CString memo                         (_memo)
+//!   5. u8 category_type                     (_categoryType)
+//!   6. u32 flag_component_name              (_flagComponentName,
+//!      read_u32_lookup_DA30)
+//!   7. u32 knowledge_info                   (_knowledgeInfo,
+//!      sub_1411006D0 → qword_145F0DA28)
+//!   8. u32 contribution_sub_level_info      (_contributionSubLevelInfo,
+//!      inline → qword_145F0EF10)
+//!   9. u32 contribution_worker_info         (_contributionWorkerInfo,
+//!      inline → qword_145F0EF10)
+//!  10. u32 trade_reward_dropset_info        (_tradeRewardDropsetInfo,
+//!      inline → qword_145F0DA08)
+//!  11. u32 faction_relation_group_info      (_factionRelationGroupInfo,
+//!      inline → qword_145F0DA08)
+//!  12. _factionGroupInfo (sub_141100370 → struct +46) ← TAIL STARTS HERE
+//!  13. (body) _representFactionInfo, _stageIconPath, _factionUiCardList,
+//!      …
 //!
 //! Steps 1-11 are typed (11 fields). The faction body has many more
 //! reads but several unknown helpers. Reopens cleanly when decoded.
@@ -28,14 +35,14 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub second_string: CString<'a>,
-        pub byte_32: u8,
-        pub lookup_34: u32,
-        pub lookup_36: u32,
-        pub lookup_a: u32,
-        pub lookup_b: u32,
-        pub lookup_c: u32,
-        pub lookup_d: u32,
+        pub memo: CString<'a>,
+        pub category_type: u8,
+        pub flag_component_name: u32,
+        pub knowledge_info: u32,
+        pub contribution_sub_level_info: u32,
+        pub contribution_worker_info: u32,
+        pub trade_reward_dropset_info: u32,
+        pub faction_relation_group_info: u32,
     }
     tail: tail_blob;
 }

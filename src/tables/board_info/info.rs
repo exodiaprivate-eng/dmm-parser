@@ -2,18 +2,20 @@
 //!
 //! Reader: `sub_1410D6420` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. CArray<BoardSubItem> sub_list (sub_141118F10: each item is u32
-//!      raw + u32 lookup sub_1410FF5C0 + u32 lookup sub_1410FF430,
-//!      total 12 wire bytes per element)
-//!   5. sub_141118D60 → struct +40 (CArray of 72-byte items via
-//!      sub_1410D62F0 + helpers; nested structure exceeds budget)
-//!      ← TAIL STARTS HERE
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                              (_key)
+//!   2. CString string_key                   (_stringKey)
+//!   3. u8 is_blocked                        (_isBlocked)
+//!   4. CArray<BoardSubItem> board_data_list (_boardDataList,
+//!      sub_141118F10: each item is u32 raw + u32 lookup sub_1410FF5C0
+//!      + u32 lookup sub_1410FF430, total 12 wire bytes per element)
+//!   5. _boardDataGroupList (sub_141118D60 → struct +40, CArray of
+//!      72-byte items) ← TAIL STARTS HERE
 //!
 //! Steps 1-4 are typed; step 5 lives in `tail_blob`.
+//! Inner BoardSubItem field names (`u32_a`, `lookup_b`, `lookup_c`)
+//! kept as placeholders — Mac error strings only leak the
+//! BoardInfo-level field names, not the sub-struct semantics.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -32,7 +34,7 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub sub_list: CArray<BoardSubItem>,
+        pub board_data_list: CArray<BoardSubItem>,
     }
     tail: tail_blob;
 }

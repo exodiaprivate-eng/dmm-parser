@@ -2,16 +2,16 @@
 //!
 //! Reader: `sub_1410D6120` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u8 byte_17
-//!   5. sub_14112DE30 → struct +24 (variable-length flagged
-//!      sub-reader: 4+4+1+1+1 fixed bytes plus 0/1/2/3 nested
-//!      32-byte allocations via sub_140F5B8B0; wire size depends on
-//!      runtime flags) ← TAIL STARTS HERE
-//!   6. (After tail) 8 bytes ×3, 2× u32, u8 trailing
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                  (_key)
+//!   2. CString string_key       (_stringKey)
+//!   3. u8 is_blocked            (_isBlocked)
+//!   4. u8 scale_type            (_scaleType)
+//!   5. _values (sub_14112DE30 → struct +24, variable-length flagged
+//!      sub-reader) ← TAIL STARTS HERE
+//!   6. (body) _boundaryPositionMin, _boundaryPositionMax,
+//!      _centerPosition, _scalePerPixel, _maxUsingHeight,
+//!      _exportTextureOnEditing
 //!
 //! Steps 1-4 are typed. Step 5 has variable wire length so the rest
 //! of the entry must live in the tail blob.
@@ -24,7 +24,7 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub byte_17: u8,
+        pub scale_type: u8,
     }
     tail: tail_blob;
 }
