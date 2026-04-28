@@ -1,21 +1,61 @@
-use crate::pabgh_blob_table;
-pabgh_blob_table! { pub struct GimmickGateConnectionInfo<'a> { key: u32, blob_field: data_blob, } }
+//! Full Tier 1 — every wire read decoded.
+//!
+//! Reader: `sub_1410E5470` in CrimsonDesert.exe (Win build).
+//!
+//! Wire reads, in order:
+//!   1. u32 key
+//!   2. CString string_key
+//!   3. u8 is_blocked
+//!   4. u32 lookup_a (sub_1410FF5C0 → qword_145F0DA00)
+//!   5. u32 lookup_b (sub_1410FF5C0 → qword_145F0DA00)
+//!   6. u32 lookup_c (sub_1411006D0 → qword_145F0DA28)
+//!   7. u32 lookup_d (inline → qword_145F24D68)
+//!   8. u32 lookup_e (inline → qword_145F24D68)
+//!   9. u8 trailing
+//!
+//! All helpers are non-polymorphic single-shot u32 lookups; raw wire
+//! u32 round-trips. No CArrays, no COptional.
+
+use crate::binary::*;
+use crate::py_binary_struct;
+
+py_binary_struct! {
+    pub struct GimmickGateConnectionInfo<'a> {
+        pub key: u32,
+        pub string_key: CString<'a>,
+        pub is_blocked: u8,
+        pub lookup_a: u32,
+        pub lookup_b: u32,
+        pub lookup_c: u32,
+        pub lookup_d: u32,
+        pub lookup_e: u32,
+        pub trailing: u8,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\gimmickgateconnection.pabgb";
     const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\gimmickgateconnection.pabgh";
-    #[test] fn roundtrip() {
+
+    #[test]
+    fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
         let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
-            let mut c = *s; items.push(GimmickGateConnectionInfo::read_with_size(&data, &mut c, e-s).unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)));
-            assert_eq!(c, *e);
+            let mut c = *s;
+            items.push(
+                GimmickGateConnectionInfo::read_from(&data, &mut c)
+                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
+            );
+            assert_eq!(c, *e, "entry {} key=0x{:x}: cursor at {} expected {}", i, k, c, e);
         }
-        let mut out = Vec::with_capacity(data.len()); for it in &items { it.write_to(&mut out).unwrap(); }
-        assert_eq!(out, data);
+        let mut out = Vec::with_capacity(data.len());
+        for it in &items { it.write_to(&mut out).unwrap(); }
+        assert_eq!(out, data, "gimmickgateconnection roundtrip mismatch");
     }
 }
