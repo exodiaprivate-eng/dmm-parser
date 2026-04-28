@@ -2,19 +2,20 @@
 //!
 //! Reader: `sub_1410E5840` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u16 key (pabgh format 2)
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u16 lookup_a (inline u16 hash-key at qword_145F0E9C8;
-//!      raw u16 round-trips)
-//!   5. sub_141156680 → struct +24 (POLYMORPHIC variant dispatcher
-//!      with vftables `pa::GlobalGameEventExecuteData_OpenRoyalSupply`
-//!      [32B], `_VaryTradeItemPrice` [88B]) ← TAIL STARTS HERE
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u16 key                              (_key, pabgh format 2)
+//!   2. CString string_key                   (_stringKey)
+//!   3. u8 is_blocked                        (_isBlocked)
+//!   4. u16 global_game_event_group_info     (_globalGameEventGroupInfo,
+//!      inline u16 hash-key at qword_145F0E9C8)
+//!   5. _executeData (sub_141156680 → struct +24, POLYMORPHIC variant
+//!      dispatcher with vftables
+//!      `pa::GlobalGameEventExecuteData_OpenRoyalSupply` [32B] and
+//!      `_VaryTradeItemPrice` [88B]) ← TAIL STARTS HERE
 //!
 //! Steps 1-4 are typed. Step 5 is a polymorphic
 //! GlobalGameEventExecuteData variant — reopens cleanly when the
-//! family decoders are written.
+//! family decoders are written (task #96).
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -24,7 +25,7 @@ pabgh_typed_blob_table! {
         pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub lookup_a: u16,
+        pub global_game_event_group_info: u16,
     }
     tail: tail_blob;
 }

@@ -2,22 +2,26 @@
 //!
 //! Reader: `sub_1410E0100` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u8 byte_17
-//!   5. u8 byte_18
-//!   6. u8 byte_19
-//!   7. u32 lookup_20 (sub_1410FF430 → qword_145F0E9C0)
-//!   8. u32 lookup_22 (inline → qword_145F113B0)
-//!   9. [u8; 12] raw_24
-//!  10. u32 u32_36
-//!  11. u8 u8_40
-//!  12. u32 lookup_44 (inline → qword_145F1A890)
-//!  13. sub_141103D50 → struct +48 (CArray of TAGGED VARIANT items:
-//!      u8 tag + 4-byte lookup via case-dispatched helper
-//!      sub_141104AE0/sub_1410FF5C0/sub_1410FF340/sub_141100740)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u32 key                              (_key)
+//!   2. CString string_key                   (_stringKey)
+//!   3. u8 is_blocked                        (_isBlocked)
+//!   4. u8 trigger_type                      (_triggerType)
+//!   5. u8 is_enable                         (_isEnable)
+//!   6. u8 safe_zone_type                    (_safeZoneType)
+//!   7. u32 player_condition_info            (_playerConditionInfo,
+//!      sub_1410FF430 → qword_145F0E9C0)
+//!   8. u32 ui_map_texture_info              (_uiMapTextureInfo,
+//!      inline → qword_145F113B0)
+//!   9. [u8; 12] position                    (_position, vec3)
+//!  10. u32 rotation_y                       (_rotationY, f32-as-u32)
+//!  11. u8 world_map_color_r                 (_worldMapColorR; G/B
+//!      channels are body fields in the tail)
+//!  12. u32 field_revive_info                (_fieldReviveInfo,
+//!      inline → qword_145F1A890)
+//!  13. _targetDataList (sub_141103D50 → struct +48, CArray of TAGGED
+//!      VARIANT items: u8 tag + 4-byte lookup via case-dispatched
+//!      helper sub_141104AE0/sub_1410FF5C0/sub_1410FF340/sub_141100740)
 //!      ← TAIL STARTS HERE
 //!
 //! Steps 1-12 are typed; the tag-dispatched variant CArray lives in
@@ -31,15 +35,15 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub byte_17: u8,
-        pub byte_18: u8,
-        pub byte_19: u8,
-        pub lookup_20: u32,
-        pub lookup_22: u32,
-        pub raw_24: [u8; 12],
-        pub u32_36: u32,
-        pub u8_40: u8,
-        pub lookup_44: u32,
+        pub trigger_type: u8,
+        pub is_enable: u8,
+        pub safe_zone_type: u8,
+        pub player_condition_info: u32,
+        pub ui_map_texture_info: u32,
+        pub position: [u8; 12],
+        pub rotation_y: u32,
+        pub world_map_color_r: u8,
+        pub field_revive_info: u32,
     }
     tail: tail_blob;
 }
