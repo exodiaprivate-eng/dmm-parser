@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyList};
+use pyo3::types::{PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyNone};
 use pyo3::exceptions::{PyIOError, PyKeyError, PyValueError};
 
 use crate::binary::*;
@@ -21,6 +21,73 @@ where
 fn get_obj<'py>(d: &Bound<'py, PyDict>, key: &str) -> PyResult<Bound<'py, PyAny>> {
     d.get_item(key)?
         .ok_or_else(|| PyKeyError::new_err(key.to_string()))
+}
+
+fn json_to_py(py: Python<'_>, v: &serde_json::Value) -> PyResult<Py<PyAny>> {
+    match v {
+        serde_json::Value::Null => Ok(PyNone::get(py).to_owned().into_any().unbind()),
+        serde_json::Value::Bool(b) => Ok(PyBool::new(py, *b).to_owned().into_any().unbind()),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(i.into_pyobject(py)?.into_any().unbind())
+            } else if let Some(u) = n.as_u64() {
+                Ok(u.into_pyobject(py)?.into_any().unbind())
+            } else {
+                Ok(n.as_f64().unwrap_or(0.0).into_pyobject(py)?.into_any().unbind())
+            }
+        }
+        serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+        serde_json::Value::Array(arr) => {
+            let list = PyList::empty(py);
+            for item in arr {
+                list.append(json_to_py(py, item)?)?;
+            }
+            Ok(list.into_any().unbind())
+        }
+        serde_json::Value::Object(obj) => {
+            let dict = PyDict::new(py);
+            for (k, val) in obj {
+                dict.set_item(k, json_to_py(py, val)?)?;
+            }
+            Ok(dict.into_any().unbind())
+        }
+    }
+}
+
+fn py_to_json(v: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
+    if v.is_none() {
+        return Ok(serde_json::Value::Null);
+    }
+    if let Ok(b) = v.downcast::<PyBool>() {
+        return Ok(serde_json::Value::Bool(b.is_true()));
+    }
+    if let Ok(i) = v.downcast::<PyInt>() {
+        if let Ok(n) = i.extract::<i64>() {
+            return Ok(serde_json::json!(n));
+        }
+        if let Ok(n) = i.extract::<u64>() {
+            return Ok(serde_json::json!(n));
+        }
+    }
+    if let Ok(f) = v.downcast::<PyFloat>() {
+        return Ok(serde_json::json!(f.value()));
+    }
+    if let Ok(s) = v.extract::<String>() {
+        return Ok(serde_json::Value::String(s));
+    }
+    if let Ok(list) = v.downcast::<PyList>() {
+        let arr: Vec<serde_json::Value> = list.iter().map(|i| py_to_json(&i)).collect::<PyResult<_>>()?;
+        return Ok(serde_json::Value::Array(arr));
+    }
+    if let Ok(dict) = v.downcast::<PyDict>() {
+        let mut map = serde_json::Map::new();
+        for (k, val) in dict.iter() {
+            let key = k.extract::<String>()?;
+            map.insert(key, py_to_json(&val)?);
+        }
+        return Ok(serde_json::Value::Object(map));
+    }
+    Err(PyValueError::new_err(format!("cannot convert {} to JSON", v.get_type().name()?)))
 }
 
 // ── ItemInfo Python conversion ─────────────────────────────────────────────
@@ -673,6 +740,86 @@ pub fn extract_file(
     Ok(PyBytes::new(py, &raw).into_any().unbind())
 }
 
+// ── SkillInfo ──────────────────────────────────────────────────────────────
+
+#[pyfunction]
+pub fn parse_skillinfo_from_file(py: Python<'_>, pabgb_path: &str, pabgh_path: &str) -> PyResult<Py<PyAny>> {
+    let data = std::fs::read(pabgb_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let pabgh = std::fs::read(pabgh_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    parse_skillinfo_from_bytes(py, &data, &pabgh)
+}
+
+#[pyfunction]
+pub fn parse_skillinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) -> PyResult<Py<PyAny>> {
+    let items = crate::tables::skill_info::parse_skill_to_json_with_pabgh(pabgb, pabgh)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let list = PyList::empty(py);
+    for v in items {
+        list.append(json_to_py(py, &v)?)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn serialize_skillinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::skill_info::serialize_skill_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &data).into_any().unbind())
+}
+
+#[pyfunction]
+pub fn write_skillinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult<()> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::skill_info::serialize_skill_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    std::fs::write(path, &data).map_err(|e| PyIOError::new_err(e.to_string()))
+}
+
+// ── BuffInfo ───────────────────────────────────────────────────────────────
+
+#[pyfunction]
+pub fn parse_buffinfo_from_file(py: Python<'_>, pabgb_path: &str, pabgh_path: &str) -> PyResult<Py<PyAny>> {
+    let data = std::fs::read(pabgb_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let pabgh = std::fs::read(pabgh_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    parse_buffinfo_from_bytes(py, &data, &pabgh)
+}
+
+#[pyfunction]
+pub fn parse_buffinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) -> PyResult<Py<PyAny>> {
+    let items = crate::tables::buff_info::parse_buffinfo_to_json_with_pabgh(pabgb, pabgh)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let list = PyList::empty(py);
+    for v in items {
+        list.append(json_to_py(py, &v)?)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn serialize_buffinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::buff_info::serialize_buffinfo_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &data).into_any().unbind())
+}
+
+#[pyfunction]
+pub fn write_buffinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult<()> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::buff_info::serialize_buffinfo_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    std::fs::write(path, &data).map_err(|e| PyIOError::new_err(e.to_string()))
+}
+
 // ── Registration ───────────────────────────────────────────────────────────
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -697,5 +844,13 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paloc_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_paloc, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_skillinfo_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_skillinfo_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_skillinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(write_skillinfo_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_buffinfo_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_buffinfo_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_buffinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(write_buffinfo_to_file, m)?)?;
     Ok(())
 }
