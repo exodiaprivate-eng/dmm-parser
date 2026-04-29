@@ -285,55 +285,60 @@ py_binary_struct! {
 /// (parsed via GameConditionNode to determine length, then stored verbatim from
 /// the input buffer for byte-perfect round-trip independent of GameCondition
 /// parser bugs).
-#[derive(Debug)]
-pub struct SummonBuffDataPayload<'a> {
-    /// CArray<u32> of paired u16 lookups (sub_1411003E0 + sub_1410FF220).
-    pub paired_lookups: CArray<u32>,
-    /// sub_141103B30: u8 presence + (if !0: GameCondition opaque bytes + 3 trailing u8s).
-    pub game_condition_opt: GameConditionOptional<'a>,
-    pub u32_24: u32,
-    pub u16_28: u16,
-    pub bytes_32: [u8; 12],
-    pub u32_44: u32,
-    pub u8_48: u8,
-    pub cstring_56: CString<'a>,
-    pub u8_64: u8,
-    pub u8_65: u8,
-    pub u8_66: u8,
-    pub bytes_72: [u8; 8],
-    pub four_lookups_80: [u32; 4],
-    pub u8_96: u8,
-    pub u8_97: u8,
-    pub lookup_100: u32,
-    pub lookup_104: u32,
-    pub u32_108: u32,
-    pub four_lookups_112: [u32; 4],
-    pub u32_128: u32,
-    pub u8_132: u8,
-    pub u32_136: u32,
-    pub graph_144: SummonGraphData,
-    pub cstring_168: CString<'a>,
-    pub bytes_176: [u8; 8],
-    pub u8_184: u8,
-    pub u32_188: u32,
-    pub u32_192: u32,
-    pub u8_196: u8,
-    pub u8_197: u8,
-    pub u8_198: u8,
-    pub u8_199: u8,
-    pub u8_200: u8,
-    pub bytes_204: [u8; 8],
-    pub lookup_212: u32,
-    pub bytes_216: [u8; 4],
-    pub bytes_220: [u8; 2],
-    pub u8_222: u8,
-    pub u8_223: u8,
-    pub u8_224: u8,
-    pub u8_225: u8,
-    /// outer wrapper (after sub_1410F7440 returns):
-    pub u8_outer_376: u8,
-    pub u32_outer_380: u32,
-    pub u32_outer_384: u32,
+py_binary_struct! {
+    /// SummonBuffData payload — 41 typed fields. paired_lookups is a
+    /// CArray<u32> of paired u16 lookups (sub_1411003E0 +
+    /// sub_1410FF220). game_condition_opt is sub_141103B30:
+    /// u8 presence + (if !0: GameConditionNode tree + 3 trailer u8s).
+    /// u8_outer_376 / u32_outer_380 / u32_outer_384 are the outer
+    /// wrapper bytes appended by sub_1419DD000 after sub_1410F7440
+    /// returns.
+    pub struct SummonBuffDataPayload<'a> {
+        pub paired_lookups: CArray<u32>,
+        pub game_condition_opt: GameConditionOptional<'a>,
+        pub u32_24: u32,
+        pub u16_28: u16,
+        pub bytes_32: [u8; 12],
+        pub u32_44: u32,
+        pub u8_48: u8,
+        pub cstring_56: CString<'a>,
+        pub u8_64: u8,
+        pub u8_65: u8,
+        pub u8_66: u8,
+        pub bytes_72: [u8; 8],
+        pub four_lookups_80: [u32; 4],
+        pub u8_96: u8,
+        pub u8_97: u8,
+        pub lookup_100: u32,
+        pub lookup_104: u32,
+        pub u32_108: u32,
+        pub four_lookups_112: [u32; 4],
+        pub u32_128: u32,
+        pub u8_132: u8,
+        pub u32_136: u32,
+        pub graph_144: SummonGraphData,
+        pub cstring_168: CString<'a>,
+        pub bytes_176: [u8; 8],
+        pub u8_184: u8,
+        pub u32_188: u32,
+        pub u32_192: u32,
+        pub u8_196: u8,
+        pub u8_197: u8,
+        pub u8_198: u8,
+        pub u8_199: u8,
+        pub u8_200: u8,
+        pub bytes_204: [u8; 8],
+        pub lookup_212: u32,
+        pub bytes_216: [u8; 4],
+        pub bytes_220: [u8; 2],
+        pub u8_222: u8,
+        pub u8_223: u8,
+        pub u8_224: u8,
+        pub u8_225: u8,
+        pub u8_outer_376: u8,
+        pub u32_outer_380: u32,
+        pub u32_outer_384: u32,
+    }
 }
 
 py_binary_struct! {
@@ -481,114 +486,6 @@ impl<'a> crate::python_traits::WritePyValue for GameConditionOptional<'a> {
         Err(pyo3::exceptions::PyNotImplementedError::new_err(
             "GameConditionOptional: use JSON path",
         ))
-    }
-}
-
-impl<'a> SummonBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let paired_lookups = CArray::<u32>::read_from(data, offset)?;
-        let game_condition_opt = GameConditionOptional::read_from(data, offset)?;
-        let u32_24 = u32::read_from(data, offset)?;
-        let u16_28 = u16::read_from(data, offset)?;
-        let bytes_32 = <[u8; 12]>::read_from(data, offset)?;
-        let u32_44 = u32::read_from(data, offset)?;
-        let u8_48 = u8::read_from(data, offset)?;
-        let cstring_56 = CString::read_from(data, offset)?;
-        let u8_64 = u8::read_from(data, offset)?;
-        let u8_65 = u8::read_from(data, offset)?;
-        let u8_66 = u8::read_from(data, offset)?;
-        let bytes_72 = <[u8; 8]>::read_from(data, offset)?;
-        let four_lookups_80 = <[u32; 4]>::read_from(data, offset)?;
-        let u8_96 = u8::read_from(data, offset)?;
-        let u8_97 = u8::read_from(data, offset)?;
-        let lookup_100 = u32::read_from(data, offset)?;
-        let lookup_104 = u32::read_from(data, offset)?;
-        let u32_108 = u32::read_from(data, offset)?;
-        let four_lookups_112 = <[u32; 4]>::read_from(data, offset)?;
-        let u32_128 = u32::read_from(data, offset)?;
-        let u8_132 = u8::read_from(data, offset)?;
-        let u32_136 = u32::read_from(data, offset)?;
-        let graph_144 = SummonGraphData::read_from(data, offset)?;
-        let cstring_168 = CString::read_from(data, offset)?;
-        let bytes_176 = <[u8; 8]>::read_from(data, offset)?;
-        let u8_184 = u8::read_from(data, offset)?;
-        let u32_188 = u32::read_from(data, offset)?;
-        let u32_192 = u32::read_from(data, offset)?;
-        let u8_196 = u8::read_from(data, offset)?;
-        let u8_197 = u8::read_from(data, offset)?;
-        let u8_198 = u8::read_from(data, offset)?;
-        let u8_199 = u8::read_from(data, offset)?;
-        let u8_200 = u8::read_from(data, offset)?;
-        let bytes_204 = <[u8; 8]>::read_from(data, offset)?;
-        let lookup_212 = u32::read_from(data, offset)?;
-        let bytes_216 = <[u8; 4]>::read_from(data, offset)?;
-        let bytes_220 = <[u8; 2]>::read_from(data, offset)?;
-        let u8_222 = u8::read_from(data, offset)?;
-        let u8_223 = u8::read_from(data, offset)?;
-        let u8_224 = u8::read_from(data, offset)?;
-        let u8_225 = u8::read_from(data, offset)?;
-        let u8_outer_376 = u8::read_from(data, offset)?;
-        let u32_outer_380 = u32::read_from(data, offset)?;
-        let u32_outer_384 = u32::read_from(data, offset)?;
-        Ok(Self {
-            paired_lookups, game_condition_opt,
-            u32_24, u16_28, bytes_32, u32_44, u8_48, cstring_56,
-            u8_64, u8_65, u8_66, bytes_72, four_lookups_80,
-            u8_96, u8_97, lookup_100, lookup_104, u32_108, four_lookups_112,
-            u32_128, u8_132, u32_136, graph_144, cstring_168, bytes_176,
-            u8_184, u32_188, u32_192, u8_196, u8_197, u8_198, u8_199, u8_200,
-            bytes_204, lookup_212, bytes_216, bytes_220,
-            u8_222, u8_223, u8_224, u8_225,
-            u8_outer_376, u32_outer_380, u32_outer_384,
-        })
-    }
-
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.paired_lookups.write_to(w)?;
-        self.game_condition_opt.write_to(w)?;
-        self.u32_24.write_to(w)?;
-        self.u16_28.write_to(w)?;
-        self.bytes_32.write_to(w)?;
-        self.u32_44.write_to(w)?;
-        self.u8_48.write_to(w)?;
-        self.cstring_56.write_to(w)?;
-        self.u8_64.write_to(w)?;
-        self.u8_65.write_to(w)?;
-        self.u8_66.write_to(w)?;
-        self.bytes_72.write_to(w)?;
-        self.four_lookups_80.write_to(w)?;
-        self.u8_96.write_to(w)?;
-        self.u8_97.write_to(w)?;
-        self.lookup_100.write_to(w)?;
-        self.lookup_104.write_to(w)?;
-        self.u32_108.write_to(w)?;
-        self.four_lookups_112.write_to(w)?;
-        self.u32_128.write_to(w)?;
-        self.u8_132.write_to(w)?;
-        self.u32_136.write_to(w)?;
-        self.graph_144.write_to(w)?;
-        self.cstring_168.write_to(w)?;
-        self.bytes_176.write_to(w)?;
-        self.u8_184.write_to(w)?;
-        self.u32_188.write_to(w)?;
-        self.u32_192.write_to(w)?;
-        self.u8_196.write_to(w)?;
-        self.u8_197.write_to(w)?;
-        self.u8_198.write_to(w)?;
-        self.u8_199.write_to(w)?;
-        self.u8_200.write_to(w)?;
-        self.bytes_204.write_to(w)?;
-        self.lookup_212.write_to(w)?;
-        self.bytes_216.write_to(w)?;
-        self.bytes_220.write_to(w)?;
-        self.u8_222.write_to(w)?;
-        self.u8_223.write_to(w)?;
-        self.u8_224.write_to(w)?;
-        self.u8_225.write_to(w)?;
-        self.u8_outer_376.write_to(w)?;
-        self.u32_outer_380.write_to(w)?;
-        self.u32_outer_384.write_to(w)?;
-        Ok(())
     }
 }
 
@@ -1154,25 +1051,13 @@ py_binary_struct! {
     }
 }
 
-#[derive(Debug)]
-pub struct MeditationKnowledgeBuffDataPayload {
-    /// CArray<u32> via sub_1411077F0 (each u32 is a hash-lookup key).
-    pub f00_carray: CArray<u32>,
-    pub f01: u8,
-    pub f02: u8,
-}
-impl MeditationKnowledgeBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00_carray = CArray::<u32>::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00_carray, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00_carray.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// MeditationKnowledge — f00_carray is a CArray<u32> of hash-lookup
+    /// keys (sub_1411077F0); f01/f02 are companion flags.
+    pub struct MeditationKnowledgeBuffDataPayload {
+        pub f00_carray: CArray<u32>,
+        pub f01: u8,
+        pub f02: u8,
     }
 }
 
@@ -1198,22 +1083,12 @@ py_binary_struct! {
     }
 }
 
-#[derive(Debug)]
-pub struct VaryMaxExpandInventorySlotBuffDataPayload {
-    /// u16 hash-lookup via sub_141103F00 (NOT u32 — corrected).
-    pub f00_lookup: u16,
-    pub f01: [u8; 2],
-}
-impl VaryMaxExpandInventorySlotBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00_lookup = u16::read_from(data, offset)?;
-        let f01 = <[u8; 2]>::read_from(data, offset)?;
-        Ok(Self { f00_lookup, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00_lookup.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// f00_lookup is a u16 hash-lookup via sub_141103F00 (NOT u32 —
+    /// corrected from earlier mis-typing).
+    pub struct VaryMaxExpandInventorySlotBuffDataPayload {
+        pub f00_lookup: u16,
+        pub f01: [u8; 2],
     }
 }
 
@@ -1230,24 +1105,11 @@ py_binary_struct! {
     }
 }
 
-#[derive(Debug)]
-pub struct ConsumeSpawnerMercenaryBuffDataPayload {
-    pub f00: u32,
-    pub f01: [u8; 12],
-    pub f02: u8,
-}
-impl ConsumeSpawnerMercenaryBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConsumeSpawnerMercenaryBuffDataPayload {
+        pub f00: u32,
+        pub f01: [u8; 12],
+        pub f02: u8,
     }
 }
 
