@@ -15,10 +15,12 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
+    /// `way_point_list` is a CArray of Vec3 waypoint coordinates per the
+    /// per-element reader (sub_1006B48A8 reads 12 bytes = 3 × f32).
     pub struct FactionWayPointData {
         pub from_node_info: u32,
         pub to_node_info: u32,
-        pub way_point_list: CArray<[u8; 12]>,
+        pub way_point_list: CArray<[f32; 3]>,
     }
 }
 
