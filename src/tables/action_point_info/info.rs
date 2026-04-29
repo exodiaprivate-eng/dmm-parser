@@ -18,7 +18,7 @@ py_binary_struct! {
         pub field_a: u32,
         pub block_a: [u8; 24],
         pub field_b: u32,
-        pub block_b: [u8; 16],
+        pub block_b: [f32; 4],
         pub field_c: u32,
         pub field_d: u32,
         pub level_action_lookup: u32,
@@ -45,6 +45,7 @@ mod tests {
     use super::*;
 
     const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\actionpointinfo.pabgb";
+
 
 
     #[test]
