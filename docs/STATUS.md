@@ -1,7 +1,7 @@
 # dmm-parser status & handoff
 
 **Last updated**: 2026-04-29
-**Repo**: https://github.com/exodiaprivate-eng/dmm-parser
+**Repo**: https://github.com/DatGuySnowfox/dmm-parser (fork of exodiaprivate-eng/dmm-parser)
 **Branch**: `main`
 
 This file is for collaborators picking up round-trip work. It's the
@@ -47,8 +47,37 @@ This file is for collaborators picking up round-trip work. It's the
 
 ---
 
-## What just shipped (this session, all in `origin/main`)
+## What just shipped (DatGuySnowfox fork, merged upstream + additions)
 
+```
+85a3a49  normalize line endings: add .gitattributes, convert CRLF → LF
+950eed4  merge upstream/main: ConditionData improvements + GlobalGameEventExecuteData
+c0fe23d  docs: remove duplicate horizontal rule in api.md
+97f4066  fix gitignore, add BuffInfo/SkillInfo Python bindings, update docs
+```
+
+### Fork additions on top of upstream
+- **Python bindings for BuffInfo and SkillInfo** — `parse_buffinfo_from_file`,
+  `parse_skillinfo_from_file`, `serialize_*`, `write_*_to_file` all registered
+  in `src/python.rs`. Both tables fully round-trip; `buff_level_list` /
+  `_buff_data_list_b64` remain base64 until BuffData gets a JSON shim.
+- **PALOC (localization) bindings** — `parse_paloc_bytes` / `serialize_paloc`
+  already existed; now documented in `docs/api.md`.
+- **`docs/api.md` expanded** — PALOC, SkillInfo, BuffInfo sections added with
+  full field tables and nested struct docs (GraphData, ResourceStat, ResourceItem).
+- **`.gitignore` fixed** — previous file had the shell heredoc command baked in
+  as literal text; replaced with a proper ignore list covering `target/`, `.venv/`,
+  `pabgb/`, `*.paz`/`*.pamt`/`*.papgt`/`*.pabgh`, `out/`, `tools/`, `node_modules/`.
+- **`.gitattributes` added** — enforces LF line endings repo-wide; renormalized
+  all 278 CRLF source files. Fixes spurious merge conflicts with upstream.
+- **Movement mod fixed** — `tools/generate_movement_mod.py` now catches horse
+  movement skills (`Skill_HorseStamina`, `Skill_Mount_Ing`, `SKill_HorseFastStart`,
+  `Skill_HorseDrift`, `SKill_HorseLateralMove`, etc.) that were missed because
+  `"horse"` and `"mount"` were absent from `MOVEMENT_KEYWORDS`. Horse attacks
+  (`HorseKick`, `HorsePawStamp`, `HorseRushAttack`, `Mount_Attack_*`) remain
+  excluded. All 5 mod variants regenerated (83 intents each, up from ~70).
+
+### From upstream (merged in `950eed4`)
 ```
 4b30791  GlobalGameEventExecuteData: ship Tier 1 family decoder w/ Decoded|Raw enum
 e17d416  docs: add STATUS.md for collaborator handoff
@@ -61,8 +90,8 @@ b82e3c7  ConditionData: tags 126/178/287/306 + LAST_ATTEMPTED_TAG tracker → 99
 a4118f5  ConditionData: batch 1-byte/4-byte/CString body fixes → 98.3%
 ```
 
-GameCondition went from 13.4% → 100% across the first 7 commits.
-GlobalGameEventInfo Tier 2 → Tier 1 in the latest commit (80/80 entries
+GameCondition went from 13.4% → 100% across the first 7 upstream commits.
+GlobalGameEventInfo Tier 2 → Tier 1 in the latest upstream commit (80/80 entries
 decode structurally, 0 raw fallbacks needed).
 
 ---
