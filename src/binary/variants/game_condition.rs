@@ -307,6 +307,7 @@ impl<'a> GameConditionNode<'a> {
             }
             Self::BranchConditionData(b) => {
                 m.insert("case".into(), Value::String("BranchConditionData".into()));
+                m.insert("tag".into(), Value::Number(b.base.tag.into()));
                 m.insert("wire_b64".into(), leaf_b64(|w| b.write_to(w)));
             }
             Self::ScheduleCompleteConditionData(s) => {
