@@ -9,8 +9,8 @@
 //!   4. u32 main_gimmick_group_info_of_combination
 //!      (_mainGimmickGroupInfoOfCombination, sub_141104AE0 →
 //!      qword_145F11D70 lookup)
-//!   5. [u8; 8] battery_init_capacity            (_batteryInitCapacity)
-//!   6. [u8; 8] battery_total_capacity           (_batteryTotalCapacity)
+//!   5. u64 battery_init_capacity            (_batteryInitCapacity)
+//!   6. u64 battery_total_capacity           (_batteryTotalCapacity)
 //!      ← TAIL STARTS HERE
 //!   7. _linkSignalGroupList, _propertyList, _gimmickTagList,
 //!      _gimmickChartPath, _gimmickType, _gimmickPlacementStyle,
@@ -38,8 +38,8 @@ pabgh_typed_blob_table! {
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub main_gimmick_group_info_of_combination: u32,
-        pub battery_init_capacity: [u8; 8],
-        pub battery_total_capacity: [u8; 8],
+        pub battery_init_capacity: u64,
+        pub battery_total_capacity: u64,
     }
     tail: tail_blob;
 }
