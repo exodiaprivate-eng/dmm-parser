@@ -214,6 +214,7 @@ mod tests {
         let ranges = entry_ranges(&entries, data.len());
         let mut sub_tag_2 = 0;
         let mut sub_tag_3 = 0;
+        let mut sub_tag_4 = 0;
         let mut raw = 0;
         for (_k, s, e) in ranges.iter() {
             let mut c = *s;
@@ -222,13 +223,14 @@ mod tests {
                 GameEventHandlerData::Decoded(body) => match body {
                     GameEventHandlerDataBody::SetUIPlayGuideParameter(_) => sub_tag_2 += 1,
                     GameEventHandlerDataBody::SetUIFullscreenGuideParameter(_) => sub_tag_3 += 1,
+                    GameEventHandlerDataBody::MakeSnapshotForDev => sub_tag_4 += 1,
                 },
                 GameEventHandlerData::Raw(_) => raw += 1,
             }
         }
         eprintln!(
-            "gameeventhandler data: sub_tag_2={} sub_tag_3={} raw={}",
-            sub_tag_2, sub_tag_3, raw,
+            "gameeventhandler data: sub_tag_2={} sub_tag_3={} sub_tag_4={} raw={}",
+            sub_tag_2, sub_tag_3, sub_tag_4, raw,
         );
     }
 

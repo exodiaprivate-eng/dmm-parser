@@ -39,8 +39,13 @@
 //!   `fullscreen_guide_key: u16` + `lookup_hash: u32`. Empirically,
 //!   `fullscreen_guide_key` equals the entry key in 260/260 entries.
 //!
-//! Sub_tags 0, 1, 4 don't appear in vanilla data; the Raw fallback handles
-//! them byte-perfect if a future build introduces them.
+//! Sub_tags 0, 1 don't appear in vanilla data; the Raw fallback handles
+//! them byte-perfect if a future build introduces them. Sub_tag 4
+//! (MakeSnapshotForDev) is typed as a no-body variant because the
+//! dispatcher fully fills the 24-byte runtime struct via constructor
+//! (vftable + sub_tag + static pointer at +16) — no wire reads required.
+//! If a future build adds wire bytes for sub_tag 4, the typed read will
+//! fall to Raw automatically (read_from checks probe == data.len()).
 //!
 //! ## Decode strategy: Decoded(Body) | Raw fallback
 //!
@@ -97,6 +102,8 @@ pub enum GameEventHandlerDataBody {
     SetUIPlayGuideParameter(SetUIPlayGuideParameterPayload),
     /// sub_tag 3
     SetUIFullscreenGuideParameter(SetUIFullscreenGuideParameterPayload),
+    /// sub_tag 4 — no wire body bytes (dispatcher fills via constructor)
+    MakeSnapshotForDev,
 }
 
 impl GameEventHandlerDataBody {
@@ -104,6 +111,7 @@ impl GameEventHandlerDataBody {
         match self {
             Self::SetUIPlayGuideParameter(_) => 2,
             Self::SetUIFullscreenGuideParameter(_) => 3,
+            Self::MakeSnapshotForDev => 4,
         }
     }
 }
@@ -138,6 +146,7 @@ impl GameEventHandlerData {
                 .map(GameEventHandlerDataBody::SetUIPlayGuideParameter),
             3 => SetUIFullscreenGuideParameterPayload::read_from(data, &mut probe)
                 .map(GameEventHandlerDataBody::SetUIFullscreenGuideParameter),
+            4 => Ok(GameEventHandlerDataBody::MakeSnapshotForDev),
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("GameEventHandlerData: untyped sub_tag {}", sub_tag),
@@ -163,6 +172,7 @@ impl GameEventHandlerData {
                 match body {
                     GameEventHandlerDataBody::SetUIPlayGuideParameter(p) => p.write_to(w),
                     GameEventHandlerDataBody::SetUIFullscreenGuideParameter(p) => p.write_to(w),
+                    GameEventHandlerDataBody::MakeSnapshotForDev => Ok(()),
                 }
             }
             Self::Raw(bytes) => w.write_all(bytes),
@@ -172,7 +182,8 @@ impl GameEventHandlerData {
     /// JSON shape:
     /// - `kind`: "decoded" | "raw"
     /// - when "decoded": `sub_tag` (u8), `body_type` (string),
-    ///   `body` (typed object with the per-sub_tag fields)
+    ///   `body` (typed object with the per-sub_tag fields, omitted for
+    ///   no-body variants like sub_tag 4)
     /// - when "raw": `raw_b64` (base64 string)
     pub fn to_json_value(&self) -> Value {
         let mut m = Map::new();
@@ -194,6 +205,12 @@ impl GameEventHandlerData {
                             Value::String("set_ui_fullscreen_guide_parameter".into()),
                         );
                         m.insert("body".into(), Value::Object(p.to_json_dict()));
+                    }
+                    GameEventHandlerDataBody::MakeSnapshotForDev => {
+                        m.insert(
+                            "body_type".into(),
+                            Value::String("make_snapshot_for_dev".into()),
+                        );
                     }
                 }
             }
@@ -257,6 +274,7 @@ impl GameEventHandlerData {
                         })?;
                         SetUIFullscreenGuideParameterPayload::write_from_json_dict(w, body)
                     }
+                    4 => Ok(()),
                     other => Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         format!("GameEventHandlerData: untyped sub_tag {}", other),
