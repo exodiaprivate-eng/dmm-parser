@@ -105,8 +105,8 @@ def parse_table(path: Path):
     written outer structs that consume their pabgh entry size).
     """
     text = path.read_text(encoding="utf-8")
-    if "fn json_roundtrip" in text:
-        return None  # already done
+    if "fn json_roundtrip" in text or "fn roundtrip_json" in text:
+        return None  # already done (either naming convention counts)
     # Find the outer struct via any reader invocation.
     m_read = re.search(
         r"([A-Z][A-Za-z0-9]*Info)::(read_from|read_with_size)\(&data,\s*&mut\s+[a-z_][A-Za-z0-9_]*",
