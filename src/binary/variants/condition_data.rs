@@ -2026,11 +2026,126 @@ impl<'a> ConditionData_CheckGimmickTriggerCountPayload<'a> {
     }
 }
 
+/// Shared "nested COptional<COptional<GameCondition>+CString>" slot used by
+/// tags 212/213/297/302/345/347. Per Win-IDA the wire format is:
+///
+/// - u8 outer_present (sub_141CE9550 outer COptional)
+/// - if outer_present != 0:
+///   - u8 field_a
+///   - u8 inner_present (sub_141103B30 inner COptional)
+///   - if inner_present != 0:
+///       - GameConditionNode (recursive tree, sub_141E65330)
+///       - u8 cond_tail_a, u8 cond_tail_b, u8 cond_tail_c (sub_141CEA810
+///         reads these AFTER the tree)
+///   - CString name
 #[derive(Debug)]
-pub struct ConditionData_CheckGimmickTargetCountPayload { pub raw_bytes: Vec<u8> }
+pub struct GimmickConditionalSlot<'a> {
+    pub outer_present: u8,
+    pub body: Option<GimmickConditionalBody<'a>>,
+}
 
 #[derive(Debug)]
-pub struct ConditionData_CheckGimmickNonBreakTargetCountPayload { pub raw_bytes: Vec<u8> }
+pub struct GimmickConditionalBody<'a> {
+    pub field_a: u8,
+    pub inner_present: u8,
+    pub condition: Option<Box<GimmickConditionalCondition<'a>>>,
+    pub name: CString<'a>,
+}
+
+#[derive(Debug)]
+pub struct GimmickConditionalCondition<'a> {
+    pub tree: super::game_condition::GameConditionNode<'a>,
+    pub tail_a: u8,
+    pub tail_b: u8,
+    pub tail_c: u8,
+}
+
+impl<'a> GimmickConditionalSlot<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let outer_present = u8::read_from(data, offset)?;
+        if outer_present == 0 {
+            return Ok(Self { outer_present, body: None });
+        }
+        let field_a = u8::read_from(data, offset)?;
+        let inner_present = u8::read_from(data, offset)?;
+        let condition = if inner_present == 0 {
+            None
+        } else {
+            let tree = super::game_condition::GameConditionNode::read_from(data, offset)?;
+            let tail_a = u8::read_from(data, offset)?;
+            let tail_b = u8::read_from(data, offset)?;
+            let tail_c = u8::read_from(data, offset)?;
+            Some(Box::new(GimmickConditionalCondition { tree, tail_a, tail_b, tail_c }))
+        };
+        let name = CString::read_from(data, offset)?;
+        Ok(Self {
+            outer_present,
+            body: Some(GimmickConditionalBody { field_a, inner_present, condition, name }),
+        })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.outer_present.write_to(w)?;
+        if let Some(b) = &self.body {
+            b.field_a.write_to(w)?;
+            b.inner_present.write_to(w)?;
+            if let Some(c) = &b.condition {
+                c.tree.write_to(w)?;
+                c.tail_a.write_to(w)?;
+                c.tail_b.write_to(w)?;
+                c.tail_c.write_to(w)?;
+            }
+            b.name.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+/// Tag 212: outer-COptional + u8 + CString + u16 (sub_141CBED20).
+#[derive(Debug)]
+pub struct ConditionData_CheckGimmickTargetCountPayload<'a> {
+    pub conditional_slot: GimmickConditionalSlot<'a>,
+    pub field_a: u8,
+    pub name: CString<'a>,
+    pub field_b: u16,
+}
+impl<'a> ConditionData_CheckGimmickTargetCountPayload<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
+        let field_a = u8::read_from(data, offset)?;
+        let name = CString::read_from(data, offset)?;
+        let field_b = u16::read_from(data, offset)?;
+        Ok(Self { conditional_slot, field_a, name, field_b })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.conditional_slot.write_to(w)?;
+        self.field_a.write_to(w)?;
+        self.name.write_to(w)?;
+        self.field_b.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Tag 213: outer-COptional + u8 + u16 (sub_141CBF460).
+#[derive(Debug)]
+pub struct ConditionData_CheckGimmickNonBreakTargetCountPayload<'a> {
+    pub conditional_slot: GimmickConditionalSlot<'a>,
+    pub field_a: u8,
+    pub field_b: u16,
+}
+impl<'a> ConditionData_CheckGimmickNonBreakTargetCountPayload<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
+        let field_a = u8::read_from(data, offset)?;
+        let field_b = u16::read_from(data, offset)?;
+        Ok(Self { conditional_slot, field_a, field_b })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.conditional_slot.write_to(w)?;
+        self.field_a.write_to(w)?;
+        self.field_b.write_to(w)?;
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct ConditionData_IsFullGimmickTriggerEnteredTargetPayload<'a> {
@@ -2737,8 +2852,20 @@ impl ConditionData_GetEquipGimmickItemUsableCountPayload {
     }
 }
 
+/// Tag 297: outer-COptional only (sub_14F29DA90).
 #[derive(Debug)]
-pub struct ConditionData_CheckGimmickTargetHackablePayload { pub raw_bytes: Vec<u8> }
+pub struct ConditionData_CheckGimmickTargetHackablePayload<'a> {
+    pub conditional_slot: GimmickConditionalSlot<'a>,
+}
+impl<'a> ConditionData_CheckGimmickTargetHackablePayload<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
+        Ok(Self { conditional_slot })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.conditional_slot.write_to(w)
+    }
+}
 
 #[derive(Debug)]
 pub struct ConditionData_IsHackablePayload {
@@ -2770,8 +2897,28 @@ impl ConditionData_CheckAttackFromTypePayload {
     }
 }
 
+/// Tag 302: outer-COptional + u8 + u32 (sub_141CD7100). Wire reads u8
+/// before u32 (runtime memory offsets are reversed).
 #[derive(Debug)]
-pub struct ConditionData_CheckGimmickAngleToTargetPayload { pub raw_bytes: Vec<u8> }
+pub struct ConditionData_CheckGimmickAngleToTargetPayload<'a> {
+    pub conditional_slot: GimmickConditionalSlot<'a>,
+    pub field_a: u8,
+    pub field_b: u32,
+}
+impl<'a> ConditionData_CheckGimmickAngleToTargetPayload<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
+        let field_a = u8::read_from(data, offset)?;
+        let field_b = u32::read_from(data, offset)?;
+        Ok(Self { conditional_slot, field_a, field_b })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.conditional_slot.write_to(w)?;
+        self.field_a.write_to(w)?;
+        self.field_b.write_to(w)?;
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct ConditionData_CheckSpawnPositionRegionPayload {
@@ -3031,11 +3178,45 @@ impl<'a> ConditionData_HasQuestDialogPayload<'a> {
     }
 }
 
+/// Tag 345: u8 + outer-COptional (sub_141CDE0E0).
 #[derive(Debug)]
-pub struct ConditionData_CheckTargetPayload { pub raw_bytes: Vec<u8> }
+pub struct ConditionData_CheckTargetPayload<'a> {
+    pub field_a: u8,
+    pub conditional_slot: GimmickConditionalSlot<'a>,
+}
+impl<'a> ConditionData_CheckTargetPayload<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let field_a = u8::read_from(data, offset)?;
+        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
+        Ok(Self { field_a, conditional_slot })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_a.write_to(w)?;
+        self.conditional_slot.write_to(w)
+    }
+}
 
+/// Tag 347: outer-COptional + u64 + u8 (sub_141CDE9B0).
 #[derive(Debug)]
-pub struct ConditionData_GetFertilizerAmountPercentPayload { pub raw_bytes: Vec<u8> }
+pub struct ConditionData_GetFertilizerAmountPercentPayload<'a> {
+    pub conditional_slot: GimmickConditionalSlot<'a>,
+    pub field_a: u64,
+    pub field_b: u8,
+}
+impl<'a> ConditionData_GetFertilizerAmountPercentPayload<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
+        let field_a = u64::read_from(data, offset)?;
+        let field_b = u8::read_from(data, offset)?;
+        Ok(Self { conditional_slot, field_a, field_b })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.conditional_slot.write_to(w)?;
+        self.field_a.write_to(w)?;
+        self.field_b.write_to(w)?;
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct ConditionData_GetCampDonatedItemCountPayload {
@@ -3600,8 +3781,8 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload<'a>),
     ConditionData_IsFullGimmickAttachment,
     ConditionData_CheckGimmickAttachmentType,
-    ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload),
-    ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload),
+    ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload<'a>),
+    ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload<'a>),
     ConditionData_CheckExistStealItem(U32U16BodyPayload),
     ConditionData_CheckElementalMaterialType,
     ConditionData_IsGimmickSealComplete,
@@ -3685,12 +3866,12 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_GetEquipGimmickItemUsableCount(ConditionData_GetEquipGimmickItemUsableCountPayload),
     ConditionData_CurrentStateEquipItemUseSuccess,
     ConditionData_IsEquipGimmickItemBroken,
-    ConditionData_CheckGimmickTargetHackable(ConditionData_CheckGimmickTargetHackablePayload),
+    ConditionData_CheckGimmickTargetHackable(ConditionData_CheckGimmickTargetHackablePayload<'a>),
     ConditionData_IsHackable(ConditionData_IsHackablePayload),
     ConditionData_CheckDockingParentDead,
     ConditionData_CheckAttackName(OneU32BodyPayload),
     ConditionData_CheckAttackFromType(ConditionData_CheckAttackFromTypePayload),
-    ConditionData_CheckGimmickAngleToTarget(ConditionData_CheckGimmickAngleToTargetPayload),
+    ConditionData_CheckGimmickAngleToTarget(ConditionData_CheckGimmickAngleToTargetPayload<'a>),
     ConditionData_CheckSpawnPositionRegion(ConditionData_CheckSpawnPositionRegionPayload),
     ConditionData_IsGamePlayLevelGimmick(ConditionData_IsGamePlayLevelGimmickPayload<'a>),
     ConditionData_CheckCompleteStageGimmick,
@@ -3733,9 +3914,9 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_HasQuestDialog(ConditionData_HasQuestDialogPayload<'a>),
     ConditionData_CheckQuestDialogCategory(OneByteBodyPayload),
     ConditionData_IsSpeakingQuestDialog,
-    ConditionData_CheckTarget(ConditionData_CheckTargetPayload),
+    ConditionData_CheckTarget(ConditionData_CheckTargetPayload<'a>),
     ConditionData_CheckHaveLoadingTargetStage_OrTag346,
-    ConditionData_GetFertilizerAmountPercent(ConditionData_GetFertilizerAmountPercentPayload),
+    ConditionData_GetFertilizerAmountPercent(ConditionData_GetFertilizerAmountPercentPayload<'a>),
     ConditionData_IsDetectModeShowEnemy,
     ConditionData_CheckHireMercenary,
     ConditionData_IsExistSoldItemToStore,
@@ -4420,10 +4601,8 @@ impl<'a> ConditionDataVariant<'a> {
             209 => Self::ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload::read_from(data, offset)?),
             210 => Self::ConditionData_IsFullGimmickAttachment,
             211 => Self::ConditionData_CheckGimmickAttachmentType,
-            212 => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                          format!("opaque ConditionData variant {} (ConditionData_CheckGimmickTargetCount) — needs further decode", disc))),
-            213 => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                          format!("opaque ConditionData variant {} (ConditionData_CheckGimmickNonBreakTargetCount) — needs further decode", disc))),
+            212 => Self::ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload::read_from(data, offset)?),
+            213 => Self::ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload::read_from(data, offset)?),
             214 => Self::ConditionData_CheckExistStealItem(U32U16BodyPayload::read_from(data, offset)?),
             215 => Self::ConditionData_CheckElementalMaterialType,
             216 => Self::ConditionData_IsGimmickSealComplete,
@@ -4507,14 +4686,12 @@ impl<'a> ConditionDataVariant<'a> {
             294 => Self::ConditionData_GetEquipGimmickItemUsableCount(ConditionData_GetEquipGimmickItemUsableCountPayload::read_from(data, offset)?),
             295 => Self::ConditionData_CurrentStateEquipItemUseSuccess,
             296 => Self::ConditionData_IsEquipGimmickItemBroken,
-            297 => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                          format!("opaque ConditionData variant {} (ConditionData_CheckGimmickTargetHackable) — needs further decode", disc))),
+            297 => Self::ConditionData_CheckGimmickTargetHackable(ConditionData_CheckGimmickTargetHackablePayload::read_from(data, offset)?),
             298 => Self::ConditionData_IsHackable(ConditionData_IsHackablePayload::read_from(data, offset)?),
             299 => Self::ConditionData_CheckDockingParentDead,
             300 => Self::ConditionData_CheckAttackName(OneU32BodyPayload::read_from(data, offset)?),
             301 => Self::ConditionData_CheckAttackFromType(ConditionData_CheckAttackFromTypePayload::read_from(data, offset)?),
-            302 => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                          format!("opaque ConditionData variant {} (ConditionData_CheckGimmickAngleToTarget) — needs further decode", disc))),
+            302 => Self::ConditionData_CheckGimmickAngleToTarget(ConditionData_CheckGimmickAngleToTargetPayload::read_from(data, offset)?),
             303 => Self::ConditionData_CheckSpawnPositionRegion(ConditionData_CheckSpawnPositionRegionPayload::read_from(data, offset)?),
             304 => Self::ConditionData_IsGamePlayLevelGimmick(ConditionData_IsGamePlayLevelGimmickPayload::read_from(data, offset)?),
             305 => Self::ConditionData_CheckCompleteStageGimmick,
@@ -4557,11 +4734,9 @@ impl<'a> ConditionDataVariant<'a> {
             342 => Self::ConditionData_HasQuestDialog(ConditionData_HasQuestDialogPayload::read_from(data, offset)?),
             343 => Self::ConditionData_CheckQuestDialogCategory(OneByteBodyPayload::read_from(data, offset)?),
             344 => Self::ConditionData_IsSpeakingQuestDialog,
-            345 => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                          format!("opaque ConditionData variant {} (ConditionData_CheckTarget) — needs further decode", disc))),
+            345 => Self::ConditionData_CheckTarget(ConditionData_CheckTargetPayload::read_from(data, offset)?),
             346 => Self::ConditionData_CheckHaveLoadingTargetStage_OrTag346,
-            347 => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                          format!("opaque ConditionData variant {} (ConditionData_GetFertilizerAmountPercent) — needs further decode", disc))),
+            347 => Self::ConditionData_GetFertilizerAmountPercent(ConditionData_GetFertilizerAmountPercentPayload::read_from(data, offset)?),
             348 => Self::ConditionData_IsDetectModeShowEnemy,
             349 => Self::ConditionData_CheckHireMercenary,
             350 => Self::ConditionData_IsExistSoldItemToStore,
@@ -4837,8 +5012,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTriggerCount(p) => p.write_to(w),
             Self::ConditionData_IsFullGimmickAttachment => Ok(()),
             Self::ConditionData_CheckGimmickAttachmentType => Ok(()),
-            Self::ConditionData_CheckGimmickTargetCount(p) => w.write_all(&p.raw_bytes),
-            Self::ConditionData_CheckGimmickNonBreakTargetCount(p) => w.write_all(&p.raw_bytes),
+            Self::ConditionData_CheckGimmickTargetCount(p) => p.write_to(w),
+            Self::ConditionData_CheckGimmickNonBreakTargetCount(p) => p.write_to(w),
             Self::ConditionData_CheckExistStealItem(p) => p.write_to(w),
             Self::ConditionData_CheckElementalMaterialType => Ok(()),
             Self::ConditionData_IsGimmickSealComplete => Ok(()),
@@ -4922,12 +5097,12 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetEquipGimmickItemUsableCount(p) => p.write_to(w),
             Self::ConditionData_CurrentStateEquipItemUseSuccess => Ok(()),
             Self::ConditionData_IsEquipGimmickItemBroken => Ok(()),
-            Self::ConditionData_CheckGimmickTargetHackable(p) => w.write_all(&p.raw_bytes),
+            Self::ConditionData_CheckGimmickTargetHackable(p) => p.write_to(w),
             Self::ConditionData_IsHackable(p) => p.write_to(w),
             Self::ConditionData_CheckDockingParentDead => Ok(()),
             Self::ConditionData_CheckAttackName(p) => p.write_to(w),
             Self::ConditionData_CheckAttackFromType(p) => p.write_to(w),
-            Self::ConditionData_CheckGimmickAngleToTarget(p) => w.write_all(&p.raw_bytes),
+            Self::ConditionData_CheckGimmickAngleToTarget(p) => p.write_to(w),
             Self::ConditionData_CheckSpawnPositionRegion(p) => p.write_to(w),
             Self::ConditionData_IsGamePlayLevelGimmick(p) => p.write_to(w),
             Self::ConditionData_CheckCompleteStageGimmick => Ok(()),
@@ -4970,9 +5145,9 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_HasQuestDialog(p) => p.write_to(w),
             Self::ConditionData_CheckQuestDialogCategory(p) => p.write_to(w),
             Self::ConditionData_IsSpeakingQuestDialog => Ok(()),
-            Self::ConditionData_CheckTarget(p) => w.write_all(&p.raw_bytes),
+            Self::ConditionData_CheckTarget(p) => p.write_to(w),
             Self::ConditionData_CheckHaveLoadingTargetStage_OrTag346 => Ok(()),
-            Self::ConditionData_GetFertilizerAmountPercent(p) => w.write_all(&p.raw_bytes),
+            Self::ConditionData_GetFertilizerAmountPercent(p) => p.write_to(w),
             Self::ConditionData_IsDetectModeShowEnemy => Ok(()),
             Self::ConditionData_CheckHireMercenary => Ok(()),
             Self::ConditionData_IsExistSoldItemToStore => Ok(()),
