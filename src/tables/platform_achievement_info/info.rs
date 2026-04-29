@@ -5,7 +5,9 @@
 //! at the end (sub_14110BA60 with 8-CString-per-element entry).
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 py_binary_struct! {
@@ -87,6 +89,56 @@ impl<'a> PlatformAchievementInfo<'a> {
         self.quest_link_info_list.write_to(w)?;
         Ok(())
     }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("mission_info".to_string(), self.mission_info.to_json_value());
+        m.insert(
+            "platform_achievement_ids".to_string(),
+            Value::Array(self.platform_achievement_ids.iter().map(|s| s.to_json_value()).collect()),
+        );
+        m.insert("type_".to_string(), self.type_.to_json_value());
+        m.insert("questkey".to_string(), self.questkey.to_json_value());
+        m.insert("quest_group_key".to_string(), self.quest_group_key.to_json_value());
+        m.insert(
+            "quest_group_platform_id".to_string(),
+            Value::Array(self.quest_group_platform_id.iter().map(|s| s.to_json_value()).collect()),
+        );
+        m.insert("quest_link_info_list".to_string(), self.quest_link_info_list.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mission_info")?)?;
+        write_cstring_array8_from_json(w, json_get_field(obj, "platform_achievement_ids")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "type_")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "questkey")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_group_key")?)?;
+        write_cstring_array8_from_json(w, json_get_field(obj, "quest_group_platform_id")?)?;
+        <CArray<QuestLinkInfoEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_link_info_list")?)?;
+        Ok(())
+    }
+}
+
+fn write_cstring_array8_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+    let arr = v.as_array().ok_or_else(|| io::Error::new(
+        io::ErrorKind::InvalidData,
+        "expected array of 8 strings for [CString; 8]",
+    ))?;
+    if arr.len() != 8 {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            format!("expected 8 elements for [CString; 8], got {}", arr.len())));
+    }
+    for elem in arr {
+        <CString as WriteJsonValue>::write_from_json(w, elem)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -107,5 +159,30 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "platformachievementinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: {}", PABGB_PATH); return; };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(PlatformAchievementInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len());
+
+        for (i, item) in items.iter().enumerate() {
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            PlatformAchievementInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
     }
 }

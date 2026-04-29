@@ -320,7 +320,7 @@ in one retry.
 | Snow | (long-running) | Skill/Buff Python bindings | active |
 | A | now | EffectData inner_map typing | active |
 | B | — | (pick: GlobalGameEventExecuteData per-sub_tag bodies) | not started |
-| C | 2026-04-29 | bulk JSON round-trip: 51 macro-based tables | done — 18 read_with_size / hand-written outliers remain |
+| C | 2026-04-29 | full JSON round-trip coverage across all hand-corrected tables | done — every macro and hand-written table now has field-level JSON access |
 
 When you start a task, edit your row to `Status: in progress on <table/feature>`.
 When you finish + push, edit to `Status: done — pick next`.

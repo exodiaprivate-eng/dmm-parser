@@ -55,7 +55,10 @@
 //! it via the "Hand-corrected" header marker on line 1.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,6 +347,119 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::SpecialMode { base, payload } => { base.write_to(w)?; payload.write_to(w) }
         }
     }
+
+    /// JSON shape:
+    ///   { "kind": "<VariantName>", "discriminator": 0..22,
+    ///     "base": <BaseUseData dict>,
+    ///     "payload": <typed payload dict>  // null for base-only variants;
+    ///                                       // {"_b64": "..."} for the 4 deep
+    ///                                       // variants (RandomBox / Customize-
+    ///                                       // Character / PlaySequencerOnly /
+    ///                                       // UnSealFromEquip)
+    ///   }
+    /// All typed payload sub-fields are addressable (the macro generates the
+    /// dict shape). Deep variants ride as base64; clone-between-entries
+    /// stays byte-perfect.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("discriminator".to_string(), Value::from(self.discriminator()));
+        let (kind, base, payload): (&str, &BaseUseData, Value) = match self {
+            Self::Skill { base, payload } => ("Skill", base, Value::Object(payload.to_json_dict())),
+            Self::ExpandInventorySlot { base, payload } => ("ExpandInventorySlot", base, Value::Object(payload.to_json_dict())),
+            Self::RandomBox { base, payload } => ("RandomBox", base, deep_to_json(&payload.0)),
+            Self::SummonGimmickWithCatch { base, payload } => ("SummonGimmickWithCatch", base, Value::Object(payload.to_json_dict())),
+            Self::ConvertCharacter { base, payload } => ("ConvertCharacter", base, Value::Object(payload.to_json_dict())),
+            Self::ItemDye { base, payload } => ("ItemDye", base, Value::Object(payload.to_json_dict())),
+            Self::SubLevelUp { base, payload } => ("SubLevelUp", base, Value::Object(payload.to_json_dict())),
+            Self::FeedVehicle { base, payload } => ("FeedVehicle", base, Value::Object(payload.to_json_dict())),
+            Self::DestroyOnly { base } => ("DestroyOnly", base, Value::Null),
+            Self::SealToEquip { base } => ("SealToEquip", base, Value::Null),
+            Self::TeleportRevivePoint { base, payload } => ("TeleportRevivePoint", base, Value::Object(payload.to_json_dict())),
+            Self::Projectile { base, payload } => ("Projectile", base, Value::Object(payload.to_json_dict())),
+            Self::ExpandFarmSlot { base, payload } => ("ExpandFarmSlot", base, Value::Object(payload.to_json_dict())),
+            Self::CustomizeCharacter { base, payload } => ("CustomizeCharacter", base, deep_to_json(&payload.0)),
+            Self::PlaySequencerOnly { base, payload } => ("PlaySequencerOnly", base, deep_to_json(&payload.0)),
+            Self::RegisterReserveSlot { base, payload } => ("RegisterReserveSlot", base, Value::Object(payload.to_json_dict())),
+            Self::OpenUI { base, payload } => ("OpenUI", base, Value::Object(payload.to_json_dict())),
+            Self::Inspect { base } => ("Inspect", base, Value::Null),
+            Self::InventoryBuff { base } => ("InventoryBuff", base, Value::Null),
+            Self::SendEventToDockingGimmick { base } => ("SendEventToDockingGimmick", base, Value::Null),
+            Self::UseSealed { base } => ("UseSealed", base, Value::Null),
+            Self::UnSealFromEquip { base, payload } => ("UnSealFromEquip", base, deep_to_json(&payload.0)),
+            Self::SpecialMode { base, payload } => ("SpecialMode", base, Value::Object(payload.to_json_dict())),
+        };
+        m.insert("kind".to_string(), Value::String(kind.to_string()));
+        m.insert("base".to_string(), Value::Object(base.to_json_dict()));
+        m.insert("payload".to_string(), payload);
+        m
+    }
+
+    /// Write the variant's bytes from a JSON dict (as produced by
+    /// `to_json_dict`). The discriminator byte is NOT emitted here —
+    /// `ItemUseInfo::write_from_json_dict` writes it before calling us.
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<u8> {
+        let disc = json_get_field(obj, "discriminator")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ItemUseDataVariant.discriminator: expected u8 number"))?;
+        if disc > 22 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("ItemUseDataVariant.discriminator out of range: {}", disc)));
+        }
+        let disc = disc as u8;
+        let base_obj = json_get_field(obj, "base")?
+            .as_object()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ItemUseDataVariant.base: expected object"))?;
+        BaseUseData::write_from_json_dict(w, base_obj)?;
+        let payload = json_get_field(obj, "payload")?;
+        match disc {
+            0 => SkillPayload::write_from_json_dict(w, payload_obj(payload, "Skill")?)?,
+            1 => ExpandInventorySlotPayload::write_from_json_dict(w, payload_obj(payload, "ExpandInventorySlot")?)?,
+            2 => write_deep_from_json(w, payload, "RandomBox")?,
+            3 => SummonGimmickWithCatchPayload::write_from_json_dict(w, payload_obj(payload, "SummonGimmickWithCatch")?)?,
+            4 => ConvertCharacterPayload::write_from_json_dict(w, payload_obj(payload, "ConvertCharacter")?)?,
+            5 => ItemDyePayload::write_from_json_dict(w, payload_obj(payload, "ItemDye")?)?,
+            6 => SubLevelUpPayload::write_from_json_dict(w, payload_obj(payload, "SubLevelUp")?)?,
+            7 => SkillPayload::write_from_json_dict(w, payload_obj(payload, "FeedVehicle")?)?,
+            8 | 9 => {} // base only
+            10 => TeleportRevivePointPayload::write_from_json_dict(w, payload_obj(payload, "TeleportRevivePoint")?)?,
+            11 => ProjectilePayload::write_from_json_dict(w, payload_obj(payload, "Projectile")?)?,
+            12 => ConvertCharacterPayload::write_from_json_dict(w, payload_obj(payload, "ExpandFarmSlot")?)?,
+            13 => write_deep_from_json(w, payload, "CustomizeCharacter")?,
+            14 => write_deep_from_json(w, payload, "PlaySequencerOnly")?,
+            15 => RegisterReserveSlotPayload::write_from_json_dict(w, payload_obj(payload, "RegisterReserveSlot")?)?,
+            16 => OpenUIPayload::write_from_json_dict(w, payload_obj(payload, "OpenUI")?)?,
+            17 | 18 | 19 | 20 => {} // base only
+            21 => write_deep_from_json(w, payload, "UnSealFromEquip")?,
+            22 => SpecialModePayload::write_from_json_dict(w, payload_obj(payload, "SpecialMode")?)?,
+            _ => unreachable!("disc {} bounds-checked above", disc),
+        }
+        Ok(disc)
+    }
+}
+
+fn deep_to_json(bytes: &[u8]) -> Value {
+    let mut m = Map::new();
+    m.insert("_b64".to_string(), Value::String(B64.encode(bytes)));
+    Value::Object(m)
+}
+
+fn payload_obj<'v>(v: &'v Value, kind: &str) -> io::Result<&'v Map<String, Value>> {
+    v.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+        format!("ItemUseDataVariant::{}: payload must be an object", kind)))
+}
+
+fn write_deep_from_json(w: &mut Vec<u8>, v: &Value, kind: &str) -> io::Result<()> {
+    let obj = payload_obj(v, kind)?;
+    let s = json_get_field(obj, "_b64")?
+        .as_str()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            format!("ItemUseDataVariant::{}: _b64 must be a string", kind)))?;
+    let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+        format!("ItemUseDataVariant::{}: _b64 invalid base64: {}", kind, e)))?;
+    w.extend_from_slice(&bytes);
+    Ok(())
 }
 
 fn read_deep_payload<'a>(
@@ -397,6 +513,32 @@ impl<'a> ItemUseInfo<'a> {
         self.is_blocked.write_to(w)?;
         self.variant.discriminator().write_to(w)?;
         self.variant.write_to(w)
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("variant".to_string(), Value::Object(self.variant.to_json_dict()));
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let variant_obj = json_get_field(obj, "variant")?
+            .as_object()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ItemUseInfo.variant: expected object"))?;
+        // Discriminator byte goes between is_blocked and the variant body
+        // (matches the wire shape that read_with_size pulls back).
+        let mut variant_buf = Vec::new();
+        let disc = ItemUseDataVariant::write_from_json_dict(&mut variant_buf, variant_obj)?;
+        w.push(disc);
+        w.extend_from_slice(&variant_buf);
+        Ok(())
     }
 }
 
@@ -464,5 +606,40 @@ mod tests {
         }
         assert_eq!(out.len(), data.len(), "itemuseinfo roundtrip size mismatch");
         assert_eq!(out, data, "itemuseinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+            return;
+        };
+        let Ok(pabgh) = std::fs::read(PABGH_PATH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+            return;
+        };
+
+        let entries = parse_pabgh(&pabgh);
+        for i in 0..entries.len() {
+            let off = entries[i].1;
+            let next_off = if i + 1 < entries.len() { entries[i + 1].1 } else { data.len() };
+            let entry_size = next_off - off;
+            let mut cursor = off;
+            let item = ItemUseInfo::read_with_size(&data, &mut cursor, entry_size).unwrap();
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            ItemUseInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!(
+                    "entry {} key=0x{:x} disc={}: write_from_json_dict: {}",
+                    i, entries[i].0, item.variant.discriminator(), e
+                ));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x} disc={}: JSON round-trip diverges from typed write",
+                i, entries[i].0, item.variant.discriminator()
+            );
+        }
     }
 }
