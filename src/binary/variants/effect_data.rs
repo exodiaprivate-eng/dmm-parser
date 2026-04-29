@@ -10,7 +10,7 @@
 //! 5. fields_d:      4 × u32                                          (16)
 //! 6. byte_e:        u8                                               (1)
 //! 7. cstring_list:  CArray<CString> (sub_14106BAC0)                  (4 + Σ)
-//! 8. fixed144_list: CArray<[u8;144]> (sub_141117080)                 (4 + 144*N)
+//! 8. fixed144_list: CArray<EffectDataD3Block> (sub_141117080)        (4 + 144*N)
 //! 9. nested_u32_lists: CArray<{u32 key, CArray<u32> values}>
 //!    (sub_141116ED0 → sub_141101AB0)                                 (variable)
 //! 10. inner_map:    CArray<{u32 key, EffectDataInner}>
@@ -18,9 +18,8 @@
 //! ```
 //!
 //! `EffectDataInner` (sub_1410DB840) is similar shape and contains
-//! nested CArrays; it's the recursive part of the family. Walked to
-//! determine wire size; stored as opaque bytes for now (typing it
-//! end-to-end is mechanical follow-up work).
+//! nested CArrays; it's the recursive part of the family. Now fully
+//! field-typed end-to-end (see EffectDataInner struct below).
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
@@ -107,7 +106,7 @@ py_binary_struct! {
 /// 6.  4 × Vec3 (12 bytes each)                            (48)
 /// 7.  field_after_vecs: u32                               (4)
 /// 8.  cstring_list:  CArray<CString> (sub_14106BAC0)     (variable)
-/// 9.  fixed144_list: CArray<[u8;144]> (sub_141117080)    (variable)
+/// 9.  fixed144_list: CArray<EffectDataD3Block> (sub_141117080)        (variable)
 /// 10. trailing_word: u16                                  (2)
 /// ```
 ///
@@ -395,7 +394,7 @@ fn walk_effect_data_inner(data: &[u8], offset: usize) -> io::Result<usize> {
     cur += 52;
     // sub_14106BAC0: CArray<CString>
     cur += walk_carray_cstring(data, cur)?;
-    // sub_141117080: CArray<[u8; 144]>
+    // sub_141117080: CArray<EffectDataD3Block>  (144-byte fixed records)
     cur += walk_carray_fixed(data, cur, D3_BLOCK_SIZE)?;
     // 2-byte trailing field
     cur += 2;
