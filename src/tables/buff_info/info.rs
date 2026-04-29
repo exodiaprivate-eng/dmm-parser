@@ -48,6 +48,51 @@ impl<'a> BinaryWrite for BuffDataEntry<'a> {
     }
 }
 
+impl<'a> ToJsonValue for BuffDataEntry<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("leading_lookup".into(), self.leading_lookup.to_json_value());
+        m.insert("absent_flag".into(), self.absent_flag.to_json_value());
+        m.insert(
+            "data".into(),
+            match &self.data {
+                Some(d) => Value::Object(d.to_json_dict()),
+                None => Value::Null,
+            },
+        );
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for BuffDataEntry<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "BuffDataEntry: expected object",
+        ))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "leading_lookup")?)?;
+        let absent_v = json_get_field(obj, "absent_flag")?;
+        let absent = absent_v.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "BuffDataEntry.absent_flag: expected u8",
+        ))?;
+        if absent > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("BuffDataEntry.absent_flag: {} out of u8 range", absent)));
+        }
+        w.push(absent as u8);
+        if absent == 0 {
+            let data_v = json_get_field(obj, "data")?;
+            let data_obj = data_v.as_object().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "BuffDataEntry.data: expected object when absent_flag==0",
+            ))?;
+            BuffData::write_from_json_dict(w, data_obj)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub struct BuffInfo<'a> {
     pub key: u32,
@@ -111,18 +156,18 @@ impl<'a> BuffInfo<'a> {
         Ok(())
     }
 
-    /// Convert this BuffInfo record to a JSON dict with every typed prefix
-    /// field by name. The typed-but-polymorphic `buff_data_list` (CArray of
-    /// BuffData variants) round-trips as base64 under `_buff_data_list_b64`
-    /// — clone-perfect across mods until BuffData gets its own JSON shim.
+    /// Convert this BuffInfo record to a JSON dict. `buff_data_list` is
+    /// a fully typed CArray of BuffDataEntry (each entry exposes
+    /// leading_lookup, absent_flag, and a typed BuffData base + variant
+    /// payload). Per-variant body fields stay as `variant_payload_b64`
+    /// inside each BuffData until the 120-variant per-family JSON
+    /// rollout completes — round-trip is byte-perfect either way.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        let mut bd_bytes = Vec::new();
-        let _ = self.buff_data_list.write_to(&mut bd_bytes);
-        m.insert("_buff_data_list_b64".to_string(), Value::String(B64.encode(&bd_bytes)));
+        m.insert("buff_data_list".to_string(), self.buff_data_list.to_json_value());
         m.insert("min_level".to_string(), self.min_level.to_json_value());
         m.insert("max_level".to_string(), self.max_level.to_json_value());
         m.insert("sequencer_file_name".to_string(), self.sequencer_file_name.to_json_value());
@@ -135,21 +180,13 @@ impl<'a> BuffInfo<'a> {
         m
     }
 
-    /// Inverse of `to_json_dict`. Reads typed fields by name; the
-    /// polymorphic buff_data_list is base64-decoded from
-    /// `_buff_data_list_b64` and written verbatim.
+    /// Inverse of `to_json_dict`. Reads typed fields by name including
+    /// the recursive `buff_data_list` (CArray of BuffDataEntry).
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        let bd_b64 = json_get_field(obj, "_buff_data_list_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "BuffInfo: _buff_data_list_b64 must be a base64 string"))?;
-        let bd_bytes = B64.decode(bd_b64).map_err(|e| io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("BuffInfo: _buff_data_list_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bd_bytes);
+        <CArray<BuffDataEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_data_list")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "min_level")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sequencer_file_name")?)?;
@@ -242,5 +279,37 @@ mod tests {
         }
         assert_eq!(out.len(), data.len(), "buffinfo roundtrip size mismatch");
         assert_eq!(out, data, "buffinfo roundtrip bytes mismatch");
+    }
+
+    /// JSON dict round-trip — typed write_to bytes must match
+    /// write_from_json_dict bytes for every entry. Validates the typed
+    /// BuffData base + variant_payload_b64 JSON shape preserves bytes.
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing pabgb fixture");
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+            eprintln!("SKIP: missing pabgh fixture");
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut cursor = *start;
+            let item = BuffInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            BuffInfo::write_from_json_dict(&mut from_json, &dict).unwrap_or_else(|e| {
+                panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e)
+            });
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, key,
+            );
+        }
     }
 }

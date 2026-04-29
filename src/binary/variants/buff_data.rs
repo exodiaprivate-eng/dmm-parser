@@ -3,6 +3,9 @@
 //! Total variants: 120
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 /// Shared 28-byte BuffData value block (sub_141E2BB80). Wire reads
@@ -132,6 +135,71 @@ impl<'a> BuffDataBase<'a> {
         self.carray_u32.write_to(w)?;
         self.by132.write_to(w)?;
         self.u32_at136.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("tag".into(), self.tag.to_json_value());
+        m.insert("id".into(), self.id.to_json_value());
+        m.insert("name_id".into(), self.name_id.to_json_value());
+        m.insert("flags_a".into(), self.flags_a.to_json_value());
+        m.insert("flags_b".into(), self.flags_b.to_json_value());
+        m.insert("qword_a".into(), self.qword_a.to_json_value());
+        m.insert("qword_b".into(), self.qword_b.to_json_value());
+        m.insert("qword_c".into(), self.qword_c.to_json_value());
+        m.insert("asset_path".into(), self.asset_path.to_json_value());
+        m.insert("category".into(), self.category.to_json_value());
+        m.insert("by58".into(), self.by58.to_json_value());
+        m.insert("lookup_a_60".into(), self.lookup_a_60.to_json_value());
+        m.insert("lookup_b_62".into(), self.lookup_b_62.to_json_value());
+        m.insert("lookup_c_64".into(), self.lookup_c_64.to_json_value());
+        m.insert("lookup_d_66".into(), self.lookup_d_66.to_json_value());
+        m.insert("by68".into(), self.by68.to_json_value());
+        m.insert("by69".into(), self.by69.to_json_value());
+        m.insert("lookup_88".into(), self.lookup_88.to_json_value());
+        m.insert("lookup_90".into(), self.lookup_90.to_json_value());
+        m.insert("carray_u16".into(), self.carray_u16.to_json_value());
+        m.insert("u32_at128".into(), self.u32_at128.to_json_value());
+        m.insert("u32_at72".into(), self.u32_at72.to_json_value());
+        m.insert("u32_at76".into(), self.u32_at76.to_json_value());
+        m.insert("u32_at80".into(), self.u32_at80.to_json_value());
+        m.insert("u32_at84".into(), self.u32_at84.to_json_value());
+        m.insert("carray_u32".into(), self.carray_u32.to_json_value());
+        m.insert("by132".into(), self.by132.to_json_value());
+        m.insert("u32_at136".into(), self.u32_at136.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "id")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name_id")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flags_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flags_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_c")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "asset_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "category")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by58")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a_60")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b_62")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c_64")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_d_66")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by68")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by69")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_88")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_90")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "carray_u16")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at128")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at72")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at76")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at80")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at84")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "carray_u32")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by132")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at136")?)?;
         Ok(())
     }
 }
@@ -2995,6 +3063,45 @@ impl<'a> BuffData<'a> {
         // tag is the first byte of base — base.write_to writes it
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
+        Ok(())
+    }
+
+    /// JSON shape:
+    /// - `base`: nested object with all 28 typed BuffDataBase fields
+    ///   (tag, id, name_id, flags, qwords, asset_path, lookups, etc.).
+    /// - `variant_payload_b64`: base64 of just the variant body bytes
+    ///   (everything after the BuffDataBase). Per-variant field-level
+    ///   JSON for the 120-variant family is a future rollout — body
+    ///   stays as base64 until then so round-trip is byte-perfect.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("base".into(), Value::Object(self.base.to_json_dict()));
+        let mut variant_buf = Vec::new();
+        self.variant.write_to(&mut variant_buf).expect("write_to Vec");
+        m.insert("variant_payload_b64".into(), Value::String(B64.encode(&variant_buf)));
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let base_v = json_get_field(obj, "base")?;
+        let base_obj = base_v.as_object().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "BuffData.base: expected object")
+        })?;
+        BuffDataBase::write_from_json_dict(w, base_obj)?;
+        let payload_v = json_get_field(obj, "variant_payload_b64")?;
+        let payload_str = payload_v.as_str().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "BuffData.variant_payload_b64: expected base64 string",
+            )
+        })?;
+        let payload_bytes = B64.decode(payload_str).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("BuffData.variant_payload_b64: invalid base64: {}", e),
+            )
+        })?;
+        w.extend_from_slice(&payload_bytes);
         Ok(())
     }
 }
