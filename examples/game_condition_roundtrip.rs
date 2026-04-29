@@ -44,6 +44,15 @@ fn main() {
     // Empty = no filter. Set via env var GC_DUMP_TAG (single tag, decimal).
     let dump_tag_filter: Option<u16> = std::env::var("GC_DUMP_TAG").ok()
         .and_then(|s| s.parse::<u16>().ok());
+    // GC_DUMP_TAGS=15,31,113,214 — multi-tag filter for batch inspection
+    let dump_tag_filters: Vec<u16> = std::env::var("GC_DUMP_TAGS")
+        .ok()
+        .map(|s| s.split(',').filter_map(|x| x.trim().parse::<u16>().ok()).collect())
+        .unwrap_or_default();
+    let dump_per_tag = std::env::var("GC_DUMP_PER_TAG").ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1);
+    let mut dump_count_per_tag: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
 
     // Track per-root-case tag: total / pass / fail
     let mut case_stats: BTreeMap<u8, (usize, usize, usize)> = BTreeMap::new();
@@ -115,8 +124,18 @@ fn main() {
                 mismatch_examples.push((*k, parse_cur, blob.len()));
             }
             // Also dump for underconsume case
-            if root_case == 3 && case3_dumps.len() < 5
-                && (dump_tag_filter.is_none() || dump_tag_filter == cdata_tag) {
+            let want_dump = if root_case != 3 { false }
+                else if !dump_tag_filters.is_empty() {
+                    cdata_tag.map_or(false, |t|
+                        dump_tag_filters.contains(&t) &&
+                        *dump_count_per_tag.get(&t).unwrap_or(&0) < dump_per_tag)
+                } else if let Some(filt) = dump_tag_filter {
+                    cdata_tag == Some(filt) && case3_dumps.len() < 5
+                } else { case3_dumps.len() < 5 };
+            if want_dump {
+                if let Some(t) = cdata_tag {
+                    *dump_count_per_tag.entry(t).or_insert(0) += 1;
+                }
                 let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                 let mut buf: Vec<u8> = Vec::with_capacity(blob.len());
                 let _ = node.write_to(&mut buf);
@@ -149,8 +168,18 @@ fn main() {
                 mismatch_examples.push((*k, diff_at, blob.len()));
             }
             // Hex-dump the first 5 case-3 mismatches with their tag for inspection.
-            if root_case == 3 && case3_dumps.len() < 5
-                && (dump_tag_filter.is_none() || dump_tag_filter == cdata_tag) {
+            let want_dump = if root_case != 3 { false }
+                else if !dump_tag_filters.is_empty() {
+                    cdata_tag.map_or(false, |t|
+                        dump_tag_filters.contains(&t) &&
+                        *dump_count_per_tag.get(&t).unwrap_or(&0) < dump_per_tag)
+                } else if let Some(filt) = dump_tag_filter {
+                    cdata_tag == Some(filt) && case3_dumps.len() < 5
+                } else { case3_dumps.len() < 5 };
+            if want_dump {
+                if let Some(t) = cdata_tag {
+                    *dump_count_per_tag.entry(t).or_insert(0) += 1;
+                }
                 let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                 case3_dumps.push((*k, blob.to_vec(), buf.clone(), parse_cur, tag_for_dump));
             }

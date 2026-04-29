@@ -181,17 +181,36 @@ impl ConditionData_DockingGetItemCountPayload {
     }
 }
 
+/// Tag 206 (ConditionData_Weather). Body = u8 weather state (1 byte).
+/// Per IDA sub_14F18E780 (vtable[16] for ConditionData_Weather at
+/// 0x144CD5A98) — single stream read of 1 byte stored at +24.
+#[derive(Debug)]
+pub struct ConditionData_WeatherPayload {
+    pub weather_state: u8,
+}
+impl ConditionData_WeatherPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let weather_state = u8::read_from(data, offset)?;
+        Ok(Self { weather_state })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.weather_state.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Tag 9 (ConditionData_CheckTime). Body = u64 time value (8 bytes).
 #[derive(Debug)]
 pub struct ConditionData_CheckTimePayload {
-    pub field_at_28: u32,
+    pub time_value: u64,
 }
 impl ConditionData_CheckTimePayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28 })
+        let time_value = u64::read_from(data, offset)?;
+        Ok(Self { time_value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
+        self.time_value.write_to(w)?;
         Ok(())
     }
 }
@@ -247,17 +266,21 @@ impl ConditionData_CheckCharacterKeyPayload {
     }
 }
 
+/// Tag 15 (CheckTribe). Body = u32 tribe_key + u8 flag = 5 bytes.
 #[derive(Debug)]
 pub struct ConditionData_CheckTribePayload {
-    pub field_at_24: u32,
+    pub tribe_key: u32,
+    pub flag: u8,
 }
 impl ConditionData_CheckTribePayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
+        let tribe_key = u32::read_from(data, offset)?;
+        let flag = u8::read_from(data, offset)?;
+        Ok(Self { tribe_key, flag })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
+        self.tribe_key.write_to(w)?;
+        self.flag.write_to(w)?;
         Ok(())
     }
 }
@@ -280,38 +303,48 @@ impl ConditionData_CheckTribeMassLevelPayload {
     }
 }
 
+/// Tag 23 (GetDataDefinedStaticStat). Body = u32 entity_key + u8 stat_index
+/// + u64 stat_value = 13 bytes per vanilla observation.
 #[derive(Debug)]
 pub struct ConditionData_GetDataDefinedStaticStatPayload {
-    pub field_at_26: u8,
-    pub field_at_32: u64,
+    pub entity_key: u32,
+    pub stat_index: u8,
+    pub stat_value: u64,
 }
 impl ConditionData_GetDataDefinedStaticStatPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_32 })
+        let entity_key = u32::read_from(data, offset)?;
+        let stat_index = u8::read_from(data, offset)?;
+        let stat_value = u64::read_from(data, offset)?;
+        Ok(Self { entity_key, stat_index, stat_value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.entity_key.write_to(w)?;
+        self.stat_index.write_to(w)?;
+        self.stat_value.write_to(w)?;
         Ok(())
     }
 }
 
+/// Tag 24 (GetDataDefinedRegenerateStat). Body = u32 entity_key + u8 stat_index
+/// + u64 regen_value = 13 bytes per vanilla observation (same shape as tag 23).
 #[derive(Debug)]
 pub struct ConditionData_GetDataDefinedRegenerateStatPayload {
-    pub field_at_26: u8,
-    pub field_at_32: u64,
+    pub entity_key: u32,
+    pub stat_index: u8,
+    pub regen_value: u64,
 }
 impl ConditionData_GetDataDefinedRegenerateStatPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_32 })
+        let entity_key = u32::read_from(data, offset)?;
+        let stat_index = u8::read_from(data, offset)?;
+        let regen_value = u64::read_from(data, offset)?;
+        Ok(Self { entity_key, stat_index, regen_value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.entity_key.write_to(w)?;
+        self.stat_index.write_to(w)?;
+        self.regen_value.write_to(w)?;
         Ok(())
     }
 }
@@ -3503,7 +3536,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckBreaked,
     ConditionData_IsDockingChild,
     ConditionData_CheckTriggerVolumeGroupIndex(ConditionData_CheckTriggerVolumeGroupIndexPayload),
-    ConditionData_Weather,
+    ConditionData_Weather(ConditionData_WeatherPayload),
     ConditionData_CheckGimmickParentLinkCount(ConditionData_CheckGimmickParentLinkCountPayload),
     ConditionData_CheckGimmickRemoteCatchType,
     ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload<'a>),
@@ -3913,7 +3946,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckBreaked => 203,
             Self::ConditionData_IsDockingChild => 204,
             Self::ConditionData_CheckTriggerVolumeGroupIndex(_) => 205,
-            Self::ConditionData_Weather => 206,
+            Self::ConditionData_Weather(_) => 206,
             Self::ConditionData_CheckGimmickParentLinkCount(_) => 207,
             Self::ConditionData_CheckGimmickRemoteCatchType => 208,
             Self::ConditionData_CheckGimmickTriggerCount(_) => 209,
@@ -4323,7 +4356,7 @@ impl<'a> ConditionDataVariant<'a> {
             203 => Self::ConditionData_CheckBreaked,
             204 => Self::ConditionData_IsDockingChild,
             205 => Self::ConditionData_CheckTriggerVolumeGroupIndex(ConditionData_CheckTriggerVolumeGroupIndexPayload::read_from(data, offset)?),
-            206 => Self::ConditionData_Weather,
+            206 => Self::ConditionData_Weather(ConditionData_WeatherPayload::read_from(data, offset)?),
             207 => Self::ConditionData_CheckGimmickParentLinkCount(ConditionData_CheckGimmickParentLinkCountPayload::read_from(data, offset)?),
             208 => Self::ConditionData_CheckGimmickRemoteCatchType,
             209 => Self::ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload::read_from(data, offset)?),
@@ -4740,7 +4773,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckBreaked => Ok(()),
             Self::ConditionData_IsDockingChild => Ok(()),
             Self::ConditionData_CheckTriggerVolumeGroupIndex(p) => p.write_to(w),
-            Self::ConditionData_Weather => Ok(()),
+            Self::ConditionData_Weather(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickParentLinkCount(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickRemoteCatchType => Ok(()),
             Self::ConditionData_CheckGimmickTriggerCount(p) => p.write_to(w),
