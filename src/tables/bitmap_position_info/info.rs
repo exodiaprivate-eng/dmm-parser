@@ -141,9 +141,9 @@ pub struct BitmapPositionInfo<'a> {
     pub is_blocked: u8,
     pub scale_type: u8,
     pub values: BitmapPositionValues,
-    pub boundary_position_min: [u8; 8],
-    pub boundary_position_max: [u8; 8],
-    pub center_position: [u8; 8],
+    pub boundary_position_min: [f32; 2],
+    pub boundary_position_max: [f32; 2],
+    pub center_position: [f32; 2],
     pub scale_per_pixel: u32,
     pub max_using_height: u32,
     pub export_texture_on_editing: u8,
@@ -171,9 +171,9 @@ impl<'a> BitmapPositionInfo<'a> {
         let is_blocked = u8::read_from(data, offset)?;
         let scale_type = u8::read_from(data, offset)?;
         let values = BitmapPositionValues::read_from(data, offset)?;
-        let boundary_position_min = <[u8; 8]>::read_from(data, offset)?;
-        let boundary_position_max = <[u8; 8]>::read_from(data, offset)?;
-        let center_position = <[u8; 8]>::read_from(data, offset)?;
+        let boundary_position_min = <[f32; 2]>::read_from(data, offset)?;
+        let boundary_position_max = <[f32; 2]>::read_from(data, offset)?;
+        let center_position = <[f32; 2]>::read_from(data, offset)?;
         let scale_per_pixel = u32::read_from(data, offset)?;
         let max_using_height = u32::read_from(data, offset)?;
         let export_texture_on_editing = u8::read_from(data, offset)?;
@@ -221,9 +221,9 @@ impl<'a> BitmapPositionInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "scale_type")?)?;
         BitmapPositionValues::write_from_json(w, json_get_field(obj, "values")?)?;
-        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_position_min")?)?;
-        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_position_max")?)?;
-        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "center_position")?)?;
+        <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_position_min")?)?;
+        <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_position_max")?)?;
+        <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "center_position")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "scale_per_pixel")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_using_height")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "export_texture_on_editing")?)?;
