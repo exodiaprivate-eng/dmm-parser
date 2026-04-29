@@ -163,6 +163,39 @@ impl<'a> BuffInfo<'a> {
     }
 }
 
+pub fn parse_buffinfo_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<Vec<Value>> {
+    use crate::binary::variant::{entry_ranges, load_pabgh_offsets_from_bytes};
+    let entries = load_pabgh_offsets_from_bytes(pabgh).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, "pabgh parse failed")
+    })?;
+    let ranges = entry_ranges(&entries, data.len());
+    let mut items = Vec::with_capacity(ranges.len());
+    for (_k, s, e) in ranges {
+        let mut c = s;
+        let item = BuffInfo::read_with_size(data, &mut c, e - s)?;
+        if c != e {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("BuffInfo entry under/over-consumed: {}/{}", c - s, e - s),
+            ));
+        }
+        items.push(Value::Object(item.to_json_dict()));
+    }
+    Ok(items)
+}
+
+pub fn serialize_buffinfo_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
+    let mut out = Vec::with_capacity(items.len() * 64);
+    for (i, v) in items.iter().enumerate() {
+        let obj = v.as_object().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, format!("buff[{}]: not an object", i))
+        })?;
+        BuffInfo::write_from_json_dict(&mut out, obj)
+            .map_err(|e| io::Error::new(e.kind(), format!("buff[{}]: {}", i, e)))?;
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

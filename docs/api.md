@@ -255,6 +255,134 @@ data = dmm_parser.serialize_iteminfo(items)
 
 ---
 
+## Localization (PALOC)
+
+### `parse_paloc_bytes(data: bytes) -> list[dict]`
+
+Parse a localization file (`.paloc` format) from raw bytes.
+
+```python
+with open("localstring_eng.paloc", "rb") as f:
+    entries = dmm_parser.parse_paloc_bytes(f.read())
+```
+
+**Returns:** List of dicts with fields: `unk_id` (`int`), `string_key` (`str`), `string_value` (`str`).
+
+### `serialize_paloc(items: list[dict]) -> bytes`
+
+Serialize a list of localization entries back to raw bytes.
+
+```python
+data = dmm_parser.serialize_paloc(entries)
+```
+
+---
+
+## SkillInfo (pabgb + pabgh)
+
+### `parse_skillinfo_from_file(pabgb_path: str, pabgh_path: str) -> list[dict]`
+
+Parse all skill records from binary files.
+
+```python
+skills = dmm_parser.parse_skillinfo_from_file("skill.pabgb", "skill.pabgh")
+```
+
+### `parse_skillinfo_from_bytes(pabgb: bytes, pabgh: bytes) -> list[dict]`
+
+Parse all skill records from raw bytes.
+
+### `serialize_skillinfo(items: list[dict]) -> bytes`
+
+Serialize a list of SkillInfo dicts to raw bytes.
+
+### `write_skillinfo_to_file(items: list[dict], path: str) -> None`
+
+Serialize and write to a file.
+
+**SkillInfo fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `int` | Unique skill ID (u32) |
+| `string_key` | `str` | String identifier |
+| `is_blocked` | `int` | Blocked flag (u8) |
+| `cooltime` | `int` | Cooldown (u32) |
+| `buff_level_list` | `str` | Base64 blob — `CArray<CArray<BuffData>>` per level; opaque until BuffData gets a JSON shim |
+| `skill_group_key` | `int` | SkillGroupKey (u32) |
+| `parent_skill` | `int` | Parent SkillKey (u32) |
+| `learn_level` | `int` | Required level to learn (u32) |
+| `apply_type` | `int` | Apply type (u8) |
+| `icon_path` | `int` | StringInfoKey (u32) |
+| `need_upgrade_item_info` | `int` | ItemKey (u32) |
+| `need_upgrade_item_count_graph` | `dict` | See [GraphData](#graphdata) |
+| `need_upgrade_experience_graph` | `dict` | See [GraphData](#graphdata) |
+| `usable_character_info_list` | `list[int]` | CharacterKey list (u32) |
+| `usable_condition` | `list[int]` | ConditionKey list (u32) |
+| `learn_knowledge_info` | `int` | KnowledgeKey (u32) |
+| `faction_info` | `int` | FactionKey (u32) |
+| `use_resource_stat_list` | `list[dict]` | See [ResourceStat](#resourcestat) |
+| `use_resource_item_list` | `list[dict]` | See [ResourceItem](#resourceitem) |
+| `use_driver_resource_stat_list` | `list[dict]` | See [ResourceStat](#resourcestat) |
+| `use_battery_stat` | `int` | (u64) |
+| `is_ui_use_allowed` | `int` | (u8) |
+| `is_learn_use_artifact` | `int` | (u8) |
+| `allow_skill_with_low_resource` | `int` | (u8) |
+| `is_use_child_pattern_description_buff_data` | `int` | (u8) |
+| `damage_type` | `int` | (u8) |
+| `ui_type` | `int` | (u8) |
+| `reserve_slot_info_list` | `list[int]` | ReserveSlotKey list (u32) |
+| `max_level` | `int` | Maximum skill level (u32) |
+| `skill_group_key_list` | `list[int]` | SkillGroupKey list (u16) |
+| `buff_sustain_flag` | `int` | (u32) |
+| `dev_skill_name` | `str` | Internal dev name |
+| `dev_skill_desc` | `str` | Internal dev description |
+| `video_path` | `int` | StringInfoKey (u32) |
+
+---
+
+## BuffInfo (pabgb + pabgh)
+
+### `parse_buffinfo_from_file(pabgb_path: str, pabgh_path: str) -> list[dict]`
+
+Parse all buff records from binary files.
+
+```python
+buffs = dmm_parser.parse_buffinfo_from_file("buffinfo.pabgb", "buffinfo.pabgh")
+```
+
+### `parse_buffinfo_from_bytes(pabgb: bytes, pabgh: bytes) -> list[dict]`
+
+Parse all buff records from raw bytes.
+
+### `serialize_buffinfo(items: list[dict]) -> bytes`
+
+Serialize a list of BuffInfo dicts to raw bytes.
+
+### `write_buffinfo_to_file(items: list[dict], path: str) -> None`
+
+Serialize and write to a file.
+
+**BuffInfo fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `int` | Unique buff ID (u32) |
+| `string_key` | `str` | String identifier |
+| `is_blocked` | `int` | Blocked flag (u8) |
+| `_buff_data_list_b64` | `str` | Base64 blob — polymorphic `CArray<BuffData>` (120 variant family); opaque until BuffData gets a JSON shim |
+| `min_level` | `int` | Minimum buff level (u32) |
+| `max_level` | `int` | Maximum buff level (u32) |
+| `sequencer_file_name` | `str` | Sequencer asset path |
+| `buff_level_calculate_type` | `int` | Level calculation type (u8) |
+| `ui_template_name` | `int` | StringInfoKey (u32) |
+| `ui_component_name` | `int` | StringInfoKey (u32) |
+| `elemental_status_info` | `int` | ElementalStatusKey (u32) |
+| `is_use_skill_info_pattern_description` | `int` | (u8) |
+| `use_counting_by_global_timer` | `int` | (u8) |
+
+---
+
 ## Data Types
 
 All data is returned as plain Python dicts, lists, and primitives. No custom classes are used.
@@ -799,6 +927,41 @@ Variant type with a type tag.
     "unit_data_list_map": [dict]    # MoneyUnitEntry list
 }
 ```
+
+### GraphData
+
+```python
+{
+    "a": int,  # u64
+    "b": int,  # u64
+    "c": int,  # u64
+    "d": int   # u32
+}
+```
+
+### ResourceStat
+
+```python
+{
+    "a": int,         # u8
+    "lookup_b": int,  # u32
+    "c": int,         # u8
+    "d": int,         # u64
+    "lookup_e": int,  # u32
+    "lookup_f": int   # u32
+}
+```
+
+### ResourceItem
+
+```python
+{
+    "lookup": int,  # u32
+    "value": int    # u64
+}
+```
+
+---
 
 ### MoneyUnitEntry
 
