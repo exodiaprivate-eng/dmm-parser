@@ -21,7 +21,12 @@
 //!
 //!   Per element of `items` (sub_141155530's loop body):
 //!     * `region_codes`: CArray<u16>            (sub_1411022B0, qword_DA20 hash)
-//!     * `tail`:         [u8; 16]               (two raw u64 reads)
+//!     * `price_a`:      i64                    (wire +0)
+//!     * `price_b`:      i64                    (wire +8)
+//!
+//!   Empirical patterns from vanilla data: paired entries with
+//!   `price_a=500000, price_b=800000` and inverse `price_a=-800000,
+//!   price_b=-500000` — bracketed price ranges per region.
 //!
 //! - sub_tag 1 / OpenRoyalSupply (`sub_141155300` → `sub_1411553D0`):
 //!     * `region_codes`: CArray<u16>            (sub_1411553D0, qword_113A0 hash)
@@ -54,10 +59,15 @@ use std::io::{self, Write};
 
 py_binary_struct! {
     /// One element of `VaryTradeItemPricePayload.items` (sub_141155530's loop).
-    /// Wire: CArray<u16> + 16 raw bytes (read as two u64s into a runtime _OWORD).
+    /// Wire: CArray<u16> + two i64 prices (16 raw bytes total). The runtime
+    /// stores the price pair as a single _OWORD at offset +24, but the wire
+    /// reads them as 8+8 sequential bytes — empirically two signed 64-bit
+    /// price values (e.g. 500000 / 800000 for trade-up entries, -800000 /
+    /// -500000 for inverse trade-down entries).
     pub struct VaryTradeItemPriceData {
         pub region_codes: CArray<u16>,
-        pub tail: [u8; 16],
+        pub price_a: i64,
+        pub price_b: i64,
     }
 }
 
