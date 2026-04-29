@@ -7,3 +7,4 @@ python/**/*.so
 .idea/
 *.pyc
 target/
+node_modules/
