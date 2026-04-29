@@ -414,7 +414,7 @@ mod tests {
             for ed in &it.effect_data {
                 total_cstrings += ed.cstring_list.len();
                 total_fixed144 += ed.fixed144_list.len();
-                if ed.inner_map_blob.len() > 4 {
+                if !ed.inner_map.is_empty() {
                     entries_with_inner_map += 1;
                 }
             }

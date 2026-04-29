@@ -80,9 +80,246 @@ py_binary_struct! {
     }
 }
 
-/// One EffectData element on the wire. Most fields are individually
-/// typed; the recursive `inner_map_blob` is captured byte-perfect for
-/// round-trip until its full struct shape ships.
+/// EffectDataInner record (sub_1410DB840). Recursive nested struct that
+/// appears as the value type inside EffectDataElement.inner_map. Wire
+/// layout from IDA:
+///
+/// ```text
+/// 1.  u32 field_0                                        (4)
+/// 2.  EffectDataCoreBlock (sub_1410D4110)                (254)
+/// 3.  6 × u32 hash → u16 lookups (read_u32_lookup_DA30)  (24)
+/// 4.  list_a:  CArray<CString-style> (sub_141102990 →
+///     sub_1410A9D40 — each element is u32 len + len bytes
+///     of UTF-8 that get hashed at runtime)               (variable)
+/// 5.  list_b:  CArray<u32 / f32-as-u32> (sub_141102A60)  (variable)
+/// 6.  4 × Vec3 (12 bytes each)                            (48)
+/// 7.  field_after_vecs: u32                               (4)
+/// 8.  cstring_list:  CArray<CString> (sub_14106BAC0)     (variable)
+/// 9.  fixed144_list: CArray<[u8;144]> (sub_141117080)    (variable)
+/// 10. trailing_word: u16                                  (2)
+/// ```
+///
+/// Total fixed = 4 + 254 + 24 + 48 + 4 + 2 = 336 bytes + 4 CArrays.
+#[derive(Debug)]
+pub struct EffectDataInner<'a> {
+    pub field_0: u32,
+    pub core_block: EffectDataCoreBlock,
+    pub lookups: [u32; 6],
+    pub list_a: Vec<CString<'a>>,
+    pub list_b: Vec<u32>,
+    pub vec_a_x: u32, pub vec_a_y: u32, pub vec_a_z: u32,
+    pub vec_b_x: u32, pub vec_b_y: u32, pub vec_b_z: u32,
+    pub vec_c_x: u32, pub vec_c_y: u32, pub vec_c_z: u32,
+    pub vec_d_x: u32, pub vec_d_y: u32, pub vec_d_z: u32,
+    pub field_after_vecs: u32,
+    pub cstring_list: Vec<CString<'a>>,
+    pub fixed144_list: Vec<[u8; FIXED144_ELEMENT_SIZE]>,
+    pub trailing_word: u16,
+}
+
+impl<'a> EffectDataInner<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let field_0 = u32::read_from(data, offset)?;
+        let core_block = EffectDataCoreBlock::read_from(data, offset)?;
+        let mut lookups = [0u32; 6];
+        for x in &mut lookups { *x = u32::read_from(data, offset)?; }
+
+        let list_a_count = u32::read_from(data, offset)? as usize;
+        let mut list_a = Vec::with_capacity(list_a_count);
+        for _ in 0..list_a_count { list_a.push(CString::read_from(data, offset)?); }
+
+        let list_b_count = u32::read_from(data, offset)? as usize;
+        let mut list_b = Vec::with_capacity(list_b_count);
+        for _ in 0..list_b_count { list_b.push(u32::read_from(data, offset)?); }
+
+        let vec_a_x = u32::read_from(data, offset)?;
+        let vec_a_y = u32::read_from(data, offset)?;
+        let vec_a_z = u32::read_from(data, offset)?;
+        let vec_b_x = u32::read_from(data, offset)?;
+        let vec_b_y = u32::read_from(data, offset)?;
+        let vec_b_z = u32::read_from(data, offset)?;
+        let vec_c_x = u32::read_from(data, offset)?;
+        let vec_c_y = u32::read_from(data, offset)?;
+        let vec_c_z = u32::read_from(data, offset)?;
+        let vec_d_x = u32::read_from(data, offset)?;
+        let vec_d_y = u32::read_from(data, offset)?;
+        let vec_d_z = u32::read_from(data, offset)?;
+
+        let field_after_vecs = u32::read_from(data, offset)?;
+
+        let cstring_count = u32::read_from(data, offset)? as usize;
+        let mut cstring_list = Vec::with_capacity(cstring_count);
+        for _ in 0..cstring_count { cstring_list.push(CString::read_from(data, offset)?); }
+
+        let fixed144_count = u32::read_from(data, offset)? as usize;
+        let mut fixed144_list = Vec::with_capacity(fixed144_count);
+        for _ in 0..fixed144_count {
+            if *offset + FIXED144_ELEMENT_SIZE > data.len() {
+                return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "fixed144 element"));
+            }
+            let mut buf = [0u8; FIXED144_ELEMENT_SIZE];
+            buf.copy_from_slice(&data[*offset..*offset + FIXED144_ELEMENT_SIZE]);
+            *offset += FIXED144_ELEMENT_SIZE;
+            fixed144_list.push(buf);
+        }
+
+        let trailing_word = u16::read_from(data, offset)?;
+
+        Ok(Self {
+            field_0, core_block, lookups, list_a, list_b,
+            vec_a_x, vec_a_y, vec_a_z,
+            vec_b_x, vec_b_y, vec_b_z,
+            vec_c_x, vec_c_y, vec_c_z,
+            vec_d_x, vec_d_y, vec_d_z,
+            field_after_vecs, cstring_list, fixed144_list, trailing_word,
+        })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_0.write_to(w)?;
+        self.core_block.write_to(w)?;
+        for x in &self.lookups { x.write_to(w)?; }
+        (self.list_a.len() as u32).write_to(w)?;
+        for s in &self.list_a { s.write_to(w)?; }
+        (self.list_b.len() as u32).write_to(w)?;
+        for v in &self.list_b { v.write_to(w)?; }
+        self.vec_a_x.write_to(w)?; self.vec_a_y.write_to(w)?; self.vec_a_z.write_to(w)?;
+        self.vec_b_x.write_to(w)?; self.vec_b_y.write_to(w)?; self.vec_b_z.write_to(w)?;
+        self.vec_c_x.write_to(w)?; self.vec_c_y.write_to(w)?; self.vec_c_z.write_to(w)?;
+        self.vec_d_x.write_to(w)?; self.vec_d_y.write_to(w)?; self.vec_d_z.write_to(w)?;
+        self.field_after_vecs.write_to(w)?;
+        (self.cstring_list.len() as u32).write_to(w)?;
+        for s in &self.cstring_list { s.write_to(w)?; }
+        (self.fixed144_list.len() as u32).write_to(w)?;
+        for buf in &self.fixed144_list { w.write_all(buf)?; }
+        self.trailing_word.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("field_0".to_string(), self.field_0.to_json_value());
+        m.insert("core_block".to_string(), Value::Object(self.core_block.to_json_dict()));
+        m.insert("lookups".to_string(),
+            Value::Array(self.lookups.iter().map(|v| v.to_json_value()).collect()));
+        m.insert("list_a".to_string(),
+            Value::Array(self.list_a.iter().map(|s| s.to_json_value()).collect()));
+        m.insert("list_b".to_string(),
+            Value::Array(self.list_b.iter().map(|v| v.to_json_value()).collect()));
+        m.insert("vec_a_x".to_string(), self.vec_a_x.to_json_value());
+        m.insert("vec_a_y".to_string(), self.vec_a_y.to_json_value());
+        m.insert("vec_a_z".to_string(), self.vec_a_z.to_json_value());
+        m.insert("vec_b_x".to_string(), self.vec_b_x.to_json_value());
+        m.insert("vec_b_y".to_string(), self.vec_b_y.to_json_value());
+        m.insert("vec_b_z".to_string(), self.vec_b_z.to_json_value());
+        m.insert("vec_c_x".to_string(), self.vec_c_x.to_json_value());
+        m.insert("vec_c_y".to_string(), self.vec_c_y.to_json_value());
+        m.insert("vec_c_z".to_string(), self.vec_c_z.to_json_value());
+        m.insert("vec_d_x".to_string(), self.vec_d_x.to_json_value());
+        m.insert("vec_d_y".to_string(), self.vec_d_y.to_json_value());
+        m.insert("vec_d_z".to_string(), self.vec_d_z.to_json_value());
+        m.insert("field_after_vecs".to_string(), self.field_after_vecs.to_json_value());
+        m.insert("cstring_list".to_string(),
+            Value::Array(self.cstring_list.iter().map(|s| s.to_json_value()).collect()));
+        m.insert("fixed144_list".to_string(),
+            Value::Array(self.fixed144_list.iter().map(|b| Value::String(B64.encode(b))).collect()));
+        m.insert("trailing_word".to_string(), self.trailing_word.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_0")?)?;
+        let core_obj = json_get_field(obj, "core_block")?.as_object()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataInner: core_block must be object"))?;
+        EffectDataCoreBlock::write_from_json_dict(w, core_obj)?;
+        let lookups = json_get_field(obj, "lookups")?.as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataInner: lookups must be array"))?;
+        if lookups.len() != 6 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("EffectDataInner: lookups must have 6 items, got {}", lookups.len())));
+        }
+        for v in lookups { <u32 as WriteJsonValue>::write_from_json(w, v)?; }
+        let list_a = json_get_field(obj, "list_a")?.as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataInner: list_a must be array"))?;
+        (list_a.len() as u32).write_to(w)?;
+        for v in list_a { <CString as WriteJsonValue>::write_from_json(w, v)?; }
+        let list_b = json_get_field(obj, "list_b")?.as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataInner: list_b must be array"))?;
+        (list_b.len() as u32).write_to(w)?;
+        for v in list_b { <u32 as WriteJsonValue>::write_from_json(w, v)?; }
+        for name in &["vec_a_x", "vec_a_y", "vec_a_z",
+                      "vec_b_x", "vec_b_y", "vec_b_z",
+                      "vec_c_x", "vec_c_y", "vec_c_z",
+                      "vec_d_x", "vec_d_y", "vec_d_z"] {
+            <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, name)?)?;
+        }
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_after_vecs")?)?;
+        let cstrs = json_get_field(obj, "cstring_list")?.as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataInner: cstring_list must be array"))?;
+        (cstrs.len() as u32).write_to(w)?;
+        for v in cstrs { <CString as WriteJsonValue>::write_from_json(w, v)?; }
+        let f144s = json_get_field(obj, "fixed144_list")?.as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataInner: fixed144_list must be array"))?;
+        (f144s.len() as u32).write_to(w)?;
+        for v in f144s {
+            let s = v.as_str().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "EffectDataInner: fixed144_list elements must be base64 strings"))?;
+            let bytes = B64.decode(s).map_err(|e| io::Error::new(
+                io::ErrorKind::InvalidData, format!("fixed144 base64: {}", e)))?;
+            if bytes.len() != FIXED144_ELEMENT_SIZE {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("fixed144 must be {} bytes, got {}",
+                        FIXED144_ELEMENT_SIZE, bytes.len())));
+            }
+            w.extend_from_slice(&bytes);
+        }
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing_word")?)?;
+        Ok(())
+    }
+}
+
+/// One entry in `inner_map`: u32 key + EffectDataInner value.
+#[derive(Debug)]
+pub struct EffectDataInnerMapEntry<'a> {
+    pub key: u32,
+    pub value: EffectDataInner<'a>,
+}
+
+impl<'a> EffectDataInnerMapEntry<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let key = u32::read_from(data, offset)?;
+        let value = EffectDataInner::read_from(data, offset)?;
+        Ok(Self { key, value })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.value.write_to(w)
+    }
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("value".to_string(), Value::Object(self.value.to_json_dict()));
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        let val_obj = json_get_field(obj, "value")?.as_object()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataInnerMapEntry: value must be object"))?;
+        EffectDataInner::write_from_json_dict(w, val_obj)?;
+        Ok(())
+    }
+}
+
+/// One EffectData element on the wire. Every field is now individually
+/// typed — the recursive `inner_map` is no longer opaque.
 #[derive(Debug)]
 pub struct EffectDataElement<'a> {
     pub byte_a: u8,
@@ -94,12 +331,10 @@ pub struct EffectDataElement<'a> {
     pub byte_e: u8,
     pub cstring_list: Vec<CString<'a>>,
     pub fixed144_list: Vec<[u8; FIXED144_ELEMENT_SIZE]>,
-    /// `CArray<{u32 key, CArray<u32> values}>` opaque — typed shape
-    /// known but not yet expanded into Rust. Walked to find boundary.
-    pub nested_u32_lists_blob: Vec<u8>,
-    /// `CArray<{u32 key, EffectDataInner value}>` opaque — recursive
-    /// nested struct, typing deferred.
-    pub inner_map_blob: Vec<u8>,
+    /// `CArray<CArray<u32>>` — typed in this commit.
+    pub nested_u32_lists: Vec<Vec<u32>>,
+    /// `CArray<{u32 key, EffectDataInner value}>` — typed in this commit.
+    pub inner_map: Vec<EffectDataInnerMapEntry<'a>>,
 }
 
 /// Walk a CArray<u32> wire layout and return its total byte size.
@@ -241,17 +476,24 @@ impl<'a> EffectDataElement<'a> {
             fixed144_list.push(buf);
         }
 
-        let nested_size = walk_nested_u32_lists(data, *offset)?;
-        let nested_u32_lists_blob = data[*offset..*offset + nested_size].to_vec();
-        *offset += nested_size;
+        let nested_count = u32::read_from(data, offset)? as usize;
+        let mut nested_u32_lists = Vec::with_capacity(nested_count);
+        for _ in 0..nested_count {
+            let inner_count = u32::read_from(data, offset)? as usize;
+            let mut inner = Vec::with_capacity(inner_count);
+            for _ in 0..inner_count { inner.push(u32::read_from(data, offset)?); }
+            nested_u32_lists.push(inner);
+        }
 
-        let map_size = walk_inner_map(data, *offset)?;
-        let inner_map_blob = data[*offset..*offset + map_size].to_vec();
-        *offset += map_size;
+        let map_count = u32::read_from(data, offset)? as usize;
+        let mut inner_map = Vec::with_capacity(map_count);
+        for _ in 0..map_count {
+            inner_map.push(EffectDataInnerMapEntry::read_from(data, offset)?);
+        }
 
         Ok(Self {
             byte_a, lookup_b, core_block, lookups_c, fields_d, byte_e,
-            cstring_list, fixed144_list, nested_u32_lists_blob, inner_map_blob,
+            cstring_list, fixed144_list, nested_u32_lists, inner_map,
         })
     }
 
@@ -266,8 +508,13 @@ impl<'a> EffectDataElement<'a> {
         for s in &self.cstring_list { s.write_to(w)?; }
         (self.fixed144_list.len() as u32).write_to(w)?;
         for buf in &self.fixed144_list { w.write_all(buf)?; }
-        w.write_all(&self.nested_u32_lists_blob)?;
-        w.write_all(&self.inner_map_blob)?;
+        (self.nested_u32_lists.len() as u32).write_to(w)?;
+        for inner in &self.nested_u32_lists {
+            (inner.len() as u32).write_to(w)?;
+            for v in inner { v.write_to(w)?; }
+        }
+        (self.inner_map.len() as u32).write_to(w)?;
+        for entry in &self.inner_map { entry.write_to(w)?; }
         Ok(())
     }
 
@@ -296,12 +543,16 @@ impl<'a> EffectDataElement<'a> {
                 .collect()),
         );
         m.insert(
-            "_nested_u32_lists_blob_b64".to_string(),
-            Value::String(B64.encode(&self.nested_u32_lists_blob)),
+            "nested_u32_lists".to_string(),
+            Value::Array(self.nested_u32_lists.iter()
+                .map(|inner| Value::Array(inner.iter().map(|v| v.to_json_value()).collect()))
+                .collect()),
         );
         m.insert(
-            "_inner_map_blob_b64".to_string(),
-            Value::String(B64.encode(&self.inner_map_blob)),
+            "inner_map".to_string(),
+            Value::Array(self.inner_map.iter()
+                .map(|e| Value::Object(e.to_json_dict()))
+                .collect()),
         );
         m
     }
@@ -354,20 +605,27 @@ impl<'a> EffectDataElement<'a> {
             }
             w.extend_from_slice(&bytes);
         }
-        let nested_b64 = json_get_field(obj, "_nested_u32_lists_blob_b64")?
-            .as_str()
+        let nested = json_get_field(obj, "nested_u32_lists")?.as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "EffectDataElement: _nested_u32_lists_blob_b64 must be base64 string"))?;
-        let nested_bytes = B64.decode(nested_b64).map_err(|e| io::Error::new(
-            io::ErrorKind::InvalidData, format!("nested blob: {}", e)))?;
-        w.extend_from_slice(&nested_bytes);
-        let inner_b64 = json_get_field(obj, "_inner_map_blob_b64")?
-            .as_str()
+                "EffectDataElement: nested_u32_lists must be array"))?;
+        (nested.len() as u32).write_to(w)?;
+        for inner_v in nested {
+            let inner = inner_v.as_array().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "EffectDataElement: nested_u32_lists element must be array"))?;
+            (inner.len() as u32).write_to(w)?;
+            for v in inner { <u32 as WriteJsonValue>::write_from_json(w, v)?; }
+        }
+        let inner_map = json_get_field(obj, "inner_map")?.as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "EffectDataElement: _inner_map_blob_b64 must be base64 string"))?;
-        let inner_bytes = B64.decode(inner_b64).map_err(|e| io::Error::new(
-            io::ErrorKind::InvalidData, format!("inner_map blob: {}", e)))?;
-        w.extend_from_slice(&inner_bytes);
+                "EffectDataElement: inner_map must be array"))?;
+        (inner_map.len() as u32).write_to(w)?;
+        for entry_v in inner_map {
+            let entry = entry_v.as_object().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "EffectDataElement: inner_map entry must be object"))?;
+            EffectDataInnerMapEntry::write_from_json_dict(w, entry)?;
+        }
         Ok(())
     }
 }
