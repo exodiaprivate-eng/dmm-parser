@@ -255,8 +255,6 @@ data = dmm_parser.serialize_iteminfo(items)
 
 ---
 
----
-
 ## Localization (PALOC)
 
 ### `parse_paloc_bytes(data: bytes) -> list[dict]`
