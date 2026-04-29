@@ -40,6 +40,7 @@ fn main() {
     // Capture full hex of the first 5 case-3 mismatches for inspection.
     // Each entry: (key, vanilla_blob, our_buf, parse_cursor, tag)
     let mut case3_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u16)> = Vec::new();
+    let mut case_other_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u8)> = Vec::new();
     // Optional per-tag focus: dump only mismatches for these specific u16 tags.
     // Empty = no filter. Set via env var GC_DUMP_TAG (single tag, decimal).
     let dump_tag_filter: Option<u16> = std::env::var("GC_DUMP_TAG").ok()
@@ -102,11 +103,25 @@ fn main() {
                 }
                 // Capture decode_err entries for the targeted tag too —
                 // useful when fixing a variant whose recipe is wrong.
-                if root_case == 3 && case3_dumps.len() < 5
-                    && (dump_tag_filter.is_none() || dump_tag_filter == cdata_tag) {
+                let want_err_dump = if root_case != 3 { false }
+                    else if !dump_tag_filters.is_empty() {
+                        cdata_tag.map_or(false, |t|
+                            dump_tag_filters.contains(&t) &&
+                            *dump_count_per_tag.get(&t).unwrap_or(&0) < dump_per_tag)
+                    } else if let Some(filt) = dump_tag_filter {
+                        cdata_tag == Some(filt) && case3_dumps.len() < 5
+                    } else { case3_dumps.len() < 5 };
+                if want_err_dump {
+                    if let Some(t) = cdata_tag {
+                        *dump_count_per_tag.entry(t).or_insert(0) += 1;
+                    }
                     let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                     let _ = e;
                     case3_dumps.push((*k, blob.to_vec(), Vec::new(), parse_cur, tag_for_dump));
+                }
+                // Dump decode_err for non-case-3 too (cascading children)
+                if root_case != 3 && root_case <= 2 && case_other_dumps.len() < 5 {
+                    case_other_dumps.push((*k, blob.to_vec(), Vec::new(), parse_cur, root_case));
                 }
                 continue;
             }
@@ -183,6 +198,24 @@ fn main() {
                 let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                 case3_dumps.push((*k, blob.to_vec(), buf.clone(), parse_cur, tag_for_dump));
             }
+            // Dump first 5 mismatches in cases 0/1/2 — these often cascade
+            // from a child variant; the byte-level diff is still informative.
+            if root_case != 3 && root_case <= 2 && case_other_dumps.len() < 5 {
+                case_other_dumps.push((*k, blob.to_vec(), buf.clone(), parse_cur, root_case));
+            }
+        }
+    }
+
+    if !case_other_dumps.is_empty() {
+        println!("\n=== First {} case-0/1/2 mismatch hex dumps (vanilla vs ours) ===", case_other_dumps.len());
+        for (k, vanilla, ours, cur, root_case) in &case_other_dumps {
+            println!("\nkey=0x{:08X} root_case={} parse_cur={} vanilla_len={} our_len={}",
+                k, root_case, cur, vanilla.len(), ours.len());
+            println!("  vanilla: {}", vanilla.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+            println!("  ours:    {}", ours.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+            let diff_at = ours.iter().zip(vanilla.iter()).position(|(a, b)| a != b)
+                .unwrap_or(ours.len().min(vanilla.len()));
+            println!("  diff_at: {} (0x{:X})", diff_at, diff_at);
         }
     }
 
@@ -231,7 +264,7 @@ fn main() {
     println!("\n=== ConditionData (case 3) per-u16-tag round-trip stats ===");
     println!("tag  | total | pass | fail | pass%");
     let mut tags: Vec<(u16, (usize, usize, usize))> = cdata_tag_stats.into_iter().collect();
-    tags.sort_by_key(|(_, (_p, f, _e))| -(*f as isize));  // sort by mismatch failures desc
+    tags.sort_by_key(|(_, (_p, f, e))| -((*f + *e) as isize));  // sort by total failures desc
     let mut shown = 0usize;
     for (tag, (pass, fail, decode_err)) in &tags {
         let total = pass + fail + decode_err;

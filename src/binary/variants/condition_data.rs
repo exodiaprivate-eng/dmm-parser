@@ -1038,14 +1038,17 @@ impl ConditionData_CheckGimmickStatePayload {
 
 #[derive(Debug)]
 pub struct ConditionData_DockingGimmickStatePayload {
+    pub field_at_24: u32,
     pub field_at_28: u32,
 }
 impl ConditionData_DockingGimmickStatePayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let field_at_24 = u32::read_from(data, offset)?;
         let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28 })
+        Ok(Self { field_at_24, field_at_28 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_at_24.write_to(w)?;
         self.field_at_28.write_to(w)?;
         Ok(())
     }
@@ -1314,24 +1317,18 @@ impl ConditionData_CheckTargetablePayload {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckInventorySlotFreeCountPayload {
-    pub field_at_26: u8,
+    pub field_at_24: u32,
     pub field_at_28: u16,
-    pub field_at_30: u8,
-    pub field_at_24: CArray<u16>,
 }
 impl ConditionData_CheckInventorySlotFreeCountPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
+        let field_at_24 = u32::read_from(data, offset)?;
         let field_at_28 = u16::read_from(data, offset)?;
-        let field_at_30 = u8::read_from(data, offset)?;
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_28, field_at_30, field_at_24 })
+        Ok(Self { field_at_24, field_at_28 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_30.write_to(w)?;
         self.field_at_24.write_to(w)?;
+        self.field_at_28.write_to(w)?;
         Ok(())
     }
 }
@@ -2619,33 +2616,36 @@ impl ConditionData_GetInventoryWeightLevelPayload {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckReserveSlotPayload {
+    pub field_at_24: u32,
     pub field_at_28: u32,
     pub field_at_32: u16,
     pub field_at_36: u32,
     pub field_at_40: u16,
     pub field_at_44: u32,
     pub field_at_48: u32,
-    pub field_at_24: u32,
+    pub field_at_52: u8,
 }
 impl ConditionData_CheckReserveSlotPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let field_at_24 = u32::read_from(data, offset)?;
         let field_at_28 = u32::read_from(data, offset)?;
         let field_at_32 = u16::read_from(data, offset)?;
         let field_at_36 = u32::read_from(data, offset)?;
         let field_at_40 = u16::read_from(data, offset)?;
         let field_at_44 = u32::read_from(data, offset)?;
         let field_at_48 = u32::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_32, field_at_36, field_at_40, field_at_44, field_at_48, field_at_24 })
+        let field_at_52 = u8::read_from(data, offset)?;
+        Ok(Self { field_at_24, field_at_28, field_at_32, field_at_36, field_at_40, field_at_44, field_at_48, field_at_52 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_at_24.write_to(w)?;
         self.field_at_28.write_to(w)?;
         self.field_at_32.write_to(w)?;
         self.field_at_36.write_to(w)?;
         self.field_at_40.write_to(w)?;
         self.field_at_44.write_to(w)?;
         self.field_at_48.write_to(w)?;
-        self.field_at_24.write_to(w)?;
+        self.field_at_52.write_to(w)?;
         Ok(())
     }
 }
@@ -3267,11 +3267,11 @@ impl ConditionData_CheckMercenaryCallCooltimePayload {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckInventoryMaxSlotCountPayload {
-    pub field_at_24: CArray<u16>,
+    pub field_at_24: u16,
 }
 impl ConditionData_CheckInventoryMaxSlotCountPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
+        let field_at_24 = u16::read_from(data, offset)?;
         Ok(Self { field_at_24 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
@@ -3351,7 +3351,7 @@ impl ConditionData_CheckActivatedHousingRegionPayload {
 pub enum ConditionDataVariant<'a> {
     ConditionData_GetLevel(ConditionData_GetLevelPayload),
     ConditionData_GetHpPercent(ConditionData_GetHpPercentPayload),
-    ConditionData_CheckNone(OneByteBodyPayload),
+    ConditionData_CheckNone,
     ConditionData_CheckSkillLevel(ConditionData_CheckSkillLevelPayload),
     ConditionData_IsHiredMercenary(ConditionData_IsHiredMercenaryPayload),
     ConditionData_HiredMercenaryCount(ConditionData_HiredMercenaryCountPayload),
@@ -3380,7 +3380,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsLootable,
     ConditionData_CheckMoneyForBuyingStock,
     ConditionData_CheckAction(ConditionData_CheckActionPayload),
-    ConditionData_CheckActionAttribute,
+    ConditionData_CheckActionAttribute(ConditionData_CheckActionAttributePayload),
     ConditionData_CheckActionSkillKey(ConditionData_CheckActionSkillKeyPayload),
     ConditionData_CheckActionCharacterState,
     ConditionData_CheckCharacterKeys(ConditionData_CheckCharacterKeysPayload),
@@ -3404,7 +3404,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload),
     ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload),
     ConditionData_CheckCurrentEquipType_OrTag54,
-    ConditionData_CheckEquipType,
+    ConditionData_CheckEquipType(ThreeU32BodyPayload),
     ConditionData_WeaponOut,
     ConditionData_IsSequencerPhaseChange,
     ConditionData_TestCheat(ConditionData_TestCheatPayload),
@@ -3563,7 +3563,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickAttachmentType,
     ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload),
     ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload),
-    ConditionData_CheckExistStealItem,
+    ConditionData_CheckExistStealItem(U32U16BodyPayload),
     ConditionData_CheckElementalMaterialType,
     ConditionData_IsGimmickSealComplete,
     ConditionData_IsAcquiredItem,
@@ -3723,7 +3723,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsDokcingParentHiredMercenary,
     ConditionData_CheckCurrentGlobalGameEvent(ConditionData_CheckCurrentGlobalGameEventPayload),
     ConditionData_CheckGamePlayVariable(ConditionData_CheckGamePlayVariablePayload),
-    ConditionData_IsSpawnOwner,
+    ConditionData_IsSpawnOwner(OneByteBodyPayload),
     ConditionData_IsLiftable,
     ConditionData_IsOwnerPlayer,
     ConditionData_IsAbleToFeed,
@@ -3761,7 +3761,7 @@ impl<'a> ConditionDataVariant<'a> {
         match self {
             Self::ConditionData_GetLevel(_) => 0,
             Self::ConditionData_GetHpPercent(_) => 1,
-            Self::ConditionData_CheckNone(_) => 2,
+            Self::ConditionData_CheckNone => 2,
             Self::ConditionData_CheckSkillLevel(_) => 3,
             Self::ConditionData_IsHiredMercenary(_) => 4,
             Self::ConditionData_HiredMercenaryCount(_) => 5,
@@ -3790,7 +3790,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsLootable => 28,
             Self::ConditionData_CheckMoneyForBuyingStock => 29,
             Self::ConditionData_CheckAction(_) => 30,
-            Self::ConditionData_CheckActionAttribute => 31,
+            Self::ConditionData_CheckActionAttribute(_) => 31,
             Self::ConditionData_CheckActionSkillKey(_) => 32,
             Self::ConditionData_CheckActionCharacterState => 33,
             Self::ConditionData_CheckCharacterKeys(_) => 34,
@@ -3814,7 +3814,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckEquipSlotName(_) => 52,
             Self::ConditionData_CheckCurrentEquipSlotName(_) => 53,
             Self::ConditionData_CheckCurrentEquipType_OrTag54 => 54,
-            Self::ConditionData_CheckEquipType => 55,
+            Self::ConditionData_CheckEquipType(_) => 55,
             Self::ConditionData_WeaponOut => 56,
             Self::ConditionData_IsSequencerPhaseChange => 57,
             Self::ConditionData_TestCheat(_) => 58,
@@ -3973,7 +3973,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickAttachmentType => 211,
             Self::ConditionData_CheckGimmickTargetCount(_) => 212,
             Self::ConditionData_CheckGimmickNonBreakTargetCount(_) => 213,
-            Self::ConditionData_CheckExistStealItem => 214,
+            Self::ConditionData_CheckExistStealItem(_) => 214,
             Self::ConditionData_CheckElementalMaterialType => 215,
             Self::ConditionData_IsGimmickSealComplete => 216,
             Self::ConditionData_IsAcquiredItem => 217,
@@ -4133,7 +4133,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsDokcingParentHiredMercenary => 371,
             Self::ConditionData_CheckCurrentGlobalGameEvent(_) => 372,
             Self::ConditionData_CheckGamePlayVariable(_) => 373,
-            Self::ConditionData_IsSpawnOwner => 374,
+            Self::ConditionData_IsSpawnOwner(_) => 374,
             Self::ConditionData_IsLiftable => 375,
             Self::ConditionData_IsOwnerPlayer => 376,
             Self::ConditionData_IsAbleToFeed => 377,
@@ -4171,7 +4171,7 @@ impl<'a> ConditionDataVariant<'a> {
         Ok(match disc {
             0 => Self::ConditionData_GetLevel(ConditionData_GetLevelPayload::read_from(data, offset)?),
             1 => Self::ConditionData_GetHpPercent(ConditionData_GetHpPercentPayload::read_from(data, offset)?),
-            2 => Self::ConditionData_CheckNone(OneByteBodyPayload::read_from(data, offset)?),
+            2 => Self::ConditionData_CheckNone,
             3 => Self::ConditionData_CheckSkillLevel(ConditionData_CheckSkillLevelPayload::read_from(data, offset)?),
             4 => Self::ConditionData_IsHiredMercenary(ConditionData_IsHiredMercenaryPayload::read_from(data, offset)?),
             5 => Self::ConditionData_HiredMercenaryCount(ConditionData_HiredMercenaryCountPayload::read_from(data, offset)?),
@@ -4200,7 +4200,7 @@ impl<'a> ConditionDataVariant<'a> {
             28 => Self::ConditionData_IsLootable,
             29 => Self::ConditionData_CheckMoneyForBuyingStock,
             30 => Self::ConditionData_CheckAction(ConditionData_CheckActionPayload::read_from(data, offset)?),
-            31 => Self::ConditionData_CheckActionAttribute,
+            31 => Self::ConditionData_CheckActionAttribute(ConditionData_CheckActionAttributePayload::read_from(data, offset)?),
             32 => Self::ConditionData_CheckActionSkillKey(ConditionData_CheckActionSkillKeyPayload::read_from(data, offset)?),
             33 => Self::ConditionData_CheckActionCharacterState,
             34 => Self::ConditionData_CheckCharacterKeys(ConditionData_CheckCharacterKeysPayload::read_from(data, offset)?),
@@ -4224,7 +4224,7 @@ impl<'a> ConditionDataVariant<'a> {
             52 => Self::ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload::read_from(data, offset)?),
             53 => Self::ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload::read_from(data, offset)?),
             54 => Self::ConditionData_CheckCurrentEquipType_OrTag54,
-            55 => Self::ConditionData_CheckEquipType,
+            55 => Self::ConditionData_CheckEquipType(ThreeU32BodyPayload::read_from(data, offset)?),
             56 => Self::ConditionData_WeaponOut,
             57 => Self::ConditionData_IsSequencerPhaseChange,
             58 => Self::ConditionData_TestCheat(ConditionData_TestCheatPayload::read_from(data, offset)?),
@@ -4385,7 +4385,7 @@ impl<'a> ConditionDataVariant<'a> {
                                           format!("opaque ConditionData variant {} (ConditionData_CheckGimmickTargetCount) — needs further decode", disc))),
             213 => return Err(io::Error::new(io::ErrorKind::InvalidData,
                                           format!("opaque ConditionData variant {} (ConditionData_CheckGimmickNonBreakTargetCount) — needs further decode", disc))),
-            214 => Self::ConditionData_CheckExistStealItem,
+            214 => Self::ConditionData_CheckExistStealItem(U32U16BodyPayload::read_from(data, offset)?),
             215 => Self::ConditionData_CheckElementalMaterialType,
             216 => Self::ConditionData_IsGimmickSealComplete,
             217 => Self::ConditionData_IsAcquiredItem,
@@ -4549,7 +4549,7 @@ impl<'a> ConditionDataVariant<'a> {
             371 => Self::ConditionData_IsDokcingParentHiredMercenary,
             372 => Self::ConditionData_CheckCurrentGlobalGameEvent(ConditionData_CheckCurrentGlobalGameEventPayload::read_from(data, offset)?),
             373 => Self::ConditionData_CheckGamePlayVariable(ConditionData_CheckGamePlayVariablePayload::read_from(data, offset)?),
-            374 => Self::ConditionData_IsSpawnOwner,
+            374 => Self::ConditionData_IsSpawnOwner(OneByteBodyPayload::read_from(data, offset)?),
             375 => Self::ConditionData_IsLiftable,
             376 => Self::ConditionData_IsOwnerPlayer,
             377 => Self::ConditionData_IsAbleToFeed,
@@ -4588,7 +4588,7 @@ impl<'a> ConditionDataVariant<'a> {
         match self {
             Self::ConditionData_GetLevel(p) => p.write_to(w),
             Self::ConditionData_GetHpPercent(p) => p.write_to(w),
-            Self::ConditionData_CheckNone(p) => p.write_to(w),
+            Self::ConditionData_CheckNone => Ok(()),
             Self::ConditionData_CheckSkillLevel(p) => p.write_to(w),
             Self::ConditionData_IsHiredMercenary(p) => p.write_to(w),
             Self::ConditionData_HiredMercenaryCount(p) => p.write_to(w),
@@ -4617,7 +4617,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsLootable => Ok(()),
             Self::ConditionData_CheckMoneyForBuyingStock => Ok(()),
             Self::ConditionData_CheckAction(p) => p.write_to(w),
-            Self::ConditionData_CheckActionAttribute => Ok(()),
+            Self::ConditionData_CheckActionAttribute(p) => p.write_to(w),
             Self::ConditionData_CheckActionSkillKey(p) => p.write_to(w),
             Self::ConditionData_CheckActionCharacterState => Ok(()),
             Self::ConditionData_CheckCharacterKeys(p) => p.write_to(w),
@@ -4641,7 +4641,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckEquipSlotName(p) => p.write_to(w),
             Self::ConditionData_CheckCurrentEquipSlotName(p) => p.write_to(w),
             Self::ConditionData_CheckCurrentEquipType_OrTag54 => Ok(()),
-            Self::ConditionData_CheckEquipType => Ok(()),
+            Self::ConditionData_CheckEquipType(p) => p.write_to(w),
             Self::ConditionData_WeaponOut => Ok(()),
             Self::ConditionData_IsSequencerPhaseChange => Ok(()),
             Self::ConditionData_TestCheat(p) => p.write_to(w),
@@ -4800,7 +4800,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickAttachmentType => Ok(()),
             Self::ConditionData_CheckGimmickTargetCount(p) => w.write_all(&p.raw_bytes),
             Self::ConditionData_CheckGimmickNonBreakTargetCount(p) => w.write_all(&p.raw_bytes),
-            Self::ConditionData_CheckExistStealItem => Ok(()),
+            Self::ConditionData_CheckExistStealItem(p) => p.write_to(w),
             Self::ConditionData_CheckElementalMaterialType => Ok(()),
             Self::ConditionData_IsGimmickSealComplete => Ok(()),
             Self::ConditionData_IsAcquiredItem => Ok(()),
@@ -4960,7 +4960,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsDokcingParentHiredMercenary => Ok(()),
             Self::ConditionData_CheckCurrentGlobalGameEvent(p) => p.write_to(w),
             Self::ConditionData_CheckGamePlayVariable(p) => p.write_to(w),
-            Self::ConditionData_IsSpawnOwner => Ok(()),
+            Self::ConditionData_IsSpawnOwner(p) => p.write_to(w),
             Self::ConditionData_IsLiftable => Ok(()),
             Self::ConditionData_IsOwnerPlayer => Ok(()),
             Self::ConditionData_IsAbleToFeed => Ok(()),
@@ -5038,7 +5038,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         81 | 272 |
         // Verified via vanilla byte-math: vanilla_len = case(1)+tag(2)+body+footer(3)
         // with NO option_block byte between body and footer.
-        300
+        300 | 256 | 401 | 2 | 79 | 195
     )
 }
 
@@ -5072,6 +5072,96 @@ impl OneU32BodyPayload {
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.value.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Generic 2-byte payload — single u16 field.
+#[derive(Debug)]
+pub struct OneU16BodyPayload {
+    pub value: u16,
+}
+impl OneU16BodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let value = u16::read_from(data, offset)?;
+        Ok(Self { value })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.value.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Three-u32 payload (12 bytes total) — used by variants like CheckEquipType
+/// that read three consecutive u32 fields.
+#[derive(Debug)]
+pub struct ThreeU32BodyPayload {
+    pub a: u32,
+    pub b: u32,
+    pub c: u32,
+}
+impl ThreeU32BodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let a = u32::read_from(data, offset)?;
+        let b = u32::read_from(data, offset)?;
+        let c = u32::read_from(data, offset)?;
+        Ok(Self { a, b, c })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.a.write_to(w)?;
+        self.b.write_to(w)?;
+        self.c.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// u32 + u16 payload (6 bytes total).
+#[derive(Debug)]
+pub struct U32U16BodyPayload {
+    pub a: u32,
+    pub b: u16,
+}
+impl U32U16BodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let a = u32::read_from(data, offset)?;
+        let b = u16::read_from(data, offset)?;
+        Ok(Self { a, b })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.a.write_to(w)?;
+        self.b.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Tag 31 — ConditionData_CheckActionAttribute body.
+/// vtable[16] = sub_14F1A1B20: reads a 16-byte buffer (loop 1-byte-at-a-time)
+/// stored at struct +0x18, then 1 byte at struct +0x28.
+/// Body is therefore 16 bytes + 1 byte = 17 bytes wire size.
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct ConditionData_CheckActionAttributePayload {
+    pub field_at_24_a: u32,
+    pub field_at_24_b: u32,
+    pub field_at_24_c: u32,
+    pub field_at_24_d: u32,
+    pub field_at_40: u8,
+}
+impl ConditionData_CheckActionAttributePayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let field_at_24_a = u32::read_from(data, offset)?;
+        let field_at_24_b = u32::read_from(data, offset)?;
+        let field_at_24_c = u32::read_from(data, offset)?;
+        let field_at_24_d = u32::read_from(data, offset)?;
+        let field_at_40 = u8::read_from(data, offset)?;
+        Ok(Self { field_at_24_a, field_at_24_b, field_at_24_c, field_at_24_d, field_at_40 })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_at_24_a.write_to(w)?;
+        self.field_at_24_b.write_to(w)?;
+        self.field_at_24_c.write_to(w)?;
+        self.field_at_24_d.write_to(w)?;
+        self.field_at_40.write_to(w)?;
         Ok(())
     }
 }
