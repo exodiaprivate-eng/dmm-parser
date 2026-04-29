@@ -299,6 +299,26 @@ impl<'a> BranchConditionDataVariant<'a> {
         }
     }
 
+    /// Returns the variant's enum name as a string.
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            Self::BranchConditionData(_) => "BranchConditionData",
+            Self::BranchConditionData_Quest(_) => "BranchConditionData_Quest",
+            Self::BranchConditionData_Mission(_) => "BranchConditionData_Mission",
+            Self::BranchConditionData_SubMission(_) => "BranchConditionData_SubMission",
+            Self::BranchConditionData_Stage(_) => "BranchConditionData_Stage",
+            Self::BranchConditionData_Knowledge(_) => "BranchConditionData_Knowledge",
+            Self::BranchConditionData_Item(_) => "BranchConditionData_Item",
+            Self::BranchConditionData_IsHiredMercenary(_) => "BranchConditionData_IsHiredMercenary",
+            Self::BranchConditionData_IsHiredMercenaryType(_) => "BranchConditionData_IsHiredMercenaryType",
+            Self::BranchConditionData_BranchIndex(_) => "BranchConditionData_BranchIndex",
+            Self::BranchConditionData_Branch(_) => "BranchConditionData_Branch",
+            Self::BranchConditionData_NearMission(_) => "BranchConditionData_NearMission",
+            Self::BranchConditionData_GameLevelState(_) => "BranchConditionData_GameLevelState",
+            Self::BranchConditionData_GamePlayVariable(_) => "BranchConditionData_GamePlayVariable",
+        }
+    }
+
     pub fn read_from(disc: u8, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match disc {
             0 => Self::BranchConditionData(BranchConditionDataPayload::read_from(data, offset)?),
