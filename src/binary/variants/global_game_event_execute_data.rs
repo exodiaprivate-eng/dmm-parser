@@ -1,54 +1,127 @@
-//! GlobalGameEventExecuteData polymorphic family wrapper.
+//! GlobalGameEventExecuteData polymorphic family wrapper — per-sub_tag typed.
 //!
 //! Per Win-IDA dispatcher `sub_141156680`, the wire format is:
 //!   - u8 presence (0 = absent, 1 = present)
 //!   - if present:
 //!     - u8 sub_tag
-//!         - 0 → ConstructorVaryTradeItemPrice (88-byte struct, body via
-//!           sub_141155000: CArray<u16> + CArray<VaryTradeItemPriceData>
-//!           + u32-hash-lookup + LocalizableString)
-//!         - 1 → ConstructorOpenRoyalSupply (32-byte struct, body via
-//!           sub_141155300 → sub_1411553D0)
-//!         - 2 → in-place reuse of existing pointer (no alloc)
+//!         - 0 → ConstructorVaryTradeItemPrice (88-byte runtime struct)
+//!         - 1 → ConstructorOpenRoyalSupply    (32-byte runtime struct)
+//!         - 2 → in-place reuse of existing pointer (no body bytes)
 //!         - other → error (return 0)
 //!     - body bytes per sub_tag-specific reader
 //!
-//! ## Decode strategy
+//! Body wire shapes (decompiled from the per-vtable readers):
 //!
-//! This wrapper follows the GameCondition pattern: `Decoded | Raw` enum
-//! with the Raw variant capturing bytes verbatim if anything looks off.
-//! That guarantees byte-perfect round-trip even before per-sub_tag body
-//! recipes are fully reversed.
+//! - sub_tag 0 / VaryTradeItemPrice (`sub_141155000` calls these in order):
+//!     * `region_codes`: CArray<u16>            (sub_1410FFAC0, qword_DA80 hash)
+//!     * `items`:        CArray<VaryTradeItemPriceData>  (sub_141155530)
+//!     * `item_lookup`:  u32                    (read_u32_lookup_DA30 — wire is
+//!                                              u32; runtime resolves to u16)
+//!     * `description`:  LocalizableString      (read_LocalizableString)
 //!
-//! `Decoded` parses the presence byte + sub_tag, but stores the body as
-//! `Vec<u8>` rather than typed fields. That's enough for clone-between-
-//! entries / sub_tag-aware filtering without doing the full body
-//! reverse-engineering. Future enhancement: replace `body: Vec<u8>` with
-//! per-sub_tag typed payload structs.
+//!   Per element of `items` (sub_141155530's loop body):
+//!     * `region_codes`: CArray<u16>            (sub_1411022B0, qword_DA20 hash)
+//!     * `tail`:         [u8; 16]               (two raw u64 reads)
+//!
+//! - sub_tag 1 / OpenRoyalSupply (`sub_141155300` → `sub_1411553D0`):
+//!     * `region_codes`: CArray<u16>            (sub_1411553D0, qword_113A0 hash)
+//!
+//! - sub_tag 2 / InPlace: no body bytes. The dispatcher only handles this when
+//!   the caller already has a previously-constructed object; for fresh-pointer
+//!   table reads (our case) sub_tag 2 effectively produces an empty body.
+//!
+//! ## Decode strategy: Decoded | Raw fallback
+//!
+//! `read_from` tries the typed shape per sub_tag and falls back to `Raw(bytes)`
+//! on any decode failure or under-consume. That guarantees byte-perfect
+//! round-trip even if a future build of the game introduces a new sub_tag.
+//!
+//! ### Lookup-table fields
+//!
+//! Several fields (`region_codes` u16 entries, `item_lookup` u32) are
+//! game-side hash keys that the runtime resolves via global hash tables. We
+//! store the **wire** values verbatim (no resolution) — the table's read/write
+//! cycle is byte-perfect, and downstream tooling can re-resolve at use time.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
+// ── Per-sub_tag payload structs ────────────────────────────────────────────
+
+py_binary_struct! {
+    /// One element of `VaryTradeItemPricePayload.items` (sub_141155530's loop).
+    /// Wire: CArray<u16> + 16 raw bytes (read as two u64s into a runtime _OWORD).
+    pub struct VaryTradeItemPriceData {
+        pub region_codes: CArray<u16>,
+        pub tail: [u8; 16],
+    }
+}
+
+py_binary_struct! {
+    /// sub_tag 0 body, per `sub_141155000`.
+    pub struct VaryTradeItemPricePayload<'a> {
+        pub region_codes: CArray<u16>,
+        pub items: CArray<VaryTradeItemPriceData>,
+        pub item_lookup: u32,
+        pub description: LocalizableString<'a>,
+    }
+}
+
+py_binary_struct! {
+    /// sub_tag 1 body, per `sub_141155300` → `sub_1411553D0`.
+    pub struct OpenRoyalSupplyPayload {
+        pub region_codes: CArray<u16>,
+    }
+}
+
+// ── Body enum (per-sub_tag dispatch) ───────────────────────────────────────
+
 #[derive(Debug)]
-pub enum GlobalGameEventExecuteData {
+pub enum GlobalGameEventExecuteDataBody<'a> {
+    /// sub_tag 0
+    VaryTradeItemPrice(VaryTradeItemPricePayload<'a>),
+    /// sub_tag 1
+    OpenRoyalSupply(OpenRoyalSupplyPayload),
+    /// sub_tag 2 — no body bytes
+    InPlace,
+}
+
+impl GlobalGameEventExecuteDataBody<'_> {
+    pub fn sub_tag(&self) -> u8 {
+        match self {
+            Self::VaryTradeItemPrice(_) => 0,
+            Self::OpenRoyalSupply(_) => 1,
+            Self::InPlace => 2,
+        }
+    }
+}
+
+// ── Wrapper enum ───────────────────────────────────────────────────────────
+
+#[derive(Debug)]
+pub enum GlobalGameEventExecuteData<'a> {
     /// Wrapper has presence byte == 0; no sub_tag, no body.
     /// On wire: `[0x00]`.
     Absent,
-    /// Wrapper has presence byte == 1; sub_tag-driven body.
+    /// Wrapper has presence byte == 1; sub_tag-driven typed body.
     /// On wire: `[0x01, sub_tag, ...body]`.
-    Present { sub_tag: u8, body: Vec<u8> },
-    /// Fallback for unrecognized presence byte or empty wrapper.
+    Present(GlobalGameEventExecuteDataBody<'a>),
+    /// Fallback for unrecognized presence/sub_tag, decode failure, or
+    /// trailing bytes the typed reader didn't consume.
     /// Bytes preserved verbatim — round-trips byte-perfect.
     Raw(Vec<u8>),
 }
 
-impl GlobalGameEventExecuteData {
+impl<'a> GlobalGameEventExecuteData<'a> {
     /// `data` should be sized to exactly the wrapper bytes (table-level
-    /// tail_blob). The Raw fallback uses `data[start..]` on any decode
-    /// path that doesn't cleanly consume all bytes.
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+    /// tail_blob). Any decode that doesn't cleanly consume all bytes
+    /// produces a Raw fallback.
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let start = *offset;
-        // Empty tail → not even a presence byte → Raw passthrough.
         if start >= data.len() {
             return Ok(Self::Raw(Vec::new()));
         }
@@ -60,27 +133,181 @@ impl GlobalGameEventExecuteData {
             }
             1 if data.len() - start >= 2 => {
                 let sub_tag = data[start + 1];
-                let body = data[start + 2..].to_vec();
-                *offset = data.len();
-                Ok(Self::Present { sub_tag, body })
+                let mut probe = start + 2;
+                let typed = match sub_tag {
+                    0 => VaryTradeItemPricePayload::read_from(data, &mut probe)
+                        .map(GlobalGameEventExecuteDataBody::VaryTradeItemPrice),
+                    1 => OpenRoyalSupplyPayload::read_from(data, &mut probe)
+                        .map(GlobalGameEventExecuteDataBody::OpenRoyalSupply),
+                    2 => Ok(GlobalGameEventExecuteDataBody::InPlace),
+                    _ => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("GlobalGameEventExecuteData: unknown sub_tag {}", sub_tag),
+                    )),
+                };
+                match typed {
+                    Ok(body) if probe == data.len() => {
+                        *offset = data.len();
+                        Ok(Self::Present(body))
+                    }
+                    _ => {
+                        let raw = data[start..].to_vec();
+                        *offset = data.len();
+                        Ok(Self::Raw(raw))
+                    }
+                }
             }
             _ => {
-                // Unknown presence byte or short data — capture verbatim.
                 let raw = data[start..].to_vec();
                 *offset = data.len();
                 Ok(Self::Raw(raw))
             }
         }
     }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
             Self::Absent => 0u8.write_to(w),
-            Self::Present { sub_tag, body } => {
+            Self::Present(body) => {
                 1u8.write_to(w)?;
-                sub_tag.write_to(w)?;
-                w.write_all(body)
+                body.sub_tag().write_to(w)?;
+                match body {
+                    GlobalGameEventExecuteDataBody::VaryTradeItemPrice(p) => p.write_to(w),
+                    GlobalGameEventExecuteDataBody::OpenRoyalSupply(p) => p.write_to(w),
+                    GlobalGameEventExecuteDataBody::InPlace => Ok(()),
+                }
             }
             Self::Raw(bytes) => w.write_all(bytes),
+        }
+    }
+
+    /// JSON shape:
+    /// - `kind`: "absent" | "present" | "raw"
+    /// - when "present": `sub_tag` (u8), `body_type` (string), `body` (typed object)
+    /// - when "raw": `raw_b64` (base64 string)
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        match self {
+            Self::Absent => {
+                m.insert("kind".into(), Value::String("absent".into()));
+            }
+            Self::Present(body) => {
+                m.insert("kind".into(), Value::String("present".into()));
+                m.insert("sub_tag".into(), Value::Number(body.sub_tag().into()));
+                match body {
+                    GlobalGameEventExecuteDataBody::VaryTradeItemPrice(p) => {
+                        m.insert(
+                            "body_type".into(),
+                            Value::String("vary_trade_item_price".into()),
+                        );
+                        m.insert("body".into(), Value::Object(p.to_json_dict()));
+                    }
+                    GlobalGameEventExecuteDataBody::OpenRoyalSupply(p) => {
+                        m.insert(
+                            "body_type".into(),
+                            Value::String("open_royal_supply".into()),
+                        );
+                        m.insert("body".into(), Value::Object(p.to_json_dict()));
+                    }
+                    GlobalGameEventExecuteDataBody::InPlace => {
+                        m.insert("body_type".into(), Value::String("in_place".into()));
+                    }
+                }
+            }
+            Self::Raw(bytes) => {
+                m.insert("kind".into(), Value::String("raw".into()));
+                m.insert("raw_b64".into(), Value::String(B64.encode(bytes)));
+            }
+        }
+        Value::Object(m)
+    }
+
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "GlobalGameEventExecuteData: expected object",
+            )
+        })?;
+        let kind = json_get_field(obj, "kind")?
+            .as_str()
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "GlobalGameEventExecuteData.kind: expected string",
+                )
+            })?;
+        match kind {
+            "absent" => {
+                w.push(0);
+                Ok(())
+            }
+            "present" => {
+                let sub_tag_v = json_get_field(obj, "sub_tag")?
+                    .as_u64()
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "GlobalGameEventExecuteData.sub_tag: expected u8",
+                        )
+                    })?;
+                if sub_tag_v > u8::MAX as u64 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("sub_tag {} out of u8 range", sub_tag_v),
+                    ));
+                }
+                let sub_tag = sub_tag_v as u8;
+                w.push(1);
+                w.push(sub_tag);
+                match sub_tag {
+                    0 => {
+                        let body = json_get_field(obj, "body")?.as_object().ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "GlobalGameEventExecuteData.body: expected object for sub_tag 0",
+                            )
+                        })?;
+                        VaryTradeItemPricePayload::write_from_json_dict(w, body)
+                    }
+                    1 => {
+                        let body = json_get_field(obj, "body")?.as_object().ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "GlobalGameEventExecuteData.body: expected object for sub_tag 1",
+                            )
+                        })?;
+                        OpenRoyalSupplyPayload::write_from_json_dict(w, body)
+                    }
+                    2 => Ok(()),
+                    other => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("GlobalGameEventExecuteData: unknown sub_tag {}", other),
+                    )),
+                }
+            }
+            "raw" => {
+                let b64 = json_get_field(obj, "raw_b64")?
+                    .as_str()
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "GlobalGameEventExecuteData.raw_b64: expected base64 string",
+                        )
+                    })?;
+                let bytes = B64.decode(b64).map_err(|e| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("GlobalGameEventExecuteData.raw_b64: invalid base64: {}", e),
+                    )
+                })?;
+                w.extend_from_slice(&bytes);
+                Ok(())
+            }
+            other => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("GlobalGameEventExecuteData.kind: unknown value {:?}", other),
+            )),
         }
     }
 }

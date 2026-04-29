@@ -15,13 +15,12 @@
 //!
 //! ## Tier 1 — typed wrapper, byte-perfect round-trip
 //!
-//! `execute_data` uses the `Decoded | Raw` enum from
-//! `crate::binary::variants::global_game_event_execute_data`. Decoded
-//! captures presence + sub_tag; Raw is the verbatim-bytes fallback. The
-//! family decoder is intentionally body-shape-agnostic (body stays
-//! `Vec<u8>` inside Present) — full per-sub_tag typed payloads are a
-//! follow-up enhancement; the current shape is enough for v3 clone-
-//! between-entries and sub_tag-aware filtering.
+//! `execute_data` uses the typed `Decoded(Body) | Raw` enum from
+//! `crate::binary::variants::global_game_event_execute_data`. Per-sub_tag
+//! payloads are field-level typed (CArray<u16>, items, lookup, description),
+//! so the JSON shape exposes editable fields rather than just an opaque
+//! `_execute_data_b64` blob. Raw is the verbatim-bytes fallback for any
+//! decode failure or sub_tag the typed path doesn't recognize.
 //!
 //! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
 //! "Hand-corrected" header marker on line 1.
@@ -29,7 +28,6 @@
 use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteData;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -40,9 +38,9 @@ pub struct GlobalGameEventInfo<'a> {
     pub is_blocked: u8,
     pub global_game_event_group_info: u16,
     /// Polymorphic execute_data wrapper. Decoded captures presence +
-    /// sub_tag + body bytes; Raw passes through verbatim. Either way,
-    /// round-trip is byte-perfect.
-    pub execute_data: GlobalGameEventExecuteData,
+    /// sub_tag + typed body fields; Raw passes through verbatim. Either
+    /// way, round-trip is byte-perfect.
+    pub execute_data: GlobalGameEventExecuteData<'a>,
 }
 
 impl<'a> GlobalGameEventInfo<'a> {
@@ -87,12 +85,10 @@ impl<'a> GlobalGameEventInfo<'a> {
     /// JSON shape:
     /// - Scalars (`key`, `string_key`, `is_blocked`,
     ///   `global_game_event_group_info`): individually editable.
-    /// - `_execute_data_b64`: the wrapper bytes as base64 (clone between
-    ///   entries; round-trips byte-perfect).
-    /// - `_execute_data_kind`: read-only metadata, "absent" / "present" /
-    ///   "raw" — tells consumers the structural state.
-    /// - `_execute_data_sub_tag`: read-only metadata, the sub_tag byte
-    ///   when kind == "present" (omitted otherwise).
+    /// - `execute_data`: typed object with `kind` + sub_tag-specific
+    ///   `body` fields (or `raw_b64` for the Raw fallback). See
+    ///   `GlobalGameEventExecuteData::to_json_value` for the per-variant
+    ///   schema.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
@@ -102,21 +98,7 @@ impl<'a> GlobalGameEventInfo<'a> {
             "global_game_event_group_info".to_string(),
             self.global_game_event_group_info.to_json_value(),
         );
-        let mut wrapper_bytes = Vec::new();
-        self.execute_data.write_to(&mut wrapper_bytes).expect("write_to Vec");
-        m.insert(
-            "_execute_data_b64".to_string(),
-            Value::String(B64.encode(&wrapper_bytes)),
-        );
-        let (kind, sub_tag) = match &self.execute_data {
-            GlobalGameEventExecuteData::Absent => ("absent", None),
-            GlobalGameEventExecuteData::Present { sub_tag, .. } => ("present", Some(*sub_tag)),
-            GlobalGameEventExecuteData::Raw(_) => ("raw", None),
-        };
-        m.insert("_execute_data_kind".to_string(), Value::String(kind.to_string()));
-        if let Some(t) = sub_tag {
-            m.insert("_execute_data_sub_tag".to_string(), Value::Number(t.into()));
-        }
+        m.insert("execute_data".to_string(), self.execute_data.to_json_value());
         m
     }
 
@@ -128,24 +110,7 @@ impl<'a> GlobalGameEventInfo<'a> {
             w,
             json_get_field(obj, "global_game_event_group_info")?,
         )?;
-        // The kind/sub_tag are read-only metadata; on write we re-decode
-        // from the b64 wrapper bytes. This keeps writes simple and
-        // ensures wrapper integrity.
-        let b64 = json_get_field(obj, "_execute_data_b64")?
-            .as_str()
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "GlobalGameEventInfo: _execute_data_b64 must be a base64 string",
-                )
-            })?;
-        let bytes = B64.decode(b64).map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("GlobalGameEventInfo: _execute_data_b64 invalid base64: {}", e),
-            )
-        })?;
-        w.extend_from_slice(&bytes);
+        GlobalGameEventExecuteData::write_from_json(w, json_get_field(obj, "execute_data")?)?;
         Ok(())
     }
 }
@@ -154,6 +119,7 @@ impl<'a> GlobalGameEventInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+    use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteDataBody;
     const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\globalgameevent.pabgb";
     const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\globalgameevent.pabgh";
 
@@ -199,22 +165,58 @@ mod tests {
         };
         let ranges = entry_ranges(&entries, data.len());
         let mut absent = 0;
-        let mut present = 0;
+        let mut sub_tag_0 = 0;
+        let mut sub_tag_1 = 0;
+        let mut sub_tag_2 = 0;
         let mut raw = 0;
         for (_k, s, e) in ranges.iter() {
             let mut c = *s;
             let it = GlobalGameEventInfo::read_with_size(&data, &mut c, e - s).unwrap();
-            match it.execute_data {
+            match &it.execute_data {
                 GlobalGameEventExecuteData::Absent => absent += 1,
-                GlobalGameEventExecuteData::Present { .. } => present += 1,
+                GlobalGameEventExecuteData::Present(body) => match body {
+                    GlobalGameEventExecuteDataBody::VaryTradeItemPrice(_) => sub_tag_0 += 1,
+                    GlobalGameEventExecuteDataBody::OpenRoyalSupply(_) => sub_tag_1 += 1,
+                    GlobalGameEventExecuteDataBody::InPlace => sub_tag_2 += 1,
+                },
                 GlobalGameEventExecuteData::Raw(_) => raw += 1,
             }
         }
         eprintln!(
-            "globalgameevent execute_data: {} absent, {} present, {} raw",
-            absent, present, raw
+            "globalgameevent execute_data: absent={} sub_tag_0={} sub_tag_1={} sub_tag_2={} raw={}",
+            absent, sub_tag_0, sub_tag_1, sub_tag_2, raw,
         );
-        // We don't assert specific counts (data may evolve); the kinds
-        // log just helps verify Raw stays low.
+    }
+
+    /// Round-trip through the JSON dict bridge — must match the typed
+    /// byte output exactly. Catches any divergence between
+    /// `to_json_dict`/`write_from_json_dict` and the binary path.
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP");
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP");
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (k, s, e)) in ranges.iter().enumerate() {
+            let mut c = *s;
+            let item = GlobalGameEventInfo::read_with_size(&data, &mut c, e - s).unwrap();
+            let dict = item.to_json_dict();
+            let mut typed = Vec::new();
+            item.write_to(&mut typed).unwrap();
+            let mut from_json = Vec::new();
+            GlobalGameEventInfo::write_from_json_dict(&mut from_json, &dict).unwrap_or_else(|er| {
+                panic!("e{} k=0x{:x}: {}", i, k, er)
+            });
+            assert_eq!(
+                from_json, typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges",
+                i, k,
+            );
+        }
     }
 }
