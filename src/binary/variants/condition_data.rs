@@ -4889,14 +4889,24 @@ impl<'a> ConditionData<'a> {
         let base = ConditionDataBase::read_from(data, offset)?;
         let disc = base.tag;
         let variant = ConditionDataVariant::read_from(disc, data, offset)?;
-        // optional_subcond placeholder — disabled until verified
-        Ok(Self { base, variant, option_present: 0, option_data: None })
+        // After every variant body the dispatcher (sub_141C87CE0) calls vtable
+        // slot 19 (+0x98) which reads a 1-byte presence flag and, if non-zero,
+        // a ConditionDataOptionData via 0x14b933930. ALWAYS read the presence
+        // byte; conditionally read the option_data.
+        let option_present = u8::read_from(data, offset)?;
+        let option_data = if option_present != 0 {
+            Some(ConditionDataOptionData::read_from(data, offset)?)
+        } else {
+            None
+        };
+        Ok(Self { base, variant, option_present, option_data })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
+        // Mirror read: always emit presence byte; emit option_data only if set.
+        self.option_present.write_to(w)?;
         if self.option_present != 0 {
-            self.option_present.write_to(w)?;
             if let Some(opt) = &self.option_data {
                 opt.write_to(w)?;
             }
