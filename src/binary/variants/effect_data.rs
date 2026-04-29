@@ -24,12 +24,61 @@
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-const CORE_FIXED_SIZE: usize = 254;
 const FIXED144_ELEMENT_SIZE: usize = 144;
+
+py_binary_struct! {
+    /// 254-byte fixed block read by sub_1410D4110 (which calls
+    /// sub_1410D3DC0 first for the leading 144 bytes). Per IDA, the
+    /// memory layout is roughly 7×Vec3 + 7×u32 + Vec4(16B) + 2×u32 + u8
+    /// + u8 + u16 + u32 + (sub_1410D4110's own reads): u32 + 2×Vec3 +
+    /// u64 + u32 + 4×Vec3 + u32 + u32 + 14×u8.
+    ///
+    /// Each Vec3 is exposed as 3 named u32 fields (`vec_<name>_x/y/z`)
+    /// — the wire is 3 little-endian 4-byte values; consumers free to
+    /// reinterpret as f32 if they want floats.
+    pub struct EffectDataCoreBlock {
+        // sub_1410D3DC0 — 144 bytes
+        pub vec_a_x: u32, pub vec_a_y: u32, pub vec_a_z: u32,
+        pub vec_b_x: u32, pub vec_b_y: u32, pub vec_b_z: u32,
+        pub vec_c_x: u32, pub vec_c_y: u32, pub vec_c_z: u32,
+        pub vec_d_x: u32, pub vec_d_y: u32, pub vec_d_z: u32,
+        pub vec_e_x: u32, pub vec_e_y: u32, pub vec_e_z: u32,
+        pub vec_f_x: u32, pub vec_f_y: u32, pub vec_f_z: u32,
+        pub vec_g_x: u32, pub vec_g_y: u32, pub vec_g_z: u32,
+        pub field_84: u32,
+        pub field_88: u32,
+        pub field_92: u32,
+        pub field_96: u32,
+        pub field_100: u32,
+        pub field_104: u32,
+        pub field_108: u32,
+        pub vec4_a: [u32; 4],
+        pub field_128: u32,
+        pub field_132: u32,
+        pub byte_136: u8,
+        pub byte_137: u8,
+        pub word_138: u16,
+        pub field_140: u32,
+        // sub_1410D4110 continued — 110 bytes
+        pub field_144: u32,
+        pub vec_h_x: u32, pub vec_h_y: u32, pub vec_h_z: u32,
+        pub vec_i_x: u32, pub vec_i_y: u32, pub vec_i_z: u32,
+        pub qword_172: u64,
+        pub field_180: u32,
+        pub vec_j_x: u32, pub vec_j_y: u32, pub vec_j_z: u32,
+        pub vec_k_x: u32, pub vec_k_y: u32, pub vec_k_z: u32,
+        pub vec_l_x: u32, pub vec_l_y: u32, pub vec_l_z: u32,
+        pub vec_m_x: u32, pub vec_m_y: u32, pub vec_m_z: u32,
+        pub field_232: u32,
+        pub field_236: u32,
+        pub trailing_bytes: [u8; 14],
+    }
+}
 
 /// One EffectData element on the wire. Most fields are individually
 /// typed; the recursive `inner_map_blob` is captured byte-perfect for
@@ -38,12 +87,8 @@ const FIXED144_ELEMENT_SIZE: usize = 144;
 pub struct EffectDataElement<'a> {
     pub byte_a: u8,
     pub lookup_b: u32,
-    /// 254-byte fixed block read by sub_1410D4110:
-    /// 7×Vec3 + 7×u32 + Vec4(16B) + 2×u32 + u8 + u8 + u16 + u32  (sub_1410D3DC0, 144B)
-    /// + u32 + 2×Vec3 + qword(8B) + u32 + 4×Vec3 + u32 + u32 + 14×u8
-    /// Captured as raw bytes; field-level typing is straightforward
-    /// follow-up work since shape is fully known.
-    pub core_block: [u8; CORE_FIXED_SIZE],
+    /// 254-byte fixed block, fully field-level typed.
+    pub core_block: EffectDataCoreBlock,
     pub lookups_c: [u32; 6],
     pub fields_d: [u32; 4],
     pub byte_e: u8,
@@ -124,7 +169,7 @@ fn walk_effect_data_inner(data: &[u8], offset: usize) -> io::Result<usize> {
     // u32 prefix
     cur += 4;
     // sub_1410D4110 block: 254 bytes fixed
-    cur += CORE_FIXED_SIZE;
+    cur += 254; // EffectDataCoreBlock fixed wire size
     // 6 × read_u32_lookup_DA30 (4 bytes each)
     cur += 24;
     // sub_141102990: CArray<u32-lookup-as-u16>. Per sub_1410A9D40, each
@@ -171,12 +216,7 @@ impl<'a> EffectDataElement<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let byte_a = u8::read_from(data, offset)?;
         let lookup_b = u32::read_from(data, offset)?;
-        if *offset + CORE_FIXED_SIZE > data.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "effect data core block"));
-        }
-        let mut core_block = [0u8; CORE_FIXED_SIZE];
-        core_block.copy_from_slice(&data[*offset..*offset + CORE_FIXED_SIZE]);
-        *offset += CORE_FIXED_SIZE;
+        let core_block = EffectDataCoreBlock::read_from(data, offset)?;
         let mut lookups_c = [0u32; 6];
         for x in &mut lookups_c { *x = u32::read_from(data, offset)?; }
         let mut fields_d = [0u32; 4];
@@ -218,7 +258,7 @@ impl<'a> EffectDataElement<'a> {
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.byte_a.write_to(w)?;
         self.lookup_b.write_to(w)?;
-        w.write_all(&self.core_block)?;
+        self.core_block.write_to(w)?;
         for x in &self.lookups_c { x.write_to(w)?; }
         for x in &self.fields_d { x.write_to(w)?; }
         self.byte_e.write_to(w)?;
@@ -235,7 +275,7 @@ impl<'a> EffectDataElement<'a> {
         let mut m = Map::new();
         m.insert("byte_a".to_string(), self.byte_a.to_json_value());
         m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
-        m.insert("_core_block_b64".to_string(), Value::String(B64.encode(&self.core_block)));
+        m.insert("core_block".to_string(), Value::Object(self.core_block.to_json_dict()));
         m.insert(
             "lookups_c".to_string(),
             Value::Array(self.lookups_c.iter().map(|v| v.to_json_value()).collect()),
@@ -269,19 +309,11 @@ impl<'a> EffectDataElement<'a> {
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_a")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
-        let core_b64 = json_get_field(obj, "_core_block_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "EffectDataElement: _core_block_b64 must be base64 string"))?;
-        let core_bytes = B64.decode(core_b64).map_err(|e| io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("EffectDataElement: _core_block_b64 invalid: {}", e)))?;
-        if core_bytes.len() != CORE_FIXED_SIZE {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("EffectDataElement: _core_block_b64 must be {} bytes, got {}",
-                    CORE_FIXED_SIZE, core_bytes.len())));
-        }
-        w.extend_from_slice(&core_bytes);
+        let core_obj = json_get_field(obj, "core_block")?.as_object().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData,
+                "EffectDataElement: core_block must be object")
+        })?;
+        EffectDataCoreBlock::write_from_json_dict(w, core_obj)?;
         let lookups_c = json_get_field(obj, "lookups_c")?.as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 "EffectDataElement: lookups_c must be array"))?;
