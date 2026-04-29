@@ -29,7 +29,7 @@ py_binary_struct! {
         pub default_limit_hire_count: u32,
         pub max_limit_hire_count: u32,
         pub far_from_leader_option: u8,
-        pub combat_targeting_flags: [u8; 4],
+        pub combat_targeting_flags: u32,
         pub is_controllable: u8,
         pub is_playable: u8,
         pub set_new_mercenary_is_main: u8,
