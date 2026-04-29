@@ -302,8 +302,7 @@ impl<'a> GameConditionNode<'a> {
             }
             Self::ConditionData(c) => {
                 m.insert("case".into(), Value::String("ConditionData".into()));
-                m.insert("tag".into(), Value::Number(c.base.tag.into()));
-                m.insert("wire_b64".into(), leaf_b64(|w| c.write_to(w)));
+                m.insert("data".into(), Value::Object(c.to_json_dict()));
             }
             Self::BranchConditionData(b) => {
                 m.insert("case".into(), Value::String("BranchConditionData".into()));
@@ -357,8 +356,12 @@ impl<'a> GameConditionNode<'a> {
             }
             "ConditionData" => {
                 w.push(3u8);
-                let bytes = decode_b64(get_field(obj, "wire_b64")?, "ConditionData.wire_b64")?;
-                w.extend_from_slice(&bytes);
+                let data_v = get_field(obj, "data")?;
+                let data_obj = data_v.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "GameConditionNode.ConditionData.data: expected object",
+                ))?;
+                ConditionData::write_from_json_dict(w, data_obj)?;
             }
             "BranchConditionData" => {
                 w.push(4u8);

@@ -3,6 +3,9 @@
 //! Total variants: 405
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 /// Common base fields shared by every ConditionData variant.
@@ -18,6 +21,15 @@ impl ConditionDataBase {
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.tag.write_to(w)?;
+        Ok(())
+    }
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("tag".into(), self.tag.to_json_value());
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag")?)?;
         Ok(())
     }
 }
@@ -5239,6 +5251,23 @@ impl<'a> ConditionDataOptionData<'a> {
         self.byte_d.write_to(w)?;
         Ok(())
     }
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("label".into(), self.label.to_json_value());
+        m.insert("qword_a".into(), self.qword_a.to_json_value());
+        m.insert("byte_b".into(), self.byte_b.to_json_value());
+        m.insert("byte_c".into(), self.byte_c.to_json_value());
+        m.insert("byte_d".into(), self.byte_d.to_json_value());
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "label")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_b")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_c")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_d")?)?;
+        Ok(())
+    }
 }
 
 /// Returns `true` if the given tag's vtable slot 19 is the
@@ -5412,6 +5441,39 @@ impl<'a> ConditionDataOptionBlock<'a> {
         }
         Ok(())
     }
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("option_present".into(), self.option_present.to_json_value());
+        m.insert(
+            "option_data".into(),
+            match &self.option_data {
+                Some(d) => Value::Object(d.to_json_dict()),
+                None => Value::Null,
+            },
+        );
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let present_v = json_get_field(obj, "option_present")?;
+        let present = present_v.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "ConditionDataOptionBlock.option_present: expected u8",
+        ))?;
+        if present > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("ConditionDataOptionBlock.option_present: {} out of u8 range", present)));
+        }
+        w.push(present as u8);
+        if present != 0 {
+            let data_v = json_get_field(obj, "option_data")?;
+            let data_obj = data_v.as_object().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ConditionDataOptionBlock.option_data: expected object when option_present!=0",
+            ))?;
+            ConditionDataOptionData::write_from_json_dict(w, data_obj)?;
+        }
+        Ok(())
+    }
 }
 
 /// Full ConditionData record: u16 tag + variant payload + optional
@@ -5458,6 +5520,65 @@ impl<'a> ConditionData<'a> {
         self.variant.write_to(w)?;
         if let Some(b) = &self.option_block {
             b.write_to(w)?;
+        }
+        Ok(())
+    }
+
+    /// JSON shape:
+    /// - `base`: { tag: u16 }
+    /// - `variant_payload_b64`: base64 of just the variant body bytes
+    ///   (per-variant field-level JSON for the 405-variant family is a
+    ///   future rollout — body stays as base64 until then so round-trip
+    ///   is byte-perfect).
+    /// - `option_block`: { option_present, option_data: {...} | null } | null
+    ///   (null when the tag's vtable[19] is the no-op, i.e.
+    ///   `variant_skips_option_block` returns true).
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("base".into(), Value::Object(self.base.to_json_dict()));
+        let mut variant_buf = Vec::new();
+        self.variant.write_to(&mut variant_buf).expect("write_to Vec");
+        m.insert("variant_payload_b64".into(), Value::String(B64.encode(&variant_buf)));
+        m.insert(
+            "option_block".into(),
+            match &self.option_block {
+                Some(b) => Value::Object(b.to_json_dict()),
+                None => Value::Null,
+            },
+        );
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let base_v = json_get_field(obj, "base")?;
+        let base_obj = base_v.as_object().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "ConditionData.base: expected object")
+        })?;
+        ConditionDataBase::write_from_json_dict(w, base_obj)?;
+        let payload_v = json_get_field(obj, "variant_payload_b64")?;
+        let payload_str = payload_v.as_str().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ConditionData.variant_payload_b64: expected base64 string",
+            )
+        })?;
+        let payload_bytes = B64.decode(payload_str).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("ConditionData.variant_payload_b64: invalid base64: {}", e),
+            )
+        })?;
+        w.extend_from_slice(&payload_bytes);
+        let opt_v = json_get_field(obj, "option_block")?;
+        match opt_v {
+            Value::Null => {}
+            Value::Object(opt_obj) => {
+                ConditionDataOptionBlock::write_from_json_dict(w, opt_obj)?;
+            }
+            _ => return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ConditionData.option_block: expected object or null",
+            )),
         }
         Ok(())
     }
