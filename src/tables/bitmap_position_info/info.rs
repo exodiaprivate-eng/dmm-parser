@@ -150,6 +150,21 @@ pub struct BitmapPositionInfo<'a> {
 }
 
 impl<'a> BitmapPositionInfo<'a> {
+    /// Read with explicit entry size from pabgh (compat shim — Tier 1 means
+    /// every byte is consumed by typed reads, so the size is just verified).
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("BitmapPositionInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
+
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
