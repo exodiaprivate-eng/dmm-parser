@@ -104,4 +104,27 @@ mod tests {
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "regioninfo roundtrip mismatch");
     }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (k, s, e)) in ranges.iter().enumerate() {
+            let mut c = *s;
+            let item = RegionInfo::read_with_size(&data, &mut c, e - s)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            RegionInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: write_from_json_dict: {}", i, k, er));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} k=0x{:x}: JSON round-trip diverges from typed write",
+                i, k
+            );
+        }
+    }
 }
