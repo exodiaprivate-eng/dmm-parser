@@ -176,6 +176,96 @@ py_binary_struct! {
     }
 }
 
+// RandomBox (variant 2) — sub_141E45240.
+// Wire after BaseUseData: u8 flag_a + (if flag_a) u32 lookup_a
+// (sub_141100370 → qword_145F113C8) + u8 flag_b + (if flag_b) variable
+// inner bytes via sub_141D03AA0 (deep recursive, kept opaque) + u32
+// final_lookup (read_u32_lookup_DA30 → qword_145F0DA30). The inner
+// blob is sized by extra_size minus the 4-byte trailing final_lookup
+// minus whatever has been consumed by the surrounding flag/lookup
+// fields. Cloning a whole RandomBoxPayload between entries stays
+// byte-perfect; per-field editing of the inner blob is gated on the
+// sub_141600210 family decoder being reverse-engineered.
+#[derive(Debug)]
+pub struct RandomBoxPayload {
+    pub lookup_a: Option<u32>,
+    pub inner_data_bytes: Option<Vec<u8>>,
+    pub final_lookup: u32,
+}
+
+impl RandomBoxPayload {
+    pub fn read_with_size(data: &[u8], offset: &mut usize, extra_size: usize) -> io::Result<Self> {
+        let extra_end = *offset + extra_size;
+        if extra_end > data.len() {
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
+                format!("RandomBox: extra_size {} runs past end of data", extra_size)));
+        }
+        let flag_a = u8::read_from(data, offset)?;
+        let lookup_a = if flag_a != 0 { Some(u32::read_from(data, offset)?) } else { None };
+        let flag_b = u8::read_from(data, offset)?;
+        let inner_data_bytes = if flag_b != 0 {
+            if extra_end < 4 || *offset > extra_end - 4 {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("RandomBox: inner_data bounds invalid (cursor={}, extra_end={})", *offset, extra_end)));
+            }
+            let inner_end = extra_end - 4;
+            let bytes = data[*offset..inner_end].to_vec();
+            *offset = inner_end;
+            Some(bytes)
+        } else {
+            None
+        };
+        let final_lookup = u32::read_from(data, offset)?;
+        Ok(Self { lookup_a, inner_data_bytes, final_lookup })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        (self.lookup_a.is_some() as u8).write_to(w)?;
+        if let Some(v) = self.lookup_a { v.write_to(w)?; }
+        (self.inner_data_bytes.is_some() as u8).write_to(w)?;
+        if let Some(ref b) = self.inner_data_bytes { w.write_all(b)?; }
+        self.final_lookup.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("lookup_a".to_string(), match self.lookup_a {
+            Some(v) => v.to_json_value(),
+            None => Value::Null,
+        });
+        m.insert("inner_data_b64".to_string(), match &self.inner_data_bytes {
+            Some(b) => Value::String(B64.encode(b)),
+            None => Value::Null,
+        });
+        m.insert("final_lookup".to_string(), self.final_lookup.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let lookup_a = obj.get("lookup_a").unwrap_or(&Value::Null);
+        if lookup_a.is_null() {
+            w.push(0);
+        } else {
+            w.push(1);
+            <u32 as WriteJsonValue>::write_from_json(w, lookup_a)?;
+        }
+        let inner = obj.get("inner_data_b64").unwrap_or(&Value::Null);
+        if inner.is_null() {
+            w.push(0);
+        } else {
+            let s = inner.as_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "RandomBox.inner_data_b64: expected string or null"))?;
+            let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                format!("RandomBox.inner_data_b64: invalid base64: {}", e)))?;
+            w.push(1);
+            w.extend_from_slice(&bytes);
+        }
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "final_lookup")?)?;
+        Ok(())
+    }
+}
+
 // CustomizeCharacter (variant 13) — sub_141E466D0.
 // Wire: BaseUseData + u32 dye_lookup (sub_1410FF340 → qword_145F0DA08
 // character_info ref) + CArray<u16> color_data_list (each element is
@@ -204,7 +294,7 @@ pub struct DeepVariantPayload(pub Vec<u8>);
 pub enum ItemUseDataVariant<'a> {
     Skill { base: BaseUseData<'a>, payload: SkillPayload },
     ExpandInventorySlot { base: BaseUseData<'a>, payload: ExpandInventorySlotPayload },
-    RandomBox { base: BaseUseData<'a>, payload: DeepVariantPayload },
+    RandomBox { base: BaseUseData<'a>, payload: RandomBoxPayload },
     SummonGimmickWithCatch { base: BaseUseData<'a>, payload: SummonGimmickWithCatchPayload<'a> },
     ConvertCharacter { base: BaseUseData<'a>, payload: ConvertCharacterPayload },
     ItemDye { base: BaseUseData<'a>, payload: ItemDyePayload },
@@ -274,7 +364,7 @@ impl<'a> ItemUseDataVariant<'a> {
             },
             2 => Self::RandomBox {
                 base,
-                payload: read_deep_payload(data, offset, extra_size)?,
+                payload: RandomBoxPayload::read_with_size(data, offset, extra_size)?,
             },
             3 => Self::SummonGimmickWithCatch {
                 base,
@@ -337,7 +427,7 @@ impl<'a> ItemUseDataVariant<'a> {
         match self {
             Self::Skill { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::ExpandInventorySlot { base, payload } => { base.write_to(w)?; payload.write_to(w) }
-            Self::RandomBox { base, payload } => { base.write_to(w)?; w.write_all(&payload.0) }
+            Self::RandomBox { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::SummonGimmickWithCatch { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::ConvertCharacter { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::ItemDye { base, payload } => { base.write_to(w)?; payload.write_to(w) }
@@ -379,7 +469,7 @@ impl<'a> ItemUseDataVariant<'a> {
         let (kind, base, payload): (&str, &BaseUseData, Value) = match self {
             Self::Skill { base, payload } => ("Skill", base, Value::Object(payload.to_json_dict())),
             Self::ExpandInventorySlot { base, payload } => ("ExpandInventorySlot", base, Value::Object(payload.to_json_dict())),
-            Self::RandomBox { base, payload } => ("RandomBox", base, deep_to_json(&payload.0)),
+            Self::RandomBox { base, payload } => ("RandomBox", base, Value::Object(payload.to_json_dict())),
             Self::SummonGimmickWithCatch { base, payload } => ("SummonGimmickWithCatch", base, Value::Object(payload.to_json_dict())),
             Self::ConvertCharacter { base, payload } => ("ConvertCharacter", base, Value::Object(payload.to_json_dict())),
             Self::ItemDye { base, payload } => ("ItemDye", base, Value::Object(payload.to_json_dict())),
@@ -429,7 +519,7 @@ impl<'a> ItemUseDataVariant<'a> {
         match disc {
             0 => SkillPayload::write_from_json_dict(w, payload_obj(payload, "Skill")?)?,
             1 => ExpandInventorySlotPayload::write_from_json_dict(w, payload_obj(payload, "ExpandInventorySlot")?)?,
-            2 => write_deep_from_json(w, payload, "RandomBox")?,
+            2 => RandomBoxPayload::write_from_json_dict(w, payload_obj(payload, "RandomBox")?)?,
             3 => SummonGimmickWithCatchPayload::write_from_json_dict(w, payload_obj(payload, "SummonGimmickWithCatch")?)?,
             4 => ConvertCharacterPayload::write_from_json_dict(w, payload_obj(payload, "ConvertCharacter")?)?,
             5 => ItemDyePayload::write_from_json_dict(w, payload_obj(payload, "ItemDye")?)?,
