@@ -16,7 +16,9 @@ pub struct FactionNodeSpawnInfo<'a> {
     pub string_key: CString<'a>,
     pub is_blocked: u8,
     pub faction_node_info: u32,
-    pub boundary_box: [u8; 24],
+    /// 3D bounding box (Vec3 min, Vec3 max) — 24 wire bytes total.
+    pub boundary_box_min: [f32; 3],
+    pub boundary_box_max: [f32; 3],
     pub patrol_ai_spline_data_list: Vec<u8>,
 }
 
@@ -33,15 +35,15 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let faction_node_info = u32::read_from(data, offset)?;
-        let mut boundary_box = [0u8; 24];
-        for b in &mut boundary_box { *b = u8::read_from(data, offset)?; }
+        let boundary_box_min = <[f32; 3]>::read_from(data, offset)?;
+        let boundary_box_max = <[f32; 3]>::read_from(data, offset)?;
 
         let patrol_ai_spline_data_list = data[*offset..entry_end].to_vec();
         *offset = entry_end;
 
         Ok(Self {
             key, string_key, is_blocked, faction_node_info,
-            boundary_box, patrol_ai_spline_data_list,
+            boundary_box_min, boundary_box_max, patrol_ai_spline_data_list,
         })
     }
 
@@ -50,7 +52,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.faction_node_info.write_to(w)?;
-        w.write_all(&self.boundary_box)?;
+        self.boundary_box_min.write_to(w)?;
+        self.boundary_box_max.write_to(w)?;
         w.write_all(&self.patrol_ai_spline_data_list)?;
         Ok(())
     }
@@ -61,7 +64,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("faction_node_info".to_string(), self.faction_node_info.to_json_value());
-        m.insert("boundary_box".to_string(), self.boundary_box.to_json_value());
+        m.insert("boundary_box_min".to_string(), self.boundary_box_min.to_json_value());
+        m.insert("boundary_box_max".to_string(), self.boundary_box_max.to_json_value());
         m.insert("_patrol_ai_spline_data_list_b64".to_string(),
             Value::String(B64.encode(&self.patrol_ai_spline_data_list)));
         m
@@ -72,7 +76,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_node_info")?)?;
-        <[u8; 24] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_box")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_box_min")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_box_max")?)?;
         let b64 = json_get_field(obj, "_patrol_ai_spline_data_list_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
