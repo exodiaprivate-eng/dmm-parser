@@ -4,6 +4,7 @@
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
@@ -34,415 +35,172 @@ impl ConditionDataBase {
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetLevelPayload {
-    pub field_at_28: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetLevelPayload {
+        pub field_at_28: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetHpPercentPayload {
-    pub field_at_32: u8,
-    pub field_at_24: u64,
-}
-impl ConditionData_GetHpPercentPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u8::read_from(data, offset)?;
-        let field_at_24 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetHpPercentPayload {
+        pub field_at_32: u8,
+        pub field_at_24: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckSkillLevelPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-    pub field_at_26: u32,
-}
-impl ConditionData_CheckSkillLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_26 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckSkillLevelPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
+        pub field_at_26: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsHiredMercenaryPayload {
-    pub field_at_26: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_IsHiredMercenaryPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsHiredMercenaryPayload {
+        pub field_at_26: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_HiredMercenaryCountPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-    pub field_at_32: u8,
-}
-impl ConditionData_HiredMercenaryCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_HiredMercenaryCountPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
+        pub field_at_32: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_UnownedMercenaryCountPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-    pub field_at_32: u8,
-}
-impl ConditionData_UnownedMercenaryCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_UnownedMercenaryCountPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
+        pub field_at_32: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetItemCountPayload {
-    pub field_at_24: u8,
-    pub field_at_26: u32,
-    pub field_at_32: u64,
-}
-impl ConditionData_GetItemCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_26 = u32::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_26, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetItemCountPayload {
+        pub field_at_24: u8,
+        pub field_at_26: u32,
+        pub field_at_32: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_DockingGetItemCountPayload {
-    pub field_at_24: u8,
-    pub field_at_32: u64,
-    pub field_at_26: u32,
-}
-impl ConditionData_DockingGetItemCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_26 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_32, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_DockingGetItemCountPayload {
+        pub field_at_24: u8,
+        pub field_at_32: u64,
+        pub field_at_26: u32,
     }
 }
 
-/// Generic 1-byte payload — used by several flag-style ConditionData
-/// variants whose vtable[16] reads a single u8 field. The exact name of
-/// the byte is per-variant; using a generic type keeps the boilerplate
-/// down for the long tail of no-payload-but-actually-1-byte variants.
-#[derive(Debug)]
-pub struct OneByteBodyPayload {
-    pub byte: u8,
-}
-impl OneByteBodyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let byte = u8::read_from(data, offset)?;
-        Ok(Self { byte })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.byte.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// Generic 1-byte payload — used by several flag-style ConditionData
+    /// variants whose vtable[16] reads a single u8 field. The exact name
+    /// of the byte is per-variant; using a generic type keeps the
+    /// boilerplate down for the long tail of no-payload-but-actually-
+    /// 1-byte variants. Auto-emits JSON via the macro.
+    pub struct OneByteBodyPayload {
+        pub byte: u8,
     }
 }
 
 /// Tag 206 (ConditionData_Weather). Body = u8 weather state (1 byte).
 /// Per IDA sub_14F18E780 (vtable[16] for ConditionData_Weather at
 /// 0x144CD5A98) — single stream read of 1 byte stored at +24.
-#[derive(Debug)]
-pub struct ConditionData_WeatherPayload {
-    pub weather_state: u8,
-}
-impl ConditionData_WeatherPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let weather_state = u8::read_from(data, offset)?;
-        Ok(Self { weather_state })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.weather_state.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_WeatherPayload {
+        pub weather_state: u8,
     }
 }
 
 /// Tag 9 (ConditionData_CheckTime). Body = u64 time value (8 bytes).
-#[derive(Debug)]
-pub struct ConditionData_CheckTimePayload {
-    pub time_value: u64,
-}
-impl ConditionData_CheckTimePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let time_value = u64::read_from(data, offset)?;
-        Ok(Self { time_value })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.time_value.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckTimePayload {
+        pub time_value: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRemainTimerPayload {
-    pub field_at_24: u64,
-    pub field_at_32: u8,
-}
-impl ConditionData_CheckRemainTimerPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u64::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRemainTimerPayload {
+        pub field_at_24: u64,
+        pub field_at_32: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckEquipItemPayload {
-    pub field_at_26: u16,
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckEquipItemPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u16::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckEquipItemPayload {
+        pub field_at_26: u16,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCharacterKeyPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckCharacterKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCharacterKeyPayload {
+        pub field_at_24: u32,
     }
 }
 
 /// Tag 15 (CheckTribe). Body = u32 tribe_key + u8 flag = 5 bytes.
-#[derive(Debug)]
-pub struct ConditionData_CheckTribePayload {
-    pub tribe_key: u32,
-    pub flag: u8,
-}
-impl ConditionData_CheckTribePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let tribe_key = u32::read_from(data, offset)?;
-        let flag = u8::read_from(data, offset)?;
-        Ok(Self { tribe_key, flag })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.tribe_key.write_to(w)?;
-        self.flag.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckTribePayload {
+        pub tribe_key: u32,
+        pub flag: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckTribeMassLevelPayload {
-    pub field_at_25: u8,
-    pub field_at_24: u8,
-}
-impl ConditionData_CheckTribeMassLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_25 = u8::read_from(data, offset)?;
-        let field_at_24 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_25, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_25.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckTribeMassLevelPayload {
+        pub field_at_25: u8,
+        pub field_at_24: u8,
     }
 }
 
 /// Tag 23 (GetDataDefinedStaticStat). Body = u32 entity_key + u8 stat_index
 /// + u64 stat_value = 13 bytes per vanilla observation.
-#[derive(Debug)]
-pub struct ConditionData_GetDataDefinedStaticStatPayload {
-    pub entity_key: u32,
-    pub stat_index: u8,
-    pub stat_value: u64,
-}
-impl ConditionData_GetDataDefinedStaticStatPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let entity_key = u32::read_from(data, offset)?;
-        let stat_index = u8::read_from(data, offset)?;
-        let stat_value = u64::read_from(data, offset)?;
-        Ok(Self { entity_key, stat_index, stat_value })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.entity_key.write_to(w)?;
-        self.stat_index.write_to(w)?;
-        self.stat_value.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetDataDefinedStaticStatPayload {
+        pub entity_key: u32,
+        pub stat_index: u8,
+        pub stat_value: u64,
     }
 }
 
 /// Tag 24 (GetDataDefinedRegenerateStat). Body = u32 entity_key + u8 stat_index
 /// + u64 regen_value = 13 bytes per vanilla observation (same shape as tag 23).
-#[derive(Debug)]
-pub struct ConditionData_GetDataDefinedRegenerateStatPayload {
-    pub entity_key: u32,
-    pub stat_index: u8,
-    pub regen_value: u64,
-}
-impl ConditionData_GetDataDefinedRegenerateStatPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let entity_key = u32::read_from(data, offset)?;
-        let stat_index = u8::read_from(data, offset)?;
-        let regen_value = u64::read_from(data, offset)?;
-        Ok(Self { entity_key, stat_index, regen_value })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.entity_key.write_to(w)?;
-        self.stat_index.write_to(w)?;
-        self.regen_value.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetDataDefinedRegenerateStatPayload {
+        pub entity_key: u32,
+        pub stat_index: u8,
+        pub regen_value: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckActionPayload {
-    pub field_at_28: u32,
-}
-impl ConditionData_CheckActionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckActionPayload {
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckActionSkillKeyPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckActionSkillKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckActionSkillKeyPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCharacterKeysPayload {
-    pub field_at_24: CArray<u32>,
-}
-impl ConditionData_CheckCharacterKeysPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CArray::<u32>::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCharacterKeysPayload {
+        pub field_at_24: CArray<u32>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckKnowledgePayload {
-    pub field_at_28: u32,
-    pub field_at_32: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckKnowledgePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_32, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckKnowledgePayload {
+        pub field_at_28: u32,
+        pub field_at_32: u8,
+        pub field_at_24: u32,
     }
 }
 
@@ -453,369 +211,148 @@ impl ConditionData_CheckKnowledgePayload {
 ///   3. u16 slot_index (2 bytes) at +36
 ///   4. u16 secondary_key (sub_141103F00 hashmap → u16 at +32)
 /// Wire body = 4 + 8 + 2 + 2 = 16 bytes.
-#[derive(Debug)]
-pub struct ConditionData_CheckHaveItemPayload {
-    pub item_key: u32,
-    pub count: u64,
-    pub slot_index: u16,
-    pub secondary_key: u16,
-}
-impl ConditionData_CheckHaveItemPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let item_key = u32::read_from(data, offset)?;
-        let count = u64::read_from(data, offset)?;
-        let slot_index = u16::read_from(data, offset)?;
-        let secondary_key = u16::read_from(data, offset)?;
-        Ok(Self { item_key, count, slot_index, secondary_key })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.item_key.write_to(w)?;
-        self.count.write_to(w)?;
-        self.slot_index.write_to(w)?;
-        self.secondary_key.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckHaveItemPayload {
+        pub item_key: u32,
+        pub count: u64,
+        pub slot_index: u16,
+        pub secondary_key: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckHaveItemPricePayload {
-    pub field_at_24: CArray<u32>,
-}
-impl ConditionData_CheckHaveItemPricePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CArray::<u32>::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckHaveItemPricePayload {
+        pub field_at_24: CArray<u32>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckHaveGimmickPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckHaveGimmickPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckHaveGimmickPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckItemConditionAndRemovePayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckItemConditionAndRemovePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckItemConditionAndRemovePayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_HasInteractionPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_HasInteractionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_HasInteractionPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsLookInteractionPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_IsLookInteractionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsLookInteractionPayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckLevelLoadDonePayload<'a> {
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckLevelLoadDonePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckLevelLoadDonePayload<'a> {
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckEquipSlotNamePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckEquipSlotNamePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckEquipSlotNamePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCurrentEquipSlotNamePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckCurrentEquipSlotNamePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCurrentEquipSlotNamePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_TestCheatPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_TestCheatPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_TestCheatPayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckEnterTriggerPayload<'a> {
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckEnterTriggerPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckEnterTriggerPayload<'a> {
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckFrontEnterTriggerPayload<'a> {
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckFrontEnterTriggerPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckFrontEnterTriggerPayload<'a> {
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckStealthConditionPayload<'a> {
-    pub field_at_24: u32,
-    pub field_at_28: CString<'a>,
-}
-impl<'a> ConditionData_CheckStealthConditionPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckStealthConditionPayload<'a> {
+        pub field_at_24: u32,
+        pub field_at_28: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CompleteQuestPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CompleteQuestPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CompleteQuestPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CompleteMissionPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CompleteMissionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CompleteMissionPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CompleteSubMissionPayload {
-    pub field_at_28: u32,
-    pub field_at_24: u32,
-}
-impl ConditionData_CompleteSubMissionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CompleteSubMissionPayload {
+        pub field_at_28: u32,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CompleteStagePayload {
-    pub field_at_28: u8,
-    pub field_at_29: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_CompleteStagePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u8::read_from(data, offset)?;
-        let field_at_29 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_29, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        self.field_at_29.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CompleteStagePayload {
+        pub field_at_28: u8,
+        pub field_at_29: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_StagePlayingPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_StagePlayingPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_StagePlayingPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_PlayingQuestPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_PlayingQuestPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_PlayingQuestPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_PlayingMissionPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_PlayingMissionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_PlayingMissionPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_StartStagePayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_StartStagePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_StartStagePayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_StartQuestPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_StartQuestPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_StartQuestPayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_StartMissionPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_StartMissionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_StartMissionPayload {
+        pub field_at_16: u32,
     }
 }
 
@@ -949,1092 +486,428 @@ impl ConditionData_GameEventParamPayload {
 ///   2. read u64 percent_value (8 bytes) — stored at +24
 ///   3. read u8 final_byte (1 byte) — stored at +32
 /// Total slot-16 reads = 13 bytes (full body, no separate tail).
-#[derive(Debug)]
-pub struct ConditionData_QuestGaugePercentPayload {
-    pub quest_key: u32,
-    pub percent_value: u64,
-    pub final_byte: u8,
-}
-impl ConditionData_QuestGaugePercentPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let quest_key = u32::read_from(data, offset)?;
-        let percent_value = u64::read_from(data, offset)?;
-        let final_byte = u8::read_from(data, offset)?;
-        Ok(Self { quest_key, percent_value, final_byte })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.quest_key.write_to(w)?;
-        self.percent_value.write_to(w)?;
-        self.final_byte.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_QuestGaugePercentPayload {
+        pub quest_key: u32,
+        pub percent_value: u64,
+        pub final_byte: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckDistanceToPlayerPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u8,
-}
-impl ConditionData_CheckDistanceToPlayerPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckDistanceToPlayerPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckDistanceHorizontalToTargetPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u8,
-}
-impl ConditionData_CheckDistanceHorizontalToTargetPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckDistanceHorizontalToTargetPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_WantedLevelPayload {
-    pub field_at_24: u8,
-    pub field_at_25: u8,
-}
-impl ConditionData_WantedLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_25 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_25 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_25.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_WantedLevelPayload {
+        pub field_at_24: u8,
+        pub field_at_25: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckWantedPricePayload {
-    pub field_at_24: u64,
-    pub field_at_32: u8,
-}
-impl ConditionData_CheckWantedPricePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u64::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckWantedPricePayload {
+        pub field_at_24: u64,
+        pub field_at_32: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckInteractionByInteractionKeyPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckInteractionByInteractionKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckInteractionByInteractionKeyPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckAllyGroupPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckAllyGroupPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckAllyGroupPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickStatePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckGimmickStatePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickStatePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_DockingGimmickStatePayload {
-    pub field_at_24: u32,
-    pub field_at_28: u32,
-}
-impl ConditionData_DockingGimmickStatePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_DockingGimmickStatePayload {
+        pub field_at_24: u32,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_OtherDockingGimmickStatePayload {
-    pub field_at_28: u32,
-}
-impl ConditionData_OtherDockingGimmickStatePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_OtherDockingGimmickStatePayload {
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickImpulsePowerPayload {
-    pub field_at_16: u32,
-    pub field_at_20: u8,
-}
-impl ConditionData_CheckGimmickImpulsePowerPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        let field_at_20 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_16, field_at_20 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        self.field_at_20.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickImpulsePowerPayload {
+        pub field_at_16: u32,
+        pub field_at_20: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetDataDefinedRegenerateStatPercentPayload {
-    pub field_at_26: u8,
-    pub field_at_32: u64,
-}
-impl ConditionData_GetDataDefinedRegenerateStatPercentPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetDataDefinedRegenerateStatPercentPayload {
+        pub field_at_26: u8,
+        pub field_at_32: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetBreakableObjectHpPercentPayload {
-    pub field_at_32: u8,
-    pub field_at_24: u64,
-}
-impl ConditionData_GetBreakableObjectHpPercentPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u8::read_from(data, offset)?;
-        let field_at_24 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetBreakableObjectHpPercentPayload {
+        pub field_at_32: u8,
+        pub field_at_24: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetElementalGoalStatPayload {
-    pub field_at_24: u8,
-    pub field_at_25: u8,
-    pub field_at_32: u64,
-}
-impl ConditionData_GetElementalGoalStatPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_25 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_25, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_25.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetElementalGoalStatPayload {
+        pub field_at_24: u8,
+        pub field_at_25: u8,
+        pub field_at_32: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckHaveItemGroupPayload {
-    pub field_at_32: u64,
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckHaveItemGroupPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckHaveItemGroupPayload {
+        pub field_at_32: u64,
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckHaveItemGroupPricePayload {
-    pub field_at_26: u8,
-    pub field_at_32: u64,
-    pub field_at_24: u16,
-    pub field_at_28: u32,
-}
-impl ConditionData_CheckHaveItemGroupPricePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_24 = u16::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_32, field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckHaveItemGroupPricePayload {
+        pub field_at_26: u8,
+        pub field_at_32: u64,
+        pub field_at_24: u16,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckInteractionSocketBoneNamePayload<'a> {
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckInteractionSocketBoneNamePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckInteractionSocketBoneNamePayload<'a> {
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckSequencerVariablePayload<'a> {
-    pub field_at_40: u8,
-    pub field_at_16: u32,
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckSequencerVariablePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_40 = u8::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_40, field_at_16, cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_40.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckSequencerVariablePayload<'a> {
+        pub field_at_40: u8,
+        pub field_at_16: u32,
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckAmmoItemKeyPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckAmmoItemKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckAmmoItemKeyPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckSpecialModePayload {
-    pub field_at_16: u8,
-}
-impl ConditionData_CheckSpecialModePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckSpecialModePayload {
+        pub field_at_16: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_SpecialModeKeyPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_SpecialModeKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_SpecialModeKeyPayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsInRegionPayload {
-    pub field_at_24: CArray<u16>,
-}
-impl ConditionData_IsInRegionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsInRegionPayload {
+        pub field_at_24: CArray<u16>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsAboveRoadPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-}
-impl ConditionData_IsAboveRoadPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsAboveRoadPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckTargetablePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckTargetablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckTargetablePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckInventorySlotFreeCountPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u16,
-}
-impl ConditionData_CheckInventorySlotFreeCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckInventorySlotFreeCountPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickEventParamStringPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckGimmickEventParamStringPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickEventParamStringPayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickEventParamFloatPayload {
-    pub field_at_20: u8,
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckGimmickEventParamFloatPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_20 = u8::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_20, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_20.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickEventParamFloatPayload {
+        pub field_at_20: u8,
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickEventParamIntPayload {
-    pub field_at_20: u8,
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckGimmickEventParamIntPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_20 = u8::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_20, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_20.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickEventParamIntPayload {
+        pub field_at_20: u8,
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickEventParamAnglePayload {
-    pub field_at_20: u8,
-    pub field_at_16: u32,
-    pub field_at_21: u8,
-}
-impl ConditionData_CheckGimmickEventParamAnglePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_20 = u8::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        let field_at_21 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_20, field_at_16, field_at_21 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_20.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        self.field_at_21.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickEventParamAnglePayload {
+        pub field_at_20: u8,
+        pub field_at_16: u32,
+        pub field_at_21: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCCTypePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckCCTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCCTypePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckFieldPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckFieldPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckFieldPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetFriendlyPayload {
-    pub field_at_40: u8,
-    pub field_at_32: u64,
-    pub field_at_41: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetFriendlyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_40 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_41 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_40, field_at_32, field_at_41, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_40.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_41.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetFriendlyPayload {
+        pub field_at_40: u8,
+        pub field_at_32: u64,
+        pub field_at_41: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckFriendlyLevelPayload {
-    pub field_at_27: u8,
-    pub field_at_26: u8,
-    pub field_at_28: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckFriendlyLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_27 = u8::read_from(data, offset)?;
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_27, field_at_26, field_at_28, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_27.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckFriendlyLevelPayload {
+        pub field_at_27: u8,
+        pub field_at_26: u8,
+        pub field_at_28: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetFactionfriendlyPayload {
-    pub field_at_40: u8,
-    pub field_at_32: u64,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetFactionfriendlyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_40 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_40, field_at_32, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_40.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetFactionfriendlyPayload {
+        pub field_at_40: u8,
+        pub field_at_32: u64,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckEquipItemGroupPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u16,
-}
-impl ConditionData_CheckEquipItemGroupPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckEquipItemGroupPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckLoadingStepPayload {
-    pub field_at_16: u8,
-}
-impl ConditionData_CheckLoadingStepPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckLoadingStepPayload {
+        pub field_at_16: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickEventSenderNamePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckGimmickEventSenderNamePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickEventSenderNamePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGetItemPayload<'a> {
-    pub field_at_16: u32,
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckGetItemPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_16, cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGetItemPayload<'a> {
+        pub field_at_16: u32,
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckSealActorPayload<'a> {
-    pub cstring_at_16: CString<'a>,
-}
-impl<'a> ConditionData_CheckSealActorPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_16 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckSealActorPayload<'a> {
+        pub cstring_at_16: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckAttachedGimmickCountPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u8,
-}
-impl ConditionData_CheckAttachedGimmickCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckAttachedGimmickCountPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRemoteCatchTargetPayload {
-    pub field_at_24: u8,
-    pub field_at_25: u8,
-}
-impl ConditionData_CheckRemoteCatchTargetPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_25 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_25 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_25.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRemoteCatchTargetPayload {
+        pub field_at_24: u8,
+        pub field_at_25: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRemoteCatchTargetItemKeyPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckRemoteCatchTargetItemKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRemoteCatchTargetItemKeyPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickEventPayload {
-    pub field_at_20: u32,
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckGimmickEventPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_20 = u32::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_20, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_20.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickEventPayload {
+        pub field_at_20: u32,
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckStageChartDialogEndPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckStageChartDialogEndPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckStageChartDialogEndPayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickTargetPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckGimmickTargetPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickTargetPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetGimmickVariablePayload {
-    pub field_at_24: u32,
-    pub field_at_28: u32,
-    pub field_at_32: u8,
-}
-impl ConditionData_GetGimmickVariablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetGimmickVariablePayload {
+        pub field_at_24: u32,
+        pub field_at_28: u32,
+        pub field_at_32: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetRandomPercentBySpawnPositionSeedPayload {
-    pub field_at_24: u64,
-    pub field_at_32: u8,
-}
-impl ConditionData_GetRandomPercentBySpawnPositionSeedPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u64::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetRandomPercentBySpawnPositionSeedPayload {
+        pub field_at_24: u64,
+        pub field_at_32: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_SubTimelineNamePayload<'a> {
-    pub field_at_16: CArray<CString<'a>>,
-}
-impl<'a> ConditionData_SubTimelineNamePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = CArray::<CString>::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_SubTimelineNamePayload<'a> {
+        pub field_at_16: CArray<CString<'a>>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_ExistTimelinePayload<'a> {
-    pub field_at_16: CArray<CString<'a>>,
-}
-impl<'a> ConditionData_ExistTimelinePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = CArray::<CString>::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_ExistTimelinePayload<'a> {
+        pub field_at_16: CArray<CString<'a>>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_ExistFolderPayload<'a> {
-    pub field_at_32: u8,
-    pub field_at_33: u8,
-    pub field_at_16: CArray<CString<'a>>,
-}
-impl<'a> ConditionData_ExistFolderPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u8::read_from(data, offset)?;
-        let field_at_33 = u8::read_from(data, offset)?;
-        let field_at_16 = CArray::<CString>::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_33, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_33.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_ExistFolderPayload<'a> {
+        pub field_at_32: u8,
+        pub field_at_33: u8,
+        pub field_at_16: CArray<CString<'a>>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckReserveItemSlotOutPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckReserveItemSlotOutPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckReserveItemSlotOutPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickItemKeyPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckGimmickItemKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickItemKeyPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckMainMercenarySummonedPayload {
-    pub field_at_24: u8,
-    pub field_at_26: u16,
-}
-impl ConditionData_CheckMainMercenarySummonedPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_26 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckMainMercenarySummonedPayload {
+        pub field_at_24: u8,
+        pub field_at_26: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckMainMercenaryNearToLeaderPayload {
-    pub field_at_24: u8,
-    pub field_at_26: u16,
-}
-impl ConditionData_CheckMainMercenaryNearToLeaderPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_26 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckMainMercenaryNearToLeaderPayload {
+        pub field_at_24: u8,
+        pub field_at_26: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckMainMercenaryHaveItemGroupPricePayload {
-    pub field_at_12: u8,
-    pub field_at_15: u8,
-    pub field_at_20: u64,
-    pub field_at_13: u16,
-    pub field_at_14: u16,
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckMainMercenaryHaveItemGroupPricePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_12 = u8::read_from(data, offset)?;
-        let field_at_15 = u8::read_from(data, offset)?;
-        let field_at_20 = u64::read_from(data, offset)?;
-        let field_at_13 = u16::read_from(data, offset)?;
-        let field_at_14 = u16::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_12, field_at_15, field_at_20, field_at_13, field_at_14, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_12.write_to(w)?;
-        self.field_at_15.write_to(w)?;
-        self.field_at_20.write_to(w)?;
-        self.field_at_13.write_to(w)?;
-        self.field_at_14.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckMainMercenaryHaveItemGroupPricePayload {
+        pub field_at_12: u8,
+        pub field_at_15: u8,
+        pub field_at_20: u64,
+        pub field_at_13: u16,
+        pub field_at_14: u16,
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckHaveMercenaryPayload {
-    pub field_at_16: u8,
-    pub field_at_18: u32,
-}
-impl ConditionData_CheckHaveMercenaryPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u8::read_from(data, offset)?;
-        let field_at_18 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16, field_at_18 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        self.field_at_18.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckHaveMercenaryPayload {
+        pub field_at_16: u8,
+        pub field_at_18: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckHaveVehiclePayload {
-    pub field_at_16: u16,
-}
-impl ConditionData_CheckHaveVehiclePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckHaveVehiclePayload {
+        pub field_at_16: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickImpulseWhereTypePayload {
-    pub field_at_16: u8,
-}
-impl ConditionData_CheckGimmickImpulseWhereTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickImpulseWhereTypePayload {
+        pub field_at_16: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckElementalMaterialStateSuccessPayload {
-    pub field_at_26: u8,
-}
-impl ConditionData_CheckElementalMaterialStateSuccessPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckElementalMaterialStateSuccessPayload {
+        pub field_at_26: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckTriggerVolumeGroupIndexPayload {
-    pub field_at_16: u8,
-}
-impl ConditionData_CheckTriggerVolumeGroupIndexPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckTriggerVolumeGroupIndexPayload {
+        pub field_at_16: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickParentLinkCountPayload {
-    pub field_at_24: u8,
-    pub field_at_26: u16,
-}
-impl ConditionData_CheckGimmickParentLinkCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_26 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickParentLinkCountPayload {
+        pub field_at_24: u8,
+        pub field_at_26: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickTriggerCountPayload<'a> {
-    pub field_at_24: u8,
-    pub field_at_26: u16,
-    pub field_at_28: CString<'a>,
-}
-impl<'a> ConditionData_CheckGimmickTriggerCountPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_26 = u16::read_from(data, offset)?;
-        let field_at_28 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_26, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickTriggerCountPayload<'a> {
+        pub field_at_24: u8,
+        pub field_at_26: u16,
+        pub field_at_28: CString<'a>,
     }
 }
 
@@ -2110,544 +983,354 @@ impl<'a> GimmickConditionalSlot<'a> {
         }
         Ok(())
     }
+
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("outer_present".into(), self.outer_present.to_json_value());
+        m.insert(
+            "body".into(),
+            match &self.body {
+                Some(b) => {
+                    let mut bm = Map::new();
+                    bm.insert("field_a".into(), b.field_a.to_json_value());
+                    bm.insert("inner_present".into(), b.inner_present.to_json_value());
+                    bm.insert(
+                        "condition".into(),
+                        match &b.condition {
+                            Some(c) => {
+                                let mut cm = Map::new();
+                                cm.insert("tree".into(), c.tree.to_json_value());
+                                cm.insert("tail_a".into(), c.tail_a.to_json_value());
+                                cm.insert("tail_b".into(), c.tail_b.to_json_value());
+                                cm.insert("tail_c".into(), c.tail_c.to_json_value());
+                                Value::Object(cm)
+                            }
+                            None => Value::Null,
+                        },
+                    );
+                    bm.insert("name".into(), b.name.to_json_value());
+                    Value::Object(bm)
+                }
+                None => Value::Null,
+            },
+        );
+        Value::Object(m)
+    }
+
+    pub fn write_from_json_value(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GimmickConditionalSlot: expected object",
+        ))?;
+        let outer_v = json_get_field(obj, "outer_present")?;
+        let outer = outer_v.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GimmickConditionalSlot.outer_present: expected u8",
+        ))?;
+        if outer > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("outer_present {} out of u8 range", outer)));
+        }
+        w.push(outer as u8);
+        if outer == 0 { return Ok(()); }
+        let body_v = json_get_field(obj, "body")?;
+        let body_obj = body_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GimmickConditionalSlot.body: expected object when outer_present!=0",
+        ))?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "field_a")?)?;
+        let inner_v = json_get_field(body_obj, "inner_present")?;
+        let inner = inner_v.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "body.inner_present: expected u8",
+        ))?;
+        if inner > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("inner_present {} out of u8 range", inner)));
+        }
+        w.push(inner as u8);
+        if inner != 0 {
+            let cond_v = json_get_field(body_obj, "condition")?;
+            let cond_obj = cond_v.as_object().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "body.condition: expected object when inner_present!=0",
+            ))?;
+            super::game_condition::GameConditionNode::write_from_json(
+                w, json_get_field(cond_obj, "tree")?,
+            )?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(cond_obj, "tail_a")?)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(cond_obj, "tail_b")?)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(cond_obj, "tail_c")?)?;
+        }
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "name")?)?;
+        Ok(())
+    }
+}
+
+impl<'a> BinaryRead<'a> for GimmickConditionalSlot<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Self::read_from(data, offset)
+    }
+}
+
+impl<'a> BinaryWrite for GimmickConditionalSlot<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.write_to(w)
+    }
+}
+
+impl<'a> ToJsonValue for GimmickConditionalSlot<'a> {
+    fn to_json_value(&self) -> Value {
+        self.to_json_value()
+    }
+}
+
+impl<'a> WriteJsonValue for GimmickConditionalSlot<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        Self::write_from_json_value(w, v)
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for GimmickConditionalSlot<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        _path: &mut String,
+        _ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        // Path tracking through the variable Option<Body> structure is
+        // not currently exercised; tracked-read just delegates.
+        <Self as BinaryRead<'a>>::read_from(data, offset)
+    }
+}
+
+impl<'a> crate::python_traits::ToPyValue for GimmickConditionalSlot<'a> {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        // Python bindings for this nested-COptional family aren't yet
+        // wired (Tier 1 path is JSON, which IS field-level). Pure-Rust
+        // / JSON consumers should not hit this path.
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "GimmickConditionalSlot.to_py_value: use to_json_value via JSON path",
+        ))
+    }
+}
+
+impl<'a> crate::python_traits::WritePyValue for GimmickConditionalSlot<'a> {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "GimmickConditionalSlot.write_from_py: use write_from_json via JSON path",
+        ))
+    }
 }
 
 /// Tag 212: outer-COptional + u8 + CString + u16 (sub_141CBED20).
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickTargetCountPayload<'a> {
-    pub conditional_slot: GimmickConditionalSlot<'a>,
-    pub field_a: u8,
-    pub name: CString<'a>,
-    pub field_b: u16,
-}
-impl<'a> ConditionData_CheckGimmickTargetCountPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
-        let field_a = u8::read_from(data, offset)?;
-        let name = CString::read_from(data, offset)?;
-        let field_b = u16::read_from(data, offset)?;
-        Ok(Self { conditional_slot, field_a, name, field_b })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.conditional_slot.write_to(w)?;
-        self.field_a.write_to(w)?;
-        self.name.write_to(w)?;
-        self.field_b.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickTargetCountPayload<'a> {
+        pub conditional_slot: GimmickConditionalSlot<'a>,
+        pub field_a: u8,
+        pub name: CString<'a>,
+        pub field_b: u16,
     }
 }
 
 /// Tag 213: outer-COptional + u8 + u16 (sub_141CBF460).
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickNonBreakTargetCountPayload<'a> {
-    pub conditional_slot: GimmickConditionalSlot<'a>,
-    pub field_a: u8,
-    pub field_b: u16,
-}
-impl<'a> ConditionData_CheckGimmickNonBreakTargetCountPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
-        let field_a = u8::read_from(data, offset)?;
-        let field_b = u16::read_from(data, offset)?;
-        Ok(Self { conditional_slot, field_a, field_b })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.conditional_slot.write_to(w)?;
-        self.field_a.write_to(w)?;
-        self.field_b.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickNonBreakTargetCountPayload<'a> {
+        pub conditional_slot: GimmickConditionalSlot<'a>,
+        pub field_a: u8,
+        pub field_b: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsFullGimmickTriggerEnteredTargetPayload<'a> {
-    pub field_at_24: CString<'a>,
-}
-impl<'a> ConditionData_IsFullGimmickTriggerEnteredTargetPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsFullGimmickTriggerEnteredTargetPayload<'a> {
+        pub field_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckAttackImpulseLevelPayload {
-    pub field_at_17: u8,
-    pub field_at_16: u8,
-}
-impl ConditionData_CheckAttackImpulseLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_17 = u8::read_from(data, offset)?;
-        let field_at_16 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_17, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_17.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckAttackImpulseLevelPayload {
+        pub field_at_17: u8,
+        pub field_at_16: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckSpawnReasonPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckSpawnReasonPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckSpawnReasonPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckNearestTriggerTargetDistancePayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-}
-impl ConditionData_CheckNearestTriggerTargetDistancePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckNearestTriggerTargetDistancePayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGlobalStageSequencerExitPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckGlobalStageSequencerExitPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGlobalStageSequencerExitPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckSealablePayload<'a> {
-    pub field_at_28: u32,
-    pub field_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckSealablePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckSealablePayload<'a> {
+        pub field_at_28: u32,
+        pub field_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckExistGimmickPointPayload<'a> {
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckExistGimmickPointPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckExistGimmickPointPayload<'a> {
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetCombinationRootVariablePayload {
-    pub field_at_24: u32,
-    pub field_at_28: u32,
-    pub field_at_32: u8,
-}
-impl ConditionData_GetCombinationRootVariablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetCombinationRootVariablePayload {
+        pub field_at_24: u32,
+        pub field_at_28: u32,
+        pub field_at_32: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckOriginalGimmickLengthPayload {
-    pub field_at_20: u8,
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckOriginalGimmickLengthPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_20 = u8::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_20, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_20.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckOriginalGimmickLengthPayload {
+        pub field_at_20: u8,
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickPhysicsVolumeLengthPayload {
-    pub field_at_20: u8,
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckGimmickPhysicsVolumeLengthPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_20 = u8::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_20, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_20.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickPhysicsVolumeLengthPayload {
+        pub field_at_20: u8,
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckBuffTagPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckBuffTagPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckBuffTagPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRidingVehicleTypePayload {
-    pub field_at_24: u32,
-    pub field_at_28: u8,
-}
-impl ConditionData_CheckRidingVehicleTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRidingVehicleTypePayload {
+        pub field_at_24: u32,
+        pub field_at_28: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRidingVehicleKeyPayload {
-    pub field_at_26: u8,
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckRidingVehicleKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRidingVehicleKeyPayload {
+        pub field_at_26: u8,
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRidingVehicleKeyListPayload {
-    pub field_at_24: CArray<u16>,
-}
-impl ConditionData_CheckRidingVehicleKeyListPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRidingVehicleKeyListPayload {
+        pub field_at_24: CArray<u16>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_MacroPayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_MacroPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_MacroPayload {
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetAngularVelocityPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-}
-impl ConditionData_GetAngularVelocityPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetAngularVelocityPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckPlayerCameraLookAtAnglePayload {
-    pub field_at_20: u8,
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckPlayerCameraLookAtAnglePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_20 = u8::read_from(data, offset)?;
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_20, field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_20.write_to(w)?;
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckPlayerCameraLookAtAnglePayload {
+        pub field_at_20: u8,
+        pub field_at_16: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckDamageElementalTypePayload {
-    pub field_at_16: u8,
-}
-impl ConditionData_CheckDamageElementalTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckDamageElementalTypePayload {
+        pub field_at_16: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetFactionNodeStatePayload {
-    pub field_at_27: u8,
-    pub field_at_26: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetFactionNodeStatePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_27 = u8::read_from(data, offset)?;
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_27, field_at_26, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_27.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetFactionNodeStatePayload {
+        pub field_at_27: u8,
+        pub field_at_26: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetCurrentFactionNodeStatePayload {
-    pub field_at_25: u8,
-    pub field_at_24: u8,
-}
-impl ConditionData_GetCurrentFactionNodeStatePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_25 = u8::read_from(data, offset)?;
-        let field_at_24 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_25, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_25.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetCurrentFactionNodeStatePayload {
+        pub field_at_25: u8,
+        pub field_at_24: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsFactionNodeKnockDownPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_IsFactionNodeKnockDownPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsFactionNodeKnockDownPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetFactionNodeBlockSubTypePayload {
-    pub field_at_27: u8,
-    pub field_at_26: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetFactionNodeBlockSubTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_27 = u8::read_from(data, offset)?;
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_27, field_at_26, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_27.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetFactionNodeBlockSubTypePayload {
+        pub field_at_27: u8,
+        pub field_at_26: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetFactionResourcePayload {
-    pub field_at_40: u8,
-    pub field_at_32: u64,
-    pub field_at_24: u32,
-    pub field_at_26: u32,
-}
-impl ConditionData_GetFactionResourcePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_40 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_26 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_40, field_at_32, field_at_24, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_40.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetFactionResourcePayload {
+        pub field_at_40: u8,
+        pub field_at_32: u64,
+        pub field_at_24: u32,
+        pub field_at_26: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsFactionNodeMissionGaugeEnablePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_IsFactionNodeMissionGaugeEnablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsFactionNodeMissionGaugeEnablePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCharacterGroupKeyPayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckCharacterGroupKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCharacterGroupKeyPayload {
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckFactionRelationPayload {
-    pub field_at_28: u8,
-    pub field_at_24: u32,
-    pub field_at_26: u32,
-}
-impl ConditionData_CheckFactionRelationPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_26 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_24, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckFactionRelationPayload {
+        pub field_at_28: u8,
+        pub field_at_24: u32,
+        pub field_at_26: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRidePayload<'a> {
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_CheckRidePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRidePayload<'a> {
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckImpulseDirectionPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-    pub field_at_33: u8,
-    pub field_at_32: u8,
-}
-impl ConditionData_CheckImpulseDirectionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_33 = u8::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_33, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_33.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckImpulseDirectionPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
+        pub field_at_33: u8,
+        pub field_at_32: u8,
     }
 }
 
@@ -2672,195 +1355,77 @@ impl ConditionData_GetGimmickRotationFromSpawnPayload {
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_SkillTreeNodeLearnablePayload {
-    pub field_at_12: u32,
-    pub field_at_14: u32,
-    pub field_at_13: u32,
-}
-impl ConditionData_SkillTreeNodeLearnablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_12 = u32::read_from(data, offset)?;
-        let field_at_14 = u32::read_from(data, offset)?;
-        let field_at_13 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_12, field_at_14, field_at_13 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_12.write_to(w)?;
-        self.field_at_14.write_to(w)?;
-        self.field_at_13.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_SkillTreeNodeLearnablePayload {
+        pub field_at_12: u32,
+        pub field_at_14: u32,
+        pub field_at_13: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckFactionKeyPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckFactionKeyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckFactionKeyPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckConquerorFactionPayload {
-    pub field_at_28: u8,
-    pub field_at_26: u32,
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckConquerorFactionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u8::read_from(data, offset)?;
-        let field_at_26 = u32::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_26, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckConquerorFactionPayload {
+        pub field_at_28: u8,
+        pub field_at_26: u32,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckPositionOwnerFactionPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckPositionOwnerFactionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckPositionOwnerFactionPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCharacterItemSocketPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u8,
-}
-impl ConditionData_CheckCharacterItemSocketPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCharacterItemSocketPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetInventoryWeightLevelPayload {
-    pub field_at_25: u8,
-    pub field_at_24: u8,
-}
-impl ConditionData_GetInventoryWeightLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_25 = u8::read_from(data, offset)?;
-        let field_at_24 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_25, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_25.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetInventoryWeightLevelPayload {
+        pub field_at_25: u8,
+        pub field_at_24: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckReserveSlotPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u32,
-    pub field_at_32: u16,
-    pub field_at_36: u32,
-    pub field_at_40: u16,
-    pub field_at_44: u32,
-    pub field_at_48: u32,
-    pub field_at_52: u8,
-}
-impl ConditionData_CheckReserveSlotPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_32 = u16::read_from(data, offset)?;
-        let field_at_36 = u32::read_from(data, offset)?;
-        let field_at_40 = u16::read_from(data, offset)?;
-        let field_at_44 = u32::read_from(data, offset)?;
-        let field_at_48 = u32::read_from(data, offset)?;
-        let field_at_52 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32, field_at_36, field_at_40, field_at_44, field_at_48, field_at_52 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_36.write_to(w)?;
-        self.field_at_40.write_to(w)?;
-        self.field_at_44.write_to(w)?;
-        self.field_at_48.write_to(w)?;
-        self.field_at_52.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckReserveSlotPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u32,
+        pub field_at_32: u16,
+        pub field_at_36: u32,
+        pub field_at_40: u16,
+        pub field_at_44: u32,
+        pub field_at_48: u32,
+        pub field_at_52: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCanSupplyToRoyalPayload {
-    pub field_at_24: CArray<u16>,
-}
-impl ConditionData_CheckCanSupplyToRoyalPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCanSupplyToRoyalPayload {
+        pub field_at_24: CArray<u16>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckRoyalSupplyOpenPayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckRoyalSupplyOpenPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckRoyalSupplyOpenPayload {
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetEquipGimmickItemUsableCountPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-}
-impl ConditionData_GetEquipGimmickItemUsableCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetEquipGimmickItemUsableCountPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
     }
 }
 
@@ -2879,314 +1444,125 @@ impl<'a> ConditionData_CheckGimmickTargetHackablePayload<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsHackablePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_IsHackablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsHackablePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckAttackFromTypePayload {
-    pub field_at_16: u32,
-}
-impl ConditionData_CheckAttackFromTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_16 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckAttackFromTypePayload {
+        pub field_at_16: u32,
     }
 }
 
 /// Tag 302: outer-COptional + u8 + u32 (sub_141CD7100). Wire reads u8
 /// before u32 (runtime memory offsets are reversed).
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickAngleToTargetPayload<'a> {
-    pub conditional_slot: GimmickConditionalSlot<'a>,
-    pub field_a: u8,
-    pub field_b: u32,
-}
-impl<'a> ConditionData_CheckGimmickAngleToTargetPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
-        let field_a = u8::read_from(data, offset)?;
-        let field_b = u32::read_from(data, offset)?;
-        Ok(Self { conditional_slot, field_a, field_b })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.conditional_slot.write_to(w)?;
-        self.field_a.write_to(w)?;
-        self.field_b.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGimmickAngleToTargetPayload<'a> {
+        pub conditional_slot: GimmickConditionalSlot<'a>,
+        pub field_a: u8,
+        pub field_b: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckSpawnPositionRegionPayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckSpawnPositionRegionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckSpawnPositionRegionPayload {
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsGamePlayLevelGimmickPayload<'a> {
-    pub field_at_32: u32,
-    pub cstring_at_24: CString<'a>,
-}
-impl<'a> ConditionData_IsGamePlayLevelGimmickPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u32::read_from(data, offset)?;
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_32, cstring_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.cstring_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsGamePlayLevelGimmickPayload<'a> {
+        pub field_at_32: u32,
+        pub cstring_at_24: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCompleteLevelGimmickPayload<'a> {
-    pub cstring_at_16: CString<'a>,
-    pub field_at_24: u32,
-}
-impl<'a> ConditionData_CheckCompleteLevelGimmickPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_16 = CString::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { cstring_at_16, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_16.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCompleteLevelGimmickPayload<'a> {
+        pub cstring_at_16: CString<'a>,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckShareValuePayload {
-    pub field_at_24: u32,
-    pub field_at_28: u8,
-    pub field_at_32: u32,
-    pub field_at_36: u8,
-}
-impl ConditionData_CheckShareValuePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        let field_at_32 = u32::read_from(data, offset)?;
-        let field_at_36 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32, field_at_36 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_36.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckShareValuePayload {
+        pub field_at_24: u32,
+        pub field_at_28: u8,
+        pub field_at_32: u32,
+        pub field_at_36: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetCurrentSubLevelPayload {
-    pub field_at_32: u8,
-    pub field_at_28: u32,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetCurrentSubLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_28, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetCurrentSubLevelPayload {
+        pub field_at_32: u8,
+        pub field_at_28: u32,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_DockingChildTagCountPayload {
-    pub field_at_24: u32,
-    pub field_at_28: u32,
-    pub field_at_32: u8,
-    pub field_at_33: u8,
-}
-impl ConditionData_DockingChildTagCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        let field_at_33 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32, field_at_33 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_33.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_DockingChildTagCountPayload {
+        pub field_at_24: u32,
+        pub field_at_28: u32,
+        pub field_at_32: u8,
+        pub field_at_33: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckVehicleTypePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckVehicleTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckVehicleTypePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_LostActorPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_LostActorPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_LostActorPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_LostGimmickPayload<'a> {
-    pub cstring_at_24: CString<'a>,
-    pub cstring_at_32: CString<'a>,
-}
-impl<'a> ConditionData_LostGimmickPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let cstring_at_24 = CString::read_from(data, offset)?;
-        let cstring_at_32 = CString::read_from(data, offset)?;
-        Ok(Self { cstring_at_24, cstring_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.cstring_at_24.write_to(w)?;
-        self.cstring_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_LostGimmickPayload<'a> {
+        pub cstring_at_24: CString<'a>,
+        pub cstring_at_32: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetMinigameSeedPayload {
-    pub field_at_24: u8,
-    pub field_at_32: u64,
-}
-impl ConditionData_GetMinigameSeedPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetMinigameSeedPayload {
+        pub field_at_24: u8,
+        pub field_at_32: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsDockingGimmickTerrainRegionSummonablePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_IsDockingGimmickTerrainRegionSummonablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsDockingGimmickTerrainRegionSummonablePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckDropSetDropablePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckDropSetDropablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckDropSetDropablePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetFactionResearchProgressPayload {
-    pub field_at_36: u8,
-    pub field_at_32: u32,
-    pub field_at_28: u32,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetFactionResearchProgressPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_36 = u8::read_from(data, offset)?;
-        let field_at_32 = u32::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_36, field_at_32, field_at_28, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_36.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetFactionResearchProgressPayload {
+        pub field_at_36: u8,
+        pub field_at_32: u32,
+        pub field_at_28: u32,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_HasQuestDialogPayload<'a> {
-    pub field_at_24: u8,
-    pub cstring_at_32: CString<'a>,
-}
-impl<'a> ConditionData_HasQuestDialogPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let cstring_at_32 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_24, cstring_at_32 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.cstring_at_32.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_HasQuestDialogPayload<'a> {
+        pub field_at_24: u8,
+        pub cstring_at_32: CString<'a>,
     }
 }
 
@@ -3209,372 +1585,147 @@ impl<'a> ConditionData_CheckTargetPayload<'a> {
 }
 
 /// Tag 347: outer-COptional + u64 + u8 (sub_141CDE9B0).
-#[derive(Debug)]
-pub struct ConditionData_GetFertilizerAmountPercentPayload<'a> {
-    pub conditional_slot: GimmickConditionalSlot<'a>,
-    pub field_a: u64,
-    pub field_b: u8,
-}
-impl<'a> ConditionData_GetFertilizerAmountPercentPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
-        let field_a = u64::read_from(data, offset)?;
-        let field_b = u8::read_from(data, offset)?;
-        Ok(Self { conditional_slot, field_a, field_b })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.conditional_slot.write_to(w)?;
-        self.field_a.write_to(w)?;
-        self.field_b.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetFertilizerAmountPercentPayload<'a> {
+        pub conditional_slot: GimmickConditionalSlot<'a>,
+        pub field_a: u64,
+        pub field_b: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetCampDonatedItemCountPayload {
-    pub field_at_32: u64,
-    pub field_at_40: u8,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetCampDonatedItemCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_40 = u8::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_40, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_40.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetCampDonatedItemCountPayload {
+        pub field_at_32: u64,
+        pub field_at_40: u8,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsTargetOfOperatorDockingGimmickPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_IsTargetOfOperatorDockingGimmickPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsTargetOfOperatorDockingGimmickPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsInRegionTagPayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_IsInRegionTagPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsInRegionTagPayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_IsInGlobalGameEventAreaPayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_IsInGlobalGameEventAreaPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_IsInGlobalGameEventAreaPayload {
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckCurrentGlobalGameEventPayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckCurrentGlobalGameEventPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckCurrentGlobalGameEventPayload {
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckGamePlayVariablePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckGamePlayVariablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckGamePlayVariablePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetInventorySlotFillPercentPayload {
-    pub field_at_32: u64,
-    pub field_at_40: u8,
-    pub field_at_24: CArray<u16>,
-}
-impl ConditionData_GetInventorySlotFillPercentPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_40 = u8::read_from(data, offset)?;
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_40, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_40.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetInventorySlotFillPercentPayload {
+        pub field_at_32: u64,
+        pub field_at_40: u8,
+        pub field_at_24: CArray<u16>,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_MiniGameWinPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-}
-impl ConditionData_MiniGameWinPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_MiniGameWinPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_MiniGameRoundPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-}
-impl ConditionData_MiniGameRoundPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_MiniGameRoundPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_MiniGameWinningStreakPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u32,
-}
-impl ConditionData_MiniGameWinningStreakPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_MiniGameWinningStreakPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckMainMercenaryBlockedAbilityPayload {
-    pub field_at_24: u8,
-    pub field_at_26: u16,
-}
-impl ConditionData_CheckMainMercenaryBlockedAbilityPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_26 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckMainMercenaryBlockedAbilityPayload {
+        pub field_at_24: u8,
+        pub field_at_26: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetNodeCombatPowerPayload {
-    pub field_at_32: u8,
-    pub field_at_28: u32,
-    pub field_at_24: u32,
-}
-impl ConditionData_GetNodeCombatPowerPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_32 = u8::read_from(data, offset)?;
-        let field_at_28 = u32::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_32, field_at_28, field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_32.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetNodeCombatPowerPayload {
+        pub field_at_32: u8,
+        pub field_at_28: u32,
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_ReserveSlotItemCountPayload {
-    pub field_at_24: u8,
-    pub field_at_28: u8,
-    pub field_at_32: u64,
-    pub field_at_26: u32,
-}
-impl ConditionData_ReserveSlotItemCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_28 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        let field_at_26 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_28, field_at_32, field_at_26 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_32.write_to(w)?;
-        self.field_at_26.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_ReserveSlotItemCountPayload {
+        pub field_at_24: u8,
+        pub field_at_28: u8,
+        pub field_at_32: u64,
+        pub field_at_26: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckFactionWantedLevelPayload {
-    pub field_at_24: u8,
-    pub field_at_25: u8,
-}
-impl ConditionData_CheckFactionWantedLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_25 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_25 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_25.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckFactionWantedLevelPayload {
+        pub field_at_24: u8,
+        pub field_at_25: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckMercenaryCallCooltimePayload {
-    pub field_at_24: u32,
-}
-impl ConditionData_CheckMercenaryCallCooltimePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckMercenaryCallCooltimePayload {
+        pub field_at_24: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckInventoryMaxSlotCountPayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckInventoryMaxSlotCountPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckInventoryMaxSlotCountPayload {
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetDifficultyOptionPayload {
-    pub field_at_16: u32,
-    pub field_at_20: u8,
-}
-impl ConditionData_GetDifficultyOptionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_16 = u32::read_from(data, offset)?;
-        let field_at_20 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_16, field_at_20 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_16.write_to(w)?;
-        self.field_at_20.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetDifficultyOptionPayload {
+        pub field_at_16: u32,
+        pub field_at_20: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetMaxWantedLevelPayload {
-    pub field_at_24: u8,
-    pub field_at_25: u8,
-}
-impl ConditionData_GetMaxWantedLevelPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u8::read_from(data, offset)?;
-        let field_at_25 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_25 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_25.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetMaxWantedLevelPayload {
+        pub field_at_24: u8,
+        pub field_at_25: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckPlayerHousePayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckPlayerHousePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckPlayerHousePayload {
+        pub field_at_24: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_CheckActivatedHousingRegionPayload {
-    pub field_at_24: u16,
-}
-impl ConditionData_CheckActivatedHousingRegionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u16::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_CheckActivatedHousingRegionPayload {
+        pub field_at_24: u16,
     }
 }
 
@@ -5703,93 +3854,43 @@ fn variant_skips_option_block(tag: u16) -> bool {
 
 /// Generic CString-only payload — used by variants whose vtable[16]
 /// reads a single CString (length-prefixed UTF-8 string).
-#[derive(Debug)]
-pub struct OneCStringBodyPayload<'a> {
-    pub value: CString<'a>,
-}
-impl<'a> OneCStringBodyPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let value = CString::read_from(data, offset)?;
-        Ok(Self { value })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.value.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct OneCStringBodyPayload<'a> {
+        pub value: CString<'a>,
     }
 }
 
-/// Generic 4-byte payload — used by variants whose vtable[16] reads a
-/// single u32 field.
-#[derive(Debug)]
-pub struct OneU32BodyPayload {
-    pub value: u32,
-}
-impl OneU32BodyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let value = u32::read_from(data, offset)?;
-        Ok(Self { value })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.value.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// Generic 4-byte payload — used by variants whose vtable[16] reads a
+    /// single u32 field. Auto-emits JSON via the macro.
+    pub struct OneU32BodyPayload {
+        pub value: u32,
     }
 }
 
-/// Generic 2-byte payload — single u16 field.
-#[derive(Debug)]
-pub struct OneU16BodyPayload {
-    pub value: u16,
-}
-impl OneU16BodyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let value = u16::read_from(data, offset)?;
-        Ok(Self { value })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.value.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// Generic 2-byte payload — single u16 field. Auto-emits JSON.
+    pub struct OneU16BodyPayload {
+        pub value: u16,
     }
 }
 
-/// Three-u32 payload (12 bytes total) — used by variants like CheckEquipType
-/// that read three consecutive u32 fields.
-#[derive(Debug)]
-pub struct ThreeU32BodyPayload {
-    pub a: u32,
-    pub b: u32,
-    pub c: u32,
-}
-impl ThreeU32BodyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let a = u32::read_from(data, offset)?;
-        let b = u32::read_from(data, offset)?;
-        let c = u32::read_from(data, offset)?;
-        Ok(Self { a, b, c })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.a.write_to(w)?;
-        self.b.write_to(w)?;
-        self.c.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// Three-u32 payload (12 bytes total) — used by variants like
+    /// CheckEquipType that read three consecutive u32 fields.
+    /// Auto-emits JSON via the macro.
+    pub struct ThreeU32BodyPayload {
+        pub a: u32,
+        pub b: u32,
+        pub c: u32,
     }
 }
 
-/// u32 + u16 payload (6 bytes total).
-#[derive(Debug)]
-pub struct U32U16BodyPayload {
-    pub a: u32,
-    pub b: u16,
-}
-impl U32U16BodyPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let a = u32::read_from(data, offset)?;
-        let b = u16::read_from(data, offset)?;
-        Ok(Self { a, b })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.a.write_to(w)?;
-        self.b.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// u32 + u16 payload (6 bytes total). Auto-emits JSON.
+    pub struct U32U16BodyPayload {
+        pub a: u32,
+        pub b: u16,
     }
 }
 
@@ -5797,31 +3898,14 @@ impl U32U16BodyPayload {
 /// vtable[16] = sub_14F1A1B20: reads a 16-byte buffer (loop 1-byte-at-a-time)
 /// stored at struct +0x18, then 1 byte at struct +0x28.
 /// Body is therefore 16 bytes + 1 byte = 17 bytes wire size.
-#[derive(Debug)]
-#[allow(non_camel_case_types)]
-pub struct ConditionData_CheckActionAttributePayload {
-    pub field_at_24_a: u32,
-    pub field_at_24_b: u32,
-    pub field_at_24_c: u32,
-    pub field_at_24_d: u32,
-    pub field_at_40: u8,
-}
-impl ConditionData_CheckActionAttributePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24_a = u32::read_from(data, offset)?;
-        let field_at_24_b = u32::read_from(data, offset)?;
-        let field_at_24_c = u32::read_from(data, offset)?;
-        let field_at_24_d = u32::read_from(data, offset)?;
-        let field_at_40 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24_a, field_at_24_b, field_at_24_c, field_at_24_d, field_at_40 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24_a.write_to(w)?;
-        self.field_at_24_b.write_to(w)?;
-        self.field_at_24_c.write_to(w)?;
-        self.field_at_24_d.write_to(w)?;
-        self.field_at_40.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    #[allow(non_camel_case_types)]
+    pub struct ConditionData_CheckActionAttributePayload {
+        pub field_at_24_a: u32,
+        pub field_at_24_b: u32,
+        pub field_at_24_c: u32,
+        pub field_at_24_d: u32,
+        pub field_at_40: u8,
     }
 }
 
