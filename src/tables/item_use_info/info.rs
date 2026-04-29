@@ -10,13 +10,17 @@
 //!     22 fixed bytes + a `CArray<{u32 + u8 + LocalizableString}>`.
 //!   - 18 of the 23 add 0..12 bytes of fixed/CString-bearing fields after
 //!     the base. These are fully decoded into named fields.
-//!   - 3 are deeply nested polymorphic readers (Disc 2 RandomBox,
-//!     Disc 13 CustomizeCharacter, Disc 14 PlaySequencerOnly) whose
-//!     payloads require further recursive variant infrastructure (each
-//!     contains its own switch dispatcher with its own case tree). For
-//!     these we capture the post-base payload as `Vec<u8>` so the
-//!     round-trip is byte-perfect; semantic decoding of those three is
-//!     deferred.
+//!   - Disc 2 (RandomBox) is partially typed: the surrounding flag/
+//!     lookup fields are field-addressable and the inner `sub_141D03AA0`
+//!     polymorphic blob is sized by `extra_size - 4` (4 bytes reserved
+//!     for the trailing final_lookup) and rides as opaque
+//!     `inner_data_bytes`.
+//!   - Disc 13 (CustomizeCharacter) is fully typed: dye_lookup +
+//!     CArray<u16> color_data + CArray<u16> texture_data.
+//!   - Disc 14 (PlaySequencerOnly) still rides as `DeepVariantPayload`
+//!     because the inner `sub_141D8C6D0` is not self-delimiting at the
+//!     boundary needed for partial typing; full typing requires
+//!     reverse-engineering each of its nested composite sub-readers.
 //!
 //! The pabgh sister file is consulted to know each entry's total size on
 //! disk, which is the only way to bound the variant payload reliably for
@@ -164,13 +168,6 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    pub struct UnSealFromEquipPayload {
-        pub flag: u8,
-        pub raw_extra: [u8; 8],
-    }
-}
-
-py_binary_struct! {
     pub struct SpecialModePayload {
         pub mode_lookup: u32,
     }
@@ -313,7 +310,7 @@ pub enum ItemUseDataVariant<'a> {
     InventoryBuff { base: BaseUseData<'a> },
     SendEventToDockingGimmick { base: BaseUseData<'a> },
     UseSealed { base: BaseUseData<'a> },
-    UnSealFromEquip { base: BaseUseData<'a>, payload: DeepVariantPayload },
+    UnSealFromEquip { base: BaseUseData<'a> },
     SpecialMode { base: BaseUseData<'a>, payload: SpecialModePayload },
 }
 
@@ -405,9 +402,16 @@ impl<'a> ItemUseDataVariant<'a> {
             18 => Self::InventoryBuff { base },
             19 => Self::SendEventToDockingGimmick { base },
             20 => Self::UseSealed { base },
-            21 => Self::UnSealFromEquip {
-                base,
-                payload: read_deep_payload(data, offset, extra_size)?,
+            21 => {
+                // sub_141E44520 base-only per IDA. 0 vanilla entries, so the
+                // path is dead in practice; if a mod ever writes a variant 21
+                // record with trailing bytes, our cursor/end assertion in the
+                // outer roundtrip test surfaces it.
+                if extra_size != 0 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("UnSealFromEquip: expected base only, got {} extra bytes", extra_size)));
+                }
+                Self::UnSealFromEquip { base }
             },
             22 => Self::SpecialMode {
                 base,
@@ -446,7 +450,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::InventoryBuff { base } => base.write_to(w),
             Self::SendEventToDockingGimmick { base } => base.write_to(w),
             Self::UseSealed { base } => base.write_to(w),
-            Self::UnSealFromEquip { base, payload } => { base.write_to(w)?; w.write_all(&payload.0) }
+            Self::UnSealFromEquip { base } => base.write_to(w),
             Self::SpecialMode { base, payload } => { base.write_to(w)?; payload.write_to(w) }
         }
     }
@@ -488,7 +492,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::InventoryBuff { base } => ("InventoryBuff", base, Value::Null),
             Self::SendEventToDockingGimmick { base } => ("SendEventToDockingGimmick", base, Value::Null),
             Self::UseSealed { base } => ("UseSealed", base, Value::Null),
-            Self::UnSealFromEquip { base, payload } => ("UnSealFromEquip", base, deep_to_json(&payload.0)),
+            Self::UnSealFromEquip { base } => ("UnSealFromEquip", base, Value::Null),
             Self::SpecialMode { base, payload } => ("SpecialMode", base, Value::Object(payload.to_json_dict())),
         };
         m.insert("kind".to_string(), Value::String(kind.to_string()));
@@ -534,7 +538,8 @@ impl<'a> ItemUseDataVariant<'a> {
             15 => RegisterReserveSlotPayload::write_from_json_dict(w, payload_obj(payload, "RegisterReserveSlot")?)?,
             16 => OpenUIPayload::write_from_json_dict(w, payload_obj(payload, "OpenUI")?)?,
             17 | 18 | 19 | 20 => {} // base only
-            21 => write_deep_from_json(w, payload, "UnSealFromEquip")?,
+            21 => {} // base only — payload should be null on JSON in
+            //         and no extra bytes emitted on JSON out.
             22 => SpecialModePayload::write_from_json_dict(w, payload_obj(payload, "SpecialMode")?)?,
             _ => unreachable!("disc {} bounds-checked above", disc),
         }
