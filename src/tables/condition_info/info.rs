@@ -32,7 +32,6 @@ use crate::binary::variant::find_cstring_u8_trailer;
 use crate::binary::variants::game_condition::GameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -95,27 +94,22 @@ impl<'a> ConditionInfo<'a> {
         Ok(())
     }
 
-    /// JSON shape (pre-tree-exposure):
+    /// JSON shape:
     /// - `key`, `string_key`, `is_blocked`, `original_string`, `parser_type`:
     ///   field-addressable.
-    /// - `_game_condition_b64`: full wrapper as base64 (clone-between-entries
-    ///   round-trips byte-perfect). Tag-level introspection lives at
-    ///   `_game_condition_kind`: "decoded" or "raw".
+    /// - `game_condition`: tree-navigable JSON. For `kind: "decoded"` it
+    ///   exposes the recursive `tree` (BinaryOpA/B, UnaryOp, leaf cases
+    ///   with their family name + base64 wire bytes) plus `tail_a`/`b`/`c`
+    ///   u8s. For `kind: "raw"` it exposes `raw_b64`. Per-leaf field-level
+    ///   JSON (e.g. ConditionData per-variant fields) is a future
+    ///   per-family rollout — leaves expose `wire_b64` until then so
+    ///   round-trip is byte-perfect.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        // Re-encode the typed wrapper to bytes, then base64. Always
-        // round-trips: Decoded re-emits typed bytes, Raw passes through.
-        let mut wrapper_bytes = Vec::new();
-        self.game_condition.write_to(&mut wrapper_bytes).expect("write_to Vec");
-        m.insert("_game_condition_b64".to_string(), Value::String(B64.encode(&wrapper_bytes)));
-        let kind = match &self.game_condition {
-            GameCondition::Decoded { .. } => "decoded",
-            GameCondition::Raw(_) => "raw",
-        };
-        m.insert("_game_condition_kind".to_string(), Value::String(kind.to_string()));
+        m.insert("game_condition".to_string(), self.game_condition.to_json_value());
         m.insert("original_string".to_string(), self.original_string.to_json_value());
         m.insert("parser_type".to_string(), self.parser_type.to_json_value());
         m
@@ -125,16 +119,7 @@ impl<'a> ConditionInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        // `_game_condition_kind` is read-only metadata; we re-decode from
-        // the b64 bytes on the way back. This keeps writes simple and
-        // ensures wrapper integrity (b64 must be a valid wrapper).
-        let b64 = json_get_field(obj, "_game_condition_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "ConditionInfo: _game_condition_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("ConditionInfo: _game_condition_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        GameCondition::write_from_json(w, json_get_field(obj, "game_condition")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "original_string")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parser_type")?)?;
         Ok(())
@@ -194,5 +179,37 @@ mod tests {
         }
         assert_eq!(out.len(), data.len(), "conditioninfo roundtrip size mismatch");
         assert_eq!(out, data, "conditioninfo roundtrip bytes mismatch");
+    }
+
+    /// JSON dict round-trip — typed write_to bytes must match
+    /// write_from_json_dict bytes for every entry. Validates the
+    /// tree-navigable GameCondition JSON shape preserves bytes.
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing pabgb fixture");
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+            eprintln!("SKIP: missing pabgh fixture");
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut cursor = *start;
+            let item = ConditionInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            ConditionInfo::write_from_json_dict(&mut from_json, &dict).unwrap_or_else(|e| {
+                panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e)
+            });
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, key,
+            );
+        }
     }
 }
