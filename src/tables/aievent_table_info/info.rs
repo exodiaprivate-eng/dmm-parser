@@ -10,9 +10,18 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
+// Hand-corrected: the auto-extractor saw `key` as [u8;12] but empirical
+// sweep across 937 entries shows a structured 12-byte composite:
+//   - u16 head sentinel (always 0xFFFF — hash-result default)
+//   - u16 padding (always 0)
+//   - u32 random hash
+//   - u32 trailing value (0xFFFFFFFF in 928/937, varies in 9)
 py_binary_struct! {
     pub struct AIEventTableInfo<'a> {
-        pub key: [u8; 12],
+        pub key_head: u16,
+        pub key_pad: u16,
+        pub key_hash: u32,
+        pub key_tail: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub show_name: CString<'a>,
