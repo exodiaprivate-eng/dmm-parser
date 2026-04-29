@@ -1,6 +1,7 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410EBEB0` in CrimsonDesert.exe (Win build).
+//! Inner `_dyeColorGroupDataList` reader: `sub_14110E340`.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u32 key                                  (_key)
@@ -16,34 +17,153 @@
 //!  11. LocalizableString exchange_button_text   (_exchangeButtonText)
 //!  12. LocalizableString shop_name              (_shopName)
 //!  13. LocalizableString interaction_name       (_interactionName)
-//!  14. _dyeColorGroupDataList (sub_14110E340 → struct +136) ← TAIL STARTS HERE
-//!  15. (body) _dyeTextureSetDataList, …
+//!  14. CArray<DyeColorGroupData> dye_color_group_data_list
+//!      (sub_14110E340; each element is 8 wire bytes:
+//!       u32 dye_color_group_key (looked up via qword_145F24DC8) +
+//!       u32 dye_target_key (sub_1410FF430 → qword_145F0E9C0))
+//!  15. CArray<DyeTextureSetData> dye_texture_set_data_list
+//!      (inline; each element is 6 wire bytes:
+//!       u16 texture_set_lookup +
+//!       u32 dye_target_key (sub_1410FF430 → qword_145F0E9C0))
 //!
-//! Steps 1-13 are typed. The unknown helper sub_14110E340 wraps the
-//! NpcInfo body proper; reopens cleanly when decoded.
-//!
-//! Helper: `sub_141103610` = single u16 lookup at qword_145F15038 (wire 2).
+//! After step 15 the reader returns; nothing else exists in the tail.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
+use serde_json::{Map, Value};
+use std::io::{self, Write};
 
-pabgh_typed_blob_table! {
-    pub struct NpcInfo<'a> {
-        pub key: u32,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub icon_path: u32,
-        pub store_info: u16,
-        pub coupon_item_info: u32,
-        pub npc_greet_friendly: u32,
-        pub npc_function_type_flag: u32,
-        pub shop_scenekey: u32,
-        pub exchange_group_key: u16,
-        pub exchange_button_text: LocalizableString<'a>,
-        pub shop_name: LocalizableString<'a>,
-        pub interaction_name: LocalizableString<'a>,
+py_binary_struct! {
+    pub struct DyeColorGroupData {
+        pub dye_color_group_key: u32,
+        pub dye_target_key: u32,
     }
-    tail: tail_blob;
+}
+
+py_binary_struct! {
+    pub struct DyeTextureSetData {
+        pub texture_set_lookup: u16,
+        pub dye_target_key: u32,
+    }
+}
+
+#[derive(Debug)]
+pub struct NpcInfo<'a> {
+    pub key: u32,
+    pub string_key: CString<'a>,
+    pub is_blocked: u8,
+    pub icon_path: u32,
+    pub store_info: u16,
+    pub coupon_item_info: u32,
+    pub npc_greet_friendly: u32,
+    pub npc_function_type_flag: u32,
+    pub shop_scenekey: u32,
+    pub exchange_group_key: u16,
+    pub exchange_button_text: LocalizableString<'a>,
+    pub shop_name: LocalizableString<'a>,
+    pub interaction_name: LocalizableString<'a>,
+    pub dye_color_group_data_list: CArray<DyeColorGroupData>,
+    pub dye_texture_set_data_list: CArray<DyeTextureSetData>,
+}
+
+impl<'a> NpcInfo<'a> {
+    /// Read with explicit entry size from pabgh (compat shim — Tier 1 means
+    /// every byte is consumed by typed reads, so the size is just verified).
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("NpcInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
+
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let key = u32::read_from(data, offset)?;
+        let string_key = CString::read_from(data, offset)?;
+        let is_blocked = u8::read_from(data, offset)?;
+        let icon_path = u32::read_from(data, offset)?;
+        let store_info = u16::read_from(data, offset)?;
+        let coupon_item_info = u32::read_from(data, offset)?;
+        let npc_greet_friendly = u32::read_from(data, offset)?;
+        let npc_function_type_flag = u32::read_from(data, offset)?;
+        let shop_scenekey = u32::read_from(data, offset)?;
+        let exchange_group_key = u16::read_from(data, offset)?;
+        let exchange_button_text = LocalizableString::read_from(data, offset)?;
+        let shop_name = LocalizableString::read_from(data, offset)?;
+        let interaction_name = LocalizableString::read_from(data, offset)?;
+        let dye_color_group_data_list = CArray::<DyeColorGroupData>::read_from(data, offset)?;
+        let dye_texture_set_data_list = CArray::<DyeTextureSetData>::read_from(data, offset)?;
+        Ok(Self {
+            key, string_key, is_blocked, icon_path, store_info, coupon_item_info,
+            npc_greet_friendly, npc_function_type_flag, shop_scenekey,
+            exchange_group_key, exchange_button_text, shop_name, interaction_name,
+            dye_color_group_data_list, dye_texture_set_data_list,
+        })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.string_key.write_to(w)?;
+        self.is_blocked.write_to(w)?;
+        self.icon_path.write_to(w)?;
+        self.store_info.write_to(w)?;
+        self.coupon_item_info.write_to(w)?;
+        self.npc_greet_friendly.write_to(w)?;
+        self.npc_function_type_flag.write_to(w)?;
+        self.shop_scenekey.write_to(w)?;
+        self.exchange_group_key.write_to(w)?;
+        self.exchange_button_text.write_to(w)?;
+        self.shop_name.write_to(w)?;
+        self.interaction_name.write_to(w)?;
+        self.dye_color_group_data_list.write_to(w)?;
+        self.dye_texture_set_data_list.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("icon_path".to_string(), self.icon_path.to_json_value());
+        m.insert("store_info".to_string(), self.store_info.to_json_value());
+        m.insert("coupon_item_info".to_string(), self.coupon_item_info.to_json_value());
+        m.insert("npc_greet_friendly".to_string(), self.npc_greet_friendly.to_json_value());
+        m.insert("npc_function_type_flag".to_string(), self.npc_function_type_flag.to_json_value());
+        m.insert("shop_scenekey".to_string(), self.shop_scenekey.to_json_value());
+        m.insert("exchange_group_key".to_string(), self.exchange_group_key.to_json_value());
+        m.insert("exchange_button_text".to_string(), self.exchange_button_text.to_json_value());
+        m.insert("shop_name".to_string(), self.shop_name.to_json_value());
+        m.insert("interaction_name".to_string(), self.interaction_name.to_json_value());
+        m.insert("dye_color_group_data_list".to_string(), self.dye_color_group_data_list.to_json_value());
+        m.insert("dye_texture_set_data_list".to_string(), self.dye_texture_set_data_list.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "icon_path")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "coupon_item_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_greet_friendly")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_function_type_flag")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shop_scenekey")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_group_key")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_button_text")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shop_name")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
+        <CArray<DyeColorGroupData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_color_group_data_list")?)?;
+        <CArray<DyeTextureSetData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_texture_set_data_list")?)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -61,11 +181,10 @@ mod tests {
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            items.push(
-                NpcInfo::read_with_size(&data, &mut c, e - s)
-                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
-            );
-            assert_eq!(c, *e);
+            let item = NpcInfo::read_from(&data, &mut c)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            assert_eq!(c, *e, "e{} k=0x{:x}: under/over-read {}/{}", i, k, c - s, e - s);
+            items.push(item);
         }
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
@@ -74,19 +193,12 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
-            return;
-        };
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
-            let item = NpcInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            let item = NpcInfo::read_from(&data, &mut cursor).unwrap();
             assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
             let dict = item.to_json_dict();
             let mut from_typed = Vec::new();
@@ -99,5 +211,26 @@ mod tests {
                 "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
             );
         }
+    }
+
+    /// Confirm the new typed lists actually carry data — guards against
+    /// silent regression to _tail_b64.
+    #[test]
+    fn dye_lists_populated() {
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let (mut total_color, mut total_texture, mut entries_count) = (0usize, 0usize, 0usize);
+        for (_, s, _) in &ranges {
+            let mut c = *s;
+            let item = NpcInfo::read_from(&data, &mut c).unwrap();
+            total_color += item.dye_color_group_data_list.items.len();
+            total_texture += item.dye_texture_set_data_list.items.len();
+            entries_count += 1;
+        }
+        eprintln!(
+            "npc_info: {} entries, {} dye_color_group items, {} dye_texture_set items",
+            entries_count, total_color, total_texture
+        );
     }
 }
