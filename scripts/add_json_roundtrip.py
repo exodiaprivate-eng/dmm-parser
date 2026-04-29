@@ -16,6 +16,45 @@ ROOT = Path(__file__).resolve().parent.parent
 TARGETS = ROOT / "scripts" / "json_targets.txt"
 
 
+def emit_test_pabgh(struct: str, pabgb_const: str, pabgh_const: str, key_is_int: bool) -> str:
+    if key_is_int:
+        panic_fmt = '"entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e'
+        diverge_fmt = '"entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key'
+    else:
+        panic_fmt = '"entry {}: write_from_json_dict: {}", i, e'
+        diverge_fmt = '"entry {}: JSON round-trip diverges from typed write", i'
+    return f"""
+    #[test]
+    fn json_roundtrip() {{
+        use crate::binary::variant::{{entry_ranges, load_pabgh_offsets}};
+        let Ok(data) = std::fs::read({pabgb_const}) else {{
+            eprintln!("SKIP: missing fixture {{}}", {pabgb_const});
+            return;
+        }};
+        let Some(entries) = load_pabgh_offsets({pabgh_const}) else {{
+            eprintln!("SKIP: missing pabgh fixture {{}}", {pabgh_const});
+            return;
+        }};
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {{
+            let mut c = *start;
+            let item = {struct}::read_from(&data, &mut c).unwrap();
+            assert_eq!(c, *end, "entry {{}} key=0x{{:x}}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            {struct}::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!({panic_fmt}));
+            assert_eq!(
+                from_json, from_typed,
+                {diverge_fmt}
+            );
+        }}
+    }}
+"""
+
+
 def emit_test(struct: str, pabgb_const: str, key_is_int: bool) -> str:
     if key_is_int:
         key_fmt = '"entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e'
@@ -58,31 +97,40 @@ INT_KEY_TYPES = {"u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64"}
 
 
 def parse_table(path: Path):
-    """Return (struct, pabgb_const, key_is_int) or None to skip."""
+    """Return (kind, struct, pabgb_const, [pabgh_const], key_is_int) or None.
+
+    kind is 'sequential' (read_from in a `while offset < data.len()` loop)
+    or 'pabgh' (read_from per entry start using load_pabgh_offsets).
+    """
     text = path.read_text(encoding="utf-8")
     if "fn json_roundtrip" in text:
         return None  # already done
-    # Locate the existing roundtrip test's read invocation.
-    m_read = re.search(r"([A-Z][A-Za-z0-9]*Info)::read_from\(&data,\s*&mut\s+offset\)", text)
+    # Find any read_from invocation against the outer struct.
+    m_read = re.search(
+        r"([A-Z][A-Za-z0-9]*Info)::read_from\(&data,\s*&mut\s+[a-z_][A-Za-z0-9_]*\)",
+        text,
+    )
     if not m_read:
         return None  # uses read_with_size or non-standard reader
     struct = m_read.group(1)
     # The outer struct must be defined inside py_binary_struct! to have
-    # auto-generated to_json_dict / write_from_json_dict.
+    # auto-generated to_json_dict / write_from_json_dict. Match the
+    # py_binary_struct! invocation that immediately precedes the struct
+    # definition (only whitespace between the macro brace and the struct).
     m_outer = re.search(
-        r"py_binary_struct!\s*\{[^}]*?pub struct " + re.escape(struct),
+        r"py_binary_struct!\s*\{\s*\n\s*pub struct " + re.escape(struct) + r"\b",
         text,
-        re.DOTALL,
     )
     if not m_outer:
         return None
-    # Find any const ending in pabgb path inside the test mod.
-    m_const = re.search(
+    # Find pabgb const inside the test mod.
+    m_pabgb = re.search(
         r"const\s+(PABGB(?:_PATH)?)\s*:\s*&str\s*=\s*r?\"[^\"]*\.pabgb\";",
         text,
     )
-    if not m_const:
+    if not m_pabgb:
         return None
+    pabgb = m_pabgb.group(1)
     # Determine key type by finding `pub key: TYPE,` inside the matched
     # struct's body.
     body_start = m_outer.end()
@@ -90,15 +138,30 @@ def parse_table(path: Path):
     body = text[body_start:body_end]
     m_key = re.search(r"pub key:\s*([^,]+?)\s*,", body)
     key_is_int = bool(m_key and m_key.group(1).strip() in INT_KEY_TYPES)
-    return struct, m_const.group(1), key_is_int
+    # Decide test kind: PABGH-based if load_pabgh_offsets is referenced.
+    if "load_pabgh_offsets" in text:
+        m_pabgh = re.search(
+            r"const\s+(PABGH(?:_PATH)?)\s*:\s*&str\s*=\s*r?\"[^\"]*\.pabgh\";",
+            text,
+        )
+        if not m_pabgh:
+            return None
+        return ("pabgh", struct, pabgb, m_pabgh.group(1), key_is_int)
+    if "while offset < data.len()" in text:
+        return ("sequential", struct, pabgb, None, key_is_int)
+    return None
 
 
-def insert_test(path: Path, struct: str, pabgb_const: str, key_is_int: bool) -> None:
+def insert_test(path: Path, parsed) -> None:
+    kind, struct, pabgb, pabgh, key_is_int = parsed
+    if kind == "pabgh":
+        test = emit_test_pabgh(struct, pabgb, pabgh, key_is_int)
+    else:
+        test = emit_test(struct, pabgb, key_is_int)
     text = path.read_text(encoding="utf-8")
     stripped = text.rstrip()
     assert stripped.endswith("}"), path
     body = stripped[:-1].rstrip()  # drop the final `}` (mod-tests close)
-    test = emit_test(struct, pabgb_const, key_is_int)
     path.write_text(body + "\n" + test + "}\n", encoding="utf-8")
 
 
@@ -119,11 +182,12 @@ def main():
         if parsed is None:
             skipped.append((dirname, "skip-by-shape"))
             continue
-        struct, pabgb, key_is_int = parsed
-        insert_test(info, struct, pabgb, key_is_int)
+        kind, struct, pabgb, pabgh, key_is_int = parsed
+        insert_test(info, parsed)
         written += 1
         keytag = "int" if key_is_int else "non-int"
-        print(f"+ {dirname:45} {struct} ({pabgb}, {keytag} key)")
+        extra = f"+{pabgh}" if pabgh else ""
+        print(f"+ [{kind:10}] {dirname:45} {struct} ({pabgb}{extra}, {keytag} key)")
     print(f"\ninserted {written}, skipped {len(skipped)}")
     for d, why in skipped:
         print(f"  - {d}: {why}")
