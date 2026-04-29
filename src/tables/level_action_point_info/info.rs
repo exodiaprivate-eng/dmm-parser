@@ -10,8 +10,10 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
-// Hand-corrected: sub_14110E680 is CArray<{u32 + CArray<[u8;12]>}>
-// where the inner sub_14110E890 is itself a CArray of 12-byte points.
+// Hand-corrected: sub_14110E680 is CArray<{u32 + CArray<Vec3-as-bytes>}>
+// where inner sub_14110E890 reads 12-byte Vec3 points (semantically f32×3).
+// Kept as [u8; 12] because vanilla data contains NaN bit patterns that
+// serde_json normalizes to null (breaking round-trip if exposed as f32).
 py_binary_struct! {
     pub struct LevelActionPointGroupElem {
         pub group_key: u32,
