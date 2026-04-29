@@ -22,7 +22,8 @@ This file is for collaborators picking up round-trip work. It's the
 ### Polymorphic family decoders
 | Family | Status | Tables that consume it |
 |---|---|---|
-| **GameCondition** | ✅ 100% (Decoded\|Raw enum, commit `5160cdd`) | ConditionInfo, plus other tables that haven't been wired yet |
+| **GameCondition** | ✅ 100% (Decoded\|Raw enum, commit `5160cdd`) | ConditionInfo (Tier 1, commit `9f1be1d`) |
+| **GlobalGameEventExecuteData** | ✅ 100% (Absent\|Present\|Raw enum, commit `4b30791`) | GlobalGameEventInfo (Tier 1) |
 | BuffData | ✅ shipped (per buff_data.rs) | SkillInfo, CharacterChangeInfo |
 | BranchConditionData | ✅ shipped | (used inside GameCondition tree) |
 | ConditionDataStageChart | ✅ shipped | (used inside GameCondition tree) |
@@ -31,10 +32,9 @@ This file is for collaborators picking up round-trip work. It's the
 | GlobalEffectConditionData | ✅ shipped | (used inside GameCondition tree) |
 | MiniGameData | ✅ shipped | MiniGameDataInfo |
 | GameExpression / IVariantItem | ✅ shipped (inside StageChart) | (used inside GameCondition tree) |
-| **TriggerEventHandler** | ❌ **next target** | TriggerRegionInfo and others |
-| **GlobalGameEventExecuteData** | 🟡 in progress (task #96) | GlobalGameEventInfo |
-| **GameEventHandler** | ❌ pending | GameEventHandlerInfo |
+| **GameEventHandler** | ❌ **next target** | GameEventHandlerInfo |
 | EffectData | ❌ pending | EffectInfo |
+| **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
 
 ### Tables by tier
 - **Tier 1** (typed, all fields editable through JSON): the bulk of the
@@ -50,6 +50,8 @@ This file is for collaborators picking up round-trip work. It's the
 ## What just shipped (this session, all in `origin/main`)
 
 ```
+4b30791  GlobalGameEventExecuteData: ship Tier 1 family decoder w/ Decoded|Raw enum
+e17d416  docs: add STATUS.md for collaborator handoff
 9f1be1d  ConditionInfo: promote Tier 2 → Tier 1 — typed GameCondition wrapper
 5160cdd  GameCondition: Raw-bytes fallback variant → 100.0% round-trip 🎯
 dd72172  ConditionData: 5-tag OneByteBodyPayload batch (11/92/253/343/351) → 99.8%
@@ -59,7 +61,9 @@ b82e3c7  ConditionData: tags 126/178/287/306 + LAST_ATTEMPTED_TAG tracker → 99
 a4118f5  ConditionData: batch 1-byte/4-byte/CString body fixes → 98.3%
 ```
 
-GameCondition went from 13.4% → 100% across these 7 commits.
+GameCondition went from 13.4% → 100% across the first 7 commits.
+GlobalGameEventInfo Tier 2 → Tier 1 in the latest commit (80/80 entries
+decode structurally, 0 raw fallbacks needed).
 
 ---
 
@@ -144,14 +148,21 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 ## What's next, in priority order
 
 ### Big wins (each enables a polymorphic family)
-1. **TriggerEventHandler family** (task #95). TriggerRegionInfo's
-   handlers are currently opaque blobs. Same shape as GameCondition was
-   — recursive tree with hundreds of leaf variants. Reuse the playbook.
-2. **GlobalGameEventExecuteData family** (task #96, in progress).
-   GlobalGameEventInfo consumer.
-3. **GameEventHandler family** (task #97). GameEventHandlerInfo
-   consumer.
-4. **EffectData family**. EffectInfo consumer.
+1. **GameEventHandler family** (task #97). GameEventHandlerInfo
+   consumer. Likely uses bespoke-dispatcher pattern like GameCondition;
+   reuse the playbook.
+2. **EffectData family**. EffectInfo consumer.
+3. **Per-sub_tag typed payloads inside GlobalGameEventExecuteData**
+   (task #96 follow-up). The `Present { sub_tag, body: Vec<u8> }` shape
+   is shipped; full body fields per sub_tag (sub_141155000 / sub_141155300
+   recipes) are mechanical follow-up work.
+4. **TriggerEventHandler family** (task #95). DEFERRED — uses
+   `pa::ReflectObject` reflection-driven serialization (sub_14055F190
+   constructor reveals the inheritance chain through `ReflectDerive
+   <ITriggerEventHandler, ReflectObjectExtension>`). Different pattern
+   from the bespoke dispatchers; needs the reflection layer reversed
+   first. Worth tackling because cracking it unlocks ALL reflection-
+   serialized tables at once.
 
 ### Smaller wins
 5. **Wire JSON tree exposure for GameCondition's Decoded variant** —
