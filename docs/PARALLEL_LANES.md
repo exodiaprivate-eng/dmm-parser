@@ -274,7 +274,7 @@ in one retry.
 | Snow | (long-running) | Skill/Buff Python bindings | active |
 | A | now | EffectData inner_map typing | active |
 | B | — | (pick: GlobalGameEventExecuteData per-sub_tag bodies) | not started |
-| C | — | (pick: aimove_speed_info JSON exposure) | not started |
+| C | 2026-04-29 | aimove_speed_info JSON exposure | done — pick next |
 
 When you start a task, edit your row to `Status: in progress on <table/feature>`.
 When you finish + push, edit to `Status: done — pick next`.
