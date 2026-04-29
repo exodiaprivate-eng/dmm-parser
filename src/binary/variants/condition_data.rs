@@ -1334,24 +1334,11 @@ py_binary_struct! {
     }
 }
 
-#[derive(Debug)]
-pub struct ConditionData_GetGimmickRotationFromSpawnPayload {
-    pub field_at_24: [f32; 3],
-    pub field_at_36: u32,
-    pub field_at_40: u8,
-}
-impl ConditionData_GetGimmickRotationFromSpawnPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = { let mut b = [0f32; 3]; for x in &mut b { *x = f32::read_from(data, offset)?; } b };
-        let field_at_36 = u32::read_from(data, offset)?;
-        let field_at_40 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_36, field_at_40 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        for x in &self.field_at_24 { x.write_to(w)?; }
-        self.field_at_36.write_to(w)?;
-        self.field_at_40.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ConditionData_GetGimmickRotationFromSpawnPayload {
+        pub field_at_24: [f32; 3],
+        pub field_at_36: u32,
+        pub field_at_40: u8,
     }
 }
 
@@ -1429,18 +1416,10 @@ py_binary_struct! {
     }
 }
 
-/// Tag 297: outer-COptional only (sub_14F29DA90).
-#[derive(Debug)]
-pub struct ConditionData_CheckGimmickTargetHackablePayload<'a> {
-    pub conditional_slot: GimmickConditionalSlot<'a>,
-}
-impl<'a> ConditionData_CheckGimmickTargetHackablePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
-        Ok(Self { conditional_slot })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.conditional_slot.write_to(w)
+py_binary_struct! {
+    /// Tag 297: outer-COptional only (sub_14F29DA90).
+    pub struct ConditionData_CheckGimmickTargetHackablePayload<'a> {
+        pub conditional_slot: GimmickConditionalSlot<'a>,
     }
 }
 
@@ -1566,21 +1545,11 @@ py_binary_struct! {
     }
 }
 
-/// Tag 345: u8 + outer-COptional (sub_141CDE0E0).
-#[derive(Debug)]
-pub struct ConditionData_CheckTargetPayload<'a> {
-    pub field_a: u8,
-    pub conditional_slot: GimmickConditionalSlot<'a>,
-}
-impl<'a> ConditionData_CheckTargetPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_a = u8::read_from(data, offset)?;
-        let conditional_slot = GimmickConditionalSlot::read_from(data, offset)?;
-        Ok(Self { field_a, conditional_slot })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_a.write_to(w)?;
-        self.conditional_slot.write_to(w)
+py_binary_struct! {
+    /// Tag 345: u8 + outer-COptional (sub_141CDE0E0).
+    pub struct ConditionData_CheckTargetPayload<'a> {
+        pub field_a: u8,
+        pub conditional_slot: GimmickConditionalSlot<'a>,
     }
 }
 
