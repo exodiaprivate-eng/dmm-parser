@@ -17,7 +17,7 @@ py_binary_struct! {
     pub struct BloodDecalVariation<'a> {
         pub variation_name: CString<'a>,
         pub texture_lookup: u32,
-        pub color: [u8; 12],
+        pub color: [f32; 3],
     }
 }
 

@@ -207,6 +207,25 @@ impl WriteJsonValue for f32 {
 // ── Fixed-size arrays ─────────────────────────────────────────────────────────
 // [u8; N] base64 impl lives in `binary/arrays.rs` (predates this module).
 
+impl ToJsonValue for [f32; 2] {
+    fn to_json_value(&self) -> Value {
+        Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
+    }
+}
+impl WriteJsonValue for [f32; 2] {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            format!("expected array of 2 f32, got {}", type_name(v))))?;
+        if arr.len() != 2 {
+            return err(format!("expected 2 elements for [f32; 2], got {}", arr.len()));
+        }
+        for elem in arr {
+            f32::write_from_json(w, elem)?;
+        }
+        Ok(())
+    }
+}
+
 impl ToJsonValue for [f32; 3] {
     fn to_json_value(&self) -> Value {
         Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
@@ -218,6 +237,25 @@ impl WriteJsonValue for [f32; 3] {
             format!("expected array of 3 f32, got {}", type_name(v))))?;
         if arr.len() != 3 {
             return err(format!("expected 3 elements for [f32; 3], got {}", arr.len()));
+        }
+        for elem in arr {
+            f32::write_from_json(w, elem)?;
+        }
+        Ok(())
+    }
+}
+
+impl ToJsonValue for [f32; 4] {
+    fn to_json_value(&self) -> Value {
+        Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
+    }
+}
+impl WriteJsonValue for [f32; 4] {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            format!("expected array of 4 f32, got {}", type_name(v))))?;
+        if arr.len() != 4 {
+            return err(format!("expected 4 elements for [f32; 4], got {}", arr.len()));
         }
         for elem in arr {
             f32::write_from_json(w, elem)?;

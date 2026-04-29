@@ -37,8 +37,8 @@
 //!  11. CArray<SkillTreeSkillNode> skill_node_list
 //!  12. CArray<SkillTreeStatNode> stat_node_list
 //!  13. u32 first_focus_skill_info (SkillKey lookup, wire 4)
-//!  14. u32 first_focus_zoom        (f32-as-u32)
-//!  15. [u8;8] first_focus_position (vec2)
+//!  14. f32 first_focus_zoom
+//!  15. [f32;2] first_focus_position (Vec2)
 //!  16. [u8;8] skill_tree_area
 //!
 //! ## Helper map (Mac)
@@ -82,10 +82,10 @@ py_binary_struct! {
         pub item_info: u32,
         pub sub_level_info: u32,
         pub ui_command: CString<'a>,
-        pub ui_position: [u8; 8],
+        pub ui_position: [f32; 2],
         pub node_type: u8,
         pub deco_line_node_id: u32,
-        pub color: [u8; 16],
+        pub color: [f32; 4],
     }
 }
 
@@ -104,14 +104,14 @@ py_binary_struct! {
         pub ui_position_x: u32,
         pub ui_position_y: u32,
         pub deco_line_node_id: u32,
-        pub ui_position: [u8; 8],
+        pub ui_position: [f32; 2],
         pub parent_id: u32,
         pub child_id_list: CArray<u32>,
         pub ui_parent_data_list: CArray<SkillTreeParentDataEntry>,
         pub ui_child_id_for_guideline: CArray<u32>,
         pub node_type: u8,
         pub ui_learn_need_node_list: CArray<u32>,
-        pub color: [u8; 16],
+        pub color: [f32; 4],
         pub faction_research_key: u32,
     }
 }
@@ -133,8 +133,8 @@ py_binary_struct! {
         pub skill_node_list: CArray<SkillTreeSkillNode>,
         pub stat_node_list: CArray<SkillTreeStatNode<'a>>,
         pub first_focus_skill_info: u32,
-        pub first_focus_zoom: u32,
-        pub first_focus_position: [u8; 8],
+        pub first_focus_zoom: f32,
+        pub first_focus_position: [f32; 2],
         pub skill_tree_area: [u8; 8],
     }
 }

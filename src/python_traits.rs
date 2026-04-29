@@ -67,6 +67,23 @@ impl WritePyValue for u8 {
 
 // ── Fixed-size arrays ─────────────────────────────────────────────────────────
 
+impl ToPyValue for [f32; 2] {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
+    }
+}
+
+impl WritePyValue for [f32; 2] {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let list = obj.cast::<PyList>()?;
+        for item in list.iter() {
+            let v: f32 = item.extract()?;
+            w.extend_from_slice(&v.to_le_bytes());
+        }
+        Ok(())
+    }
+}
+
 impl ToPyValue for [f32; 3] {
     fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
@@ -74,6 +91,23 @@ impl ToPyValue for [f32; 3] {
 }
 
 impl WritePyValue for [f32; 3] {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let list = obj.cast::<PyList>()?;
+        for item in list.iter() {
+            let v: f32 = item.extract()?;
+            w.extend_from_slice(&v.to_le_bytes());
+        }
+        Ok(())
+    }
+}
+
+impl ToPyValue for [f32; 4] {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
+    }
+}
+
+impl WritePyValue for [f32; 4] {
     fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
         let list = obj.cast::<PyList>()?;
         for item in list.iter() {

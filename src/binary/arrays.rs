@@ -61,6 +61,21 @@ impl<const N: usize> WriteJsonValue for [u8; N] {
 }
 
 
+impl<'a> BinaryRead<'a> for [f32; 2] {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok([f32::read_from(data, offset)?, f32::read_from(data, offset)?])
+    }
+}
+
+impl BinaryWrite for [f32; 2] {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        for v in self {
+            v.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
 impl<'a> BinaryRead<'a> for [f32; 3] {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         Ok([
@@ -72,6 +87,26 @@ impl<'a> BinaryRead<'a> for [f32; 3] {
 }
 
 impl BinaryWrite for [f32; 3] {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        for v in self {
+            v.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> BinaryRead<'a> for [f32; 4] {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok([
+            f32::read_from(data, offset)?,
+            f32::read_from(data, offset)?,
+            f32::read_from(data, offset)?,
+            f32::read_from(data, offset)?,
+        ])
+    }
+}
+
+impl BinaryWrite for [f32; 4] {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         for v in self {
             v.write_to(w)?;
@@ -120,6 +155,23 @@ impl BinaryWrite for [u32; 4] {
 // ── Fixed-size array tracked reads ──────────────────────────────────────────
 // Each element is reported as `<path>[i]` so the byte layout is preserved.
 
+impl<'a> BinaryReadTracked<'a> for [f32; 2] {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let mut out = [0f32; 2];
+        for i in 0..2 {
+            let saved = push_index(path, i);
+            out[i] = f32::read_tracked(data, offset, path, ranges)?;
+            pop_path(path, saved);
+        }
+        Ok(out)
+    }
+}
+
 impl<'a> BinaryReadTracked<'a> for [f32; 3] {
     fn read_tracked(
         data: &'a [u8],
@@ -129,6 +181,23 @@ impl<'a> BinaryReadTracked<'a> for [f32; 3] {
     ) -> io::Result<Self> {
         let mut out = [0f32; 3];
         for i in 0..3 {
+            let saved = push_index(path, i);
+            out[i] = f32::read_tracked(data, offset, path, ranges)?;
+            pop_path(path, saved);
+        }
+        Ok(out)
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for [f32; 4] {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let mut out = [0f32; 4];
+        for i in 0..4 {
             let saved = push_index(path, i);
             out[i] = f32::read_tracked(data, offset, path, ranges)?;
             pop_path(path, saved);
