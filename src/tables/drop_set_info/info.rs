@@ -24,8 +24,15 @@ pub struct DropSetInfo<'a> {
     /// Polymorphic CArray captured as raw bytes.
     pub list: Vec<u8>,
     pub nee_slot_count: u16,
-    pub need_weight: [u8; 8],
-    pub total_drop_rate: [u8; 8],
+    /// Wire u64 — fixed-point weight value (vanilla data shows values
+    /// always within u32 range with high u32 zero, suggesting fixed-point
+    /// scaling rather than f64).
+    pub need_weight: u64,
+    /// Wire u64 — fixed-point drop rate value. Vanilla samples show
+    /// values like 1000000 (= 100% × 10000 PPM) supporting fixed-point
+    /// interpretation. Treat as opaque u64 for round-trip safety; the
+    /// game side knows the scaling factor.
+    pub total_drop_rate: u64,
     pub original_string: CString<'a>,
 }
 
@@ -68,10 +75,8 @@ impl<'a> DropSetInfo<'a> {
         *offset = post_pre + variant_size;
 
         let nee_slot_count = u16::read_from(data, offset)?;
-        let mut need_weight = [0u8; 8];
-        for b in &mut need_weight { *b = u8::read_from(data, offset)?; }
-        let mut total_drop_rate = [0u8; 8];
-        for b in &mut total_drop_rate { *b = u8::read_from(data, offset)?; }
+        let need_weight = u64::read_from(data, offset)?;
+        let total_drop_rate = u64::read_from(data, offset)?;
         let original_string = CString::read_from(data, offset)?;
 
         Ok(Self {
@@ -91,8 +96,8 @@ impl<'a> DropSetInfo<'a> {
         self.drop_tag_name_hash.write_to(w)?;
         w.write_all(&self.list)?;
         self.nee_slot_count.write_to(w)?;
-        w.write_all(&self.need_weight)?;
-        w.write_all(&self.total_drop_rate)?;
+        self.need_weight.write_to(w)?;
+        self.total_drop_rate.write_to(w)?;
         self.original_string.write_to(w)?;
         Ok(())
     }
@@ -130,8 +135,8 @@ impl<'a> DropSetInfo<'a> {
             format!("DropSetInfo: _list_b64 invalid base64: {}", e)))?;
         w.extend_from_slice(&bytes);
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "nee_slot_count")?)?;
-        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_weight")?)?;
-        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "total_drop_rate")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_weight")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "total_drop_rate")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "original_string")?)?;
         Ok(())
     }
