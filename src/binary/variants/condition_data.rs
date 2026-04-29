@@ -2988,6 +2988,845 @@ impl<'a> ConditionDataVariant<'a> {
         }
     }
 
+    /// Per-variant JSON: emits {"type": variant_name, "body": typed
+    /// dict} for payload variants, {"type": variant_name} for no-payload.
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("type".into(), Value::String(self.variant_name().to_string()));
+        match self {
+            Self::ConditionData_GetLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetHpPercent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckNone => {}
+            Self::ConditionData_CheckSkillLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsHiredMercenary(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_HiredMercenaryCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_UnownedMercenaryCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetItemCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_DockingGetItemCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckTime(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsNightTime => {}
+            Self::ConditionData_DayOfWeek(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRemainTimer(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckEquipItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCharacterKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckTribe(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckTribeMassLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckDead(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckDeadOrRetreat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGroggy(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckDeadPoseOK(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckFatal(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckStageFail(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetDataDefinedStaticStat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetDataDefinedRegenerateStat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_HasLootItem => {}
+            Self::ConditionData_CheckHasImportantItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsFocusActor(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsLootable => {}
+            Self::ConditionData_CheckMoneyForBuyingStock(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckAction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckActionAttribute(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckActionSkillKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckActionCharacterState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCharacterKeys(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Controlable => {}
+            Self::ConditionData_CheckKnowledge(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_HasUnknownKnowledge => {}
+            Self::ConditionData_CheckGender => {}
+            Self::ConditionData_CheckHaveItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckHaveItemPrice(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckHaveGimmick(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckItemConditionAndRemove(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckInteraction => {}
+            Self::ConditionData_HasInteraction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsLookInteraction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckLevelLoadDone(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckBattle => {}
+            Self::ConditionData_CheckCCTime => {}
+            Self::ConditionData_IsInParty => {}
+            Self::ConditionData_CheckSameParty => {}
+            Self::ConditionData_CheckGimmickSatisfiedStatus => {}
+            Self::ConditionData_CheckEquipSlotName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCurrentEquipSlotName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCurrentEquipType_OrTag54 => {}
+            Self::ConditionData_CheckEquipType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_WeaponOut => {}
+            Self::ConditionData_IsSequencerPhaseChange => {}
+            Self::ConditionData_TestCheat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckQteResult => {}
+            Self::ConditionData_CheckBossBattle => {}
+            Self::ConditionData_CheckQTEType => {}
+            Self::ConditionData_CheckLoginStep_OrTag62 => {}
+            Self::ConditionData_CheckEnterTrigger(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckFrontEnterTrigger(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckEnterStageFog => {}
+            Self::ConditionData_CheckStageWaitCondition => {}
+            Self::ConditionData_CheckMoveToAbyss => {}
+            Self::ConditionData_CheckDetectComplete => {}
+            Self::ConditionData_CheckStealthCondition(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckStealthReported => {}
+            Self::ConditionData_CompleteQuest(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CompleteMission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CompleteSubMission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CompleteStage(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_StagePlaying(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_PlayingQuest(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_PlayingMission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_StartStage(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_StartQuest(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_StartMission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_QuestGaugePercent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_ExclusiveStagePlaying => {}
+            Self::ConditionData_IsReservedNextExclusiveStage => {}
+            Self::ConditionData_CheckDistanceToPlayer(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckDistanceHorizontalToTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsVisibleToTarget => {}
+            Self::ConditionData_CheckTargetToPlayer => {}
+            Self::ConditionData_CheckAggroToPlayer => {}
+            Self::ConditionData_IsArresting => {}
+            Self::ConditionData_WantedLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckWantedPrice(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCurrentEquipType_OrTag92(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_WantedState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckSeriousCrime => {}
+            Self::ConditionData_CheckWantedNPC => {}
+            Self::ConditionData_IsInWantedBoundary => {}
+            Self::ConditionData_CheckInteractionByInteractionKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckAllyGroup(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckAllyType => {}
+            Self::ConditionData_CheckGimmickState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_DockingGimmickState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_OtherDockingGimmickState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickImpulsePower(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetDataDefinedRegenerateStatPercent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetBreakableObjectHpPercent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetElementalGoalStat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckInteractionAiPositionIndex => {}
+            Self::ConditionData_CheckHaveItemGroup(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckHaveItemGroupPrice(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckExchangeItemSelected => {}
+            Self::ConditionData_CheckUsableGate => {}
+            Self::ConditionData_CheckGateKnowledge => {}
+            Self::ConditionData_CheckGimmickTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCatcherGimmickTag => {}
+            Self::ConditionData_CheckCatcheeGimmickTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CatchTag => {}
+            Self::ConditionData_CheckLoadingComplete => {}
+            Self::ConditionData_CheckLevelLoadingComplete => {}
+            Self::ConditionData_CheckInteractionSocketBoneName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsEquipableItem => {}
+            Self::ConditionData_CheckInteractionTargetUsableItem => {}
+            Self::ConditionData_CheckSequencerVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckAmmoItemKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRepairableNpc => {}
+            Self::ConditionData_CheckSpecialMode(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_SpecialModeKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsInRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsInTown => {}
+            Self::ConditionData_IsAboveRoad(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsInRegionType => {}
+            Self::ConditionData_IsInSafeZone => {}
+            Self::ConditionData_CheckTargetable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRetreat => {}
+            Self::ConditionData_CheckContactableState => {}
+            Self::ConditionData_CheckTargetToPushInventory => {}
+            Self::ConditionData_CheckInventorySlotFreeCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCharacterHeightType => {}
+            Self::ConditionData_CheckUnlockDoorCharacter => {}
+            Self::ConditionData_CheckOwnerMercenary => {}
+            Self::ConditionData_CheckIsFocusActorOwnerMercenary => {}
+            Self::ConditionData_CheckGimmickEventParamString(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickEventParamFloat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickEventParamInt(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickEventParamAngle(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCCType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckField(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetFriendly(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckFriendlyLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetFactionfriendly(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsFriendlyItem => {}
+            Self::ConditionData_IsVaryableFriendly => {}
+            Self::ConditionData_IsPetLooting => {}
+            Self::ConditionData_CheckWaterVoxel => {}
+            Self::ConditionData_CheckEquipItemGroup(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckLoadingStep(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickEventSenderName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGetItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckSealActor(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckWildVehicle => {}
+            Self::ConditionData_CheckWild => {}
+            Self::ConditionData_CheckAIReadyToNextTimeline => {}
+            Self::ConditionData_AITaskSetComplete => {}
+            Self::ConditionData_CheckAttachedGimmickCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRemoteCatchTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRemoteCatchTargetItemKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRemoteCatchable => {}
+            Self::ConditionData_CheckGimmickEvent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsThrowing => {}
+            Self::ConditionData_CheckLoadedArrow => {}
+            Self::ConditionData_CheckRemoteCatched => {}
+            Self::ConditionData_CheckCatched => {}
+            Self::ConditionData_CheckStageChartDialogEnd(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRider => {}
+            Self::ConditionData_CheckGimmickTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetGimmickVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetRandomPercentBySpawnPositionSeed(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckStoreType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsExistStoreItemToSell => {}
+            Self::ConditionData_CheckNpcFunctionType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckExistPrice => {}
+            Self::ConditionData_SubTimelineName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_ExistTimeline(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_ExistFolder(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_ExistSequencerCamera => {}
+            Self::ConditionData_IsCutJump => {}
+            Self::ConditionData_CheckReserveItemSlotOut(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGateOpenable => {}
+            Self::ConditionData_CheckGimmickItemKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckTargetGimmickUnlockable => {}
+            Self::ConditionData_CheckUnlockableByMission => {}
+            Self::ConditionData_CheckMainMercenarySummoned(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckMainMercenaryNearToLeader(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckMainMercenaryHaveItemGroupPrice(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckHaveMercenary(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckHaveVehicle(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickImpulseWhereType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckElementalMaterialStateSuccess(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCurrentEquipType_OrTag199 => {}
+            Self::ConditionData_CheckBurnable => {}
+            Self::ConditionData_CheckBreakable => {}
+            Self::ConditionData_CheckOriginalBreakable => {}
+            Self::ConditionData_CheckBreaked => {}
+            Self::ConditionData_IsDockingChild => {}
+            Self::ConditionData_CheckTriggerVolumeGroupIndex(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Weather(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickParentLinkCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickRemoteCatchType => {}
+            Self::ConditionData_CheckGimmickTriggerCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsFullGimmickAttachment => {}
+            Self::ConditionData_CheckGimmickAttachmentType => {}
+            Self::ConditionData_CheckGimmickTargetCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickNonBreakTargetCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckExistStealItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckElementalMaterialType => {}
+            Self::ConditionData_IsGimmickSealComplete => {}
+            Self::ConditionData_IsAcquiredItem => {}
+            Self::ConditionData_IsFullGimmickTriggerEnteredTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickLinkSignalOn => {}
+            Self::ConditionData_CheckGimmickLookAtComplete => {}
+            Self::ConditionData_CheckAttackImpulseLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckBreakableAttackImpulseLevel => {}
+            Self::ConditionData_CheckSpawnReason(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckFriendlyItemReward => {}
+            Self::ConditionData_CheckNearestTriggerTargetDistance(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckHasMagneticPartner => {}
+            Self::ConditionData_CheckForceFieldType => {}
+            Self::ConditionData_CheckForceFieldTargetType => {}
+            Self::ConditionData_CheckExistDropItem => {}
+            Self::ConditionData_CheckGlobalStageSequencerExit(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckSealable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckTargetSealable => {}
+            Self::ConditionData_CheckSealState => {}
+            Self::ConditionData_HasSealDropableItem => {}
+            Self::ConditionData_CheckExistGimmickPoint(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickOnTime => {}
+            Self::ConditionData_CheckLoginStep_OrTag237 => {}
+            Self::ConditionData_CheckUseGimmickOnTime => {}
+            Self::ConditionData_GetCombinationRootVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsMagnetEnabled => {}
+            Self::ConditionData_CanDisassemble => {}
+            Self::ConditionData_CheckOriginalGimmickLength(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickPhysicsVolumeLength(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckInStealthStage => {}
+            Self::ConditionData_IsInstantlyDeadable => {}
+            Self::ConditionData_IsCrimeTarget => {}
+            Self::ConditionData_CheckLookAtSunDirection => {}
+            Self::ConditionData_CheckHirable => {}
+            Self::ConditionData_CheckBuffTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRidingVehicleType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRidingVehicleKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRidingVehicleKeyList(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckThreatReward(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsCrossHairTarget => {}
+            Self::ConditionData_IsAiJumpClimbTarget => {}
+            Self::ConditionData_Macro(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetAngularVelocity(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsChildGimmick => {}
+            Self::ConditionData_CheckPlayerCameraLookAtAngle(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckPlayerCameraFocusActorCovered => {}
+            Self::ConditionData_CheckDamageElementalType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsRidingVehicle => {}
+            Self::ConditionData_CharacterTier(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckEquipTargetItemActor => {}
+            Self::ConditionData_GetFactionNodeState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetCurrentFactionNodeState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsFactionNodeKnockDown(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetFactionNodeBlockSubType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetFactionResource(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsFactionNodeMissionGaugeEnable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCharacterGroupKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GameEventParam(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckFactionRelation(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckUsableStore => {}
+            Self::ConditionData_CheckRide(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_DockingToCurrentVehicle => {}
+            Self::ConditionData_CheckImpulseDirection(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetGimmickRotationFromSpawn(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_SkillTreeNodeLearnable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckFactionKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckFactionCategory => {}
+            Self::ConditionData_CheckConquerorFaction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckPositionOwnerFaction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCharacterItemSocket(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickItemSocket => {}
+            Self::ConditionData_CheckCurrentEquipType_OrTag286 => {}
+            Self::ConditionData_IsInSpecialModeStage(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsSpawnedOnPlatform => {}
+            Self::ConditionData_GetInventoryWeightLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckReserveSlot(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCanSupplyToRoyal(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckRoyalSupplyOpen(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckDockingWeaponOut => {}
+            Self::ConditionData_GetEquipGimmickItemUsableCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CurrentStateEquipItemUseSuccess => {}
+            Self::ConditionData_IsEquipGimmickItemBroken => {}
+            Self::ConditionData_CheckGimmickTargetHackable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsHackable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckDockingParentDead => {}
+            Self::ConditionData_CheckAttackName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckAttackFromType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGimmickAngleToTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckSpawnPositionRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsGamePlayLevelGimmick(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckCompleteStageGimmick => {}
+            Self::ConditionData_CheckCompleteLevelGimmick(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsRootGimmickLocked => {}
+            Self::ConditionData_CheckShareValue(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckLoginStep_OrTag309 => {}
+            Self::ConditionData_CheckGimmickknowledgeLearned => {}
+            Self::ConditionData_IsEquipDockingGimmick => {}
+            Self::ConditionData_CheckPipeGimmickHaveExit => {}
+            Self::ConditionData_IsLevelGimmickControlByMission => {}
+            Self::ConditionData_IsLevelGimmickMissionComplete => {}
+            Self::ConditionData_GetCurrentSubLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsHyosiMercenary => {}
+            Self::ConditionData_CheckLoginStep_OrTag317 => {}
+            Self::ConditionData_CheckLoginStep_OrTag318 => {}
+            Self::ConditionData_DockingChildTagCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_HasBagDocking => {}
+            Self::ConditionData_IsSpecialModeStartComplete => {}
+            Self::ConditionData_IsInteractable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckVehicleType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsVehicleLinked => {}
+            Self::ConditionData_IsSpawnByLinkedVehicle => {}
+            Self::ConditionData_LostActor(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_LostGimmick(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_InteractableSpeaker => {}
+            Self::ConditionData_CheckMiseensceneScheduleIndex => {}
+            Self::ConditionData_CheckFlip => {}
+            Self::ConditionData_GetMinigameSeed(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckMainMercenaryDead => {}
+            Self::ConditionData_HasAttachableGimmick => {}
+            Self::ConditionData_IsDockingGimmickTerrainRegionSummonable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsGimmickHousingMode => {}
+            Self::ConditionData_IsInHousingRegion => {}
+            Self::ConditionData_IsGimmickPlacedByHousing => {}
+            Self::ConditionData_CheckDropSetDropable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetFactionResearchProgress(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_HasLinkedDecoGimmick => {}
+            Self::ConditionData_IsClientOnlyActor => {}
+            Self::ConditionData_HasQuestDialog(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckQuestDialogCategory(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsSpeakingQuestDialog => {}
+            Self::ConditionData_CheckTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckHaveLoadingTargetStage_OrTag346 => {}
+            Self::ConditionData_GetFertilizerAmountPercent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsDetectModeShowEnemy => {}
+            Self::ConditionData_CheckHireMercenary => {}
+            Self::ConditionData_IsExistSoldItemToStore => {}
+            Self::ConditionData_CheckCurrentEquipType_OrTag351(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetCampDonatedItemCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsGimmick => {}
+            Self::ConditionData_IsCharacter(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsItem => {}
+            Self::ConditionData_IsTargetOfOperatorDockingGimmick(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckMercenaryOccupationState => {}
+            Self::ConditionData_CheckMercenaryType => {}
+            Self::ConditionData_IsPassableState => {}
+            Self::ConditionData_CheckTargetDropListToPushInventory => {}
+            Self::ConditionData_IsMiniGameBanned => {}
+            Self::ConditionData_IsInGrassField => {}
+            Self::ConditionData_IsCoveredBySnow => {}
+            Self::ConditionData_IsInRegionTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsGround => {}
+            Self::ConditionData_CheckCatchTarget => {}
+            Self::ConditionData_IsFarmAnimal => {}
+            Self::ConditionData_CheckCanTimeWrap => {}
+            Self::ConditionData_IsInGlobalGameEventArea(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckOwnershipState => {}
+            Self::ConditionData_IsDokcingParentHiredMercenary => {}
+            Self::ConditionData_CheckCurrentGlobalGameEvent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGamePlayVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsSpawnOwner(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsLiftable => {}
+            Self::ConditionData_IsOwnerPlayer => {}
+            Self::ConditionData_IsAbleToFeed => {}
+            Self::ConditionData_GetInventorySlotFillPercent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckMiniGameEntranceFee => {}
+            Self::ConditionData_CheckUnknownMeditationKnowledge => {}
+            Self::ConditionData_MiniGameWin(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_MiniGameRound(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_MiniGameWinningStreak(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsVehicleAllowedInEnteredRegion => {}
+            Self::ConditionData_CheckBlockedAbility => {}
+            Self::ConditionData_CheckMainMercenaryBlockedAbility(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_BlockByExclusiveStage => {}
+            Self::ConditionData_CheckNotPlayableState => {}
+            Self::ConditionData_GetNodeCombatPower(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_ReserveSlotItemCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_PuzzleSavePresetApplied => {}
+            Self::ConditionData_IsStableForInteraction => {}
+            Self::ConditionData_CheckAccompanyType => {}
+            Self::ConditionData_CheckFactionWantedLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckVehicleAllowableHeight => {}
+            Self::ConditionData_CheckMercenaryCallCooltime(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_IsMiniGamePlayable => {}
+            Self::ConditionData_IsAimingHitLimitAttackRegion => {}
+            Self::ConditionData_CheckInventoryMaxSlotCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckInteractingWithOwnedObject => {}
+            Self::ConditionData_GetDifficultyOption(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_GetMaxWantedLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckPlayerHouse(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckActivatedHousingRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+        }
+        Value::Object(m)
+    }
+
+    /// Inverse of to_json_value. `disc` selects the variant; `body` is
+    /// the typed dict (or absent for no-payload variants).
+    pub fn write_from_json(
+        disc: u16,
+        w: &mut Vec<u8>,
+        v: &Value,
+    ) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "ConditionDataVariant: expected object",
+        ))?;
+        match disc {
+            0 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetLevel: missing body object"))?; ConditionData_GetLevelPayload::write_from_json_dict(w, body)?; }
+            1 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetHpPercent: missing body object"))?; ConditionData_GetHpPercentPayload::write_from_json_dict(w, body)?; }
+            2 => {}
+            3 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSkillLevel: missing body object"))?; ConditionData_CheckSkillLevelPayload::write_from_json_dict(w, body)?; }
+            4 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsHiredMercenary: missing body object"))?; ConditionData_IsHiredMercenaryPayload::write_from_json_dict(w, body)?; }
+            5 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_HiredMercenaryCount: missing body object"))?; ConditionData_HiredMercenaryCountPayload::write_from_json_dict(w, body)?; }
+            6 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_UnownedMercenaryCount: missing body object"))?; ConditionData_UnownedMercenaryCountPayload::write_from_json_dict(w, body)?; }
+            7 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetItemCount: missing body object"))?; ConditionData_GetItemCountPayload::write_from_json_dict(w, body)?; }
+            8 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_DockingGetItemCount: missing body object"))?; ConditionData_DockingGetItemCountPayload::write_from_json_dict(w, body)?; }
+            9 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTime: missing body object"))?; ConditionData_CheckTimePayload::write_from_json_dict(w, body)?; }
+            10 => {}
+            11 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_DayOfWeek: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            12 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRemainTimer: missing body object"))?; ConditionData_CheckRemainTimerPayload::write_from_json_dict(w, body)?; }
+            13 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipItem: missing body object"))?; ConditionData_CheckEquipItemPayload::write_from_json_dict(w, body)?; }
+            14 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCharacterKey: missing body object"))?; ConditionData_CheckCharacterKeyPayload::write_from_json_dict(w, body)?; }
+            15 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTribe: missing body object"))?; ConditionData_CheckTribePayload::write_from_json_dict(w, body)?; }
+            16 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTribeMassLevel: missing body object"))?; ConditionData_CheckTribeMassLevelPayload::write_from_json_dict(w, body)?; }
+            17 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDead: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            18 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDeadOrRetreat: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            19 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGroggy: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            20 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDeadPoseOK: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            21 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFatal: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            22 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckStageFail: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            23 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetDataDefinedStaticStat: missing body object"))?; ConditionData_GetDataDefinedStaticStatPayload::write_from_json_dict(w, body)?; }
+            24 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetDataDefinedRegenerateStat: missing body object"))?; ConditionData_GetDataDefinedRegenerateStatPayload::write_from_json_dict(w, body)?; }
+            25 => {}
+            26 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHasImportantItem: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            27 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsFocusActor: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            28 => {}
+            29 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMoneyForBuyingStock: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            30 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAction: missing body object"))?; ConditionData_CheckActionPayload::write_from_json_dict(w, body)?; }
+            31 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActionAttribute: missing body object"))?; ConditionData_CheckActionAttributePayload::write_from_json_dict(w, body)?; }
+            32 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActionSkillKey: missing body object"))?; ConditionData_CheckActionSkillKeyPayload::write_from_json_dict(w, body)?; }
+            33 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActionCharacterState: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            34 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCharacterKeys: missing body object"))?; ConditionData_CheckCharacterKeysPayload::write_from_json_dict(w, body)?; }
+            35 => {}
+            36 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckKnowledge: missing body object"))?; ConditionData_CheckKnowledgePayload::write_from_json_dict(w, body)?; }
+            37 => {}
+            38 => {}
+            39 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveItem: missing body object"))?; ConditionData_CheckHaveItemPayload::write_from_json_dict(w, body)?; }
+            40 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveItemPrice: missing body object"))?; ConditionData_CheckHaveItemPricePayload::write_from_json_dict(w, body)?; }
+            41 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveGimmick: missing body object"))?; ConditionData_CheckHaveGimmickPayload::write_from_json_dict(w, body)?; }
+            42 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckItemConditionAndRemove: missing body object"))?; ConditionData_CheckItemConditionAndRemovePayload::write_from_json_dict(w, body)?; }
+            43 => {}
+            44 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_HasInteraction: missing body object"))?; ConditionData_HasInteractionPayload::write_from_json_dict(w, body)?; }
+            45 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsLookInteraction: missing body object"))?; ConditionData_IsLookInteractionPayload::write_from_json_dict(w, body)?; }
+            46 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckLevelLoadDone: missing body object"))?; ConditionData_CheckLevelLoadDonePayload::write_from_json_dict(w, body)?; }
+            47 => {}
+            48 => {}
+            49 => {}
+            50 => {}
+            51 => {}
+            52 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipSlotName: missing body object"))?; ConditionData_CheckEquipSlotNamePayload::write_from_json_dict(w, body)?; }
+            53 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipSlotName: missing body object"))?; ConditionData_CheckCurrentEquipSlotNamePayload::write_from_json_dict(w, body)?; }
+            54 => {}
+            55 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipType: missing body object"))?; ThreeU32BodyPayload::write_from_json_dict(w, body)?; }
+            56 => {}
+            57 => {}
+            58 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_TestCheat: missing body object"))?; ConditionData_TestCheatPayload::write_from_json_dict(w, body)?; }
+            59 => {}
+            60 => {}
+            61 => {}
+            62 => {}
+            63 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEnterTrigger: missing body object"))?; ConditionData_CheckEnterTriggerPayload::write_from_json_dict(w, body)?; }
+            64 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFrontEnterTrigger: missing body object"))?; ConditionData_CheckFrontEnterTriggerPayload::write_from_json_dict(w, body)?; }
+            65 => {}
+            66 => {}
+            67 => {}
+            68 => {}
+            69 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckStealthCondition: missing body object"))?; ConditionData_CheckStealthConditionPayload::write_from_json_dict(w, body)?; }
+            70 => {}
+            71 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CompleteQuest: missing body object"))?; ConditionData_CompleteQuestPayload::write_from_json_dict(w, body)?; }
+            72 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CompleteMission: missing body object"))?; ConditionData_CompleteMissionPayload::write_from_json_dict(w, body)?; }
+            73 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CompleteSubMission: missing body object"))?; ConditionData_CompleteSubMissionPayload::write_from_json_dict(w, body)?; }
+            74 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CompleteStage: missing body object"))?; ConditionData_CompleteStagePayload::write_from_json_dict(w, body)?; }
+            75 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_StagePlaying: missing body object"))?; ConditionData_StagePlayingPayload::write_from_json_dict(w, body)?; }
+            76 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_PlayingQuest: missing body object"))?; ConditionData_PlayingQuestPayload::write_from_json_dict(w, body)?; }
+            77 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_PlayingMission: missing body object"))?; ConditionData_PlayingMissionPayload::write_from_json_dict(w, body)?; }
+            78 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_StartStage: missing body object"))?; ConditionData_StartStagePayload::write_from_json_dict(w, body)?; }
+            79 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_StartQuest: missing body object"))?; ConditionData_StartQuestPayload::write_from_json_dict(w, body)?; }
+            80 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_StartMission: missing body object"))?; ConditionData_StartMissionPayload::write_from_json_dict(w, body)?; }
+            81 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_QuestGaugePercent: missing body object"))?; ConditionData_QuestGaugePercentPayload::write_from_json_dict(w, body)?; }
+            82 => {}
+            83 => {}
+            84 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDistanceToPlayer: missing body object"))?; ConditionData_CheckDistanceToPlayerPayload::write_from_json_dict(w, body)?; }
+            85 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDistanceHorizontalToTarget: missing body object"))?; ConditionData_CheckDistanceHorizontalToTargetPayload::write_from_json_dict(w, body)?; }
+            86 => {}
+            87 => {}
+            88 => {}
+            89 => {}
+            90 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_WantedLevel: missing body object"))?; ConditionData_WantedLevelPayload::write_from_json_dict(w, body)?; }
+            91 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckWantedPrice: missing body object"))?; ConditionData_CheckWantedPricePayload::write_from_json_dict(w, body)?; }
+            92 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipType_OrTag92: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            93 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_WantedState: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            94 => {}
+            95 => {}
+            96 => {}
+            97 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckInteractionByInteractionKey: missing body object"))?; ConditionData_CheckInteractionByInteractionKeyPayload::write_from_json_dict(w, body)?; }
+            98 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAllyGroup: missing body object"))?; ConditionData_CheckAllyGroupPayload::write_from_json_dict(w, body)?; }
+            99 => {}
+            100 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickState: missing body object"))?; ConditionData_CheckGimmickStatePayload::write_from_json_dict(w, body)?; }
+            101 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_DockingGimmickState: missing body object"))?; ConditionData_DockingGimmickStatePayload::write_from_json_dict(w, body)?; }
+            102 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_OtherDockingGimmickState: missing body object"))?; ConditionData_OtherDockingGimmickStatePayload::write_from_json_dict(w, body)?; }
+            103 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickImpulsePower: missing body object"))?; ConditionData_CheckGimmickImpulsePowerPayload::write_from_json_dict(w, body)?; }
+            104 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetDataDefinedRegenerateStatPercent: missing body object"))?; ConditionData_GetDataDefinedRegenerateStatPercentPayload::write_from_json_dict(w, body)?; }
+            105 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetBreakableObjectHpPercent: missing body object"))?; ConditionData_GetBreakableObjectHpPercentPayload::write_from_json_dict(w, body)?; }
+            106 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetElementalGoalStat: missing body object"))?; ConditionData_GetElementalGoalStatPayload::write_from_json_dict(w, body)?; }
+            107 => {}
+            108 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveItemGroup: missing body object"))?; ConditionData_CheckHaveItemGroupPayload::write_from_json_dict(w, body)?; }
+            109 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveItemGroupPrice: missing body object"))?; ConditionData_CheckHaveItemGroupPricePayload::write_from_json_dict(w, body)?; }
+            110 => {}
+            111 => {}
+            112 => {}
+            113 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTag: missing body object"))?; OneCStringBodyPayload::write_from_json_dict(w, body)?; }
+            114 => {}
+            115 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCatcheeGimmickTag: missing body object"))?; OneCStringBodyPayload::write_from_json_dict(w, body)?; }
+            116 => {}
+            117 => {}
+            118 => {}
+            119 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckInteractionSocketBoneName: missing body object"))?; ConditionData_CheckInteractionSocketBoneNamePayload::write_from_json_dict(w, body)?; }
+            120 => {}
+            121 => {}
+            122 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSequencerVariable: missing body object"))?; ConditionData_CheckSequencerVariablePayload::write_from_json_dict(w, body)?; }
+            123 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAmmoItemKey: missing body object"))?; ConditionData_CheckAmmoItemKeyPayload::write_from_json_dict(w, body)?; }
+            124 => {}
+            125 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSpecialMode: missing body object"))?; ConditionData_CheckSpecialModePayload::write_from_json_dict(w, body)?; }
+            126 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_SpecialModeKey: missing body object"))?; ConditionData_SpecialModeKeyPayload::write_from_json_dict(w, body)?; }
+            127 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInRegion: missing body object"))?; ConditionData_IsInRegionPayload::write_from_json_dict(w, body)?; }
+            128 => {}
+            129 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsAboveRoad: missing body object"))?; ConditionData_IsAboveRoadPayload::write_from_json_dict(w, body)?; }
+            130 => {}
+            131 => {}
+            132 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTargetable: missing body object"))?; ConditionData_CheckTargetablePayload::write_from_json_dict(w, body)?; }
+            133 => {}
+            134 => {}
+            135 => {}
+            136 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckInventorySlotFreeCount: missing body object"))?; ConditionData_CheckInventorySlotFreeCountPayload::write_from_json_dict(w, body)?; }
+            137 => {}
+            138 => {}
+            139 => {}
+            140 => {}
+            141 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickEventParamString: missing body object"))?; ConditionData_CheckGimmickEventParamStringPayload::write_from_json_dict(w, body)?; }
+            142 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickEventParamFloat: missing body object"))?; ConditionData_CheckGimmickEventParamFloatPayload::write_from_json_dict(w, body)?; }
+            143 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickEventParamInt: missing body object"))?; ConditionData_CheckGimmickEventParamIntPayload::write_from_json_dict(w, body)?; }
+            144 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickEventParamAngle: missing body object"))?; ConditionData_CheckGimmickEventParamAnglePayload::write_from_json_dict(w, body)?; }
+            145 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCCType: missing body object"))?; ConditionData_CheckCCTypePayload::write_from_json_dict(w, body)?; }
+            146 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckField: missing body object"))?; ConditionData_CheckFieldPayload::write_from_json_dict(w, body)?; }
+            147 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsTarget: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            148 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFriendly: missing body object"))?; ConditionData_GetFriendlyPayload::write_from_json_dict(w, body)?; }
+            149 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFriendlyLevel: missing body object"))?; ConditionData_CheckFriendlyLevelPayload::write_from_json_dict(w, body)?; }
+            150 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFactionfriendly: missing body object"))?; ConditionData_GetFactionfriendlyPayload::write_from_json_dict(w, body)?; }
+            151 => {}
+            152 => {}
+            153 => {}
+            154 => {}
+            155 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipItemGroup: missing body object"))?; ConditionData_CheckEquipItemGroupPayload::write_from_json_dict(w, body)?; }
+            156 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckLoadingStep: missing body object"))?; ConditionData_CheckLoadingStepPayload::write_from_json_dict(w, body)?; }
+            157 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickEventSenderName: missing body object"))?; ConditionData_CheckGimmickEventSenderNamePayload::write_from_json_dict(w, body)?; }
+            158 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGetItem: missing body object"))?; ConditionData_CheckGetItemPayload::write_from_json_dict(w, body)?; }
+            159 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSealActor: missing body object"))?; ConditionData_CheckSealActorPayload::write_from_json_dict(w, body)?; }
+            160 => {}
+            161 => {}
+            162 => {}
+            163 => {}
+            164 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAttachedGimmickCount: missing body object"))?; ConditionData_CheckAttachedGimmickCountPayload::write_from_json_dict(w, body)?; }
+            165 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRemoteCatchTarget: missing body object"))?; ConditionData_CheckRemoteCatchTargetPayload::write_from_json_dict(w, body)?; }
+            166 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRemoteCatchTargetItemKey: missing body object"))?; ConditionData_CheckRemoteCatchTargetItemKeyPayload::write_from_json_dict(w, body)?; }
+            167 => {}
+            168 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickEvent: missing body object"))?; ConditionData_CheckGimmickEventPayload::write_from_json_dict(w, body)?; }
+            169 => {}
+            170 => {}
+            171 => {}
+            172 => {}
+            173 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckStageChartDialogEnd: missing body object"))?; ConditionData_CheckStageChartDialogEndPayload::write_from_json_dict(w, body)?; }
+            174 => {}
+            175 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTarget: missing body object"))?; ConditionData_CheckGimmickTargetPayload::write_from_json_dict(w, body)?; }
+            176 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetGimmickVariable: missing body object"))?; ConditionData_GetGimmickVariablePayload::write_from_json_dict(w, body)?; }
+            177 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetRandomPercentBySpawnPositionSeed: missing body object"))?; ConditionData_GetRandomPercentBySpawnPositionSeedPayload::write_from_json_dict(w, body)?; }
+            178 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckStoreType: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            179 => {}
+            180 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckNpcFunctionType: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            181 => {}
+            182 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_SubTimelineName: missing body object"))?; ConditionData_SubTimelineNamePayload::write_from_json_dict(w, body)?; }
+            183 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_ExistTimeline: missing body object"))?; ConditionData_ExistTimelinePayload::write_from_json_dict(w, body)?; }
+            184 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_ExistFolder: missing body object"))?; ConditionData_ExistFolderPayload::write_from_json_dict(w, body)?; }
+            185 => {}
+            186 => {}
+            187 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckReserveItemSlotOut: missing body object"))?; ConditionData_CheckReserveItemSlotOutPayload::write_from_json_dict(w, body)?; }
+            188 => {}
+            189 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickItemKey: missing body object"))?; ConditionData_CheckGimmickItemKeyPayload::write_from_json_dict(w, body)?; }
+            190 => {}
+            191 => {}
+            192 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMainMercenarySummoned: missing body object"))?; ConditionData_CheckMainMercenarySummonedPayload::write_from_json_dict(w, body)?; }
+            193 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMainMercenaryNearToLeader: missing body object"))?; ConditionData_CheckMainMercenaryNearToLeaderPayload::write_from_json_dict(w, body)?; }
+            194 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMainMercenaryHaveItemGroupPrice: missing body object"))?; ConditionData_CheckMainMercenaryHaveItemGroupPricePayload::write_from_json_dict(w, body)?; }
+            195 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveMercenary: missing body object"))?; ConditionData_CheckHaveMercenaryPayload::write_from_json_dict(w, body)?; }
+            196 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveVehicle: missing body object"))?; ConditionData_CheckHaveVehiclePayload::write_from_json_dict(w, body)?; }
+            197 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickImpulseWhereType: missing body object"))?; ConditionData_CheckGimmickImpulseWhereTypePayload::write_from_json_dict(w, body)?; }
+            198 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckElementalMaterialStateSuccess: missing body object"))?; ConditionData_CheckElementalMaterialStateSuccessPayload::write_from_json_dict(w, body)?; }
+            199 => {}
+            200 => {}
+            201 => {}
+            202 => {}
+            203 => {}
+            204 => {}
+            205 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTriggerVolumeGroupIndex: missing body object"))?; ConditionData_CheckTriggerVolumeGroupIndexPayload::write_from_json_dict(w, body)?; }
+            206 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Weather: missing body object"))?; ConditionData_WeatherPayload::write_from_json_dict(w, body)?; }
+            207 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickParentLinkCount: missing body object"))?; ConditionData_CheckGimmickParentLinkCountPayload::write_from_json_dict(w, body)?; }
+            208 => {}
+            209 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTriggerCount: missing body object"))?; ConditionData_CheckGimmickTriggerCountPayload::write_from_json_dict(w, body)?; }
+            210 => {}
+            211 => {}
+            212 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTargetCount: missing body object"))?; ConditionData_CheckGimmickTargetCountPayload::write_from_json_dict(w, body)?; }
+            213 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickNonBreakTargetCount: missing body object"))?; ConditionData_CheckGimmickNonBreakTargetCountPayload::write_from_json_dict(w, body)?; }
+            214 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckExistStealItem: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            215 => {}
+            216 => {}
+            217 => {}
+            218 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsFullGimmickTriggerEnteredTarget: missing body object"))?; ConditionData_IsFullGimmickTriggerEnteredTargetPayload::write_from_json_dict(w, body)?; }
+            219 => {}
+            220 => {}
+            221 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAttackImpulseLevel: missing body object"))?; ConditionData_CheckAttackImpulseLevelPayload::write_from_json_dict(w, body)?; }
+            222 => {}
+            223 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSpawnReason: missing body object"))?; ConditionData_CheckSpawnReasonPayload::write_from_json_dict(w, body)?; }
+            224 => {}
+            225 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckNearestTriggerTargetDistance: missing body object"))?; ConditionData_CheckNearestTriggerTargetDistancePayload::write_from_json_dict(w, body)?; }
+            226 => {}
+            227 => {}
+            228 => {}
+            229 => {}
+            230 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGlobalStageSequencerExit: missing body object"))?; ConditionData_CheckGlobalStageSequencerExitPayload::write_from_json_dict(w, body)?; }
+            231 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSealable: missing body object"))?; ConditionData_CheckSealablePayload::write_from_json_dict(w, body)?; }
+            232 => {}
+            233 => {}
+            234 => {}
+            235 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckExistGimmickPoint: missing body object"))?; ConditionData_CheckExistGimmickPointPayload::write_from_json_dict(w, body)?; }
+            236 => {}
+            237 => {}
+            238 => {}
+            239 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetCombinationRootVariable: missing body object"))?; ConditionData_GetCombinationRootVariablePayload::write_from_json_dict(w, body)?; }
+            240 => {}
+            241 => {}
+            242 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckOriginalGimmickLength: missing body object"))?; ConditionData_CheckOriginalGimmickLengthPayload::write_from_json_dict(w, body)?; }
+            243 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickPhysicsVolumeLength: missing body object"))?; ConditionData_CheckGimmickPhysicsVolumeLengthPayload::write_from_json_dict(w, body)?; }
+            244 => {}
+            245 => {}
+            246 => {}
+            247 => {}
+            248 => {}
+            249 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckBuffTag: missing body object"))?; ConditionData_CheckBuffTagPayload::write_from_json_dict(w, body)?; }
+            250 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRidingVehicleType: missing body object"))?; ConditionData_CheckRidingVehicleTypePayload::write_from_json_dict(w, body)?; }
+            251 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRidingVehicleKey: missing body object"))?; ConditionData_CheckRidingVehicleKeyPayload::write_from_json_dict(w, body)?; }
+            252 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRidingVehicleKeyList: missing body object"))?; ConditionData_CheckRidingVehicleKeyListPayload::write_from_json_dict(w, body)?; }
+            253 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckThreatReward: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            254 => {}
+            255 => {}
+            256 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Macro: missing body object"))?; ConditionData_MacroPayload::write_from_json_dict(w, body)?; }
+            257 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetAngularVelocity: missing body object"))?; ConditionData_GetAngularVelocityPayload::write_from_json_dict(w, body)?; }
+            258 => {}
+            259 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPlayerCameraLookAtAngle: missing body object"))?; ConditionData_CheckPlayerCameraLookAtAnglePayload::write_from_json_dict(w, body)?; }
+            260 => {}
+            261 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDamageElementalType: missing body object"))?; ConditionData_CheckDamageElementalTypePayload::write_from_json_dict(w, body)?; }
+            262 => {}
+            263 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CharacterTier: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            264 => {}
+            265 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFactionNodeState: missing body object"))?; ConditionData_GetFactionNodeStatePayload::write_from_json_dict(w, body)?; }
+            266 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetCurrentFactionNodeState: missing body object"))?; ConditionData_GetCurrentFactionNodeStatePayload::write_from_json_dict(w, body)?; }
+            267 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsFactionNodeKnockDown: missing body object"))?; ConditionData_IsFactionNodeKnockDownPayload::write_from_json_dict(w, body)?; }
+            268 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFactionNodeBlockSubType: missing body object"))?; ConditionData_GetFactionNodeBlockSubTypePayload::write_from_json_dict(w, body)?; }
+            269 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFactionResource: missing body object"))?; ConditionData_GetFactionResourcePayload::write_from_json_dict(w, body)?; }
+            270 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsFactionNodeMissionGaugeEnable: missing body object"))?; ConditionData_IsFactionNodeMissionGaugeEnablePayload::write_from_json_dict(w, body)?; }
+            271 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCharacterGroupKey: missing body object"))?; ConditionData_CheckCharacterGroupKeyPayload::write_from_json_dict(w, body)?; }
+            272 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GameEventParam: missing body object"))?; ConditionData_GameEventParamPayload::write_from_json_dict(w, body)?; }
+            273 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFactionRelation: missing body object"))?; ConditionData_CheckFactionRelationPayload::write_from_json_dict(w, body)?; }
+            274 => {}
+            275 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRide: missing body object"))?; ConditionData_CheckRidePayload::write_from_json_dict(w, body)?; }
+            276 => {}
+            277 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckImpulseDirection: missing body object"))?; ConditionData_CheckImpulseDirectionPayload::write_from_json_dict(w, body)?; }
+            278 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetGimmickRotationFromSpawn: missing body object"))?; ConditionData_GetGimmickRotationFromSpawnPayload::write_from_json_dict(w, body)?; }
+            279 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_SkillTreeNodeLearnable: missing body object"))?; ConditionData_SkillTreeNodeLearnablePayload::write_from_json_dict(w, body)?; }
+            280 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFactionKey: missing body object"))?; ConditionData_CheckFactionKeyPayload::write_from_json_dict(w, body)?; }
+            281 => {}
+            282 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckConquerorFaction: missing body object"))?; ConditionData_CheckConquerorFactionPayload::write_from_json_dict(w, body)?; }
+            283 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPositionOwnerFaction: missing body object"))?; ConditionData_CheckPositionOwnerFactionPayload::write_from_json_dict(w, body)?; }
+            284 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCharacterItemSocket: missing body object"))?; ConditionData_CheckCharacterItemSocketPayload::write_from_json_dict(w, body)?; }
+            285 => {}
+            286 => {}
+            287 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInSpecialModeStage: missing body object"))?; OneU32BodyPayload::write_from_json_dict(w, body)?; }
+            288 => {}
+            289 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetInventoryWeightLevel: missing body object"))?; ConditionData_GetInventoryWeightLevelPayload::write_from_json_dict(w, body)?; }
+            290 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckReserveSlot: missing body object"))?; ConditionData_CheckReserveSlotPayload::write_from_json_dict(w, body)?; }
+            291 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCanSupplyToRoyal: missing body object"))?; ConditionData_CheckCanSupplyToRoyalPayload::write_from_json_dict(w, body)?; }
+            292 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRoyalSupplyOpen: missing body object"))?; ConditionData_CheckRoyalSupplyOpenPayload::write_from_json_dict(w, body)?; }
+            293 => {}
+            294 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetEquipGimmickItemUsableCount: missing body object"))?; ConditionData_GetEquipGimmickItemUsableCountPayload::write_from_json_dict(w, body)?; }
+            295 => {}
+            296 => {}
+            297 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTargetHackable: missing body object"))?; ConditionData_CheckGimmickTargetHackablePayload::write_from_json_dict(w, body)?; }
+            298 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsHackable: missing body object"))?; ConditionData_IsHackablePayload::write_from_json_dict(w, body)?; }
+            299 => {}
+            300 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAttackName: missing body object"))?; OneU32BodyPayload::write_from_json_dict(w, body)?; }
+            301 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAttackFromType: missing body object"))?; ConditionData_CheckAttackFromTypePayload::write_from_json_dict(w, body)?; }
+            302 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickAngleToTarget: missing body object"))?; ConditionData_CheckGimmickAngleToTargetPayload::write_from_json_dict(w, body)?; }
+            303 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSpawnPositionRegion: missing body object"))?; ConditionData_CheckSpawnPositionRegionPayload::write_from_json_dict(w, body)?; }
+            304 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsGamePlayLevelGimmick: missing body object"))?; ConditionData_IsGamePlayLevelGimmickPayload::write_from_json_dict(w, body)?; }
+            305 => {}
+            306 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCompleteLevelGimmick: missing body object"))?; ConditionData_CheckCompleteLevelGimmickPayload::write_from_json_dict(w, body)?; }
+            307 => {}
+            308 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckShareValue: missing body object"))?; ConditionData_CheckShareValuePayload::write_from_json_dict(w, body)?; }
+            309 => {}
+            310 => {}
+            311 => {}
+            312 => {}
+            313 => {}
+            314 => {}
+            315 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetCurrentSubLevel: missing body object"))?; ConditionData_GetCurrentSubLevelPayload::write_from_json_dict(w, body)?; }
+            316 => {}
+            317 => {}
+            318 => {}
+            319 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_DockingChildTagCount: missing body object"))?; ConditionData_DockingChildTagCountPayload::write_from_json_dict(w, body)?; }
+            320 => {}
+            321 => {}
+            322 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInteractable: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            323 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckVehicleType: missing body object"))?; ConditionData_CheckVehicleTypePayload::write_from_json_dict(w, body)?; }
+            324 => {}
+            325 => {}
+            326 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_LostActor: missing body object"))?; ConditionData_LostActorPayload::write_from_json_dict(w, body)?; }
+            327 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_LostGimmick: missing body object"))?; ConditionData_LostGimmickPayload::write_from_json_dict(w, body)?; }
+            328 => {}
+            329 => {}
+            330 => {}
+            331 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetMinigameSeed: missing body object"))?; ConditionData_GetMinigameSeedPayload::write_from_json_dict(w, body)?; }
+            332 => {}
+            333 => {}
+            334 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsDockingGimmickTerrainRegionSummonable: missing body object"))?; ConditionData_IsDockingGimmickTerrainRegionSummonablePayload::write_from_json_dict(w, body)?; }
+            335 => {}
+            336 => {}
+            337 => {}
+            338 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDropSetDropable: missing body object"))?; ConditionData_CheckDropSetDropablePayload::write_from_json_dict(w, body)?; }
+            339 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFactionResearchProgress: missing body object"))?; ConditionData_GetFactionResearchProgressPayload::write_from_json_dict(w, body)?; }
+            340 => {}
+            341 => {}
+            342 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_HasQuestDialog: missing body object"))?; ConditionData_HasQuestDialogPayload::write_from_json_dict(w, body)?; }
+            343 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckQuestDialogCategory: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            344 => {}
+            345 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTarget: missing body object"))?; ConditionData_CheckTargetPayload::write_from_json_dict(w, body)?; }
+            346 => {}
+            347 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFertilizerAmountPercent: missing body object"))?; ConditionData_GetFertilizerAmountPercentPayload::write_from_json_dict(w, body)?; }
+            348 => {}
+            349 => {}
+            350 => {}
+            351 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipType_OrTag351: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            352 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetCampDonatedItemCount: missing body object"))?; ConditionData_GetCampDonatedItemCountPayload::write_from_json_dict(w, body)?; }
+            353 => {}
+            354 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsCharacter: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            355 => {}
+            356 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsTargetOfOperatorDockingGimmick: missing body object"))?; ConditionData_IsTargetOfOperatorDockingGimmickPayload::write_from_json_dict(w, body)?; }
+            357 => {}
+            358 => {}
+            359 => {}
+            360 => {}
+            361 => {}
+            362 => {}
+            363 => {}
+            364 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInRegionTag: missing body object"))?; ConditionData_IsInRegionTagPayload::write_from_json_dict(w, body)?; }
+            365 => {}
+            366 => {}
+            367 => {}
+            368 => {}
+            369 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInGlobalGameEventArea: missing body object"))?; ConditionData_IsInGlobalGameEventAreaPayload::write_from_json_dict(w, body)?; }
+            370 => {}
+            371 => {}
+            372 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentGlobalGameEvent: missing body object"))?; ConditionData_CheckCurrentGlobalGameEventPayload::write_from_json_dict(w, body)?; }
+            373 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGamePlayVariable: missing body object"))?; ConditionData_CheckGamePlayVariablePayload::write_from_json_dict(w, body)?; }
+            374 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsSpawnOwner: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            375 => {}
+            376 => {}
+            377 => {}
+            378 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetInventorySlotFillPercent: missing body object"))?; ConditionData_GetInventorySlotFillPercentPayload::write_from_json_dict(w, body)?; }
+            379 => {}
+            380 => {}
+            381 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_MiniGameWin: missing body object"))?; ConditionData_MiniGameWinPayload::write_from_json_dict(w, body)?; }
+            382 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_MiniGameRound: missing body object"))?; ConditionData_MiniGameRoundPayload::write_from_json_dict(w, body)?; }
+            383 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_MiniGameWinningStreak: missing body object"))?; ConditionData_MiniGameWinningStreakPayload::write_from_json_dict(w, body)?; }
+            384 => {}
+            385 => {}
+            386 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMainMercenaryBlockedAbility: missing body object"))?; ConditionData_CheckMainMercenaryBlockedAbilityPayload::write_from_json_dict(w, body)?; }
+            387 => {}
+            388 => {}
+            389 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetNodeCombatPower: missing body object"))?; ConditionData_GetNodeCombatPowerPayload::write_from_json_dict(w, body)?; }
+            390 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_ReserveSlotItemCount: missing body object"))?; ConditionData_ReserveSlotItemCountPayload::write_from_json_dict(w, body)?; }
+            391 => {}
+            392 => {}
+            393 => {}
+            394 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFactionWantedLevel: missing body object"))?; ConditionData_CheckFactionWantedLevelPayload::write_from_json_dict(w, body)?; }
+            395 => {}
+            396 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMercenaryCallCooltime: missing body object"))?; ConditionData_CheckMercenaryCallCooltimePayload::write_from_json_dict(w, body)?; }
+            397 => {}
+            398 => {}
+            399 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckInventoryMaxSlotCount: missing body object"))?; ConditionData_CheckInventoryMaxSlotCountPayload::write_from_json_dict(w, body)?; }
+            400 => {}
+            401 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetDifficultyOption: missing body object"))?; ConditionData_GetDifficultyOptionPayload::write_from_json_dict(w, body)?; }
+            402 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetMaxWantedLevel: missing body object"))?; ConditionData_GetMaxWantedLevelPayload::write_from_json_dict(w, body)?; }
+            403 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPlayerHouse: missing body object"))?; ConditionData_CheckPlayerHousePayload::write_from_json_dict(w, body)?; }
+            404 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActivatedHousingRegion: missing body object"))?; ConditionData_CheckActivatedHousingRegionPayload::write_from_json_dict(w, body)?; }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("ConditionDataVariant: unknown disc {}", other))),
+        }
+        Ok(())
+    }
+
+
 
     pub fn read_from(disc: u16, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match disc {
@@ -4049,26 +4888,17 @@ impl<'a> ConditionData<'a> {
 
     /// JSON shape:
     /// - `base`: { tag: u16 }
-    /// - `variant_type`: human-readable variant name, e.g.
-    ///   "ConditionData_GetLevel" (informational; round-trip uses
-    ///   `base.tag` as the discriminator on the way back).
-    /// - `variant_payload_b64`: base64 of just the variant body bytes
-    ///   (per-variant field-level JSON for the 405-variant family is a
-    ///   future rollout — body stays as base64 until then so round-trip
-    ///   is byte-perfect).
+    /// - `variant`: { type: variant_name, body?: typed dict } —
+    ///   per-variant typed JSON via ConditionDataVariant::to_json_value.
+    ///   `body` is present only for payload-bearing variants (218 of
+    ///   the 405); pure-discriminator variants emit just `{type}`.
     /// - `option_block`: { option_present, option_data: {...} | null } | null
     ///   (null when the tag's vtable[19] is the no-op, i.e.
     ///   `variant_skips_option_block` returns true).
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("base".into(), Value::Object(self.base.to_json_dict()));
-        m.insert(
-            "variant_type".into(),
-            Value::String(self.variant.variant_name().to_string()),
-        );
-        let mut variant_buf = Vec::new();
-        self.variant.write_to(&mut variant_buf).expect("write_to Vec");
-        m.insert("variant_payload_b64".into(), Value::String(B64.encode(&variant_buf)));
+        m.insert("variant".into(), self.variant.to_json_value());
         m.insert(
             "option_block".into(),
             match &self.option_block {
@@ -4084,21 +4914,17 @@ impl<'a> ConditionData<'a> {
         let base_obj = base_v.as_object().ok_or_else(|| {
             io::Error::new(io::ErrorKind::InvalidData, "ConditionData.base: expected object")
         })?;
+        let tag = json_get_field(base_obj, "tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ConditionData.base.tag: expected u16"))?;
+        if tag > u16::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("ConditionData.base.tag: {} out of u16 range", tag)));
+        }
         ConditionDataBase::write_from_json_dict(w, base_obj)?;
-        let payload_v = json_get_field(obj, "variant_payload_b64")?;
-        let payload_str = payload_v.as_str().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "ConditionData.variant_payload_b64: expected base64 string",
-            )
-        })?;
-        let payload_bytes = B64.decode(payload_str).map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("ConditionData.variant_payload_b64: invalid base64: {}", e),
-            )
-        })?;
-        w.extend_from_slice(&payload_bytes);
+        let variant_v = json_get_field(obj, "variant")?;
+        ConditionDataVariant::write_from_json(tag as u16, w, variant_v)?;
         let opt_v = json_get_field(obj, "option_block")?;
         match opt_v {
             Value::Null => {}
