@@ -2793,6 +2793,133 @@ impl<'a> BuffDataVariant<'a> {
         }
     }
 
+    /// Returns the variant's enum name as a string.
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            Self::DamageBuffData(_) => "DamageBuffData",
+            Self::VaryRegenerateValueBuffData(_) => "VaryRegenerateValueBuffData",
+            Self::VaryCollectDropRateBuffData(_) => "VaryCollectDropRateBuffData",
+            Self::VaryStaticStatBuffData(_) => "VaryStaticStatBuffData",
+            Self::VaryStaticStatLevelBuffData(_) => "VaryStaticStatLevelBuffData",
+            Self::VaryStatBuffData(_) => "VaryStatBuffData",
+            Self::VaryStatMaxValueBuffData(_) => "VaryStatMaxValueBuffData",
+            Self::VaryStaticStatRateBuffData(_) => "VaryStaticStatRateBuffData",
+            Self::VaryStatRateBuffData(_) => "VaryStatRateBuffData",
+            Self::StatusExpBuffData(_) => "StatusExpBuffData",
+            Self::SummonBuffData(_) => "SummonBuffData",
+            Self::LootBuffData(_) => "LootBuffData",
+            Self::VaryDataDefinedStatBuffData(_) => "VaryDataDefinedStatBuffData",
+            Self::VaryDataDefinedStatNeedUnapplyBuffData(_) => "VaryDataDefinedStatNeedUnapplyBuffData",
+            Self::VaryDataDefinedRegenerateValueBuffData(_) => "VaryDataDefinedRegenerateValueBuffData",
+            Self::RemoveAggroBuffData(_) => "RemoveAggroBuffData",
+            Self::VoidActiveBuffData => "VoidActiveBuffData",
+            Self::VoidPassiveBuffData => "VoidPassiveBuffData",
+            Self::VaryDataDefinedStatMinValueBuffData(_) => "VaryDataDefinedStatMinValueBuffData",
+            Self::VaryDataDefinedStatMaxValueBuffData(_) => "VaryDataDefinedStatMaxValueBuffData",
+            Self::ElementalAreaBuffData(_) => "ElementalAreaBuffData",
+            Self::VaryElementalStatBuffData(_) => "VaryElementalStatBuffData",
+            Self::SetElementalStatBuffData(_) => "SetElementalStatBuffData",
+            Self::AdditionalGoalElementalStatBuffData(_) => "AdditionalGoalElementalStatBuffData",
+            Self::ChangeElementalStatSpeedBuffData(_) => "ChangeElementalStatSpeedBuffData",
+            Self::DisableElementalMaterialStateBuffData(_) => "DisableElementalMaterialStateBuffData",
+            Self::ChangeMaterialKeyBuffData(_) => "ChangeMaterialKeyBuffData",
+            Self::ClothGravityBuffData(_) => "ClothGravityBuffData",
+            Self::WeatherEffectBuffData(_) => "WeatherEffectBuffData",
+            Self::VaryDefenceValueBuffData(_) => "VaryDefenceValueBuffData",
+            Self::DefenceBuffData(_) => "DefenceBuffData",
+            Self::AggroBuffData(_) => "AggroBuffData",
+            Self::DamagedActionRestrictionBuffData(_) => "DamagedActionRestrictionBuffData",
+            Self::BuffedActionRestrictionBuffData(_) => "BuffedActionRestrictionBuffData",
+            Self::BuffedActionRestrictionPassiveBuffData(_) => "BuffedActionRestrictionPassiveBuffData",
+            Self::ReleaseBuffedActionRestrictionBuffData(_) => "ReleaseBuffedActionRestrictionBuffData",
+            Self::PlaySequencerBuffData(_) => "PlaySequencerBuffData",
+            Self::ImmuneBuffData(_) => "ImmuneBuffData",
+            Self::ApplyPhysicsImpulseBuffData(_) => "ApplyPhysicsImpulseBuffData",
+            Self::ChangeAllyGroupBuffData(_) => "ChangeAllyGroupBuffData",
+            Self::PlayerAllyBuffData => "PlayerAllyBuffData",
+            Self::DisableObstacleBuffData => "DisableObstacleBuffData",
+            Self::RideLimitBuffData => "RideLimitBuffData",
+            Self::ChangeFactionBuffData(_) => "ChangeFactionBuffData",
+            Self::SetGimmickComponentParameterBoolBuffData(_) => "SetGimmickComponentParameterBoolBuffData",
+            Self::SummonGimmickBuffData(_) => "SummonGimmickBuffData",
+            Self::SendGimmickEventBuffData(_) => "SendGimmickEventBuffData",
+            Self::DetachEquipItemBuffData(_) => "DetachEquipItemBuffData",
+            Self::DisableThrowEquipItemBuffData => "DisableThrowEquipItemBuffData",
+            Self::VaryEquipItemEnduranceBuffData(_) => "VaryEquipItemEnduranceBuffData",
+            Self::VaryDataDefinedStatRateBuffData(_) => "VaryDataDefinedStatRateBuffData",
+            Self::InstantDeathBuffData(_) => "InstantDeathBuffData",
+            Self::DeadReasonBuffData(_) => "DeadReasonBuffData",
+            Self::VaryDataDefinedStatOtherDataDefineStatBuffData(_) => "VaryDataDefinedStatOtherDataDefineStatBuffData",
+            Self::VarySkillDamagePercentStatBuffData(_) => "VarySkillDamagePercentStatBuffData",
+            Self::VaryStatOverMaxValueBuffData(_) => "VaryStatOverMaxValueBuffData",
+            Self::VaryDataDefinedStatOverMaxValueBuffData(_) => "VaryDataDefinedStatOverMaxValueBuffData",
+            Self::DecreaseEquipItemEnduranceByPercentBuffData(_) => "DecreaseEquipItemEnduranceByPercentBuffData",
+            Self::SetStatRateBuffData(_) => "SetStatRateBuffData",
+            Self::SetStatMinRateBuffData(_) => "SetStatMinRateBuffData",
+            Self::ChangeWeatherBuffData(_) => "ChangeWeatherBuffData",
+            Self::PlaySoundBuffData(_) => "PlaySoundBuffData",
+            Self::ChangeCombinationBuffData(_) => "ChangeCombinationBuffData",
+            Self::RegisterConditionSkillBuffData(_) => "RegisterConditionSkillBuffData",
+            Self::DetectPenaltyBuffData(_) => "DetectPenaltyBuffData",
+            Self::StealthBuffData(_) => "StealthBuffData",
+            Self::SwitchSpecialModeBuffData(_) => "SwitchSpecialModeBuffData",
+            Self::AddExperienceBuffData(_) => "AddExperienceBuffData",
+            Self::RelationConvertBuffData(_) => "RelationConvertBuffData",
+            Self::WarningSensorBuffData => "WarningSensorBuffData",
+            Self::DampMovementBuffData(_) => "DampMovementBuffData",
+            Self::ChangeDetectReactionBuffData(_) => "ChangeDetectReactionBuffData",
+            Self::ChangeBattleOrderTypeBuffData(_) => "ChangeBattleOrderTypeBuffData",
+            Self::VaryForceFieldStatBuffData(_) => "VaryForceFieldStatBuffData",
+            Self::PlayerSensibleBuffData => "PlayerSensibleBuffData",
+            Self::AddSubLevelBuffData(_) => "AddSubLevelBuffData",
+            Self::ChangeElementalMaterialBuffData(_) => "ChangeElementalMaterialBuffData",
+            Self::DisableDetectingBuffData => "DisableDetectingBuffData",
+            Self::ChangeDetectDistanceBuffData(_) => "ChangeDetectDistanceBuffData",
+            Self::ViewerDetectPenaltyBuffData(_) => "ViewerDetectPenaltyBuffData",
+            Self::ChangeBuffLevelBuffData(_) => "ChangeBuffLevelBuffData",
+            Self::SkinnedDecalBuffData(_) => "SkinnedDecalBuffData",
+            Self::ChangeAnimationSpeedBuffData(_) => "ChangeAnimationSpeedBuffData",
+            Self::ActivateUpdateFuelBuffData(_) => "ActivateUpdateFuelBuffData",
+            Self::LimitBuffLevelBuffData(_) => "LimitBuffLevelBuffData",
+            Self::BlockCrimeBuffData(_) => "BlockCrimeBuffData",
+            Self::BlockCrimeNPCBuffData => "BlockCrimeNPCBuffData",
+            Self::GameAudioEffectBuffData(_) => "GameAudioEffectBuffData",
+            Self::MeditationKnowledgeBuffData(_) => "MeditationKnowledgeBuffData",
+            Self::ClimbSlipBuffData(_) => "ClimbSlipBuffData",
+            Self::DetectBrightnessBuffData(_) => "DetectBrightnessBuffData",
+            Self::ChangeEquipItemEnduranceBuffData(_) => "ChangeEquipItemEnduranceBuffData",
+            Self::HackingBuffData => "HackingBuffData",
+            Self::VaryMaxExpandInventorySlotBuffData(_) => "VaryMaxExpandInventorySlotBuffData",
+            Self::BlockRegenerateStatBuffData(_) => "BlockRegenerateStatBuffData",
+            Self::ProjectileBuffData(_) => "ProjectileBuffData",
+            Self::ConsumeSpawnerMercenaryBuffData(_) => "ConsumeSpawnerMercenaryBuffData",
+            Self::RegisterQuickSlotSkillBuffData(_) => "RegisterQuickSlotSkillBuffData",
+            Self::VaryStatMaxValueRateBuffData(_) => "VaryStatMaxValueRateBuffData",
+            Self::TriggerVolumeBuffData(_) => "TriggerVolumeBuffData",
+            Self::RegisterItemSellPriceRateBuffData(_) => "RegisterItemSellPriceRateBuffData",
+            Self::RegisterCrimePriceRateBuffData(_) => "RegisterCrimePriceRateBuffData",
+            Self::RegisterFactionOperationRewardRateBuffData(_) => "RegisterFactionOperationRewardRateBuffData",
+            Self::LogoutTimeDropSetKeyBuffData(_) => "LogoutTimeDropSetKeyBuffData",
+            Self::AddPercentInGameContentsBuffData(_) => "AddPercentInGameContentsBuffData",
+            Self::VaryCustomIntInGameContentsBuffData(_) => "VaryCustomIntInGameContentsBuffData",
+            Self::TribeAdditionalDamageRateBuffData(_) => "TribeAdditionalDamageRateBuffData",
+            Self::AdditionalBreakingImpulseDamageBuffData(_) => "AdditionalBreakingImpulseDamageBuffData",
+            Self::UpdateShareValueBuffData(_) => "UpdateShareValueBuffData",
+            Self::AddDamageBonusFromComboBuffData(_) => "AddDamageBonusFromComboBuffData",
+            Self::ConvertOtherStatBuffData(_) => "ConvertOtherStatBuffData",
+            Self::IgnoreUseResourceStatBuffData(_) => "IgnoreUseResourceStatBuffData",
+            Self::BlockAbilityBuffData => "BlockAbilityBuffData",
+            Self::DisableMinimapIconBuffData(_) => "DisableMinimapIconBuffData",
+            Self::UseGroggyBuffData(_) => "UseGroggyBuffData",
+            Self::AdditionalUseResourceStatBuffData(_) => "AdditionalUseResourceStatBuffData",
+            Self::AddCritiacalRateByMaterialKeyBuffData(_) => "AddCritiacalRateByMaterialKeyBuffData",
+            Self::BlockDeadBodyGarbageCollectionBuffData => "BlockDeadBodyGarbageCollectionBuffData",
+            Self::DecreaseMercenaryCooltimeBuffData(_) => "DecreaseMercenaryCooltimeBuffData",
+            Self::DetectReactionOverrideBuffData(_) => "DetectReactionOverrideBuffData",
+        }
+    }
+
+
     pub fn read_from(disc: u8, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match disc {
             0 => Self::DamageBuffData(DamageBuffDataPayload::read_from(data, offset)?),
@@ -3069,6 +3196,9 @@ impl<'a> BuffData<'a> {
     /// JSON shape:
     /// - `base`: nested object with all 28 typed BuffDataBase fields
     ///   (tag, id, name_id, flags, qwords, asset_path, lookups, etc.).
+    /// - `variant_type`: human-readable variant name, e.g.
+    ///   "DamageBuffData" (informational; round-trip uses `base.tag`
+    ///   as the discriminator on the way back).
     /// - `variant_payload_b64`: base64 of just the variant body bytes
     ///   (everything after the BuffDataBase). Per-variant field-level
     ///   JSON for the 120-variant family is a future rollout — body
@@ -3076,6 +3206,10 @@ impl<'a> BuffData<'a> {
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("base".into(), Value::Object(self.base.to_json_dict()));
+        m.insert(
+            "variant_type".into(),
+            Value::String(self.variant.variant_name().to_string()),
+        );
         let mut variant_buf = Vec::new();
         self.variant.write_to(&mut variant_buf).expect("write_to Vec");
         m.insert("variant_payload_b64".into(), Value::String(B64.encode(&variant_buf)));
