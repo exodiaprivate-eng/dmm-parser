@@ -24,6 +24,7 @@ This file is for collaborators picking up round-trip work. It's the
 |---|---|---|
 | **GameCondition** | ✅ 100% (Decoded\|Raw enum, commit `5160cdd`) | ConditionInfo (Tier 1, commit `9f1be1d`) |
 | **GlobalGameEventExecuteData** | ✅ 100% (Absent\|Present\|Raw enum, commit `4b30791`) | GlobalGameEventInfo (Tier 1) |
+| **GameEventHandlerData** | ✅ 100% (Decoded\|Raw enum) | GameEventHandlerInfo (Tier 1) |
 | BuffData | ✅ shipped (per buff_data.rs) | SkillInfo, CharacterChangeInfo |
 | BranchConditionData | ✅ shipped | (used inside GameCondition tree) |
 | ConditionDataStageChart | ✅ shipped | (used inside GameCondition tree) |
@@ -50,6 +51,8 @@ This file is for collaborators picking up round-trip work. It's the
 ## What just shipped (this session, all in `origin/main`)
 
 ```
+GameEventHandlerData: ship Tier 1 family decoder + wire GameEventHandlerInfo
+8e9b6f6  docs/STATUS.md: GlobalGameEventExecuteData shipped, refresh queue
 4b30791  GlobalGameEventExecuteData: ship Tier 1 family decoder w/ Decoded|Raw enum
 e17d416  docs: add STATUS.md for collaborator handoff
 9f1be1d  ConditionInfo: promote Tier 2 → Tier 1 — typed GameCondition wrapper
@@ -148,15 +151,14 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 ## What's next, in priority order
 
 ### Big wins (each enables a polymorphic family)
-1. **GameEventHandler family** (task #97). GameEventHandlerInfo
-   consumer. Likely uses bespoke-dispatcher pattern like GameCondition;
-   reuse the playbook.
-2. **EffectData family**. EffectInfo consumer.
-3. **Per-sub_tag typed payloads inside GlobalGameEventExecuteData**
-   (task #96 follow-up). The `Present { sub_tag, body: Vec<u8> }` shape
-   is shipped; full body fields per sub_tag (sub_141155000 / sub_141155300
-   recipes) are mechanical follow-up work.
-4. **TriggerEventHandler family** (task #95). DEFERRED — uses
+1. **EffectData family**. EffectInfo consumer. Most likely the next
+   bespoke-dispatcher target.
+2. **Per-sub_tag typed payloads inside GlobalGameEventExecuteData &
+   GameEventHandlerData** (follow-up). The `Decoded { sub_tag, body:
+   Vec<u8> }` shape is shipped for both; full per-sub_tag typed body
+   structs are mechanical work that unlocks field-level JSON editing
+   inside the body.
+3. **TriggerEventHandler family** (task #95). DEFERRED — uses
    `pa::ReflectObject` reflection-driven serialization (sub_14055F190
    constructor reveals the inheritance chain through `ReflectDerive
    <ITriggerEventHandler, ReflectObjectExtension>`). Different pattern

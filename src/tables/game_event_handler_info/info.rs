@@ -1,4 +1,4 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Hand-corrected: typed prefix + GameEventHandlerData wrapper + tail u8.
 //!
 //! Reader: `sub_1410E1E60` in CrimsonDesert.exe (Win build).
 //!
@@ -11,28 +11,188 @@
 //!      → qword_145F0E9C0)
 //!   6. u32 event_condition           (_eventCondition, sub_1410FF430)
 //!   7. u32 target_condition          (_targetCondition, sub_1410FF430)
-//!   8. _gameEventHandlerData (sub_1415BE5E0 → struct +24, POLYMORPHIC
-//!      variant allocator with vtable-dispatched destructor)
-//!      ← TAIL STARTS HERE
-//!   9. (tail) _isPendOnBattleState (u8 at struct +32)
+//!   8. _gameEventHandlerData (sub_1415BE5E0 → POLYMORPHIC family
+//!      `GameEventHandlerData` with sub_tag dispatch:
+//!      0=SetSceneObjectParameterBySceneLevel [32B],
+//!      1=SetSceneObjectParameter [32B],
+//!      2=SetUIPlayGuideParameter [32B],
+//!      3=SetUIFullscreenGuideParameter [24B],
+//!      4=MakeSnapshotForDev [24B])
+//!   9. u8 is_pend_on_battle_state    (_isPendOnBattleState)
 //!
-//! Steps 1-7 are typed; step 8 onward (the polymorphic
-//! GameEventHandler variant + trailing u8) lives in `tail_blob`.
+//! ## Tier 1 — typed wrapper, byte-perfect round-trip
+//!
+//! `data` uses the `Decoded | Raw` enum from
+//! `crate::binary::variants::game_event_handler_data`. Decoded captures
+//! sub_tag; Raw is the verbatim-bytes fallback. Body stays `Vec<u8>` —
+//! per-sub_tag typed payloads are a follow-up enhancement; the current
+//! shape is enough for v3 clone-between-entries and sub_tag-aware
+//! filtering.
+//!
+//! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
+//! "Hand-corrected" header marker on line 1.
 
+use crate::binary::variants::game_event_handler_data::GameEventHandlerData;
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
+use std::io::{self, Write};
 
-pabgh_typed_blob_table! {
-    pub struct GameEventHandlerInfo<'a> {
-        pub key: u16,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub game_event_type: u8,
-        pub player_condition: u32,
-        pub event_condition: u32,
-        pub target_condition: u32,
+#[derive(Debug)]
+pub struct GameEventHandlerInfo<'a> {
+    pub key: u16,
+    pub string_key: CString<'a>,
+    pub is_blocked: u8,
+    pub game_event_type: u8,
+    pub player_condition: u32,
+    pub event_condition: u32,
+    pub target_condition: u32,
+    /// Polymorphic event-handler-data wrapper. Decoded captures sub_tag
+    /// + body bytes; Raw passes through verbatim. Either way, the
+    /// wrapper round-trips byte-perfect.
+    pub data: GameEventHandlerData,
+    /// Trailing u8 read AFTER the polymorphic data block (per
+    /// sub_1410E1E60).
+    pub is_pend_on_battle_state: u8,
+}
+
+impl<'a> GameEventHandlerInfo<'a> {
+    pub fn read_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = u16::read_from(data, offset)?;
+        let string_key = CString::read_from(data, offset)?;
+        let is_blocked = u8::read_from(data, offset)?;
+        let game_event_type = u8::read_from(data, offset)?;
+        let player_condition = u32::read_from(data, offset)?;
+        let event_condition = u32::read_from(data, offset)?;
+        let target_condition = u32::read_from(data, offset)?;
+
+        // The variant + trailing u8 share the rest of the entry.
+        // Subtract 1 for the trailing is_pend_on_battle_state, then pass
+        // a sub-slice sized to exactly the variant wrapper.
+        if entry_end < *offset + 1 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "GameEventHandlerInfo: entry too short for trailing u8",
+            ));
+        }
+        let variant_end = entry_end - 1;
+        let wrapper_bytes = &data[*offset..variant_end];
+        let mut wrapper_cur = 0usize;
+        let event_data = GameEventHandlerData::read_from(wrapper_bytes, &mut wrapper_cur)?;
+        *offset = variant_end;
+        let is_pend_on_battle_state = u8::read_from(data, offset)?;
+
+        Ok(Self {
+            key,
+            string_key,
+            is_blocked,
+            game_event_type,
+            player_condition,
+            event_condition,
+            target_condition,
+            data: event_data,
+            is_pend_on_battle_state,
+        })
     }
-    tail: tail_blob;
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.string_key.write_to(w)?;
+        self.is_blocked.write_to(w)?;
+        self.game_event_type.write_to(w)?;
+        self.player_condition.write_to(w)?;
+        self.event_condition.write_to(w)?;
+        self.target_condition.write_to(w)?;
+        self.data.write_to(w)?;
+        self.is_pend_on_battle_state.write_to(w)?;
+        Ok(())
+    }
+
+    /// JSON shape:
+    /// - All scalars individually editable (key, string_key, is_blocked,
+    ///   game_event_type, player_condition, event_condition,
+    ///   target_condition, is_pend_on_battle_state).
+    /// - `_data_b64`: full polymorphic wrapper as base64 (clone-between-
+    ///   entries; round-trips byte-perfect).
+    /// - `_data_kind`: read-only "decoded" or "raw" metadata.
+    /// - `_data_sub_tag`: read-only u8 (only when kind == "decoded").
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("game_event_type".to_string(), self.game_event_type.to_json_value());
+        m.insert(
+            "player_condition".to_string(),
+            self.player_condition.to_json_value(),
+        );
+        m.insert(
+            "event_condition".to_string(),
+            self.event_condition.to_json_value(),
+        );
+        m.insert(
+            "target_condition".to_string(),
+            self.target_condition.to_json_value(),
+        );
+        let mut wrapper_bytes = Vec::new();
+        self.data.write_to(&mut wrapper_bytes).expect("write_to Vec");
+        m.insert(
+            "_data_b64".to_string(),
+            Value::String(B64.encode(&wrapper_bytes)),
+        );
+        let (kind, sub_tag) = match &self.data {
+            GameEventHandlerData::Decoded { sub_tag, .. } => ("decoded", Some(*sub_tag)),
+            GameEventHandlerData::Raw(_) => ("raw", None),
+        };
+        m.insert("_data_kind".to_string(), Value::String(kind.to_string()));
+        if let Some(t) = sub_tag {
+            m.insert("_data_sub_tag".to_string(), Value::Number(t.into()));
+        }
+        m.insert(
+            "is_pend_on_battle_state".to_string(),
+            self.is_pend_on_battle_state.to_json_value(),
+        );
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_event_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "player_condition")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "event_condition")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_condition")?)?;
+        // Variant wrapper from b64 (kind/sub_tag are read-only metadata).
+        let b64 = json_get_field(obj, "_data_b64")?
+            .as_str()
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "GameEventHandlerInfo: _data_b64 must be a base64 string",
+                )
+            })?;
+        let bytes = B64.decode(b64).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("GameEventHandlerInfo: _data_b64 invalid base64: {}", e),
+            )
+        })?;
+        w.extend_from_slice(&bytes);
+        <u8 as WriteJsonValue>::write_from_json(
+            w,
+            json_get_field(obj, "is_pend_on_battle_state")?,
+        )?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -44,8 +204,14 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP");
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP");
+            return;
+        };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -57,7 +223,40 @@ mod tests {
             assert_eq!(c, *e);
         }
         let mut out = Vec::with_capacity(data.len());
-        for it in &items { it.write_to(&mut out).unwrap(); }
+        for it in &items {
+            it.write_to(&mut out).unwrap();
+        }
         assert_eq!(out, data, "gameeventhandler roundtrip mismatch");
+    }
+
+    #[test]
+    fn data_kinds() {
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP");
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP");
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        let mut decoded = std::collections::HashMap::<u8, usize>::new();
+        let mut raw = 0;
+        for (_k, s, e) in ranges.iter() {
+            let mut c = *s;
+            let it = GameEventHandlerInfo::read_with_size(&data, &mut c, e - s).unwrap();
+            match it.data {
+                GameEventHandlerData::Decoded { sub_tag, .. } => {
+                    *decoded.entry(sub_tag).or_insert(0) += 1;
+                }
+                GameEventHandlerData::Raw(_) => raw += 1,
+            }
+        }
+        let mut sub_tags: Vec<_> = decoded.iter().collect();
+        sub_tags.sort_by_key(|&(k, _)| *k);
+        eprintln!(
+            "gameeventhandler data: decoded by sub_tag: {:?}, raw: {}",
+            sub_tags, raw
+        );
     }
 }
