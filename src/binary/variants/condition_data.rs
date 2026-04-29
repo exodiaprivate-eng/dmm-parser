@@ -382,26 +382,33 @@ impl ConditionData_CheckKnowledgePayload {
     }
 }
 
+/// Tag 39 (ConditionData_CheckHaveItem). Per IDA sub_14F1ACCA0
+/// (vtable[16] for ConditionData_CheckHaveItem at 0x144CDA468):
+///   1. u32 item_key (sub_1410FF5C0 hashmap → u16 at +34)
+///   2. u64 count (8 bytes) at +24
+///   3. u16 slot_index (2 bytes) at +36
+///   4. u16 secondary_key (sub_141103F00 hashmap → u16 at +32)
+/// Wire body = 4 + 8 + 2 + 2 = 16 bytes.
 #[derive(Debug)]
 pub struct ConditionData_CheckHaveItemPayload {
-    pub field_at_24: u64,
-    pub field_at_36: u16,
-    pub field_at_34: u32,
-    pub field_at_32: CArray<u16>,
+    pub item_key: u32,
+    pub count: u64,
+    pub slot_index: u16,
+    pub secondary_key: u16,
 }
 impl ConditionData_CheckHaveItemPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u64::read_from(data, offset)?;
-        let field_at_36 = u16::read_from(data, offset)?;
-        let field_at_34 = u32::read_from(data, offset)?;
-        let field_at_32 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_36, field_at_34, field_at_32 })
+        let item_key = u32::read_from(data, offset)?;
+        let count = u64::read_from(data, offset)?;
+        let slot_index = u16::read_from(data, offset)?;
+        let secondary_key = u16::read_from(data, offset)?;
+        Ok(Self { item_key, count, slot_index, secondary_key })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_36.write_to(w)?;
-        self.field_at_34.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.item_key.write_to(w)?;
+        self.count.write_to(w)?;
+        self.slot_index.write_to(w)?;
+        self.secondary_key.write_to(w)?;
         Ok(())
     }
 }
@@ -4968,26 +4975,64 @@ impl<'a> ConditionDataOptionData<'a> {
     }
 }
 
-/// Full ConditionData record: u16 tag + variant payload.
+/// Returns `true` if the given tag's vtable slot 19 is the
+/// `0x1402D3A80 → return 1;` no-op variant (consumes zero bytes from the
+/// stream). For these tags we skip the option_present read entirely.
 ///
-/// Stream layout: [u16 tag][variant_body:N]
+/// All other tags route through `sub_14B933930`-style readers that
+/// consume `[u8 option_present][optional ConditionDataOptionData]`.
+fn variant_skips_option_block(tag: u16) -> bool {
+    matches!(tag, 81 | 272)
+}
+
+/// `ConditionDataOptionData` per IDA `sub_14B933930` (called from each
+/// variant's vtable[19] when option_present != 0):
+///   - CString label (u32 len + N bytes)
+///   - u64 qword_a
+///   - u8 byte_b, u8 byte_c, u8 byte_d
+#[derive(Debug)]
+pub struct ConditionDataOptionBlock<'a> {
+    pub option_present: u8,
+    pub option_data: Option<ConditionDataOptionData<'a>>,
+}
+
+impl<'a> ConditionDataOptionBlock<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let option_present = u8::read_from(data, offset)?;
+        let option_data = if option_present != 0 {
+            Some(ConditionDataOptionData::read_from(data, offset)?)
+        } else {
+            None
+        };
+        Ok(Self { option_present, option_data })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.option_present.write_to(w)?;
+        if self.option_present != 0 {
+            if let Some(d) = &self.option_data {
+                d.write_to(w)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Full ConditionData record: u16 tag + variant payload + optional
+/// option block.
 ///
-/// Per the Win-binary dispatcher `sub_141C87CE0`, after construction the
-/// dispatcher calls two vtable slots with the stream:
-///   - slot 16 (+0x80): reads the variant body — the per-variant payload
-///   - slot 19 (+0x98): for most variants is `return 1;` (no-op, e.g.
-///     ConditionData_QuestGaugePercent at 0x1402D3A80), for SOME is the
-///     actual ConditionDataOptionData reader
+/// Stream layout: `[u16 tag][variant_body:N][option_block?]`
 ///
-/// **There is no universal trailing byte.** Earlier code first invented
-/// `option_present` then `tail_byte` to absorb the byte that tag-81's slot
-/// 16 was consuming — but that byte is actually part of tag 81's body
-/// (u32+u64+u8 = 13 bytes per IDA sub_141CA6F20). Different variants have
-/// different body sizes; the body is whatever slot 16 reads, full stop.
+/// Per the Win-binary dispatcher `sub_141C87CE0`, after construction:
+///   - slot 16 (+0x80): reads the variant body
+///   - slot 19 (+0x98): either `0x1402D3A80 → return 1;` (no-op) for tag
+///     81/272, OR the option_block reader (`sub_141C8D560` style) for
+///     other variants — reads u8 option_present, conditionally an
+///     ConditionDataOptionData (CString + u64 + 3 u8s).
 #[derive(Debug)]
 pub struct ConditionData<'a> {
     pub base: ConditionDataBase,
     pub variant: ConditionDataVariant<'a>,
+    pub option_block: Option<ConditionDataOptionBlock<'a>>,
 }
 
 impl<'a> ConditionData<'a> {
@@ -4995,11 +5040,19 @@ impl<'a> ConditionData<'a> {
         let base = ConditionDataBase::read_from(data, offset)?;
         let disc = base.tag;
         let variant = ConditionDataVariant::read_from(disc, data, offset)?;
-        Ok(Self { base, variant })
+        let option_block = if variant_skips_option_block(disc) {
+            None
+        } else {
+            Some(ConditionDataOptionBlock::read_from(data, offset)?)
+        };
+        Ok(Self { base, variant, option_block })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
+        if let Some(b) = &self.option_block {
+            b.write_to(w)?;
+        }
         Ok(())
     }
 }
