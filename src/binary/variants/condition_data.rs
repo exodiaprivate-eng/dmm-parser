@@ -2769,18 +2769,18 @@ impl<'a> ConditionData_IsGamePlayLevelGimmickPayload<'a> {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckCompleteLevelGimmickPayload<'a> {
-    pub field_at_24: u32,
     pub cstring_at_16: CString<'a>,
+    pub field_at_24: u32,
 }
 impl<'a> ConditionData_CheckCompleteLevelGimmickPayload<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
         let cstring_at_16 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_24, cstring_at_16 })
+        let field_at_24 = u32::read_from(data, offset)?;
+        Ok(Self { cstring_at_16, field_at_24 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
         self.cstring_at_16.write_to(w)?;
+        self.field_at_24.write_to(w)?;
         Ok(())
     }
 }
@@ -3527,7 +3527,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickTarget(ConditionData_CheckGimmickTargetPayload),
     ConditionData_GetGimmickVariable(ConditionData_GetGimmickVariablePayload),
     ConditionData_GetRandomPercentBySpawnPositionSeed(ConditionData_GetRandomPercentBySpawnPositionSeedPayload),
-    ConditionData_CheckStoreType,
+    ConditionData_CheckStoreType(OneByteBodyPayload),
     ConditionData_IsExistStoreItemToSell,
     ConditionData_CheckNpcFunctionType(OneByteBodyPayload),
     ConditionData_CheckExistPrice,
@@ -3636,7 +3636,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload),
     ConditionData_CheckGimmickItemSocket,
     ConditionData_CheckCurrentEquipType_OrTag286,
-    ConditionData_IsInSpecialModeStage,
+    ConditionData_IsInSpecialModeStage(OneU32BodyPayload),
     ConditionData_IsSpawnedOnPlatform,
     ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload),
     ConditionData_CheckReserveSlot(ConditionData_CheckReserveSlotPayload),
@@ -3937,7 +3937,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTarget(_) => 175,
             Self::ConditionData_GetGimmickVariable(_) => 176,
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(_) => 177,
-            Self::ConditionData_CheckStoreType => 178,
+            Self::ConditionData_CheckStoreType(_) => 178,
             Self::ConditionData_IsExistStoreItemToSell => 179,
             Self::ConditionData_CheckNpcFunctionType(_) => 180,
             Self::ConditionData_CheckExistPrice => 181,
@@ -4046,7 +4046,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckCharacterItemSocket(_) => 284,
             Self::ConditionData_CheckGimmickItemSocket => 285,
             Self::ConditionData_CheckCurrentEquipType_OrTag286 => 286,
-            Self::ConditionData_IsInSpecialModeStage => 287,
+            Self::ConditionData_IsInSpecialModeStage(_) => 287,
             Self::ConditionData_IsSpawnedOnPlatform => 288,
             Self::ConditionData_GetInventoryWeightLevel(_) => 289,
             Self::ConditionData_CheckReserveSlot(_) => 290,
@@ -4347,7 +4347,7 @@ impl<'a> ConditionDataVariant<'a> {
             175 => Self::ConditionData_CheckGimmickTarget(ConditionData_CheckGimmickTargetPayload::read_from(data, offset)?),
             176 => Self::ConditionData_GetGimmickVariable(ConditionData_GetGimmickVariablePayload::read_from(data, offset)?),
             177 => Self::ConditionData_GetRandomPercentBySpawnPositionSeed(ConditionData_GetRandomPercentBySpawnPositionSeedPayload::read_from(data, offset)?),
-            178 => Self::ConditionData_CheckStoreType,
+            178 => Self::ConditionData_CheckStoreType(OneByteBodyPayload::read_from(data, offset)?),
             179 => Self::ConditionData_IsExistStoreItemToSell,
             180 => Self::ConditionData_CheckNpcFunctionType(OneByteBodyPayload::read_from(data, offset)?),
             181 => Self::ConditionData_CheckExistPrice,
@@ -4458,7 +4458,7 @@ impl<'a> ConditionDataVariant<'a> {
             284 => Self::ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload::read_from(data, offset)?),
             285 => Self::ConditionData_CheckGimmickItemSocket,
             286 => Self::ConditionData_CheckCurrentEquipType_OrTag286,
-            287 => Self::ConditionData_IsInSpecialModeStage,
+            287 => Self::ConditionData_IsInSpecialModeStage(OneU32BodyPayload::read_from(data, offset)?),
             288 => Self::ConditionData_IsSpawnedOnPlatform,
             289 => Self::ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload::read_from(data, offset)?),
             290 => Self::ConditionData_CheckReserveSlot(ConditionData_CheckReserveSlotPayload::read_from(data, offset)?),
@@ -4764,7 +4764,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTarget(p) => p.write_to(w),
             Self::ConditionData_GetGimmickVariable(p) => p.write_to(w),
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(p) => p.write_to(w),
-            Self::ConditionData_CheckStoreType => Ok(()),
+            Self::ConditionData_CheckStoreType(p) => p.write_to(w),
             Self::ConditionData_IsExistStoreItemToSell => Ok(()),
             Self::ConditionData_CheckNpcFunctionType(p) => p.write_to(w),
             Self::ConditionData_CheckExistPrice => Ok(()),
@@ -4873,7 +4873,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckCharacterItemSocket(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickItemSocket => Ok(()),
             Self::ConditionData_CheckCurrentEquipType_OrTag286 => Ok(()),
-            Self::ConditionData_IsInSpecialModeStage => Ok(()),
+            Self::ConditionData_IsInSpecialModeStage(p) => p.write_to(w),
             Self::ConditionData_IsSpawnedOnPlatform => Ok(()),
             Self::ConditionData_GetInventoryWeightLevel(p) => p.write_to(w),
             Self::ConditionData_CheckReserveSlot(p) => p.write_to(w),
@@ -5038,7 +5038,9 @@ fn variant_skips_option_block(tag: u16) -> bool {
         81 | 272 |
         // Verified via vanilla byte-math: vanilla_len = case(1)+tag(2)+body+footer(3)
         // with NO option_block byte between body and footer.
-        300 | 256 | 401 | 2 | 79 | 195
+        300 | 256 | 401 | 2 | 79 | 195 |
+        // Verified via Win-IDA vtable[19] = 0x1402D3A80 (no-op `return 1;`)
+        306 | 126
     )
 }
 
@@ -5216,10 +5218,19 @@ pub struct ConditionData<'a> {
     pub option_block: Option<ConditionDataOptionBlock<'a>>,
 }
 
+thread_local! {
+    /// Tracks the most-recently-attempted ConditionData tag during decode.
+    /// Validators read this when read_from returns Err to identify which
+    /// variant's recipe is wrong.
+    pub static LAST_ATTEMPTED_TAG: std::cell::Cell<Option<u16>> =
+        const { std::cell::Cell::new(None) };
+}
+
 impl<'a> ConditionData<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let base = ConditionDataBase::read_from(data, offset)?;
         let disc = base.tag;
+        LAST_ATTEMPTED_TAG.with(|c| c.set(Some(disc)));
         let variant = ConditionDataVariant::read_from(disc, data, offset)?;
         let option_block = if variant_skips_option_block(disc) {
             None

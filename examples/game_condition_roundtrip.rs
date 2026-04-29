@@ -41,6 +41,8 @@ fn main() {
     // Each entry: (key, vanilla_blob, our_buf, parse_cursor, tag)
     let mut case3_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u16)> = Vec::new();
     let mut case_other_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u8)> = Vec::new();
+    // Tag → count of decode failures attributed (last-attempted tag at err)
+    let mut failing_tag_stats: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
     // Optional per-tag focus: dump only mismatches for these specific u16 tags.
     // Empty = no filter. Set via env var GC_DUMP_TAG (single tag, decimal).
     let dump_tag_filter: Option<u16> = std::env::var("GC_DUMP_TAG").ok()
@@ -93,11 +95,19 @@ fn main() {
         // sub_101021408). Treating it as a wrapper means the validator
         // exercises the same shape every consumer of GameCondition uses.
         let mut parse_cur = 0usize;
+        // Reset last-attempted tag tracker; if decode fails, this tells us
+        // which ConditionData variant's recipe is broken.
+        dmm_parser::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|c| c.set(None));
         let node = match GameCondition::read_from(blob, &mut parse_cur) {
             Ok(n) => n,
             Err(e) => {
                 decode_err += 1;
                 entry.2 += 1;
+                let last_tag = dmm_parser::binary::variants::condition_data::LAST_ATTEMPTED_TAG
+                    .with(|c| c.get());
+                if let Some(t) = last_tag {
+                    *failing_tag_stats.entry(t).or_insert(0) += 1;
+                }
                 if let Some(t) = cdata_tag {
                     cdata_tag_stats.entry(t).or_insert((0,0,0)).2 += 1;
                 }
@@ -285,4 +295,15 @@ fn main() {
     let clean_tags: usize = tags.iter()
         .filter(|(_, (_, f, e))| *f == 0 && *e == 0).count();
     println!("\nClean tags (always round-trip):  {}", clean_tags);
+
+    // Dump tags that triggered decode errors (last-attempted tag at err point).
+    // This is the smoking gun: each row tells us "tag X's recipe was wrong N times".
+    if !failing_tag_stats.is_empty() {
+        println!("\n=== Failing tags (last-attempted at decode_err) ===");
+        let mut failing_sorted: Vec<(u16, usize)> = failing_tag_stats.into_iter().collect();
+        failing_sorted.sort_by_key(|(_, c)| -(*c as isize));
+        for (tag, count) in failing_sorted.iter().take(40) {
+            println!("  tag {:4} (0x{:04X}): {} decode failures", tag, tag, count);
+        }
+    }
 }
