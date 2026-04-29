@@ -125,3 +125,5 @@ pub mod game_level_info;
 pub mod platform_entitlement_info;
 pub mod equip_info;
 pub mod field_revive_info;
+pub mod equip_slot_info;
+pub mod blob_runtime;

@@ -17,6 +17,7 @@
 //! serde_json::Number's full integer range (it stores them losslessly even
 //! though JSON proper has no integer type).
 
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{json, Map, Value};
 use std::io;
 
@@ -204,6 +205,7 @@ impl WriteJsonValue for f32 {
 }
 
 // ── Fixed-size arrays ─────────────────────────────────────────────────────────
+// [u8; N] base64 impl lives in `binary/arrays.rs` (predates this module).
 
 impl ToJsonValue for [f32; 3] {
     fn to_json_value(&self) -> Value {
