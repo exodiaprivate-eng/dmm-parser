@@ -748,20 +748,28 @@ impl ConditionData_StartMissionPayload {
     }
 }
 
+/// ConditionData_QuestGaugePercent (tag 81). Per IDA sub_141CA6F20 (vtable[16]
+/// for ConditionData_QuestGaugePercent::vftable at 0x144CE3038):
+///   1. read u32 quest_key (4 bytes) — hashmap-converted to u16 stored at +16
+///   2. read u64 percent_value (8 bytes) — stored at +24
+///   3. read u8 (1 byte) — stored at +32
+/// Total slot-16 reads = 13 bytes. The final u8 is the universal tail_byte
+/// handled at the ConditionData level, so the variant body itself is the
+/// preceding 12 bytes (u32 + u64).
 #[derive(Debug)]
 pub struct ConditionData_QuestGaugePercentPayload {
-    pub field_at_24: u64,
-    pub field_at_32: u8,
+    pub quest_key: u32,
+    pub percent_value: u64,
 }
 impl ConditionData_QuestGaugePercentPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u64::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_32 })
+        let quest_key = u32::read_from(data, offset)?;
+        let percent_value = u64::read_from(data, offset)?;
+        Ok(Self { quest_key, percent_value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.quest_key.write_to(w)?;
+        self.percent_value.write_to(w)?;
         Ok(())
     }
 }
@@ -4874,14 +4882,32 @@ impl<'a> ConditionDataOptionData<'a> {
     }
 }
 
-/// Full ConditionData record: u16 tag + variant payload + optional subcond tail.
-/// Stream layout: [u16 tag][variant_body:N][u8 option_present][option_data if option_present != 0]
+/// Full ConditionData record: u16 tag + variant payload + 1-byte tail.
+///
+/// Stream layout: [u16 tag][variant_body:N][u8 tail_byte]
+///
+/// Per the Win-binary dispatcher sub_141C87CE0, after construction the
+/// dispatcher calls two vtable slots with the stream:
+///   - slot 16 (+0x80): reads the variant body
+///   - slot 19 (+0x98): for most variants is `return 1;` (no-op, e.g.
+///     ConditionData_QuestGaugePercent at 0x1402D3A80), for SOME is the
+///     actual ConditionDataOptionData reader
+///
+/// Empirically, every observed ConditionData ends with 1 trailing byte that
+/// the variant-body decoders don't consume. Modelling it as a universal
+/// `tail_byte` reproduces what the binary does for the common case
+/// (slot-19-is-noop variants) while giving us a place to absorb the byte
+/// without inventing fake option_present semantics. Variants whose slot 19
+/// is the real ConditionDataOptionData reader will need per-tag handling
+/// once we identify them — flagged for follow-up.
 #[derive(Debug)]
 pub struct ConditionData<'a> {
     pub base: ConditionDataBase,
     pub variant: ConditionDataVariant<'a>,
-    pub option_present: u8,
-    pub option_data: Option<ConditionDataOptionData<'a>>,
+    /// The 1-byte tail every ConditionData carries. Originally modelled as
+    /// `option_present` but per IDA the actual semantics are per-variant
+    /// (vtable slot 19) — for most variants this byte just rides along.
+    pub tail_byte: u8,
 }
 
 impl<'a> ConditionData<'a> {
@@ -4889,28 +4915,13 @@ impl<'a> ConditionData<'a> {
         let base = ConditionDataBase::read_from(data, offset)?;
         let disc = base.tag;
         let variant = ConditionDataVariant::read_from(disc, data, offset)?;
-        // After every variant body the dispatcher (sub_141C87CE0) calls vtable
-        // slot 19 (+0x98) which reads a 1-byte presence flag and, if non-zero,
-        // a ConditionDataOptionData via 0x14b933930. ALWAYS read the presence
-        // byte; conditionally read the option_data.
-        let option_present = u8::read_from(data, offset)?;
-        let option_data = if option_present != 0 {
-            Some(ConditionDataOptionData::read_from(data, offset)?)
-        } else {
-            None
-        };
-        Ok(Self { base, variant, option_present, option_data })
+        let tail_byte = u8::read_from(data, offset)?;
+        Ok(Self { base, variant, tail_byte })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
-        // Mirror read: always emit presence byte; emit option_data only if set.
-        self.option_present.write_to(w)?;
-        if self.option_present != 0 {
-            if let Some(opt) = &self.option_data {
-                opt.write_to(w)?;
-            }
-        }
+        self.tail_byte.write_to(w)?;
         Ok(())
     }
 }

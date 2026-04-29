@@ -38,8 +38,12 @@ fn main() {
     let mut roundtrip_mismatch = 0usize;
     let mut mismatch_examples: Vec<(u32, usize, usize)> = Vec::new();
     // Capture full hex of the first 5 case-3 mismatches for inspection.
-    // Each entry: (key, vanilla_blob, our_buf, parse_cursor)
+    // Each entry: (key, vanilla_blob, our_buf, parse_cursor, tag)
     let mut case3_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u16)> = Vec::new();
+    // Optional per-tag focus: dump only mismatches for these specific u16 tags.
+    // Empty = no filter. Set via env var GC_DUMP_TAG (single tag, decimal).
+    let dump_tag_filter: Option<u16> = std::env::var("GC_DUMP_TAG").ok()
+        .and_then(|s| s.parse::<u16>().ok());
 
     // Track per-root-case tag: total / pass / fail
     let mut case_stats: BTreeMap<u8, (usize, usize, usize)> = BTreeMap::new();
@@ -103,7 +107,8 @@ fn main() {
                 mismatch_examples.push((*k, parse_cur, blob.len()));
             }
             // Also dump for underconsume case
-            if root_case == 3 && case3_dumps.len() < 5 {
+            if root_case == 3 && case3_dumps.len() < 5
+                && (dump_tag_filter.is_none() || dump_tag_filter == cdata_tag) {
                 let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                 let mut buf: Vec<u8> = Vec::with_capacity(blob.len());
                 let _ = node.write_to(&mut buf);
@@ -136,7 +141,8 @@ fn main() {
                 mismatch_examples.push((*k, diff_at, blob.len()));
             }
             // Hex-dump the first 5 case-3 mismatches with their tag for inspection.
-            if root_case == 3 && case3_dumps.len() < 5 {
+            if root_case == 3 && case3_dumps.len() < 5
+                && (dump_tag_filter.is_none() || dump_tag_filter == cdata_tag) {
                 let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                 case3_dumps.push((*k, blob.to_vec(), buf.clone(), parse_cur, tag_for_dump));
             }
