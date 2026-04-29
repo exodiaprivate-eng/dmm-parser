@@ -47,6 +47,52 @@ push fast, and pull before you start any new work:
 
 ---
 
+## The hard rule: field-level decoding, not byte-level
+
+**The user's directive (2026-04-29 evening):**
+
+> I just want to make sure we are clear that you 3 need to get everything
+> decoded down to the field level, not just byte level, unless there is no
+> field data. I need everything to get json v3.1 to work entirely on the
+> field level.
+
+What this means concretely:
+
+- **Don't ship a struct with `field_x: [u8; N]` if `[u8; N]` is actually
+  N individual u8 reads.** Per IDA, that's N named fields, not one
+  opaque block. Split them.
+- **Don't ship `Vec<[u8; N]>` if each element is a known nested
+  struct.** Type the element. (Reference: `EffectDataD3Block` extracted
+  from `[u8; 144]` in commit `209b8bd`.)
+- **Don't leave `_foo_blob: Vec<u8>` in a struct if `foo` is a typed
+  thing** (CArray, struct, polymorphic enum). Replace it with the typed
+  field.
+- **Vec3 should be `[f32; 3]`**, not `vec_x/vec_y/vec_z: u32` and not
+  `[u32; 3]`. Same wire bytes, but JSON consumers see floats.
+- **Hash-key u32→u16 lookups stay as wire u32** since the runtime
+  resolution requires the game's hash table; just expose them as named
+  u32 fields, not raw bytes.
+
+When opaque bytes ARE acceptable:
+
+- The Raw fallback variant of a `Decoded | Raw` enum where `Decoded`
+  failed and the wire shape is genuinely unknown (e.g.
+  anti-disassembly-protected readers like ConditionData tags 54/286,
+  GameCondition's 22 stuck entries).
+- Truly unstructured bytes the game treats as a payload it doesn't
+  parse itself (rare).
+
+**Audit your own code before pushing**: grep for `[u8; ` in your edited
+files. Each match should fall into one of these buckets:
+1. A `Decoded | Raw` enum's `Raw(Vec<u8>)` arm.
+2. Documented as "wire is N individual u8 reads, deliberately kept as
+   array because consumers want it as a single base64 blob" — rare.
+3. A genuine fixed-length opaque payload (e.g. encrypted bytes).
+
+If it's anything else, split it into named fields.
+
+---
+
 ## Instance B — concrete starting task
 
 **Goal**: Replace `body: Vec<u8>` opacity inside the polymorphic family
