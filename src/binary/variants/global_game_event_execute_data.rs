@@ -10,26 +10,33 @@
 //!         - other → error (return 0)
 //!     - body bytes per sub_tag-specific reader
 //!
-//! Body wire shapes (decompiled from the per-vtable readers):
+//! Body wire shapes (decompiled from the per-vtable readers + cross-checked
+//! against reflection-binding strings extracted from the Mac binary):
 //!
 //! - sub_tag 0 / VaryTradeItemPrice (`sub_141155000` calls these in order):
-//!     * `region_codes`: CArray<u16>            (sub_1410FFAC0, qword_DA80 hash)
-//!     * `items`:        CArray<VaryTradeItemPriceData>  (sub_141155530)
-//!     * `item_lookup`:  u32                    (read_u32_lookup_DA30 — wire is
-//!                                              u32; runtime resolves to u16)
-//!     * `description`:  LocalizableString      (read_LocalizableString)
+//!     * `target_item_group_keys`: CArray<u16>  (sub_1410FFAC0, qword_DA80
+//!                                              ItemGroupKey hash; matches
+//!                                              `_targetItemGroupList`)
+//!     * `price_list`:             CArray<VaryTradeItemPriceData>
+//!                                              (sub_141155530; matches
+//!                                              `_priceList`)
+//!     * `item_lookup`:            u32          (read_u32_lookup_DA30 —
+//!                                              asset/category hash; wire u32
+//!                                              resolves to u16)
+//!     * `description`:            LocalizableString (read_LocalizableString)
 //!
-//!   Per element of `items` (sub_141155530's loop body):
-//!     * `region_codes`: CArray<u16>            (sub_1411022B0, qword_DA20 hash)
-//!     * `price_a`:      i64                    (wire +0)
-//!     * `price_b`:      i64                    (wire +8)
+//!   Per element of `price_list` (sub_141155530's loop body):
+//!     * `target_region_keys`:  CArray<u16> (sub_1411022B0, qword_DA20 region
+//!                                          hash; matches `_targetRegionList`)
+//!     * `min_price`:           i64
+//!     * `max_price`:           i64
 //!
-//!   Empirical patterns from vanilla data: paired entries with
-//!   `price_a=500000, price_b=800000` and inverse `price_a=-800000,
-//!   price_b=-500000` — bracketed price ranges per region.
+//!   Empirical price patterns (matches `_minPrice`/`_maxPrice` reflection
+//!   strings): trade-up entries `min=500000, max=800000`; inverse trade-down
+//!   entries `min=-800000, max=-500000`. min ≤ max holds for all 80 entries.
 //!
 //! - sub_tag 1 / OpenRoyalSupply (`sub_141155300` → `sub_1411553D0`):
-//!     * `region_codes`: CArray<u16>            (sub_1411553D0, qword_113A0 hash)
+//!     * `target_region_keys`: CArray<u16> (sub_1411553D0, qword_113A0 hash)
 //!
 //! - sub_tag 2 / InPlace: no body bytes. The dispatcher only handles this when
 //!   the caller already has a previously-constructed object; for fresh-pointer
@@ -58,33 +65,36 @@ use std::io::{self, Write};
 // ── Per-sub_tag payload structs ────────────────────────────────────────────
 
 py_binary_struct! {
-    /// One element of `VaryTradeItemPricePayload.items` (sub_141155530's loop).
-    /// Wire: CArray<u16> + two i64 prices (16 raw bytes total). The runtime
-    /// stores the price pair as a single _OWORD at offset +24, but the wire
-    /// reads them as 8+8 sequential bytes — empirically two signed 64-bit
-    /// price values (e.g. 500000 / 800000 for trade-up entries, -800000 /
-    /// -500000 for inverse trade-down entries).
+    /// One element of `VaryTradeItemPricePayload.price_list` (sub_141155530's
+    /// loop). Wire: CArray<u16> region keys + two i64 price boundaries (16
+    /// bytes total). Field names match the Mac-binary reflection metadata
+    /// (`_targetRegionList`, `_minPrice`, `_maxPrice`).
     pub struct VaryTradeItemPriceData {
-        pub region_codes: CArray<u16>,
-        pub price_a: i64,
-        pub price_b: i64,
+        pub target_region_keys: CArray<u16>,
+        pub min_price: i64,
+        pub max_price: i64,
     }
 }
 
 py_binary_struct! {
-    /// sub_tag 0 body, per `sub_141155000`.
+    /// sub_tag 0 body, per `sub_141155000`. Field names match Mac-binary
+    /// reflection metadata where known (`_targetItemGroupList`, `_priceList`).
+    /// `item_lookup` is a u32 asset/category hash key (qword_DA30 lookup;
+    /// runtime resolves to u16 at offset +48; specific reflection name not
+    /// recovered).
     pub struct VaryTradeItemPricePayload<'a> {
-        pub region_codes: CArray<u16>,
-        pub items: CArray<VaryTradeItemPriceData>,
+        pub target_item_group_keys: CArray<u16>,
+        pub price_list: CArray<VaryTradeItemPriceData>,
         pub item_lookup: u32,
         pub description: LocalizableString<'a>,
     }
 }
 
 py_binary_struct! {
-    /// sub_tag 1 body, per `sub_141155300` → `sub_1411553D0`.
+    /// sub_tag 1 body, per `sub_141155300` → `sub_1411553D0`. Single
+    /// `target_region_keys` array (qword_113A0 region hash).
     pub struct OpenRoyalSupplyPayload {
-        pub region_codes: CArray<u16>,
+        pub target_region_keys: CArray<u16>,
     }
 }
 

@@ -188,6 +188,41 @@ mod tests {
         );
     }
 
+    /// Sanity: confirm min_price ≤ max_price across every typed item.
+    /// Justifies the field naming (`_minPrice`/`_maxPrice` from Mac-binary
+    /// reflection metadata).
+    #[test]
+    fn price_ordering_invariant() {
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP");
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP");
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        let mut checked = 0;
+        for (k, s, e) in ranges.iter() {
+            let mut c = *s;
+            let it = GlobalGameEventInfo::read_with_size(&data, &mut c, e - s).unwrap();
+            if let GlobalGameEventExecuteData::Present(
+                GlobalGameEventExecuteDataBody::VaryTradeItemPrice(p),
+            ) = &it.execute_data
+            {
+                for (i, item) in p.price_list.items.iter().enumerate() {
+                    assert!(
+                        item.min_price <= item.max_price,
+                        "k=0x{:x} item[{}]: min={} > max={}",
+                        k, i, item.min_price, item.max_price,
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        eprintln!("checked min_price ≤ max_price across {} items", checked);
+    }
+
     /// Round-trip through the JSON dict bridge — must match the typed
     /// byte output exactly. Catches any divergence between
     /// `to_json_dict`/`write_from_json_dict` and the binary path.
