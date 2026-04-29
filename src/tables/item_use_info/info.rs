@@ -176,6 +176,19 @@ py_binary_struct! {
     }
 }
 
+// CustomizeCharacter (variant 13) — sub_141E466D0.
+// Wire: BaseUseData + u32 dye_lookup (sub_1410FF340 → qword_145F0DA08
+// character_info ref) + CArray<u16> color_data_list (each element is
+// 2 wire bytes read as two sequential u8s, stored as u16) + CArray<u16>
+// texture_data_list (same shape).
+py_binary_struct! {
+    pub struct CustomizeCharacterPayload {
+        pub dye_lookup: u32,
+        pub color_data_list: CArray<u16>,
+        pub texture_data_list: CArray<u16>,
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Deep variants — payload kept as opaque bytes (round-trip safe).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -202,7 +215,7 @@ pub enum ItemUseDataVariant<'a> {
     TeleportRevivePoint { base: BaseUseData<'a>, payload: TeleportRevivePointPayload },
     Projectile { base: BaseUseData<'a>, payload: ProjectilePayload },
     ExpandFarmSlot { base: BaseUseData<'a>, payload: ConvertCharacterPayload },
-    CustomizeCharacter { base: BaseUseData<'a>, payload: DeepVariantPayload },
+    CustomizeCharacter { base: BaseUseData<'a>, payload: CustomizeCharacterPayload },
     PlaySequencerOnly { base: BaseUseData<'a>, payload: DeepVariantPayload },
     RegisterReserveSlot { base: BaseUseData<'a>, payload: RegisterReserveSlotPayload },
     OpenUI { base: BaseUseData<'a>, payload: OpenUIPayload<'a> },
@@ -287,7 +300,7 @@ impl<'a> ItemUseDataVariant<'a> {
             },
             13 => Self::CustomizeCharacter {
                 base,
-                payload: read_deep_payload(data, offset, extra_size)?,
+                payload: CustomizeCharacterPayload::read_from(data, offset)?,
             },
             14 => Self::PlaySequencerOnly {
                 base,
@@ -335,7 +348,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::TeleportRevivePoint { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::Projectile { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::ExpandFarmSlot { base, payload } => { base.write_to(w)?; payload.write_to(w) }
-            Self::CustomizeCharacter { base, payload } => { base.write_to(w)?; w.write_all(&payload.0) }
+            Self::CustomizeCharacter { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::PlaySequencerOnly { base, payload } => { base.write_to(w)?; w.write_all(&payload.0) }
             Self::RegisterReserveSlot { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::OpenUI { base, payload } => { base.write_to(w)?; payload.write_to(w) }
@@ -377,7 +390,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::TeleportRevivePoint { base, payload } => ("TeleportRevivePoint", base, Value::Object(payload.to_json_dict())),
             Self::Projectile { base, payload } => ("Projectile", base, Value::Object(payload.to_json_dict())),
             Self::ExpandFarmSlot { base, payload } => ("ExpandFarmSlot", base, Value::Object(payload.to_json_dict())),
-            Self::CustomizeCharacter { base, payload } => ("CustomizeCharacter", base, deep_to_json(&payload.0)),
+            Self::CustomizeCharacter { base, payload } => ("CustomizeCharacter", base, Value::Object(payload.to_json_dict())),
             Self::PlaySequencerOnly { base, payload } => ("PlaySequencerOnly", base, deep_to_json(&payload.0)),
             Self::RegisterReserveSlot { base, payload } => ("RegisterReserveSlot", base, Value::Object(payload.to_json_dict())),
             Self::OpenUI { base, payload } => ("OpenUI", base, Value::Object(payload.to_json_dict())),
@@ -426,7 +439,7 @@ impl<'a> ItemUseDataVariant<'a> {
             10 => TeleportRevivePointPayload::write_from_json_dict(w, payload_obj(payload, "TeleportRevivePoint")?)?,
             11 => ProjectilePayload::write_from_json_dict(w, payload_obj(payload, "Projectile")?)?,
             12 => ConvertCharacterPayload::write_from_json_dict(w, payload_obj(payload, "ExpandFarmSlot")?)?,
-            13 => write_deep_from_json(w, payload, "CustomizeCharacter")?,
+            13 => CustomizeCharacterPayload::write_from_json_dict(w, payload_obj(payload, "CustomizeCharacter")?)?,
             14 => write_deep_from_json(w, payload, "PlaySequencerOnly")?,
             15 => RegisterReserveSlotPayload::write_from_json_dict(w, payload_obj(payload, "RegisterReserveSlot")?)?,
             16 => OpenUIPayload::write_from_json_dict(w, payload_obj(payload, "OpenUI")?)?,
