@@ -72,7 +72,9 @@ py_binary_struct! {
 
         // Four standalone u32s. Hex values in vanilla suggest these are
         // f32 bit-patterns (0xC66FFC00 ≈ -15359.0, etc.) — likely world
-        // bounds or camera limits. Stored raw so the bit pattern survives.
+        // bounds or camera limits. Confirmed: at least one entry has a
+        // NaN bit pattern that breaks JSON round-trip if exposed as f32.
+        // Stored as raw u32 to preserve any bit pattern through JSON.
         pub unk_u32_d: u32,
         pub unk_u32_e: u32,
         pub unk_u32_f: u32,
