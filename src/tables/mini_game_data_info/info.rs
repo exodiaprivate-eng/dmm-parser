@@ -1,16 +1,42 @@
 //! Hand-corrected: IDA-derived parser for `MiniGameDataInfo.pabgb`.
 //!
-//! Per IDA sub_1410EC670: 16 fields. Two polymorphic CArrays (player/npc data
-//! lists via sub_14110E180) plus an unknown-polymorphic spawn data list
-//! (sub_14110E010) captured as one combined byte-blob. Tail probed via
-//! u16 + u32 + CArray<u32>.
+//! Per IDA sub_1410EC670: 16 fields. Player/NPC data lists are typed CArrays
+//! of `MiniGameParticipantData` (per sub_14110E180 → sub_1410EC410). Spawn
+//! data list (sub_14110E010 → sub_14110BCC0 → sub_1410F3220) has nested
+//! polymorphic readers that cross into anti-disassembly-protected territory;
+//! captured byte-perfect as `spawn_data_list_blob` (boundary recovered via
+//! tail probe). Tail: u16 + u32 + CArray<u32>.
+//!
+//! ## sub_1410EC410 wire shape per participant element (player and NPC):
+//!   1. u32 hash → u16 stored (sub_1410FF5C0, qword_DA00 lookup)
+//!   2. u64 (8 bytes — flag/state)
+//!   3. u8
+//!   4. u8
+//!   5. u32 (numeric value at +20)
+//!   6. CArray<u32> (a2+24/+32 — list of u32 keys)
 
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// One element of `player_data_list` or `npc_data_list`. Per
+    /// sub_1410EC410: 22 fixed bytes + 4×count from the trailing
+    /// CArray<u32>. `key_hash` is a u32 wire hash key (qword_DA00 family);
+    /// runtime resolves to u16 (sentinel 0xFFFF when not found).
+    pub struct MiniGameParticipantData {
+        pub key_hash: u32,
+        pub flag_qword: u64,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub value_dword: u32,
+        pub spawn_keys: CArray<u32>,
+    }
+}
 
 #[derive(Debug)]
 pub struct EntranceFee(pub [u8; 28]);
@@ -27,8 +53,14 @@ pub struct MiniGameDataInfo<'a> {
     pub need_change_character_scale: u8,
     pub entrance_fee_list: Vec<EntranceFee>,
     pub default_reward_drop_set_info: u32,
-    /// _playerDataList + _npcDataList + _spawnDataList combined byte-blob.
-    pub data_lists_blob: Vec<u8>,
+    /// _playerDataList — typed via sub_14110E180 → sub_1410EC410.
+    pub player_data_list: CArray<MiniGameParticipantData>,
+    /// _npcDataList — same element shape as player_data_list.
+    pub npc_data_list: CArray<MiniGameParticipantData>,
+    /// _spawnDataList — sub_14110E010 → sub_14110BCC0 → sub_1410F3220
+    /// has multiple nested polymorphic readers (some anti-disassembly).
+    /// Captured byte-perfect; boundary recovered via tail probe.
+    pub spawn_data_list_blob: Vec<u8>,
     pub game_event_handler_info: u16,
     pub knowledge_info: u32,
     pub game_advice_info_list: CArray<u32>,
@@ -77,12 +109,17 @@ impl<'a> MiniGameDataInfo<'a> {
 
         let default_reward_drop_set_info = u32::read_from(data, offset)?;
 
-        let post_pre = *offset;
-        let variant_size = find_variant_boundary(data, post_pre, entry_end, 4, |probe| {
+        // _playerDataList + _npcDataList — both are CArray<MiniGameParticipantData>.
+        let player_data_list = CArray::<MiniGameParticipantData>::read_from(data, offset)?;
+        let npc_data_list = CArray::<MiniGameParticipantData>::read_from(data, offset)?;
+
+        // _spawnDataList — captured byte-perfect; boundary by tail probe.
+        let post_npc = *offset;
+        let spawn_size = find_variant_boundary(data, post_npc, entry_end, 4, |probe| {
             try_read_tail(data, probe, entry_end)
         })?;
-        let data_lists_blob = data[post_pre..post_pre + variant_size].to_vec();
-        *offset = post_pre + variant_size;
+        let spawn_data_list_blob = data[post_npc..post_npc + spawn_size].to_vec();
+        *offset = post_npc + spawn_size;
 
         let game_event_handler_info = u16::read_from(data, offset)?;
         let knowledge_info = u32::read_from(data, offset)?;
@@ -91,7 +128,8 @@ impl<'a> MiniGameDataInfo<'a> {
         Ok(Self {
             key, string_key, is_blocked, script_name, phase_panel_tag_name,
             ui_view_id, use_deactive_result, need_change_character_scale,
-            entrance_fee_list, default_reward_drop_set_info, data_lists_blob,
+            entrance_fee_list, default_reward_drop_set_info,
+            player_data_list, npc_data_list, spawn_data_list_blob,
             game_event_handler_info, knowledge_info, game_advice_info_list,
         })
     }
@@ -110,7 +148,9 @@ impl<'a> MiniGameDataInfo<'a> {
             w.write_all(&fee.0)?;
         }
         self.default_reward_drop_set_info.write_to(w)?;
-        w.write_all(&self.data_lists_blob)?;
+        self.player_data_list.write_to(w)?;
+        self.npc_data_list.write_to(w)?;
+        w.write_all(&self.spawn_data_list_blob)?;
         self.game_event_handler_info.write_to(w)?;
         self.knowledge_info.write_to(w)?;
         self.game_advice_info_list.write_to(w)?;
@@ -130,7 +170,12 @@ impl<'a> MiniGameDataInfo<'a> {
         m.insert("entrance_fee_list".to_string(),
             Value::Array(self.entrance_fee_list.iter().map(|f| f.0.to_json_value()).collect()));
         m.insert("default_reward_drop_set_info".to_string(), self.default_reward_drop_set_info.to_json_value());
-        m.insert("_data_lists_blob_b64".to_string(), Value::String(B64.encode(&self.data_lists_blob)));
+        m.insert("player_data_list".to_string(), self.player_data_list.to_json_value());
+        m.insert("npc_data_list".to_string(), self.npc_data_list.to_json_value());
+        m.insert(
+            "_spawn_data_list_blob_b64".to_string(),
+            Value::String(B64.encode(&self.spawn_data_list_blob)),
+        );
         m.insert("game_event_handler_info".to_string(), self.game_event_handler_info.to_json_value());
         m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
         m.insert("game_advice_info_list".to_string(), self.game_advice_info_list.to_json_value());
@@ -155,12 +200,20 @@ impl<'a> MiniGameDataInfo<'a> {
             <[u8; 28] as WriteJsonValue>::write_from_json(w, f)?;
         }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "default_reward_drop_set_info")?)?;
-        let b64 = json_get_field(obj, "_data_lists_blob_b64")?
+        <CArray<MiniGameParticipantData> as WriteJsonValue>::write_from_json(
+            w,
+            json_get_field(obj, "player_data_list")?,
+        )?;
+        <CArray<MiniGameParticipantData> as WriteJsonValue>::write_from_json(
+            w,
+            json_get_field(obj, "npc_data_list")?,
+        )?;
+        let b64 = json_get_field(obj, "_spawn_data_list_blob_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "MiniGameDataInfo: _data_lists_blob_b64 must be a base64 string"))?;
+                "MiniGameDataInfo: _spawn_data_list_blob_b64 must be a base64 string"))?;
         let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("MiniGameDataInfo: _data_lists_blob_b64 invalid base64: {}", e)))?;
+            format!("MiniGameDataInfo: _spawn_data_list_blob_b64 invalid base64: {}", e)))?;
         w.extend_from_slice(&bytes);
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_event_handler_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
