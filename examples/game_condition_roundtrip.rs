@@ -85,11 +85,19 @@ fn main() {
         let mut parse_cur = 0usize;
         let node = match GameCondition::read_from(blob, &mut parse_cur) {
             Ok(n) => n,
-            Err(_) => {
+            Err(e) => {
                 decode_err += 1;
                 entry.2 += 1;
                 if let Some(t) = cdata_tag {
                     cdata_tag_stats.entry(t).or_insert((0,0,0)).2 += 1;
+                }
+                // Capture decode_err entries for the targeted tag too —
+                // useful when fixing a variant whose recipe is wrong.
+                if root_case == 3 && case3_dumps.len() < 5
+                    && (dump_tag_filter.is_none() || dump_tag_filter == cdata_tag) {
+                    let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
+                    let _ = e;
+                    case3_dumps.push((*k, blob.to_vec(), Vec::new(), parse_cur, tag_for_dump));
                 }
                 continue;
             }

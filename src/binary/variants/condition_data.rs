@@ -748,28 +748,114 @@ impl ConditionData_StartMissionPayload {
     }
 }
 
+/// ConditionData_GameEventParam (tag 272). Per IDA sub_141CCEF00 (vtable[16]
+/// for ConditionData_GameEventParam::vftable at 0x144CE4CB0). The reader
+/// pattern is:
+///   1. read u8 sub_tag (1 byte)
+///   2. read u8 modifier (1 byte)
+///   3. switch on sub_tag: read 0/1/2/4/8 bytes per case
+/// We store sub_tag + modifier as typed fields and the tail bytes as a
+/// raw blob (variable-length per sub_tag). Round-trip-perfect without
+/// modelling the inner 110-case structure.
+#[derive(Debug)]
+pub struct ConditionData_GameEventParamPayload {
+    pub sub_tag: u8,
+    pub modifier: u8,
+    /// 0-8 bytes determined by sub_tag (see `gameeventparam_body_size`).
+    pub body_bytes: Vec<u8>,
+}
+
+/// Map sub_tag → number of additional bytes the slot-16 reader consumes
+/// after the (sub_tag, modifier) prefix. Derived from
+/// CrimsonDesert.exe sub_141CCEF00 case-by-case.
+fn gameeventparam_body_size(sub_tag: u8) -> Option<usize> {
+    Some(match sub_tag {
+        // u32 reads
+        0x00 | 0x4B | 0x4D | 0x02 | 0x05 | 0x06 |
+        0x0C | 0x1F | 0x22 | 0x23 | 0x24 | 0x2E | 0x34 | 0x40 |
+        0x0D | 0x0E | 0x0F | 0x11 | 0x12 |
+        0x19 | 0x1A | 0x2D | 0x35 | 0x36 | 0x37 | 0x38 |
+        0x1C | 0x2B | 0x2C | 0x2F |
+        0x32 | 0x33 | 0x39 | 0x3A | 0x3B | 0x42 | 0x44 | 0x46 |
+        0x49 | 0x50 | 0x5C | 0x60 | 0x66 | 0x67 | 0x69 | 0x6E => 4,
+
+        // u16 reads
+        0x01 | 0x4C | 0x4E | 0x03 |
+        0x13 | 0x14 |
+        0x1D | 0x48 | 0x4F | 0x53 | 0x68 => 2,
+
+        // u64 reads
+        0x10 | 0x65 |
+        0x17 | 0x18 | 0x21 | 0x25 | 0x26 | 0x27 | 0x28 | 0x29 | 0x2A |
+        0x3F | 0x41 | 0x64 | 0x6B | 0x6C |
+        0x1B => 8,
+
+        // u8 reads
+        0x04 | 0x15 | 0x20 |
+        0x30 | 0x31 | 0x3C | 0x3D | 0x3E | 0x43 | 0x45 | 0x47 |
+        0x51 | 0x57 | 0x58 | 0x59 | 0x5D | 0x5E | 0x61 | 0x62 | 0x63 | 0x6D |
+        0x52 | 0x54 | 0x55 | 0x56 | 0x5A | 0x5B | 0x5F | 0x6A => 1,
+
+        // No extra bytes (LABEL_106)
+        0x07 | 0x08 | 0x09 | 0x0A | 0x0B | 0x16 | 0x1E | 0x4A => 0,
+
+        // Default arm in IDA returns 0 → not a recognized sub_tag
+        _ => return None,
+    })
+}
+
+impl ConditionData_GameEventParamPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let sub_tag = u8::read_from(data, offset)?;
+        let modifier = u8::read_from(data, offset)?;
+        let n = gameeventparam_body_size(sub_tag).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("ConditionData_GameEventParam: unknown sub_tag {}", sub_tag),
+            )
+        })?;
+        if *offset + n > data.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                format!("ConditionData_GameEventParam sub_tag {} body underflow ({} bytes needed, {} available)",
+                    sub_tag, n, data.len() - *offset),
+            ));
+        }
+        let body_bytes = data[*offset..*offset + n].to_vec();
+        *offset += n;
+        Ok(Self { sub_tag, modifier, body_bytes })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.sub_tag.write_to(w)?;
+        self.modifier.write_to(w)?;
+        w.write_all(&self.body_bytes)?;
+        Ok(())
+    }
+}
+
 /// ConditionData_QuestGaugePercent (tag 81). Per IDA sub_141CA6F20 (vtable[16]
 /// for ConditionData_QuestGaugePercent::vftable at 0x144CE3038):
 ///   1. read u32 quest_key (4 bytes) — hashmap-converted to u16 stored at +16
 ///   2. read u64 percent_value (8 bytes) — stored at +24
-///   3. read u8 (1 byte) — stored at +32
-/// Total slot-16 reads = 13 bytes. The final u8 is the universal tail_byte
-/// handled at the ConditionData level, so the variant body itself is the
-/// preceding 12 bytes (u32 + u64).
+///   3. read u8 final_byte (1 byte) — stored at +32
+/// Total slot-16 reads = 13 bytes (full body, no separate tail).
 #[derive(Debug)]
 pub struct ConditionData_QuestGaugePercentPayload {
     pub quest_key: u32,
     pub percent_value: u64,
+    pub final_byte: u8,
 }
 impl ConditionData_QuestGaugePercentPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let quest_key = u32::read_from(data, offset)?;
         let percent_value = u64::read_from(data, offset)?;
-        Ok(Self { quest_key, percent_value })
+        let final_byte = u8::read_from(data, offset)?;
+        Ok(Self { quest_key, percent_value, final_byte })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.quest_key.write_to(w)?;
         self.percent_value.write_to(w)?;
+        self.final_byte.write_to(w)?;
         Ok(())
     }
 }
@@ -3476,7 +3562,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_GetFactionResource(ConditionData_GetFactionResourcePayload),
     ConditionData_IsFactionNodeMissionGaugeEnable(ConditionData_IsFactionNodeMissionGaugeEnablePayload),
     ConditionData_CheckCharacterGroupKey(ConditionData_CheckCharacterGroupKeyPayload),
-    ConditionData_GameEventParam,
+    ConditionData_GameEventParam(ConditionData_GameEventParamPayload),
     ConditionData_CheckFactionRelation(ConditionData_CheckFactionRelationPayload),
     ConditionData_CheckUsableStore,
     ConditionData_CheckRide(ConditionData_CheckRidePayload<'a>),
@@ -3886,7 +3972,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFactionResource(_) => 269,
             Self::ConditionData_IsFactionNodeMissionGaugeEnable(_) => 270,
             Self::ConditionData_CheckCharacterGroupKey(_) => 271,
-            Self::ConditionData_GameEventParam => 272,
+            Self::ConditionData_GameEventParam(_) => 272,
             Self::ConditionData_CheckFactionRelation(_) => 273,
             Self::ConditionData_CheckUsableStore => 274,
             Self::ConditionData_CheckRide(_) => 275,
@@ -4298,7 +4384,7 @@ impl<'a> ConditionDataVariant<'a> {
             269 => Self::ConditionData_GetFactionResource(ConditionData_GetFactionResourcePayload::read_from(data, offset)?),
             270 => Self::ConditionData_IsFactionNodeMissionGaugeEnable(ConditionData_IsFactionNodeMissionGaugeEnablePayload::read_from(data, offset)?),
             271 => Self::ConditionData_CheckCharacterGroupKey(ConditionData_CheckCharacterGroupKeyPayload::read_from(data, offset)?),
-            272 => Self::ConditionData_GameEventParam,
+            272 => Self::ConditionData_GameEventParam(ConditionData_GameEventParamPayload::read_from(data, offset)?),
             273 => Self::ConditionData_CheckFactionRelation(ConditionData_CheckFactionRelationPayload::read_from(data, offset)?),
             274 => Self::ConditionData_CheckUsableStore,
             275 => Self::ConditionData_CheckRide(ConditionData_CheckRidePayload::read_from(data, offset)?),
@@ -4713,7 +4799,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFactionResource(p) => p.write_to(w),
             Self::ConditionData_IsFactionNodeMissionGaugeEnable(p) => p.write_to(w),
             Self::ConditionData_CheckCharacterGroupKey(p) => p.write_to(w),
-            Self::ConditionData_GameEventParam => Ok(()),
+            Self::ConditionData_GameEventParam(p) => p.write_to(w),
             Self::ConditionData_CheckFactionRelation(p) => p.write_to(w),
             Self::ConditionData_CheckUsableStore => Ok(()),
             Self::ConditionData_CheckRide(p) => p.write_to(w),
@@ -4882,32 +4968,26 @@ impl<'a> ConditionDataOptionData<'a> {
     }
 }
 
-/// Full ConditionData record: u16 tag + variant payload + 1-byte tail.
+/// Full ConditionData record: u16 tag + variant payload.
 ///
-/// Stream layout: [u16 tag][variant_body:N][u8 tail_byte]
+/// Stream layout: [u16 tag][variant_body:N]
 ///
-/// Per the Win-binary dispatcher sub_141C87CE0, after construction the
+/// Per the Win-binary dispatcher `sub_141C87CE0`, after construction the
 /// dispatcher calls two vtable slots with the stream:
-///   - slot 16 (+0x80): reads the variant body
+///   - slot 16 (+0x80): reads the variant body — the per-variant payload
 ///   - slot 19 (+0x98): for most variants is `return 1;` (no-op, e.g.
 ///     ConditionData_QuestGaugePercent at 0x1402D3A80), for SOME is the
 ///     actual ConditionDataOptionData reader
 ///
-/// Empirically, every observed ConditionData ends with 1 trailing byte that
-/// the variant-body decoders don't consume. Modelling it as a universal
-/// `tail_byte` reproduces what the binary does for the common case
-/// (slot-19-is-noop variants) while giving us a place to absorb the byte
-/// without inventing fake option_present semantics. Variants whose slot 19
-/// is the real ConditionDataOptionData reader will need per-tag handling
-/// once we identify them — flagged for follow-up.
+/// **There is no universal trailing byte.** Earlier code first invented
+/// `option_present` then `tail_byte` to absorb the byte that tag-81's slot
+/// 16 was consuming — but that byte is actually part of tag 81's body
+/// (u32+u64+u8 = 13 bytes per IDA sub_141CA6F20). Different variants have
+/// different body sizes; the body is whatever slot 16 reads, full stop.
 #[derive(Debug)]
 pub struct ConditionData<'a> {
     pub base: ConditionDataBase,
     pub variant: ConditionDataVariant<'a>,
-    /// The 1-byte tail every ConditionData carries. Originally modelled as
-    /// `option_present` but per IDA the actual semantics are per-variant
-    /// (vtable slot 19) — for most variants this byte just rides along.
-    pub tail_byte: u8,
 }
 
 impl<'a> ConditionData<'a> {
@@ -4915,13 +4995,11 @@ impl<'a> ConditionData<'a> {
         let base = ConditionDataBase::read_from(data, offset)?;
         let disc = base.tag;
         let variant = ConditionDataVariant::read_from(disc, data, offset)?;
-        let tail_byte = u8::read_from(data, offset)?;
-        Ok(Self { base, variant, tail_byte })
+        Ok(Self { base, variant })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
-        self.tail_byte.write_to(w)?;
         Ok(())
     }
 }
