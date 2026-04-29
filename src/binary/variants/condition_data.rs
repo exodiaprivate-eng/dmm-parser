@@ -812,16 +812,49 @@ impl ConditionData_StartMissionPayload {
 /// pattern is:
 ///   1. read u8 sub_tag (1 byte)
 ///   2. read u8 modifier (1 byte)
-///   3. switch on sub_tag: read 0/1/2/4/8 bytes per case
-/// We store sub_tag + modifier as typed fields and the tail bytes as a
-/// raw blob (variable-length per sub_tag). Round-trip-perfect without
-/// modelling the inner 110-case structure.
+///   3. switch on sub_tag: read 0/1/2/4/8 bytes per case (typed primitive)
+///
+/// The `value` field is a typed primitive sized to the sub_tag's wire
+/// width (None / U8 / U16 / U32 / U64). JSON exposes `{"kind": "U32",
+/// "value": 12345}` rather than an opaque base64 payload.
 #[derive(Debug)]
 pub struct ConditionData_GameEventParamPayload {
     pub sub_tag: u8,
     pub modifier: u8,
-    /// 0-8 bytes determined by sub_tag (see `gameeventparam_body_size`).
-    pub body_bytes: Vec<u8>,
+    pub value: GameEventParamValue,
+}
+
+/// Typed-primitive payload for tag 272's per-sub_tag body bytes. The
+/// width is determined by `gameeventparam_body_size(sub_tag)`. The
+/// runtime stores these in a discriminated union of u8/u16/u32/u64 at
+/// different memory offsets per sub_tag; we collapse to a typed value
+/// since the wire layout is just a primitive of the matching size.
+#[derive(Debug, Clone)]
+pub enum GameEventParamValue {
+    /// No bytes — sub_tags 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x16, 0x1E, 0x4A.
+    None,
+    /// 1-byte value — see u8-reads list in gameeventparam_body_size.
+    U8(u8),
+    /// 2-byte value — u16 reads.
+    U16(u16),
+    /// 4-byte value — u32 reads (game-side hash keys, indices, or
+    /// floats; we stay as u32 since the runtime resolution is
+    /// per-sub_tag and consumers can reinterpret).
+    U32(u32),
+    /// 8-byte value — u64 reads.
+    U64(u64),
+}
+
+impl GameEventParamValue {
+    pub fn wire_size(&self) -> usize {
+        match self {
+            Self::None => 0,
+            Self::U8(_) => 1,
+            Self::U16(_) => 2,
+            Self::U32(_) => 4,
+            Self::U64(_) => 8,
+        }
+    }
 }
 
 /// Map sub_tag → number of additional bytes the slot-16 reader consumes
@@ -873,22 +906,28 @@ impl ConditionData_GameEventParamPayload {
                 format!("ConditionData_GameEventParam: unknown sub_tag {}", sub_tag),
             )
         })?;
-        if *offset + n > data.len() {
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                format!("ConditionData_GameEventParam sub_tag {} body underflow ({} bytes needed, {} available)",
-                    sub_tag, n, data.len() - *offset),
-            ));
-        }
-        let body_bytes = data[*offset..*offset + n].to_vec();
-        *offset += n;
-        Ok(Self { sub_tag, modifier, body_bytes })
+        let value = match n {
+            0 => GameEventParamValue::None,
+            1 => GameEventParamValue::U8(u8::read_from(data, offset)?),
+            2 => GameEventParamValue::U16(u16::read_from(data, offset)?),
+            4 => GameEventParamValue::U32(u32::read_from(data, offset)?),
+            8 => GameEventParamValue::U64(u64::read_from(data, offset)?),
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("ConditionData_GameEventParam: unexpected body size {} for sub_tag {}",
+                    other, sub_tag))),
+        };
+        Ok(Self { sub_tag, modifier, value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.sub_tag.write_to(w)?;
         self.modifier.write_to(w)?;
-        w.write_all(&self.body_bytes)?;
-        Ok(())
+        match &self.value {
+            GameEventParamValue::None => Ok(()),
+            GameEventParamValue::U8(v) => v.write_to(w),
+            GameEventParamValue::U16(v) => v.write_to(w),
+            GameEventParamValue::U32(v) => v.write_to(w),
+            GameEventParamValue::U64(v) => v.write_to(w),
+        }
     }
 }
 
