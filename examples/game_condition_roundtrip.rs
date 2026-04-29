@@ -8,7 +8,7 @@
 //! Reports per-tag pass/fail counts so we know which ConditionData variants
 //! still have wrong byte recipes.
 
-use dmm_parser::binary::variants::game_condition::GameConditionNode;
+use dmm_parser::binary::variants::game_condition::{GameCondition, GameConditionNode};
 use dmm_parser::binary::variant::{entry_ranges, find_cstring_u8_trailer, load_pabgh_offsets};
 use dmm_parser::binary::*;
 use std::collections::BTreeMap;
@@ -37,6 +37,9 @@ fn main() {
     let mut roundtrip_ok = 0usize;
     let mut roundtrip_mismatch = 0usize;
     let mut mismatch_examples: Vec<(u32, usize, usize)> = Vec::new();
+    // Capture full hex of the first 5 case-3 mismatches for inspection.
+    // Each entry: (key, vanilla_blob, our_buf, parse_cursor)
+    let mut case3_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u16)> = Vec::new();
 
     // Track per-root-case tag: total / pass / fail
     let mut case_stats: BTreeMap<u8, (usize, usize, usize)> = BTreeMap::new();
@@ -72,9 +75,11 @@ fn main() {
             None
         };
 
-        // Try to decode
+        // Try to decode the full GameCondition (tree + 3-byte footer per
+        // sub_101021408). Treating it as a wrapper means the validator
+        // exercises the same shape every consumer of GameCondition uses.
         let mut parse_cur = 0usize;
-        let node = match GameConditionNode::read_from(blob, &mut parse_cur) {
+        let node = match GameCondition::read_from(blob, &mut parse_cur) {
             Ok(n) => n,
             Err(_) => {
                 decode_err += 1;
@@ -96,6 +101,13 @@ fn main() {
             }
             if mismatch_examples.len() < 10 {
                 mismatch_examples.push((*k, parse_cur, blob.len()));
+            }
+            // Also dump for underconsume case
+            if root_case == 3 && case3_dumps.len() < 5 {
+                let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
+                let mut buf: Vec<u8> = Vec::with_capacity(blob.len());
+                let _ = node.write_to(&mut buf);
+                case3_dumps.push((*k, blob.to_vec(), buf, parse_cur, tag_for_dump));
             }
             continue;
         }
@@ -122,6 +134,31 @@ fn main() {
             if mismatch_examples.len() < 10 {
                 let diff_at = buf.iter().zip(blob.iter()).position(|(a, b)| a != b).unwrap_or(buf.len().min(blob.len()));
                 mismatch_examples.push((*k, diff_at, blob.len()));
+            }
+            // Hex-dump the first 5 case-3 mismatches with their tag for inspection.
+            if root_case == 3 && case3_dumps.len() < 5 {
+                let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
+                case3_dumps.push((*k, blob.to_vec(), buf.clone(), parse_cur, tag_for_dump));
+            }
+        }
+    }
+
+    if !case3_dumps.is_empty() {
+        println!("\n=== First {} case-3 mismatch hex dumps (vanilla vs ours) ===", case3_dumps.len());
+        for (k, vanilla, ours, cur, tag) in &case3_dumps {
+            println!("\nkey=0x{:08X} tag={} parse_cur={} vanilla_len={} our_len={}",
+                k, tag, cur, vanilla.len(), ours.len());
+            println!("  vanilla: {}", vanilla.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+            println!("  ours:    {}", ours.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+            // Highlight where they diverge
+            let diff_at = ours.iter().zip(vanilla.iter()).position(|(a, b)| a != b)
+                .unwrap_or(ours.len().min(vanilla.len()));
+            println!("  diff_at: {} (0x{:x})", diff_at, diff_at);
+            if vanilla.len() > ours.len() {
+                let trail = &vanilla[ours.len()..];
+                println!("  vanilla trailing extra: {} bytes [{}]",
+                    trail.len(),
+                    trail.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
             }
         }
     }
@@ -150,23 +187,26 @@ fn main() {
     // Per-ConditionData-tag breakdown (case 3 only)
     println!("\n=== ConditionData (case 3) per-u16-tag round-trip stats ===");
     println!("tag  | total | pass | fail | pass%");
-    let mut tags: Vec<(u16, (usize, usize))> = cdata_tag_stats.into_iter().collect();
-    tags.sort_by_key(|(_, (p, f))| -(*f as isize));  // sort by failures desc
+    let mut tags: Vec<(u16, (usize, usize, usize))> = cdata_tag_stats.into_iter().collect();
+    tags.sort_by_key(|(_, (_p, f, _e))| -(*f as isize));  // sort by mismatch failures desc
     let mut shown = 0usize;
-    for (tag, (pass, fail)) in &tags {
-        let total = pass + fail;
-        if *fail == 0 { continue; }  // skip clean tags
+    for (tag, (pass, fail, decode_err)) in &tags {
+        let total = pass + fail + decode_err;
+        if *fail == 0 && *decode_err == 0 { continue; }  // skip clean tags
         let pct = if total > 0 { *pass as f64 * 100.0 / total as f64 } else { 0.0 };
-        println!("  {:4} | {:5} | {:4} | {:4} | {:5.1}%", tag, total, pass, fail, pct);
+        println!("  {:4} | {:5} | {:4} | {:4} (mm) + {:4} (err) | {:5.1}%",
+            tag, total, pass, fail, decode_err, pct);
         shown += 1;
         if shown >= 50 { break; }
     }
     if shown < tags.len() {
-        let remaining_failures: usize = tags.iter().skip(shown).filter(|(_, (_, f))| *f > 0).count();
+        let remaining_failures: usize = tags.iter().skip(shown)
+            .filter(|(_, (_, f, e))| *f > 0 || *e > 0).count();
         if remaining_failures > 0 {
             println!("  ... {} more failing tags suppressed", remaining_failures);
         }
     }
-    let clean_tags: usize = tags.iter().filter(|(_, (_, f))| *f == 0).count();
+    let clean_tags: usize = tags.iter()
+        .filter(|(_, (_, f, e))| *f == 0 && *e == 0).count();
     println!("\nClean tags (always round-trip):  {}", clean_tags);
 }

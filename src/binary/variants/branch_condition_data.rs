@@ -6,27 +6,25 @@ use crate::binary::*;
 use std::io::{self, Write};
 
 /// Common base fields shared by every BranchConditionData variant.
+///
+/// Note: the original recipe also pulled three trailing bytes here (byte_a,
+/// byte_b, byte_c). Those bytes are actually the GameCondition wrapper
+/// footer (read by sub_101021408 after the tree at slots +8/+9/+10 of the
+/// _gameCondition struct), not part of BranchConditionDataBase. They've
+/// been moved up to `super::game_condition::GameCondition` so every root
+/// case correctly accounts for them, not just BranchConditionData.
 #[derive(Debug)]
 pub struct BranchConditionDataBase {
     pub tag: u8,
-    pub byte_a: u8,
-    pub byte_b: u8,
-    pub byte_c: u8,
 }
 
 impl BranchConditionDataBase {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let tag = u8::read_from(data, offset)?;
-        let byte_a = u8::read_from(data, offset)?;
-        let byte_b = u8::read_from(data, offset)?;
-        let byte_c = u8::read_from(data, offset)?;
-        Ok(Self { tag, byte_a, byte_b, byte_c })
+        Ok(Self { tag })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.tag.write_to(w)?;
-        self.byte_a.write_to(w)?;
-        self.byte_b.write_to(w)?;
-        self.byte_c.write_to(w)?;
         Ok(())
     }
 }

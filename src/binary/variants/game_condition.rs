@@ -17,6 +17,40 @@ use super::schedule_complete_condition_data::ScheduleCompleteConditionData;
 use crate::binary::*;
 use std::io::{self, Write};
 
+/// Full GameCondition wire format: a recursive tree + a 3-byte footer.
+///
+/// Per IDA `sub_101021408` (the reader called from ConditionInfo's parser):
+///   1. Construct the tree node and read it from the stream.
+///   2. Read three u8 fields at struct offsets +8, +9, +10.
+///
+/// The footer applies to every table that consumes GameCondition (not just
+/// ConditionInfo). Wrapping the tree + footer into a single type keeps the
+/// recursive `GameConditionNode` clean of the table-level trailing bytes.
+#[derive(Debug)]
+pub struct GameCondition<'a> {
+    pub tree: GameConditionNode<'a>,
+    pub tail_a: u8,
+    pub tail_b: u8,
+    pub tail_c: u8,
+}
+
+impl<'a> GameCondition<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let tree = GameConditionNode::read_from(data, offset)?;
+        let tail_a = u8::read_from(data, offset)?;
+        let tail_b = u8::read_from(data, offset)?;
+        let tail_c = u8::read_from(data, offset)?;
+        Ok(Self { tree, tail_a, tail_b, tail_c })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.tree.write_to(w)?;
+        self.tail_a.write_to(w)?;
+        self.tail_b.write_to(w)?;
+        self.tail_c.write_to(w)?;
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub enum GameConditionNode<'a> {
     /// Case 0: BinaryOp_A (operator constructor 0x141E65450, likely AND).
