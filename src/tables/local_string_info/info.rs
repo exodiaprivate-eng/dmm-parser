@@ -44,4 +44,33 @@ mod tests {
         }
         assert_eq!(out, data, "localstringinfo roundtrip bytes mismatch");
     }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(LocalStringInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+
+        for (i, item) in items.iter().enumerate() {
+            let _ = &item;
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            LocalStringInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
+    }
 }
