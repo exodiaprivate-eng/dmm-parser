@@ -336,32 +336,15 @@ pub struct SummonBuffDataPayload<'a> {
     pub u32_outer_384: u32,
 }
 
-/// 19-byte SummonBuffData inner struct (sub_1410F6ED0): u32 + u32 + u8 + u16 + u64.
-#[derive(Debug)]
-pub struct SummonGraphData {
-    pub a: u32,
-    pub b: u32,
-    pub c: u8,
-    pub d: u16,
-    pub e: u64,
-}
-
-impl SummonGraphData {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let a = u32::read_from(data, offset)?;
-        let b = u32::read_from(data, offset)?;
-        let c = u8::read_from(data, offset)?;
-        let d = u16::read_from(data, offset)?;
-        let e = u64::read_from(data, offset)?;
-        Ok(Self { a, b, c, d, e })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.a.write_to(w)?;
-        self.b.write_to(w)?;
-        self.c.write_to(w)?;
-        self.d.write_to(w)?;
-        self.e.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    /// 19-byte SummonBuffData inner struct (sub_1410F6ED0):
+    /// u32 + u32 + u8 + u16 + u64.
+    pub struct SummonGraphData {
+        pub a: u32,
+        pub b: u32,
+        pub c: u8,
+        pub d: u16,
+        pub e: u64,
     }
 }
 
@@ -401,6 +384,103 @@ impl<'a> GameConditionOptional<'a> {
             inner.trailer.write_to(w)?;
         }
         Ok(())
+    }
+
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("presence".into(), self.presence.to_json_value());
+        m.insert(
+            "inner".into(),
+            match &self.inner {
+                Some(i) => {
+                    let mut im = Map::new();
+                    im.insert("tree".into(), i.tree.to_json_value());
+                    im.insert("trailer".into(), i.trailer.to_json_value());
+                    Value::Object(im)
+                }
+                None => Value::Null,
+            },
+        );
+        Value::Object(m)
+    }
+
+    pub fn write_from_json_value(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GameConditionOptional: expected object",
+        ))?;
+        let presence_v = json_get_field(obj, "presence")?;
+        let presence = presence_v.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GameConditionOptional.presence: expected u8",
+        ))?;
+        if presence > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("GameConditionOptional.presence: {} out of u8 range", presence)));
+        }
+        w.push(presence as u8);
+        if presence == 0 { return Ok(()); }
+        let inner_v = json_get_field(obj, "inner")?;
+        let inner_obj = inner_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GameConditionOptional.inner: expected object when presence!=0",
+        ))?;
+        super::game_condition::GameConditionNode::write_from_json(
+            w, json_get_field(inner_obj, "tree")?,
+        )?;
+        <[u8; 3] as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer")?)?;
+        Ok(())
+    }
+}
+
+impl<'a> BinaryRead<'a> for GameConditionOptional<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Self::read_from(data, offset)
+    }
+}
+
+impl<'a> BinaryWrite for GameConditionOptional<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.write_to(w)
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for GameConditionOptional<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        _path: &mut String,
+        _ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        <Self as BinaryRead<'a>>::read_from(data, offset)
+    }
+}
+
+impl<'a> ToJsonValue for GameConditionOptional<'a> {
+    fn to_json_value(&self) -> Value {
+        self.to_json_value()
+    }
+}
+
+impl<'a> WriteJsonValue for GameConditionOptional<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        Self::write_from_json_value(w, v)
+    }
+}
+
+impl<'a> crate::python_traits::ToPyValue for GameConditionOptional<'a> {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "GameConditionOptional: use JSON path",
+        ))
+    }
+}
+
+impl<'a> crate::python_traits::WritePyValue for GameConditionOptional<'a> {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "GameConditionOptional: use JSON path",
+        ))
     }
 }
 
@@ -769,24 +849,11 @@ impl ImmuneBuffDataPayload {
     }
 }
 
-#[derive(Debug)]
-pub struct ApplyPhysicsImpulseBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: [u8; 12],
-}
-impl ApplyPhysicsImpulseBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        w.write_all(&self.f02)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ApplyPhysicsImpulseBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: [u8; 12],
     }
 }
 
@@ -811,30 +878,13 @@ py_binary_struct! {
     }
 }
 
-#[derive(Debug)]
-pub struct SummonGimmickBuffDataPayload<'a> {
-    pub f00: CString<'a>,
-    pub f01: [u8; 12],
-    pub f02: [u8; 16],
-    pub f03: u8,
-    pub f04: u8,
-}
-impl<'a> SummonGimmickBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = CString::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f02 = { let mut b = [0u8; 16]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f03 = u8::read_from(data, offset)?;
-        let f04 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        w.write_all(&self.f02)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SummonGimmickBuffDataPayload<'a> {
+        pub f00: CString<'a>,
+        pub f01: [u8; 12],
+        pub f02: [u8; 16],
+        pub f03: u8,
+        pub f04: u8,
     }
 }
 
