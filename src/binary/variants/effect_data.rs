@@ -29,20 +29,17 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-const FIXED144_ELEMENT_SIZE: usize = 144;
+/// Wire size of one EffectDataD3Block (sub_1410D3DC0 record).
+const D3_BLOCK_SIZE: usize = 144;
 
 py_binary_struct! {
-    /// 254-byte fixed block read by sub_1410D4110 (which calls
-    /// sub_1410D3DC0 first for the leading 144 bytes). Per IDA, the
-    /// memory layout is roughly 7×Vec3 + 7×u32 + Vec4(16B) + 2×u32 + u8
-    /// + u8 + u16 + u32 + (sub_1410D4110's own reads): u32 + 2×Vec3 +
-    /// u64 + u32 + 4×Vec3 + u32 + u32 + 14×u8.
+    /// 144-byte sub-block read by sub_1410D3DC0. Used both as the leading
+    /// half of `EffectDataCoreBlock` AND as the per-element type of
+    /// `fixed144_list` (sub_141117080 is `CArray<EffectDataD3Block>`).
     ///
-    /// Each Vec3 is exposed as 3 named u32 fields (`vec_<name>_x/y/z`)
-    /// — the wire is 3 little-endian 4-byte values; consumers free to
-    /// reinterpret as f32 if they want floats.
-    pub struct EffectDataCoreBlock {
-        // sub_1410D3DC0 — 144 bytes (7 Vec3 + 7 u32 + Vec4 + u32×2 + u8×2 + u16 + u32)
+    /// Layout per IDA: 7 × Vec3 + 7 × u32 + Vec4(16B) + 2 × u32 + u8 + u8
+    /// + u16 + u32 = 144 bytes wire.
+    pub struct EffectDataD3Block {
         pub vec_a: [f32; 3],
         pub vec_b: [f32; 3],
         pub vec_c: [f32; 3],
@@ -64,7 +61,15 @@ py_binary_struct! {
         pub byte_137: u8,
         pub word_138: u16,
         pub field_140: u32,
-        // sub_1410D4110 continued — 110 bytes
+    }
+}
+
+py_binary_struct! {
+    /// 254-byte fixed block read by sub_1410D4110: the 144-byte D3 block
+    /// followed by 110 more bytes (u32 + 2×Vec3 + u64 + u32 + 4×Vec3 +
+    /// 2×u32 + 14 individual u8 fields).
+    pub struct EffectDataCoreBlock {
+        pub d3: EffectDataD3Block,
         pub field_144: u32,
         pub vec_h: [f32; 3],
         pub vec_i: [f32; 3],
@@ -76,9 +81,16 @@ py_binary_struct! {
         pub vec_m: [f32; 3],
         pub field_232: u32,
         pub field_236: u32,
-        pub trailing_bytes: [u8; 14],
+        // Per IDA sub_1410D4110: 14 individual `read 1 byte` calls into
+        // a2+240..a2+253. Split into 14 named u8 fields rather than
+        // riding as an opaque [u8; 14].
+        pub byte_240: u8, pub byte_241: u8, pub byte_242: u8, pub byte_243: u8,
+        pub byte_244: u8, pub byte_245: u8, pub byte_246: u8, pub byte_247: u8,
+        pub byte_248: u8, pub byte_249: u8, pub byte_250: u8, pub byte_251: u8,
+        pub byte_252: u8, pub byte_253: u8,
     }
 }
+
 
 /// EffectDataInner record (sub_1410DB840). Recursive nested struct that
 /// appears as the value type inside EffectDataElement.inner_map. Wire
@@ -113,7 +125,7 @@ pub struct EffectDataInner<'a> {
     pub vec_d: [f32; 3],
     pub field_after_vecs: u32,
     pub cstring_list: Vec<CString<'a>>,
-    pub fixed144_list: Vec<[u8; FIXED144_ELEMENT_SIZE]>,
+    pub fixed144_list: Vec<EffectDataD3Block>,
     pub trailing_word: u16,
 }
 
@@ -146,13 +158,7 @@ impl<'a> EffectDataInner<'a> {
         let fixed144_count = u32::read_from(data, offset)? as usize;
         let mut fixed144_list = Vec::with_capacity(fixed144_count);
         for _ in 0..fixed144_count {
-            if *offset + FIXED144_ELEMENT_SIZE > data.len() {
-                return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "fixed144 element"));
-            }
-            let mut buf = [0u8; FIXED144_ELEMENT_SIZE];
-            buf.copy_from_slice(&data[*offset..*offset + FIXED144_ELEMENT_SIZE]);
-            *offset += FIXED144_ELEMENT_SIZE;
-            fixed144_list.push(buf);
+            fixed144_list.push(EffectDataD3Block::read_from(data, offset)?);
         }
 
         let trailing_word = u16::read_from(data, offset)?;
@@ -180,7 +186,7 @@ impl<'a> EffectDataInner<'a> {
         (self.cstring_list.len() as u32).write_to(w)?;
         for s in &self.cstring_list { s.write_to(w)?; }
         (self.fixed144_list.len() as u32).write_to(w)?;
-        for buf in &self.fixed144_list { w.write_all(buf)?; }
+        for blk in &self.fixed144_list { blk.write_to(w)?; }
         self.trailing_word.write_to(w)?;
         Ok(())
     }
@@ -203,7 +209,7 @@ impl<'a> EffectDataInner<'a> {
         m.insert("cstring_list".to_string(),
             Value::Array(self.cstring_list.iter().map(|s| s.to_json_value()).collect()));
         m.insert("fixed144_list".to_string(),
-            Value::Array(self.fixed144_list.iter().map(|b| Value::String(B64.encode(b))).collect()));
+            Value::Array(self.fixed144_list.iter().map(|b| Value::Object(b.to_json_dict())).collect()));
         m.insert("trailing_word".to_string(), self.trailing_word.to_json_value());
         m
     }
@@ -246,17 +252,10 @@ impl<'a> EffectDataInner<'a> {
                 "EffectDataInner: fixed144_list must be array"))?;
         (f144s.len() as u32).write_to(w)?;
         for v in f144s {
-            let s = v.as_str().ok_or_else(|| io::Error::new(
+            let inner = v.as_object().ok_or_else(|| io::Error::new(
                 io::ErrorKind::InvalidData,
-                "EffectDataInner: fixed144_list elements must be base64 strings"))?;
-            let bytes = B64.decode(s).map_err(|e| io::Error::new(
-                io::ErrorKind::InvalidData, format!("fixed144 base64: {}", e)))?;
-            if bytes.len() != FIXED144_ELEMENT_SIZE {
-                return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("fixed144 must be {} bytes, got {}",
-                        FIXED144_ELEMENT_SIZE, bytes.len())));
-            }
-            w.extend_from_slice(&bytes);
+                "EffectDataInner: fixed144_list element must be object"))?;
+            EffectDataD3Block::write_from_json_dict(w, inner)?;
         }
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing_word")?)?;
         Ok(())
@@ -308,7 +307,7 @@ pub struct EffectDataElement<'a> {
     pub fields_d: [u32; 4],
     pub byte_e: u8,
     pub cstring_list: Vec<CString<'a>>,
-    pub fixed144_list: Vec<[u8; FIXED144_ELEMENT_SIZE]>,
+    pub fixed144_list: Vec<EffectDataD3Block>,
     /// `CArray<CArray<u32>>` — typed in this commit.
     pub nested_u32_lists: Vec<Vec<u32>>,
     /// `CArray<{u32 key, EffectDataInner value}>` — typed in this commit.
@@ -397,7 +396,7 @@ fn walk_effect_data_inner(data: &[u8], offset: usize) -> io::Result<usize> {
     // sub_14106BAC0: CArray<CString>
     cur += walk_carray_cstring(data, cur)?;
     // sub_141117080: CArray<[u8; 144]>
-    cur += walk_carray_fixed(data, cur, FIXED144_ELEMENT_SIZE)?;
+    cur += walk_carray_fixed(data, cur, D3_BLOCK_SIZE)?;
     // 2-byte trailing field
     cur += 2;
     if cur > data.len() {
@@ -445,13 +444,7 @@ impl<'a> EffectDataElement<'a> {
         let fixed144_count = u32::read_from(data, offset)? as usize;
         let mut fixed144_list = Vec::with_capacity(fixed144_count);
         for _ in 0..fixed144_count {
-            if *offset + FIXED144_ELEMENT_SIZE > data.len() {
-                return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "fixed144 element"));
-            }
-            let mut buf = [0u8; FIXED144_ELEMENT_SIZE];
-            buf.copy_from_slice(&data[*offset..*offset + FIXED144_ELEMENT_SIZE]);
-            *offset += FIXED144_ELEMENT_SIZE;
-            fixed144_list.push(buf);
+            fixed144_list.push(EffectDataD3Block::read_from(data, offset)?);
         }
 
         let nested_count = u32::read_from(data, offset)? as usize;
@@ -485,7 +478,7 @@ impl<'a> EffectDataElement<'a> {
         (self.cstring_list.len() as u32).write_to(w)?;
         for s in &self.cstring_list { s.write_to(w)?; }
         (self.fixed144_list.len() as u32).write_to(w)?;
-        for buf in &self.fixed144_list { w.write_all(buf)?; }
+        for blk in &self.fixed144_list { blk.write_to(w)?; }
         (self.nested_u32_lists.len() as u32).write_to(w)?;
         for inner in &self.nested_u32_lists {
             (inner.len() as u32).write_to(w)?;
@@ -517,7 +510,7 @@ impl<'a> EffectDataElement<'a> {
         m.insert(
             "fixed144_list".to_string(),
             Value::Array(self.fixed144_list.iter()
-                .map(|buf| Value::String(B64.encode(buf)))
+                .map(|blk| Value::Object(blk.to_json_dict()))
                 .collect()),
         );
         m.insert(
@@ -570,18 +563,10 @@ impl<'a> EffectDataElement<'a> {
                 "EffectDataElement: fixed144_list must be array"))?;
         (f144s.len() as u32).write_to(w)?;
         for v in f144s {
-            let s = v.as_str().ok_or_else(|| io::Error::new(
+            let inner = v.as_object().ok_or_else(|| io::Error::new(
                 io::ErrorKind::InvalidData,
-                "EffectDataElement: fixed144_list elements must be base64 strings"))?;
-            let bytes = B64.decode(s).map_err(|e| io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("EffectDataElement: fixed144 base64: {}", e)))?;
-            if bytes.len() != FIXED144_ELEMENT_SIZE {
-                return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("EffectDataElement: fixed144 must be {} bytes, got {}",
-                        FIXED144_ELEMENT_SIZE, bytes.len())));
-            }
-            w.extend_from_slice(&bytes);
+                "EffectDataElement: fixed144_list element must be object"))?;
+            EffectDataD3Block::write_from_json_dict(w, inner)?;
         }
         let nested = json_get_field(obj, "nested_u32_lists")?.as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
