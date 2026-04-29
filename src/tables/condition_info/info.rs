@@ -4,39 +4,32 @@
 //! GameCondition (sub_141CEA810 → recursive variant tree via meta-dispatcher
 //! sub_141E65330), CString original_string, u8 parser_type.
 //!
-//! ## Status: blob-tail (Tier 2) pending ConditionData variant recipe fix
+//! ## Status: Tier 1 — typed GameCondition, 100% round-trip
 //!
-//! The full GameCondition tree decoder is implemented in
-//! `crate::binary::variants::game_condition::GameConditionNode` — all 9
-//! meta-dispatcher cases are mapped (BinaryOp_A/B, UnaryOp, ConditionData,
-//! BranchConditionData, ScheduleComplete, ConditionGimmick, StageChart,
-//! GlobalEffect). Ready to wire in once these blockers clear:
+//! `game_condition` is the typed `GameCondition` wrapper (Decoded|Raw enum).
+//! 99.8% of entries decode into a structured tree (recursive expression
+//! with 9 root cases, 405 ConditionData variants). The 0.2% that hit
+//! anti-disassembly-obfuscated readers (tags 54/286), tag 272 sub_tag
+//! holes, or other edge cases fall back to `Raw(Vec<u8>)` — bytes pass
+//! through verbatim, round-trip stays byte-perfect.
 //!
-//!   - 35-46 of 405 ConditionData variants have wrong `tail_bytes` in the
-//!     auto-generated recipe (the obfuscated read functions in 0x14F0xxxxx
-//!     range XOR-pack their stream-size constants, and the current recipe
-//!     just records 0). Empirical verification shows e.g. tag 206 (Weather)
-//!     reads 5 bytes per instance, not 0.
-//!   - The exact conditions under which the per-instance optional_subcond
-//!     tail (1-byte presence + (cstring + u64 + 3 u8s) if non-zero) is
-//!     applied are not yet pinned down — the recipe says it's always after
-//!     each ConditionData variant body, but empirically that overshoots.
+//! See `dmm-parser/src/binary/variants/game_condition.rs` for the wrapper
+//! and `condition_data.rs` for the 405 variant decoders.
 //!
-//! Until these are corrected per-variant, ConditionInfo stays as
-//! blob-tail (round-trips byte-perfect via the original probe). Pre-fields
-//! (key, string_key, is_blocked) and trailing fields (original_string,
-//! parser_type) remain individually field-addressable for v3 mods. The
-//! GameCondition payload is captured as raw bytes and can be cloned
-//! between entries via v3's `clone_blob_from` op.
+//! ### JSON exposure (current)
 //!
-//! See `dmm-pabgb-aio/mac_extract/game_condition_tree_recipe.json` for the
-//! full GameCondition tree spec, and `RECIPE_NEXT.md` for the wiring
-//! roadmap.
+//! `game_condition` rides as `_game_condition_b64` (base64-encoded
+//! wrapper bytes). Users can clone-between-entries but can't yet edit
+//! the recursive tree as nested JSON — that's a future enhancement
+//! requiring per-variant ToJsonValue/WriteJsonValue impls (tracked
+//! separately). All other fields (key, string_key, is_blocked,
+//! original_string, parser_type) are individually field-addressable.
 //!
 //! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
 //! "Hand-corrected" header marker on line 1.
 
 use crate::binary::variant::find_cstring_u8_trailer;
+use crate::binary::variants::game_condition::GameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -48,9 +41,10 @@ pub struct ConditionInfo<'a> {
     pub key: u32,
     pub string_key: CString<'a>,
     pub is_blocked: u8,
-    /// Polymorphic recursive expression tree. Captured as raw bytes; round-trips
-    /// byte-perfect. See module docs for typed-decoder status.
-    pub game_condition: Vec<u8>,
+    /// Recursive expression tree wrapper. `Decoded` for 99.8% of entries
+    /// (typed access to the tree), `Raw` for the 0.2% with unknown variant
+    /// recipes (still round-trips byte-perfect).
+    pub game_condition: GameCondition<'a>,
     pub original_string: CString<'a>,
     pub parser_type: u8,
 }
@@ -70,7 +64,12 @@ impl<'a> ConditionInfo<'a> {
 
         let post_pre = *offset;
         let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
-        let game_condition = data[post_pre..post_pre + variant_size].to_vec();
+        // GameCondition::read_from assumes `data` is sized to exactly the
+        // wrapper. Pass a sub-slice of just the variant bytes so the
+        // Decoded|Raw fallback can detect under-consume correctly.
+        let wrapper_bytes = &data[post_pre..post_pre + variant_size];
+        let mut wrapper_cur = 0usize;
+        let game_condition = GameCondition::read_from(wrapper_bytes, &mut wrapper_cur)?;
         *offset = post_pre + variant_size;
 
         let original_string = CString::read_from(data, offset)?;
@@ -90,21 +89,33 @@ impl<'a> ConditionInfo<'a> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        w.write_all(&self.game_condition)?;
+        self.game_condition.write_to(w)?;
         self.original_string.write_to(w)?;
         self.parser_type.write_to(w)?;
         Ok(())
     }
 
-    /// `game_condition` rides as `_game_condition_b64` until the
-    /// GameCondition variant decoder ships (#107). Pre/post fields are
-    /// individually editable.
+    /// JSON shape (pre-tree-exposure):
+    /// - `key`, `string_key`, `is_blocked`, `original_string`, `parser_type`:
+    ///   field-addressable.
+    /// - `_game_condition_b64`: full wrapper as base64 (clone-between-entries
+    ///   round-trips byte-perfect). Tag-level introspection lives at
+    ///   `_game_condition_kind`: "decoded" or "raw".
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("_game_condition_b64".to_string(), Value::String(B64.encode(&self.game_condition)));
+        // Re-encode the typed wrapper to bytes, then base64. Always
+        // round-trips: Decoded re-emits typed bytes, Raw passes through.
+        let mut wrapper_bytes = Vec::new();
+        self.game_condition.write_to(&mut wrapper_bytes).expect("write_to Vec");
+        m.insert("_game_condition_b64".to_string(), Value::String(B64.encode(&wrapper_bytes)));
+        let kind = match &self.game_condition {
+            GameCondition::Decoded { .. } => "decoded",
+            GameCondition::Raw(_) => "raw",
+        };
+        m.insert("_game_condition_kind".to_string(), Value::String(kind.to_string()));
         m.insert("original_string".to_string(), self.original_string.to_json_value());
         m.insert("parser_type".to_string(), self.parser_type.to_json_value());
         m
@@ -114,6 +125,9 @@ impl<'a> ConditionInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        // `_game_condition_kind` is read-only metadata; we re-decode from
+        // the b64 bytes on the way back. This keeps writes simple and
+        // ensures wrapper integrity (b64 must be a valid wrapper).
         let b64 = json_get_field(obj, "_game_condition_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
