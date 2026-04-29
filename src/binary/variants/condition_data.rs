@@ -478,6 +478,62 @@ impl ConditionData_GameEventParamPayload {
             GameEventParamValue::U64(v) => v.write_to(w),
         }
     }
+    /// JSON shape: {sub_tag, modifier, value: {kind, value?}}.
+    /// `value.kind` is "None"|"U8"|"U16"|"U32"|"U64"; `value.value`
+    /// is omitted for None, otherwise an unsigned integer of the
+    /// matching width.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("sub_tag".into(), self.sub_tag.to_json_value());
+        m.insert("modifier".into(), self.modifier.to_json_value());
+        let mut vm = Map::new();
+        match &self.value {
+            GameEventParamValue::None => {
+                vm.insert("kind".into(), Value::String("None".into()));
+            }
+            GameEventParamValue::U8(v) => {
+                vm.insert("kind".into(), Value::String("U8".into()));
+                vm.insert("value".into(), v.to_json_value());
+            }
+            GameEventParamValue::U16(v) => {
+                vm.insert("kind".into(), Value::String("U16".into()));
+                vm.insert("value".into(), v.to_json_value());
+            }
+            GameEventParamValue::U32(v) => {
+                vm.insert("kind".into(), Value::String("U32".into()));
+                vm.insert("value".into(), v.to_json_value());
+            }
+            GameEventParamValue::U64(v) => {
+                vm.insert("kind".into(), Value::String("U64".into()));
+                vm.insert("value".into(), v.to_json_value());
+            }
+        }
+        m.insert("value".into(), Value::Object(vm));
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sub_tag")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "modifier")?)?;
+        let val_v = json_get_field(obj, "value")?;
+        let val_obj = val_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GameEventParamPayload.value: expected object",
+        ))?;
+        let kind = json_get_field(val_obj, "kind")?.as_str().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData,
+                "GameEventParamPayload.value.kind: expected string")
+        })?;
+        match kind {
+            "None" => {}
+            "U8" => <u8 as WriteJsonValue>::write_from_json(w, json_get_field(val_obj, "value")?)?,
+            "U16" => <u16 as WriteJsonValue>::write_from_json(w, json_get_field(val_obj, "value")?)?,
+            "U32" => <u32 as WriteJsonValue>::write_from_json(w, json_get_field(val_obj, "value")?)?,
+            "U64" => <u64 as WriteJsonValue>::write_from_json(w, json_get_field(val_obj, "value")?)?,
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("GameEventParamPayload.value.kind: unknown {:?}", other))),
+        }
+        Ok(())
+    }
 }
 
 /// ConditionData_QuestGaugePercent (tag 81). Per IDA sub_141CA6F20 (vtable[16]
