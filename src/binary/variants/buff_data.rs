@@ -5,6 +5,39 @@
 use crate::binary::*;
 use std::io::{self, Write};
 
+/// Shared 28-byte BuffData value block (sub_141E2BB80). Wire reads
+/// u64 + u64 + u64 + u32 in order. Used as a recurring sub-record
+/// across DamageBuffData (3×), VaryRegenerateValueBuffData,
+/// AdditionalRegenerateValueBuffData, and other variants.
+///
+/// The runtime types of these fields aren't recovered yet; keeping
+/// them as integer primitives preserves the bit pattern losslessly
+/// (mod authors can reinterpret as f64/f32 if needed).
+#[derive(Debug)]
+pub struct BuffDataValueBlock {
+    pub field_0: u64,
+    pub field_8: u64,
+    pub field_16: u64,
+    pub field_24: u32,
+}
+
+impl BuffDataValueBlock {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let field_0 = u64::read_from(data, offset)?;
+        let field_8 = u64::read_from(data, offset)?;
+        let field_16 = u64::read_from(data, offset)?;
+        let field_24 = u32::read_from(data, offset)?;
+        Ok(Self { field_0, field_8, field_16, field_24 })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_0.write_to(w)?;
+        self.field_8.write_to(w)?;
+        self.field_16.write_to(w)?;
+        self.field_24.write_to(w)?;
+        Ok(())
+    }
+}
+
 /// Common base fields shared by every BuffData variant.
 #[derive(Debug)]
 pub struct BuffDataBase<'a> {
@@ -106,9 +139,9 @@ impl<'a> BuffDataBase<'a> {
 #[derive(Debug)]
 pub struct DamageBuffDataPayload {
     pub f00: u8,
-    pub f01: [u8; 28],
-    pub f02: [u8; 28],
-    pub f03: [u8; 28],
+    pub f01: BuffDataValueBlock,
+    pub f02: BuffDataValueBlock,
+    pub f03: BuffDataValueBlock,
     pub f04: u64,
     pub f05: u8,
     pub f06: u64,
@@ -124,9 +157,9 @@ pub struct DamageBuffDataPayload {
 impl DamageBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f02 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f03 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
+        let f01 = BuffDataValueBlock::read_from(data, offset)?;
+        let f02 = BuffDataValueBlock::read_from(data, offset)?;
+        let f03 = BuffDataValueBlock::read_from(data, offset)?;
         let f04 = u64::read_from(data, offset)?;
         let f05 = u8::read_from(data, offset)?;
         let f06 = u64::read_from(data, offset)?;
@@ -142,9 +175,9 @@ impl DamageBuffDataPayload {
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        w.write_all(&self.f02)?;
-        w.write_all(&self.f03)?;
+        self.f01.write_to(w)?;
+        self.f02.write_to(w)?;
+        self.f03.write_to(w)?;
         self.f04.write_to(w)?;
         self.f05.write_to(w)?;
         self.f06.write_to(w)?;
@@ -163,17 +196,17 @@ impl DamageBuffDataPayload {
 #[derive(Debug)]
 pub struct VaryRegenerateValueBuffDataPayload {
     pub f00: u8,
-    pub f01: [u8; 28],
+    pub f01: BuffDataValueBlock,
 }
 impl VaryRegenerateValueBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
+        let f01 = BuffDataValueBlock::read_from(data, offset)?;
         Ok(Self { f00, f01 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
+        self.f01.write_to(w)?;
         Ok(())
     }
 }
@@ -238,17 +271,17 @@ impl VaryStaticStatLevelBuffDataPayload {
 #[derive(Debug)]
 pub struct VaryStatBuffDataPayload {
     pub f00: u32,
-    pub f01: [u8; 28],
+    pub f01: BuffDataValueBlock,
 }
 impl VaryStatBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let f00 = u32::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
+        let f01 = BuffDataValueBlock::read_from(data, offset)?;
         Ok(Self { f00, f01 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
+        self.f01.write_to(w)?;
         Ok(())
     }
 }
@@ -256,19 +289,19 @@ impl VaryStatBuffDataPayload {
 #[derive(Debug)]
 pub struct VaryStatMaxValueBuffDataPayload {
     pub f00: u8,
-    pub f01: [u8; 28],
+    pub f01: BuffDataValueBlock,
     pub f02: u8,
 }
 impl VaryStatMaxValueBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
+        let f01 = BuffDataValueBlock::read_from(data, offset)?;
         let f02 = u8::read_from(data, offset)?;
         Ok(Self { f00, f01, f02 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
+        self.f01.write_to(w)?;
         self.f02.write_to(w)?;
         Ok(())
     }
@@ -959,15 +992,15 @@ impl DefenceBuffDataPayload {
 
 #[derive(Debug)]
 pub struct AggroBuffDataPayload {
-    pub f00: [u8; 28],
+    pub f00: BuffDataValueBlock,
 }
 impl AggroBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
+        let f00 = BuffDataValueBlock::read_from(data, offset)?;
         Ok(Self { f00 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        w.write_all(&self.f00)?;
+        self.f00.write_to(w)?;
         Ok(())
     }
 }
@@ -1350,17 +1383,17 @@ impl VarySkillDamagePercentStatBuffDataPayload {
 #[derive(Debug)]
 pub struct VaryStatOverMaxValueBuffDataPayload {
     pub f00: u8,
-    pub f01: [u8; 28],
+    pub f01: BuffDataValueBlock,
 }
 impl VaryStatOverMaxValueBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
+        let f01 = BuffDataValueBlock::read_from(data, offset)?;
         Ok(Self { f00, f01 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
+        self.f01.write_to(w)?;
         Ok(())
     }
 }
