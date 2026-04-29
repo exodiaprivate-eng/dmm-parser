@@ -10,6 +10,7 @@ pub mod branch_condition_data;
 pub mod condition_data;
 pub mod condition_data_stage_chart;
 pub mod condition_gimmick_data;
+pub mod effect_data;
 pub mod game_condition;
 pub mod game_event_handler_data;
 pub mod game_expression;

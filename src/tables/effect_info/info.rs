@@ -41,6 +41,7 @@
 //! 38/40/42/44) but each reads 4 bytes from the wire. So wire size is
 //! 1 + 8*4 + 1 + 4*4 = 50 bytes total.
 
+use crate::binary::variants::effect_data::EffectDataElement;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -153,12 +154,11 @@ pub struct EffectInfo<'a> {
     pub key: u32,
     pub string_key: CString<'a>,
     pub is_blocked: u8,
-    /// Effect-data CArray bytes including the leading u32 length. Stays
-    /// opaque pending full per-element decoding (sub_1410DBAF0 has 6+
-    /// nested helpers — sub_141102680, sub_1410D4110, sub_14106BAC0,
-    /// sub_141117080, sub_141116ED0, sub_141116CA0 — each unfinished).
-    /// Counts are exposed via `effect_data_count`.
-    pub effect_data_blob: Vec<u8>,
+    /// Effect-data CArray, fully typed per element. Each element exposes
+    /// 10 named fields directly editable; the deeply-recursive
+    /// `inner_map_blob` per element stays opaque-but-bounded for
+    /// byte-perfect round-trip.
+    pub effect_data: Vec<EffectDataElement<'a>>,
     /// Mesh-effect data — fully typed. Each element is 50 bytes on wire.
     pub mesh_effect_data: Vec<MeshEffectData>,
     pub has_equip_type: u8,
@@ -230,25 +230,36 @@ impl<'a> EffectInfo<'a> {
             ));
         }
         let blob_end = entry_end - TAIL_SIZE;
-        let combined = &data[*offset..blob_end];
-        let mesh_split = find_mesh_split(combined)?;
+        let mesh_split = find_mesh_split(&data[*offset..blob_end])? + *offset;
 
-        let effect_data_blob = combined[..mesh_split].to_vec();
-        let n_mesh = u32::from_le_bytes(
-            combined[mesh_split..mesh_split + 4].try_into().unwrap(),
-        ) as usize;
-        let mut mesh_cursor = mesh_split + 4;
-        let mut mesh_effect_data = Vec::with_capacity(n_mesh);
-        for _ in 0..n_mesh {
-            mesh_effect_data.push(MeshEffectData::read_from(combined, &mut mesh_cursor)?);
+        // Effect data list: u32 count + N × variable-size element
+        let mut cur = *offset;
+        let n_effect = u32::read_from(data, &mut cur)? as usize;
+        let mut effect_data = Vec::with_capacity(n_effect);
+        for _ in 0..n_effect {
+            effect_data.push(EffectDataElement::read_from(data, &mut cur)?);
         }
-        if mesh_cursor != combined.len() {
+        if cur != mesh_split {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "effectinfo: mesh data under/over-consumed: {} of {}",
-                    mesh_cursor,
-                    combined.len()
+                    "effectinfo: effect_data under/over-consumed: cursor {} != mesh_split {}",
+                    cur, mesh_split
+                ),
+            ));
+        }
+
+        let n_mesh = u32::read_from(data, &mut cur)? as usize;
+        let mut mesh_effect_data = Vec::with_capacity(n_mesh);
+        for _ in 0..n_mesh {
+            mesh_effect_data.push(MeshEffectData::read_from(data, &mut cur)?);
+        }
+        if cur != blob_end {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "effectinfo: mesh data under/over-consumed: cursor {} != blob_end {}",
+                    cur, blob_end
                 ),
             ));
         }
@@ -259,7 +270,7 @@ impl<'a> EffectInfo<'a> {
         let target_color_lerp_type = u8::read_from(data, offset)?;
 
         Ok(Self {
-            key, string_key, is_blocked, effect_data_blob, mesh_effect_data,
+            key, string_key, is_blocked, effect_data, mesh_effect_data,
             has_equip_type, has_preset, target_color_lerp_type,
         })
     }
@@ -268,7 +279,8 @@ impl<'a> EffectInfo<'a> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        w.write_all(&self.effect_data_blob)?;
+        (self.effect_data.len() as u32).write_to(w)?;
+        for e in &self.effect_data { e.write_to(w)?; }
         (self.mesh_effect_data.len() as u32).write_to(w)?;
         for m in &self.mesh_effect_data {
             m.write_to(w)?;
@@ -279,37 +291,21 @@ impl<'a> EffectInfo<'a> {
         Ok(())
     }
 
-    /// Read-only count of effect_data elements (the leading u32 of the
-    /// opaque blob). Useful for v3 mods that want to filter on size.
-    pub fn effect_data_count(&self) -> Option<u32> {
-        if self.effect_data_blob.len() < 4 {
-            None
-        } else {
-            Some(u32::from_le_bytes(
-                self.effect_data_blob[..4].try_into().unwrap(),
-            ))
-        }
-    }
-
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert(
-            "_effect_data_blob_b64".to_string(),
-            Value::String(B64.encode(&self.effect_data_blob)),
+            "effect_data".to_string(),
+            Value::Array(
+                self.effect_data.iter().map(|e| Value::Object(e.to_json_dict())).collect(),
+            ),
         );
-        if let Some(n) = self.effect_data_count() {
-            m.insert("_effect_data_count".to_string(), Value::Number(n.into()));
-        }
         m.insert(
             "mesh_effect_data".to_string(),
             Value::Array(
-                self.mesh_effect_data
-                    .iter()
-                    .map(|x| Value::Object(x.to_json_dict()))
-                    .collect(),
+                self.mesh_effect_data.iter().map(|x| Value::Object(x.to_json_dict())).collect(),
             ),
         );
         m.insert("has_equip_type".to_string(), self.has_equip_type.to_json_value());
@@ -322,27 +318,23 @@ impl<'a> EffectInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        let b64 = json_get_field(obj, "_effect_data_blob_b64")?
-            .as_str()
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "EffectInfo: _effect_data_blob_b64 must be a base64 string",
-                )
-            })?;
-        let bytes = B64.decode(b64).map_err(|e| {
-            io::Error::new(
+        let effects = json_get_field(obj, "effect_data")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "EffectInfo: effect_data must be a JSON array"))?;
+        (effects.len() as u32).write_to(w)?;
+        for entry in effects {
+            let m = entry.as_object().ok_or_else(|| io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("EffectInfo: _effect_data_blob_b64 invalid base64: {}", e),
-            )
-        })?;
-        w.extend_from_slice(&bytes);
-        let arr = json_get_field(obj, "mesh_effect_data")?
+                "EffectInfo: each effect_data entry must be an object"))?;
+            EffectDataElement::write_from_json_dict(w, m)?;
+        }
+        let meshes = json_get_field(obj, "mesh_effect_data")?
             .as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 "EffectInfo: mesh_effect_data must be a JSON array"))?;
-        (arr.len() as u32).write_to(w)?;
-        for entry in arr {
+        (meshes.len() as u32).write_to(w)?;
+        for entry in meshes {
             let m = entry.as_object().ok_or_else(|| io::Error::new(
                 io::ErrorKind::InvalidData,
                 "EffectInfo: each mesh_effect_data entry must be an object"))?;
@@ -403,28 +395,36 @@ mod tests {
         }
     }
 
-    /// Sanity stat — confirms the mesh-split probe is finding non-zero
-    /// counts (otherwise the whole thing is a no-op).
+    /// Sanity stat — confirms typed effect/mesh decoding finds elements.
     #[test]
-    fn mesh_count_distribution() {
+    fn count_distribution() {
         let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP"); return; };
         let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut total_mesh = 0usize;
-        let mut total_effect = 0u32;
-        let mut entries_with_mesh = 0usize;
+        let mut total_effect = 0usize;
+        let mut total_cstrings = 0usize;
+        let mut total_fixed144 = 0usize;
+        let mut entries_with_inner_map = 0usize;
         for (_k, s, e) in ranges.iter() {
             let mut c = *s;
             let it = EffectInfo::read_with_size(&data, &mut c, e - s).unwrap();
             total_mesh += it.mesh_effect_data.len();
-            if !it.mesh_effect_data.is_empty() { entries_with_mesh += 1; }
-            if let Some(n) = it.effect_data_count() {
-                total_effect += n;
+            total_effect += it.effect_data.len();
+            for ed in &it.effect_data {
+                total_cstrings += ed.cstring_list.len();
+                total_fixed144 += ed.fixed144_list.len();
+                if ed.inner_map_blob.len() > 4 {
+                    entries_with_inner_map += 1;
+                }
             }
         }
         eprintln!(
-            "effectinfo: {} entries, {} have mesh, {} mesh elements total, {} effect elements total",
-            ranges.len(), entries_with_mesh, total_mesh, total_effect,
+            "effectinfo: {} entries, {} effect elements, {} mesh elements, \
+             {} cstrings inside effects, {} fixed144s inside effects, \
+             {} effects with non-empty inner_map",
+            ranges.len(), total_effect, total_mesh, total_cstrings, total_fixed144,
+            entries_with_inner_map,
         );
     }
 }
