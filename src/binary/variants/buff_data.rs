@@ -423,8 +423,9 @@ impl SummonGraphData {
     }
 }
 
-/// sub_141103B30: `[u8 presence][GameCondition opaque + 3 bytes if presence != 0]`.
-/// GameCondition stored as raw bytes captured by parsing-then-restoring the slice.
+/// sub_141103B30: `[u8 presence][GameConditionNode tree + 3 trailer bytes
+/// if presence != 0]`. The trailer is the same 3 u8s that
+/// GameCondition::Decoded reads after the tree (sub_141CEA810).
 #[derive(Debug)]
 pub struct GameConditionOptional<'a> {
     pub presence: u8,
@@ -433,9 +434,8 @@ pub struct GameConditionOptional<'a> {
 
 #[derive(Debug)]
 pub struct GameConditionInner<'a> {
-    pub game_condition_bytes: Vec<u8>,
+    pub tree: super::game_condition::GameConditionNode<'a>,
     pub trailer: [u8; 3],
-    pub _phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> GameConditionOptional<'a> {
@@ -444,26 +444,19 @@ impl<'a> GameConditionOptional<'a> {
         if presence == 0 {
             return Ok(Self { presence, inner: None });
         }
-        let start = *offset;
-        // Use the existing GameConditionNode just to advance the cursor.
-        let _node = super::game_condition::GameConditionNode::read_from(data, offset)?;
-        let game_condition_bytes = data[start..*offset].to_vec();
+        let tree = super::game_condition::GameConditionNode::read_from(data, offset)?;
         let trailer = <[u8; 3]>::read_from(data, offset)?;
         Ok(Self {
             presence,
-            inner: Some(GameConditionInner {
-                game_condition_bytes,
-                trailer,
-                _phantom: std::marker::PhantomData,
-            }),
+            inner: Some(GameConditionInner { tree, trailer }),
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.presence.write_to(w)?;
         if let Some(inner) = &self.inner {
-            w.write_all(&inner.game_condition_bytes)?;
-            w.write_all(&inner.trailer)?;
+            inner.tree.write_to(w)?;
+            inner.trailer.write_to(w)?;
         }
         Ok(())
     }
