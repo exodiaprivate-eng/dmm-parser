@@ -42,14 +42,14 @@ py_binary_struct! {
     /// — the wire is 3 little-endian 4-byte values; consumers free to
     /// reinterpret as f32 if they want floats.
     pub struct EffectDataCoreBlock {
-        // sub_1410D3DC0 — 144 bytes
-        pub vec_a_x: u32, pub vec_a_y: u32, pub vec_a_z: u32,
-        pub vec_b_x: u32, pub vec_b_y: u32, pub vec_b_z: u32,
-        pub vec_c_x: u32, pub vec_c_y: u32, pub vec_c_z: u32,
-        pub vec_d_x: u32, pub vec_d_y: u32, pub vec_d_z: u32,
-        pub vec_e_x: u32, pub vec_e_y: u32, pub vec_e_z: u32,
-        pub vec_f_x: u32, pub vec_f_y: u32, pub vec_f_z: u32,
-        pub vec_g_x: u32, pub vec_g_y: u32, pub vec_g_z: u32,
+        // sub_1410D3DC0 — 144 bytes (7 Vec3 + 7 u32 + Vec4 + u32×2 + u8×2 + u16 + u32)
+        pub vec_a: [f32; 3],
+        pub vec_b: [f32; 3],
+        pub vec_c: [f32; 3],
+        pub vec_d: [f32; 3],
+        pub vec_e: [f32; 3],
+        pub vec_f: [f32; 3],
+        pub vec_g: [f32; 3],
         pub field_84: u32,
         pub field_88: u32,
         pub field_92: u32,
@@ -66,14 +66,14 @@ py_binary_struct! {
         pub field_140: u32,
         // sub_1410D4110 continued — 110 bytes
         pub field_144: u32,
-        pub vec_h_x: u32, pub vec_h_y: u32, pub vec_h_z: u32,
-        pub vec_i_x: u32, pub vec_i_y: u32, pub vec_i_z: u32,
+        pub vec_h: [f32; 3],
+        pub vec_i: [f32; 3],
         pub qword_172: u64,
         pub field_180: u32,
-        pub vec_j_x: u32, pub vec_j_y: u32, pub vec_j_z: u32,
-        pub vec_k_x: u32, pub vec_k_y: u32, pub vec_k_z: u32,
-        pub vec_l_x: u32, pub vec_l_y: u32, pub vec_l_z: u32,
-        pub vec_m_x: u32, pub vec_m_y: u32, pub vec_m_z: u32,
+        pub vec_j: [f32; 3],
+        pub vec_k: [f32; 3],
+        pub vec_l: [f32; 3],
+        pub vec_m: [f32; 3],
         pub field_232: u32,
         pub field_236: u32,
         pub trailing_bytes: [u8; 14],
@@ -107,10 +107,10 @@ pub struct EffectDataInner<'a> {
     pub lookups: [u32; 6],
     pub list_a: Vec<CString<'a>>,
     pub list_b: Vec<u32>,
-    pub vec_a_x: u32, pub vec_a_y: u32, pub vec_a_z: u32,
-    pub vec_b_x: u32, pub vec_b_y: u32, pub vec_b_z: u32,
-    pub vec_c_x: u32, pub vec_c_y: u32, pub vec_c_z: u32,
-    pub vec_d_x: u32, pub vec_d_y: u32, pub vec_d_z: u32,
+    pub vec_a: [f32; 3],
+    pub vec_b: [f32; 3],
+    pub vec_c: [f32; 3],
+    pub vec_d: [f32; 3],
     pub field_after_vecs: u32,
     pub cstring_list: Vec<CString<'a>>,
     pub fixed144_list: Vec<[u8; FIXED144_ELEMENT_SIZE]>,
@@ -132,18 +132,10 @@ impl<'a> EffectDataInner<'a> {
         let mut list_b = Vec::with_capacity(list_b_count);
         for _ in 0..list_b_count { list_b.push(u32::read_from(data, offset)?); }
 
-        let vec_a_x = u32::read_from(data, offset)?;
-        let vec_a_y = u32::read_from(data, offset)?;
-        let vec_a_z = u32::read_from(data, offset)?;
-        let vec_b_x = u32::read_from(data, offset)?;
-        let vec_b_y = u32::read_from(data, offset)?;
-        let vec_b_z = u32::read_from(data, offset)?;
-        let vec_c_x = u32::read_from(data, offset)?;
-        let vec_c_y = u32::read_from(data, offset)?;
-        let vec_c_z = u32::read_from(data, offset)?;
-        let vec_d_x = u32::read_from(data, offset)?;
-        let vec_d_y = u32::read_from(data, offset)?;
-        let vec_d_z = u32::read_from(data, offset)?;
+        let vec_a = <[f32; 3]>::read_from(data, offset)?;
+        let vec_b = <[f32; 3]>::read_from(data, offset)?;
+        let vec_c = <[f32; 3]>::read_from(data, offset)?;
+        let vec_d = <[f32; 3]>::read_from(data, offset)?;
 
         let field_after_vecs = u32::read_from(data, offset)?;
 
@@ -167,10 +159,7 @@ impl<'a> EffectDataInner<'a> {
 
         Ok(Self {
             field_0, core_block, lookups, list_a, list_b,
-            vec_a_x, vec_a_y, vec_a_z,
-            vec_b_x, vec_b_y, vec_b_z,
-            vec_c_x, vec_c_y, vec_c_z,
-            vec_d_x, vec_d_y, vec_d_z,
+            vec_a, vec_b, vec_c, vec_d,
             field_after_vecs, cstring_list, fixed144_list, trailing_word,
         })
     }
@@ -183,10 +172,10 @@ impl<'a> EffectDataInner<'a> {
         for s in &self.list_a { s.write_to(w)?; }
         (self.list_b.len() as u32).write_to(w)?;
         for v in &self.list_b { v.write_to(w)?; }
-        self.vec_a_x.write_to(w)?; self.vec_a_y.write_to(w)?; self.vec_a_z.write_to(w)?;
-        self.vec_b_x.write_to(w)?; self.vec_b_y.write_to(w)?; self.vec_b_z.write_to(w)?;
-        self.vec_c_x.write_to(w)?; self.vec_c_y.write_to(w)?; self.vec_c_z.write_to(w)?;
-        self.vec_d_x.write_to(w)?; self.vec_d_y.write_to(w)?; self.vec_d_z.write_to(w)?;
+        self.vec_a.write_to(w)?;
+        self.vec_b.write_to(w)?;
+        self.vec_c.write_to(w)?;
+        self.vec_d.write_to(w)?;
         self.field_after_vecs.write_to(w)?;
         (self.cstring_list.len() as u32).write_to(w)?;
         for s in &self.cstring_list { s.write_to(w)?; }
@@ -206,18 +195,10 @@ impl<'a> EffectDataInner<'a> {
             Value::Array(self.list_a.iter().map(|s| s.to_json_value()).collect()));
         m.insert("list_b".to_string(),
             Value::Array(self.list_b.iter().map(|v| v.to_json_value()).collect()));
-        m.insert("vec_a_x".to_string(), self.vec_a_x.to_json_value());
-        m.insert("vec_a_y".to_string(), self.vec_a_y.to_json_value());
-        m.insert("vec_a_z".to_string(), self.vec_a_z.to_json_value());
-        m.insert("vec_b_x".to_string(), self.vec_b_x.to_json_value());
-        m.insert("vec_b_y".to_string(), self.vec_b_y.to_json_value());
-        m.insert("vec_b_z".to_string(), self.vec_b_z.to_json_value());
-        m.insert("vec_c_x".to_string(), self.vec_c_x.to_json_value());
-        m.insert("vec_c_y".to_string(), self.vec_c_y.to_json_value());
-        m.insert("vec_c_z".to_string(), self.vec_c_z.to_json_value());
-        m.insert("vec_d_x".to_string(), self.vec_d_x.to_json_value());
-        m.insert("vec_d_y".to_string(), self.vec_d_y.to_json_value());
-        m.insert("vec_d_z".to_string(), self.vec_d_z.to_json_value());
+        m.insert("vec_a".to_string(), self.vec_a.to_json_value());
+        m.insert("vec_b".to_string(), self.vec_b.to_json_value());
+        m.insert("vec_c".to_string(), self.vec_c.to_json_value());
+        m.insert("vec_d".to_string(), self.vec_d.to_json_value());
         m.insert("field_after_vecs".to_string(), self.field_after_vecs.to_json_value());
         m.insert("cstring_list".to_string(),
             Value::Array(self.cstring_list.iter().map(|s| s.to_json_value()).collect()));
@@ -251,11 +232,8 @@ impl<'a> EffectDataInner<'a> {
                 "EffectDataInner: list_b must be array"))?;
         (list_b.len() as u32).write_to(w)?;
         for v in list_b { <u32 as WriteJsonValue>::write_from_json(w, v)?; }
-        for name in &["vec_a_x", "vec_a_y", "vec_a_z",
-                      "vec_b_x", "vec_b_y", "vec_b_z",
-                      "vec_c_x", "vec_c_y", "vec_c_z",
-                      "vec_d_x", "vec_d_y", "vec_d_z"] {
-            <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, name)?)?;
+        for name in &["vec_a", "vec_b", "vec_c", "vec_d"] {
+            <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, name)?)?;
         }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_after_vecs")?)?;
         let cstrs = json_get_field(obj, "cstring_list")?.as_array()
