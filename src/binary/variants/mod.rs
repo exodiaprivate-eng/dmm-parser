@@ -13,6 +13,7 @@ pub mod condition_gimmick_data;
 pub mod game_condition;
 pub mod game_expression;
 pub mod global_effect_condition_data;
+pub mod global_game_event_execute_data;
 pub mod ivariant_item;
 pub mod mini_game_data;
 pub mod schedule_complete_condition_data;

@@ -38,8 +38,24 @@ fn main() {
     let mut roundtrip_mismatch = 0usize;
     let mut mismatch_examples: Vec<(u32, usize, usize)> = Vec::new();
     // Capture full hex of the first 5 case-3 mismatches for inspection.
-    // Each entry: (key, vanilla_blob, our_buf, parse_cursor)
+    // Each entry: (key, vanilla_blob, our_buf, parse_cursor, tag)
     let mut case3_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u16)> = Vec::new();
+    let mut case_other_dumps: Vec<(u32, Vec<u8>, Vec<u8>, usize, u8)> = Vec::new();
+    // Tag → count of decode failures attributed (last-attempted tag at err)
+    let mut failing_tag_stats: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
+    // Optional per-tag focus: dump only mismatches for these specific u16 tags.
+    // Empty = no filter. Set via env var GC_DUMP_TAG (single tag, decimal).
+    let dump_tag_filter: Option<u16> = std::env::var("GC_DUMP_TAG").ok()
+        .and_then(|s| s.parse::<u16>().ok());
+    // GC_DUMP_TAGS=15,31,113,214 — multi-tag filter for batch inspection
+    let dump_tag_filters: Vec<u16> = std::env::var("GC_DUMP_TAGS")
+        .ok()
+        .map(|s| s.split(',').filter_map(|x| x.trim().parse::<u16>().ok()).collect())
+        .unwrap_or_default();
+    let dump_per_tag = std::env::var("GC_DUMP_PER_TAG").ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1);
+    let mut dump_count_per_tag: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
 
     // Track per-root-case tag: total / pass / fail
     let mut case_stats: BTreeMap<u8, (usize, usize, usize)> = BTreeMap::new();
@@ -79,13 +95,43 @@ fn main() {
         // sub_101021408). Treating it as a wrapper means the validator
         // exercises the same shape every consumer of GameCondition uses.
         let mut parse_cur = 0usize;
+        // Reset last-attempted tag tracker; if decode fails, this tells us
+        // which ConditionData variant's recipe is broken.
+        dmm_parser::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|c| c.set(None));
         let node = match GameCondition::read_from(blob, &mut parse_cur) {
             Ok(n) => n,
-            Err(_) => {
+            Err(e) => {
                 decode_err += 1;
                 entry.2 += 1;
+                let last_tag = dmm_parser::binary::variants::condition_data::LAST_ATTEMPTED_TAG
+                    .with(|c| c.get());
+                if let Some(t) = last_tag {
+                    *failing_tag_stats.entry(t).or_insert(0) += 1;
+                }
                 if let Some(t) = cdata_tag {
                     cdata_tag_stats.entry(t).or_insert((0,0,0)).2 += 1;
+                }
+                // Capture decode_err entries for the targeted tag too —
+                // useful when fixing a variant whose recipe is wrong.
+                let want_err_dump = if root_case != 3 { false }
+                    else if !dump_tag_filters.is_empty() {
+                        cdata_tag.map_or(false, |t|
+                            dump_tag_filters.contains(&t) &&
+                            *dump_count_per_tag.get(&t).unwrap_or(&0) < dump_per_tag)
+                    } else if let Some(filt) = dump_tag_filter {
+                        cdata_tag == Some(filt) && case3_dumps.len() < 5
+                    } else { case3_dumps.len() < 5 };
+                if want_err_dump {
+                    if let Some(t) = cdata_tag {
+                        *dump_count_per_tag.entry(t).or_insert(0) += 1;
+                    }
+                    let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
+                    let _ = e;
+                    case3_dumps.push((*k, blob.to_vec(), Vec::new(), parse_cur, tag_for_dump));
+                }
+                // Dump decode_err for non-case-3 too (cascading children)
+                if root_case != 3 && root_case <= 2 && case_other_dumps.len() < 5 {
+                    case_other_dumps.push((*k, blob.to_vec(), Vec::new(), parse_cur, root_case));
                 }
                 continue;
             }
@@ -103,7 +149,18 @@ fn main() {
                 mismatch_examples.push((*k, parse_cur, blob.len()));
             }
             // Also dump for underconsume case
-            if root_case == 3 && case3_dumps.len() < 5 {
+            let want_dump = if root_case != 3 { false }
+                else if !dump_tag_filters.is_empty() {
+                    cdata_tag.map_or(false, |t|
+                        dump_tag_filters.contains(&t) &&
+                        *dump_count_per_tag.get(&t).unwrap_or(&0) < dump_per_tag)
+                } else if let Some(filt) = dump_tag_filter {
+                    cdata_tag == Some(filt) && case3_dumps.len() < 5
+                } else { case3_dumps.len() < 5 };
+            if want_dump {
+                if let Some(t) = cdata_tag {
+                    *dump_count_per_tag.entry(t).or_insert(0) += 1;
+                }
                 let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                 let mut buf: Vec<u8> = Vec::with_capacity(blob.len());
                 let _ = node.write_to(&mut buf);
@@ -136,10 +193,39 @@ fn main() {
                 mismatch_examples.push((*k, diff_at, blob.len()));
             }
             // Hex-dump the first 5 case-3 mismatches with their tag for inspection.
-            if root_case == 3 && case3_dumps.len() < 5 {
+            let want_dump = if root_case != 3 { false }
+                else if !dump_tag_filters.is_empty() {
+                    cdata_tag.map_or(false, |t|
+                        dump_tag_filters.contains(&t) &&
+                        *dump_count_per_tag.get(&t).unwrap_or(&0) < dump_per_tag)
+                } else if let Some(filt) = dump_tag_filter {
+                    cdata_tag == Some(filt) && case3_dumps.len() < 5
+                } else { case3_dumps.len() < 5 };
+            if want_dump {
+                if let Some(t) = cdata_tag {
+                    *dump_count_per_tag.entry(t).or_insert(0) += 1;
+                }
                 let tag_for_dump = cdata_tag.unwrap_or(0xFFFF);
                 case3_dumps.push((*k, blob.to_vec(), buf.clone(), parse_cur, tag_for_dump));
             }
+            // Dump first 5 mismatches in cases 0/1/2 — these often cascade
+            // from a child variant; the byte-level diff is still informative.
+            if root_case != 3 && root_case <= 2 && case_other_dumps.len() < 5 {
+                case_other_dumps.push((*k, blob.to_vec(), buf.clone(), parse_cur, root_case));
+            }
+        }
+    }
+
+    if !case_other_dumps.is_empty() {
+        println!("\n=== First {} case-0/1/2 mismatch hex dumps (vanilla vs ours) ===", case_other_dumps.len());
+        for (k, vanilla, ours, cur, root_case) in &case_other_dumps {
+            println!("\nkey=0x{:08X} root_case={} parse_cur={} vanilla_len={} our_len={}",
+                k, root_case, cur, vanilla.len(), ours.len());
+            println!("  vanilla: {}", vanilla.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+            println!("  ours:    {}", ours.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+            let diff_at = ours.iter().zip(vanilla.iter()).position(|(a, b)| a != b)
+                .unwrap_or(ours.len().min(vanilla.len()));
+            println!("  diff_at: {} (0x{:X})", diff_at, diff_at);
         }
     }
 
@@ -188,7 +274,7 @@ fn main() {
     println!("\n=== ConditionData (case 3) per-u16-tag round-trip stats ===");
     println!("tag  | total | pass | fail | pass%");
     let mut tags: Vec<(u16, (usize, usize, usize))> = cdata_tag_stats.into_iter().collect();
-    tags.sort_by_key(|(_, (_p, f, _e))| -(*f as isize));  // sort by mismatch failures desc
+    tags.sort_by_key(|(_, (_p, f, e))| -((*f + *e) as isize));  // sort by total failures desc
     let mut shown = 0usize;
     for (tag, (pass, fail, decode_err)) in &tags {
         let total = pass + fail + decode_err;
@@ -209,4 +295,15 @@ fn main() {
     let clean_tags: usize = tags.iter()
         .filter(|(_, (_, f, e))| *f == 0 && *e == 0).count();
     println!("\nClean tags (always round-trip):  {}", clean_tags);
+
+    // Dump tags that triggered decode errors (last-attempted tag at err point).
+    // This is the smoking gun: each row tells us "tag X's recipe was wrong N times".
+    if !failing_tag_stats.is_empty() {
+        println!("\n=== Failing tags (last-attempted at decode_err) ===");
+        let mut failing_sorted: Vec<(u16, usize)> = failing_tag_stats.into_iter().collect();
+        failing_sorted.sort_by_key(|(_, c)| -(*c as isize));
+        for (tag, count) in failing_sorted.iter().take(40) {
+            println!("  tag {:4} (0x{:04X}): {} decode failures", tag, tag, count);
+        }
+    }
 }

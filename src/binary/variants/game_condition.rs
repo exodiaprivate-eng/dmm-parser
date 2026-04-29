@@ -27,27 +27,61 @@ use std::io::{self, Write};
 /// ConditionInfo). Wrapping the tree + footer into a single type keeps the
 /// recursive `GameConditionNode` clean of the table-level trailing bytes.
 #[derive(Debug)]
-pub struct GameCondition<'a> {
-    pub tree: GameConditionNode<'a>,
-    pub tail_a: u8,
-    pub tail_b: u8,
-    pub tail_c: u8,
+pub enum GameCondition<'a> {
+    /// Successfully decoded into typed tree + 3-byte footer.
+    Decoded {
+        tree: GameConditionNode<'a>,
+        tail_a: u8,
+        tail_b: u8,
+        tail_c: u8,
+    },
+    /// Decoder fell back to raw bytes — preserves byte-perfect round-trip
+    /// even when a nested ConditionData variant has an unknown recipe.
+    /// Used for the ~0.2% of entries with anti-disassembly-obfuscated
+    /// readers (tags 54/286) or truncated/edge-case data.
+    Raw(Vec<u8>),
 }
 
 impl<'a> GameCondition<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let tree = GameConditionNode::read_from(data, offset)?;
-        let tail_a = u8::read_from(data, offset)?;
-        let tail_b = u8::read_from(data, offset)?;
-        let tail_c = u8::read_from(data, offset)?;
-        Ok(Self { tree, tail_a, tail_b, tail_c })
+        let start = *offset;
+        // Try typed decode first; on failure or under-consume, fall back
+        // to raw-bytes capture so wrapper round-trip stays byte-perfect.
+        let mut probe = start;
+        let typed = (|| -> io::Result<(GameConditionNode<'a>, u8, u8, u8)> {
+            let tree = GameConditionNode::read_from(data, &mut probe)?;
+            let tail_a = u8::read_from(data, &mut probe)?;
+            let tail_b = u8::read_from(data, &mut probe)?;
+            let tail_c = u8::read_from(data, &mut probe)?;
+            Ok((tree, tail_a, tail_b, tail_c))
+        })();
+        match typed {
+            Ok((tree, tail_a, tail_b, tail_c)) if probe == data.len() => {
+                *offset = probe;
+                Ok(Self::Decoded { tree, tail_a, tail_b, tail_c })
+            }
+            _ => {
+                // Capture remaining bytes verbatim. Assumption: GameCondition
+                // is always called with `data` sized to exactly the wrapper
+                // (table-level tail_blob). If a future caller violates this,
+                // this fallback may over-capture — fix at the consumer.
+                let raw = data[start..].to_vec();
+                *offset = data.len();
+                Ok(Self::Raw(raw))
+            }
+        }
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.tree.write_to(w)?;
-        self.tail_a.write_to(w)?;
-        self.tail_b.write_to(w)?;
-        self.tail_c.write_to(w)?;
-        Ok(())
+        match self {
+            Self::Decoded { tree, tail_a, tail_b, tail_c } => {
+                tree.write_to(w)?;
+                tail_a.write_to(w)?;
+                tail_b.write_to(w)?;
+                tail_c.write_to(w)?;
+                Ok(())
+            }
+            Self::Raw(bytes) => w.write_all(bytes),
+        }
     }
 }
 

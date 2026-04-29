@@ -181,17 +181,55 @@ impl ConditionData_DockingGetItemCountPayload {
     }
 }
 
+/// Generic 1-byte payload — used by several flag-style ConditionData
+/// variants whose vtable[16] reads a single u8 field. The exact name of
+/// the byte is per-variant; using a generic type keeps the boilerplate
+/// down for the long tail of no-payload-but-actually-1-byte variants.
+#[derive(Debug)]
+pub struct OneByteBodyPayload {
+    pub byte: u8,
+}
+impl OneByteBodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let byte = u8::read_from(data, offset)?;
+        Ok(Self { byte })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.byte.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Tag 206 (ConditionData_Weather). Body = u8 weather state (1 byte).
+/// Per IDA sub_14F18E780 (vtable[16] for ConditionData_Weather at
+/// 0x144CD5A98) — single stream read of 1 byte stored at +24.
+#[derive(Debug)]
+pub struct ConditionData_WeatherPayload {
+    pub weather_state: u8,
+}
+impl ConditionData_WeatherPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let weather_state = u8::read_from(data, offset)?;
+        Ok(Self { weather_state })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.weather_state.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Tag 9 (ConditionData_CheckTime). Body = u64 time value (8 bytes).
 #[derive(Debug)]
 pub struct ConditionData_CheckTimePayload {
-    pub field_at_28: u32,
+    pub time_value: u64,
 }
 impl ConditionData_CheckTimePayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28 })
+        let time_value = u64::read_from(data, offset)?;
+        Ok(Self { time_value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_28.write_to(w)?;
+        self.time_value.write_to(w)?;
         Ok(())
     }
 }
@@ -247,17 +285,21 @@ impl ConditionData_CheckCharacterKeyPayload {
     }
 }
 
+/// Tag 15 (CheckTribe). Body = u32 tribe_key + u8 flag = 5 bytes.
 #[derive(Debug)]
 pub struct ConditionData_CheckTribePayload {
-    pub field_at_24: u32,
+    pub tribe_key: u32,
+    pub flag: u8,
 }
 impl ConditionData_CheckTribePayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_24 })
+        let tribe_key = u32::read_from(data, offset)?;
+        let flag = u8::read_from(data, offset)?;
+        Ok(Self { tribe_key, flag })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
+        self.tribe_key.write_to(w)?;
+        self.flag.write_to(w)?;
         Ok(())
     }
 }
@@ -280,38 +322,48 @@ impl ConditionData_CheckTribeMassLevelPayload {
     }
 }
 
+/// Tag 23 (GetDataDefinedStaticStat). Body = u32 entity_key + u8 stat_index
+/// + u64 stat_value = 13 bytes per vanilla observation.
 #[derive(Debug)]
 pub struct ConditionData_GetDataDefinedStaticStatPayload {
-    pub field_at_26: u8,
-    pub field_at_32: u64,
+    pub entity_key: u32,
+    pub stat_index: u8,
+    pub stat_value: u64,
 }
 impl ConditionData_GetDataDefinedStaticStatPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_32 })
+        let entity_key = u32::read_from(data, offset)?;
+        let stat_index = u8::read_from(data, offset)?;
+        let stat_value = u64::read_from(data, offset)?;
+        Ok(Self { entity_key, stat_index, stat_value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.entity_key.write_to(w)?;
+        self.stat_index.write_to(w)?;
+        self.stat_value.write_to(w)?;
         Ok(())
     }
 }
 
+/// Tag 24 (GetDataDefinedRegenerateStat). Body = u32 entity_key + u8 stat_index
+/// + u64 regen_value = 13 bytes per vanilla observation (same shape as tag 23).
 #[derive(Debug)]
 pub struct ConditionData_GetDataDefinedRegenerateStatPayload {
-    pub field_at_26: u8,
-    pub field_at_32: u64,
+    pub entity_key: u32,
+    pub stat_index: u8,
+    pub regen_value: u64,
 }
 impl ConditionData_GetDataDefinedRegenerateStatPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
-        let field_at_32 = u64::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_32 })
+        let entity_key = u32::read_from(data, offset)?;
+        let stat_index = u8::read_from(data, offset)?;
+        let regen_value = u64::read_from(data, offset)?;
+        Ok(Self { entity_key, stat_index, regen_value })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.entity_key.write_to(w)?;
+        self.stat_index.write_to(w)?;
+        self.regen_value.write_to(w)?;
         Ok(())
     }
 }
@@ -382,26 +434,33 @@ impl ConditionData_CheckKnowledgePayload {
     }
 }
 
+/// Tag 39 (ConditionData_CheckHaveItem). Per IDA sub_14F1ACCA0
+/// (vtable[16] for ConditionData_CheckHaveItem at 0x144CDA468):
+///   1. u32 item_key (sub_1410FF5C0 hashmap → u16 at +34)
+///   2. u64 count (8 bytes) at +24
+///   3. u16 slot_index (2 bytes) at +36
+///   4. u16 secondary_key (sub_141103F00 hashmap → u16 at +32)
+/// Wire body = 4 + 8 + 2 + 2 = 16 bytes.
 #[derive(Debug)]
 pub struct ConditionData_CheckHaveItemPayload {
-    pub field_at_24: u64,
-    pub field_at_36: u16,
-    pub field_at_34: u32,
-    pub field_at_32: CArray<u16>,
+    pub item_key: u32,
+    pub count: u64,
+    pub slot_index: u16,
+    pub secondary_key: u16,
 }
 impl ConditionData_CheckHaveItemPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u64::read_from(data, offset)?;
-        let field_at_36 = u16::read_from(data, offset)?;
-        let field_at_34 = u32::read_from(data, offset)?;
-        let field_at_32 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_36, field_at_34, field_at_32 })
+        let item_key = u32::read_from(data, offset)?;
+        let count = u64::read_from(data, offset)?;
+        let slot_index = u16::read_from(data, offset)?;
+        let secondary_key = u16::read_from(data, offset)?;
+        Ok(Self { item_key, count, slot_index, secondary_key })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_36.write_to(w)?;
-        self.field_at_34.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.item_key.write_to(w)?;
+        self.count.write_to(w)?;
+        self.slot_index.write_to(w)?;
+        self.secondary_key.write_to(w)?;
         Ok(())
     }
 }
@@ -748,20 +807,114 @@ impl ConditionData_StartMissionPayload {
     }
 }
 
+/// ConditionData_GameEventParam (tag 272). Per IDA sub_141CCEF00 (vtable[16]
+/// for ConditionData_GameEventParam::vftable at 0x144CE4CB0). The reader
+/// pattern is:
+///   1. read u8 sub_tag (1 byte)
+///   2. read u8 modifier (1 byte)
+///   3. switch on sub_tag: read 0/1/2/4/8 bytes per case
+/// We store sub_tag + modifier as typed fields and the tail bytes as a
+/// raw blob (variable-length per sub_tag). Round-trip-perfect without
+/// modelling the inner 110-case structure.
+#[derive(Debug)]
+pub struct ConditionData_GameEventParamPayload {
+    pub sub_tag: u8,
+    pub modifier: u8,
+    /// 0-8 bytes determined by sub_tag (see `gameeventparam_body_size`).
+    pub body_bytes: Vec<u8>,
+}
+
+/// Map sub_tag → number of additional bytes the slot-16 reader consumes
+/// after the (sub_tag, modifier) prefix. Derived from
+/// CrimsonDesert.exe sub_141CCEF00 case-by-case.
+fn gameeventparam_body_size(sub_tag: u8) -> Option<usize> {
+    Some(match sub_tag {
+        // u32 reads
+        0x00 | 0x4B | 0x4D | 0x02 | 0x05 | 0x06 |
+        0x0C | 0x1F | 0x22 | 0x23 | 0x24 | 0x2E | 0x34 | 0x40 |
+        0x0D | 0x0E | 0x0F | 0x11 | 0x12 |
+        0x19 | 0x1A | 0x2D | 0x35 | 0x36 | 0x37 | 0x38 |
+        0x1C | 0x2B | 0x2C | 0x2F |
+        0x32 | 0x33 | 0x39 | 0x3A | 0x3B | 0x42 | 0x44 | 0x46 |
+        0x49 | 0x50 | 0x5C | 0x60 | 0x66 | 0x67 | 0x69 | 0x6E => 4,
+
+        // u16 reads
+        0x01 | 0x4C | 0x4E | 0x03 |
+        0x13 | 0x14 |
+        0x1D | 0x48 | 0x4F | 0x53 | 0x68 => 2,
+
+        // u64 reads
+        0x10 | 0x65 |
+        0x17 | 0x18 | 0x21 | 0x25 | 0x26 | 0x27 | 0x28 | 0x29 | 0x2A |
+        0x3F | 0x41 | 0x64 | 0x6B | 0x6C |
+        0x1B => 8,
+
+        // u8 reads
+        0x04 | 0x15 | 0x20 |
+        0x30 | 0x31 | 0x3C | 0x3D | 0x3E | 0x43 | 0x45 | 0x47 |
+        0x51 | 0x57 | 0x58 | 0x59 | 0x5D | 0x5E | 0x61 | 0x62 | 0x63 | 0x6D |
+        0x52 | 0x54 | 0x55 | 0x56 | 0x5A | 0x5B | 0x5F | 0x6A => 1,
+
+        // No extra bytes (LABEL_106)
+        0x07 | 0x08 | 0x09 | 0x0A | 0x0B | 0x16 | 0x1E | 0x4A => 0,
+
+        // Default arm in IDA returns 0 → not a recognized sub_tag
+        _ => return None,
+    })
+}
+
+impl ConditionData_GameEventParamPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let sub_tag = u8::read_from(data, offset)?;
+        let modifier = u8::read_from(data, offset)?;
+        let n = gameeventparam_body_size(sub_tag).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("ConditionData_GameEventParam: unknown sub_tag {}", sub_tag),
+            )
+        })?;
+        if *offset + n > data.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                format!("ConditionData_GameEventParam sub_tag {} body underflow ({} bytes needed, {} available)",
+                    sub_tag, n, data.len() - *offset),
+            ));
+        }
+        let body_bytes = data[*offset..*offset + n].to_vec();
+        *offset += n;
+        Ok(Self { sub_tag, modifier, body_bytes })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.sub_tag.write_to(w)?;
+        self.modifier.write_to(w)?;
+        w.write_all(&self.body_bytes)?;
+        Ok(())
+    }
+}
+
+/// ConditionData_QuestGaugePercent (tag 81). Per IDA sub_141CA6F20 (vtable[16]
+/// for ConditionData_QuestGaugePercent::vftable at 0x144CE3038):
+///   1. read u32 quest_key (4 bytes) — hashmap-converted to u16 stored at +16
+///   2. read u64 percent_value (8 bytes) — stored at +24
+///   3. read u8 final_byte (1 byte) — stored at +32
+/// Total slot-16 reads = 13 bytes (full body, no separate tail).
 #[derive(Debug)]
 pub struct ConditionData_QuestGaugePercentPayload {
-    pub field_at_24: u64,
-    pub field_at_32: u8,
+    pub quest_key: u32,
+    pub percent_value: u64,
+    pub final_byte: u8,
 }
 impl ConditionData_QuestGaugePercentPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u64::read_from(data, offset)?;
-        let field_at_32 = u8::read_from(data, offset)?;
-        Ok(Self { field_at_24, field_at_32 })
+        let quest_key = u32::read_from(data, offset)?;
+        let percent_value = u64::read_from(data, offset)?;
+        let final_byte = u8::read_from(data, offset)?;
+        Ok(Self { quest_key, percent_value, final_byte })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
-        self.field_at_32.write_to(w)?;
+        self.quest_key.write_to(w)?;
+        self.percent_value.write_to(w)?;
+        self.final_byte.write_to(w)?;
         Ok(())
     }
 }
@@ -885,14 +1038,17 @@ impl ConditionData_CheckGimmickStatePayload {
 
 #[derive(Debug)]
 pub struct ConditionData_DockingGimmickStatePayload {
+    pub field_at_24: u32,
     pub field_at_28: u32,
 }
 impl ConditionData_DockingGimmickStatePayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let field_at_24 = u32::read_from(data, offset)?;
         let field_at_28 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28 })
+        Ok(Self { field_at_24, field_at_28 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_at_24.write_to(w)?;
         self.field_at_28.write_to(w)?;
         Ok(())
     }
@@ -1161,24 +1317,18 @@ impl ConditionData_CheckTargetablePayload {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckInventorySlotFreeCountPayload {
-    pub field_at_26: u8,
+    pub field_at_24: u32,
     pub field_at_28: u16,
-    pub field_at_30: u8,
-    pub field_at_24: CArray<u16>,
 }
 impl ConditionData_CheckInventorySlotFreeCountPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_26 = u8::read_from(data, offset)?;
+        let field_at_24 = u32::read_from(data, offset)?;
         let field_at_28 = u16::read_from(data, offset)?;
-        let field_at_30 = u8::read_from(data, offset)?;
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
-        Ok(Self { field_at_26, field_at_28, field_at_30, field_at_24 })
+        Ok(Self { field_at_24, field_at_28 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_26.write_to(w)?;
-        self.field_at_28.write_to(w)?;
-        self.field_at_30.write_to(w)?;
         self.field_at_24.write_to(w)?;
+        self.field_at_28.write_to(w)?;
         Ok(())
     }
 }
@@ -2466,33 +2616,36 @@ impl ConditionData_GetInventoryWeightLevelPayload {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckReserveSlotPayload {
+    pub field_at_24: u32,
     pub field_at_28: u32,
     pub field_at_32: u16,
     pub field_at_36: u32,
     pub field_at_40: u16,
     pub field_at_44: u32,
     pub field_at_48: u32,
-    pub field_at_24: u32,
+    pub field_at_52: u8,
 }
 impl ConditionData_CheckReserveSlotPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let field_at_24 = u32::read_from(data, offset)?;
         let field_at_28 = u32::read_from(data, offset)?;
         let field_at_32 = u16::read_from(data, offset)?;
         let field_at_36 = u32::read_from(data, offset)?;
         let field_at_40 = u16::read_from(data, offset)?;
         let field_at_44 = u32::read_from(data, offset)?;
         let field_at_48 = u32::read_from(data, offset)?;
-        let field_at_24 = u32::read_from(data, offset)?;
-        Ok(Self { field_at_28, field_at_32, field_at_36, field_at_40, field_at_44, field_at_48, field_at_24 })
+        let field_at_52 = u8::read_from(data, offset)?;
+        Ok(Self { field_at_24, field_at_28, field_at_32, field_at_36, field_at_40, field_at_44, field_at_48, field_at_52 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_at_24.write_to(w)?;
         self.field_at_28.write_to(w)?;
         self.field_at_32.write_to(w)?;
         self.field_at_36.write_to(w)?;
         self.field_at_40.write_to(w)?;
         self.field_at_44.write_to(w)?;
         self.field_at_48.write_to(w)?;
-        self.field_at_24.write_to(w)?;
+        self.field_at_52.write_to(w)?;
         Ok(())
     }
 }
@@ -2616,18 +2769,18 @@ impl<'a> ConditionData_IsGamePlayLevelGimmickPayload<'a> {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckCompleteLevelGimmickPayload<'a> {
-    pub field_at_24: u32,
     pub cstring_at_16: CString<'a>,
+    pub field_at_24: u32,
 }
 impl<'a> ConditionData_CheckCompleteLevelGimmickPayload<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = u32::read_from(data, offset)?;
         let cstring_at_16 = CString::read_from(data, offset)?;
-        Ok(Self { field_at_24, cstring_at_16 })
+        let field_at_24 = u32::read_from(data, offset)?;
+        Ok(Self { cstring_at_16, field_at_24 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.field_at_24.write_to(w)?;
         self.cstring_at_16.write_to(w)?;
+        self.field_at_24.write_to(w)?;
         Ok(())
     }
 }
@@ -3114,11 +3267,11 @@ impl ConditionData_CheckMercenaryCallCooltimePayload {
 
 #[derive(Debug)]
 pub struct ConditionData_CheckInventoryMaxSlotCountPayload {
-    pub field_at_24: CArray<u16>,
+    pub field_at_24: u16,
 }
 impl ConditionData_CheckInventoryMaxSlotCountPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let field_at_24 = CArray::<u16>::read_from(data, offset)?;
+        let field_at_24 = u16::read_from(data, offset)?;
         Ok(Self { field_at_24 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
@@ -3207,29 +3360,29 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_DockingGetItemCount(ConditionData_DockingGetItemCountPayload),
     ConditionData_CheckTime(ConditionData_CheckTimePayload),
     ConditionData_IsNightTime,
-    ConditionData_DayOfWeek,
+    ConditionData_DayOfWeek(OneByteBodyPayload),
     ConditionData_CheckRemainTimer(ConditionData_CheckRemainTimerPayload),
     ConditionData_CheckEquipItem(ConditionData_CheckEquipItemPayload),
     ConditionData_CheckCharacterKey(ConditionData_CheckCharacterKeyPayload),
     ConditionData_CheckTribe(ConditionData_CheckTribePayload),
     ConditionData_CheckTribeMassLevel(ConditionData_CheckTribeMassLevelPayload),
-    ConditionData_CheckDead,
-    ConditionData_CheckDeadOrRetreat,
-    ConditionData_CheckGroggy,
-    ConditionData_CheckDeadPoseOK,
-    ConditionData_CheckFatal,
-    ConditionData_CheckStageFail,
+    ConditionData_CheckDead(OneByteBodyPayload),
+    ConditionData_CheckDeadOrRetreat(OneByteBodyPayload),
+    ConditionData_CheckGroggy(OneByteBodyPayload),
+    ConditionData_CheckDeadPoseOK(OneByteBodyPayload),
+    ConditionData_CheckFatal(OneByteBodyPayload),
+    ConditionData_CheckStageFail(OneByteBodyPayload),
     ConditionData_GetDataDefinedStaticStat(ConditionData_GetDataDefinedStaticStatPayload),
     ConditionData_GetDataDefinedRegenerateStat(ConditionData_GetDataDefinedRegenerateStatPayload),
     ConditionData_HasLootItem,
-    ConditionData_CheckHasImportantItem,
-    ConditionData_IsFocusActor,
+    ConditionData_CheckHasImportantItem(OneByteBodyPayload),
+    ConditionData_IsFocusActor(OneByteBodyPayload),
     ConditionData_IsLootable,
-    ConditionData_CheckMoneyForBuyingStock,
+    ConditionData_CheckMoneyForBuyingStock(OneByteBodyPayload),
     ConditionData_CheckAction(ConditionData_CheckActionPayload),
-    ConditionData_CheckActionAttribute,
+    ConditionData_CheckActionAttribute(ConditionData_CheckActionAttributePayload),
     ConditionData_CheckActionSkillKey(ConditionData_CheckActionSkillKeyPayload),
-    ConditionData_CheckActionCharacterState,
+    ConditionData_CheckActionCharacterState(OneByteBodyPayload),
     ConditionData_CheckCharacterKeys(ConditionData_CheckCharacterKeysPayload),
     ConditionData_Controlable,
     ConditionData_CheckKnowledge(ConditionData_CheckKnowledgePayload),
@@ -3251,7 +3404,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload),
     ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload),
     ConditionData_CheckCurrentEquipType_OrTag54,
-    ConditionData_CheckEquipType,
+    ConditionData_CheckEquipType(ThreeU32BodyPayload),
     ConditionData_WeaponOut,
     ConditionData_IsSequencerPhaseChange,
     ConditionData_TestCheat(ConditionData_TestCheatPayload),
@@ -3288,8 +3441,8 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsArresting,
     ConditionData_WantedLevel(ConditionData_WantedLevelPayload),
     ConditionData_CheckWantedPrice(ConditionData_CheckWantedPricePayload),
-    ConditionData_CheckCurrentEquipType_OrTag92,
-    ConditionData_WantedState,
+    ConditionData_CheckCurrentEquipType_OrTag92(OneByteBodyPayload),
+    ConditionData_WantedState(OneByteBodyPayload),
     ConditionData_CheckSeriousCrime,
     ConditionData_CheckWantedNPC,
     ConditionData_IsInWantedBoundary,
@@ -3309,9 +3462,9 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckExchangeItemSelected,
     ConditionData_CheckUsableGate,
     ConditionData_CheckGateKnowledge,
-    ConditionData_CheckGimmickTag,
+    ConditionData_CheckGimmickTag(OneCStringBodyPayload<'a>),
     ConditionData_CheckCatcherGimmickTag,
-    ConditionData_CheckCatcheeGimmickTag,
+    ConditionData_CheckCatcheeGimmickTag(OneCStringBodyPayload<'a>),
     ConditionData_CatchTag,
     ConditionData_CheckLoadingComplete,
     ConditionData_CheckLevelLoadingComplete,
@@ -3343,7 +3496,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickEventParamAngle(ConditionData_CheckGimmickEventParamAnglePayload),
     ConditionData_CheckCCType(ConditionData_CheckCCTypePayload),
     ConditionData_CheckField(ConditionData_CheckFieldPayload),
-    ConditionData_IsTarget,
+    ConditionData_IsTarget(OneByteBodyPayload),
     ConditionData_GetFriendly(ConditionData_GetFriendlyPayload),
     ConditionData_CheckFriendlyLevel(ConditionData_CheckFriendlyLevelPayload),
     ConditionData_GetFactionfriendly(ConditionData_GetFactionfriendlyPayload),
@@ -3374,9 +3527,9 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickTarget(ConditionData_CheckGimmickTargetPayload),
     ConditionData_GetGimmickVariable(ConditionData_GetGimmickVariablePayload),
     ConditionData_GetRandomPercentBySpawnPositionSeed(ConditionData_GetRandomPercentBySpawnPositionSeedPayload),
-    ConditionData_CheckStoreType,
+    ConditionData_CheckStoreType(OneByteBodyPayload),
     ConditionData_IsExistStoreItemToSell,
-    ConditionData_CheckNpcFunctionType,
+    ConditionData_CheckNpcFunctionType(OneByteBodyPayload),
     ConditionData_CheckExistPrice,
     ConditionData_SubTimelineName(ConditionData_SubTimelineNamePayload<'a>),
     ConditionData_ExistTimeline(ConditionData_ExistTimelinePayload<'a>),
@@ -3402,7 +3555,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckBreaked,
     ConditionData_IsDockingChild,
     ConditionData_CheckTriggerVolumeGroupIndex(ConditionData_CheckTriggerVolumeGroupIndexPayload),
-    ConditionData_Weather,
+    ConditionData_Weather(ConditionData_WeatherPayload),
     ConditionData_CheckGimmickParentLinkCount(ConditionData_CheckGimmickParentLinkCountPayload),
     ConditionData_CheckGimmickRemoteCatchType,
     ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload<'a>),
@@ -3410,7 +3563,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickAttachmentType,
     ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload),
     ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload),
-    ConditionData_CheckExistStealItem,
+    ConditionData_CheckExistStealItem(U32U16BodyPayload),
     ConditionData_CheckElementalMaterialType,
     ConditionData_IsGimmickSealComplete,
     ConditionData_IsAcquiredItem,
@@ -3449,7 +3602,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckRidingVehicleType(ConditionData_CheckRidingVehicleTypePayload),
     ConditionData_CheckRidingVehicleKey(ConditionData_CheckRidingVehicleKeyPayload),
     ConditionData_CheckRidingVehicleKeyList(ConditionData_CheckRidingVehicleKeyListPayload),
-    ConditionData_CheckThreatReward,
+    ConditionData_CheckThreatReward(OneByteBodyPayload),
     ConditionData_IsCrossHairTarget,
     ConditionData_IsAiJumpClimbTarget,
     ConditionData_Macro(ConditionData_MacroPayload),
@@ -3459,7 +3612,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckPlayerCameraFocusActorCovered,
     ConditionData_CheckDamageElementalType(ConditionData_CheckDamageElementalTypePayload),
     ConditionData_IsRidingVehicle,
-    ConditionData_CharacterTier,
+    ConditionData_CharacterTier(OneByteBodyPayload),
     ConditionData_CheckEquipTargetItemActor,
     ConditionData_GetFactionNodeState(ConditionData_GetFactionNodeStatePayload),
     ConditionData_GetCurrentFactionNodeState(ConditionData_GetCurrentFactionNodeStatePayload),
@@ -3468,7 +3621,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_GetFactionResource(ConditionData_GetFactionResourcePayload),
     ConditionData_IsFactionNodeMissionGaugeEnable(ConditionData_IsFactionNodeMissionGaugeEnablePayload),
     ConditionData_CheckCharacterGroupKey(ConditionData_CheckCharacterGroupKeyPayload),
-    ConditionData_GameEventParam,
+    ConditionData_GameEventParam(ConditionData_GameEventParamPayload),
     ConditionData_CheckFactionRelation(ConditionData_CheckFactionRelationPayload),
     ConditionData_CheckUsableStore,
     ConditionData_CheckRide(ConditionData_CheckRidePayload<'a>),
@@ -3483,7 +3636,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload),
     ConditionData_CheckGimmickItemSocket,
     ConditionData_CheckCurrentEquipType_OrTag286,
-    ConditionData_IsInSpecialModeStage,
+    ConditionData_IsInSpecialModeStage(OneU32BodyPayload),
     ConditionData_IsSpawnedOnPlatform,
     ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload),
     ConditionData_CheckReserveSlot(ConditionData_CheckReserveSlotPayload),
@@ -3496,7 +3649,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickTargetHackable(ConditionData_CheckGimmickTargetHackablePayload),
     ConditionData_IsHackable(ConditionData_IsHackablePayload),
     ConditionData_CheckDockingParentDead,
-    ConditionData_CheckAttackName,
+    ConditionData_CheckAttackName(OneU32BodyPayload),
     ConditionData_CheckAttackFromType(ConditionData_CheckAttackFromTypePayload),
     ConditionData_CheckGimmickAngleToTarget(ConditionData_CheckGimmickAngleToTargetPayload),
     ConditionData_CheckSpawnPositionRegion(ConditionData_CheckSpawnPositionRegionPayload),
@@ -3518,7 +3671,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_DockingChildTagCount(ConditionData_DockingChildTagCountPayload),
     ConditionData_HasBagDocking,
     ConditionData_IsSpecialModeStartComplete,
-    ConditionData_IsInteractable,
+    ConditionData_IsInteractable(OneByteBodyPayload),
     ConditionData_CheckVehicleType(ConditionData_CheckVehicleTypePayload),
     ConditionData_IsVehicleLinked,
     ConditionData_IsSpawnByLinkedVehicle,
@@ -3539,7 +3692,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_HasLinkedDecoGimmick,
     ConditionData_IsClientOnlyActor,
     ConditionData_HasQuestDialog(ConditionData_HasQuestDialogPayload<'a>),
-    ConditionData_CheckQuestDialogCategory,
+    ConditionData_CheckQuestDialogCategory(OneByteBodyPayload),
     ConditionData_IsSpeakingQuestDialog,
     ConditionData_CheckTarget(ConditionData_CheckTargetPayload),
     ConditionData_CheckHaveLoadingTargetStage_OrTag346,
@@ -3547,10 +3700,10 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsDetectModeShowEnemy,
     ConditionData_CheckHireMercenary,
     ConditionData_IsExistSoldItemToStore,
-    ConditionData_CheckCurrentEquipType_OrTag351,
+    ConditionData_CheckCurrentEquipType_OrTag351(OneByteBodyPayload),
     ConditionData_GetCampDonatedItemCount(ConditionData_GetCampDonatedItemCountPayload),
     ConditionData_IsGimmick,
-    ConditionData_IsCharacter,
+    ConditionData_IsCharacter(OneByteBodyPayload),
     ConditionData_IsItem,
     ConditionData_IsTargetOfOperatorDockingGimmick(ConditionData_IsTargetOfOperatorDockingGimmickPayload),
     ConditionData_CheckMercenaryOccupationState,
@@ -3570,7 +3723,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsDokcingParentHiredMercenary,
     ConditionData_CheckCurrentGlobalGameEvent(ConditionData_CheckCurrentGlobalGameEventPayload),
     ConditionData_CheckGamePlayVariable(ConditionData_CheckGamePlayVariablePayload),
-    ConditionData_IsSpawnOwner,
+    ConditionData_IsSpawnOwner(OneByteBodyPayload),
     ConditionData_IsLiftable,
     ConditionData_IsOwnerPlayer,
     ConditionData_IsAbleToFeed,
@@ -3617,29 +3770,29 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_DockingGetItemCount(_) => 8,
             Self::ConditionData_CheckTime(_) => 9,
             Self::ConditionData_IsNightTime => 10,
-            Self::ConditionData_DayOfWeek => 11,
+            Self::ConditionData_DayOfWeek(_) => 11,
             Self::ConditionData_CheckRemainTimer(_) => 12,
             Self::ConditionData_CheckEquipItem(_) => 13,
             Self::ConditionData_CheckCharacterKey(_) => 14,
             Self::ConditionData_CheckTribe(_) => 15,
             Self::ConditionData_CheckTribeMassLevel(_) => 16,
-            Self::ConditionData_CheckDead => 17,
-            Self::ConditionData_CheckDeadOrRetreat => 18,
-            Self::ConditionData_CheckGroggy => 19,
-            Self::ConditionData_CheckDeadPoseOK => 20,
-            Self::ConditionData_CheckFatal => 21,
-            Self::ConditionData_CheckStageFail => 22,
+            Self::ConditionData_CheckDead(_) => 17,
+            Self::ConditionData_CheckDeadOrRetreat(_) => 18,
+            Self::ConditionData_CheckGroggy(_) => 19,
+            Self::ConditionData_CheckDeadPoseOK(_) => 20,
+            Self::ConditionData_CheckFatal(_) => 21,
+            Self::ConditionData_CheckStageFail(_) => 22,
             Self::ConditionData_GetDataDefinedStaticStat(_) => 23,
             Self::ConditionData_GetDataDefinedRegenerateStat(_) => 24,
             Self::ConditionData_HasLootItem => 25,
-            Self::ConditionData_CheckHasImportantItem => 26,
-            Self::ConditionData_IsFocusActor => 27,
+            Self::ConditionData_CheckHasImportantItem(_) => 26,
+            Self::ConditionData_IsFocusActor(_) => 27,
             Self::ConditionData_IsLootable => 28,
-            Self::ConditionData_CheckMoneyForBuyingStock => 29,
+            Self::ConditionData_CheckMoneyForBuyingStock(_) => 29,
             Self::ConditionData_CheckAction(_) => 30,
-            Self::ConditionData_CheckActionAttribute => 31,
+            Self::ConditionData_CheckActionAttribute(_) => 31,
             Self::ConditionData_CheckActionSkillKey(_) => 32,
-            Self::ConditionData_CheckActionCharacterState => 33,
+            Self::ConditionData_CheckActionCharacterState(_) => 33,
             Self::ConditionData_CheckCharacterKeys(_) => 34,
             Self::ConditionData_Controlable => 35,
             Self::ConditionData_CheckKnowledge(_) => 36,
@@ -3661,7 +3814,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckEquipSlotName(_) => 52,
             Self::ConditionData_CheckCurrentEquipSlotName(_) => 53,
             Self::ConditionData_CheckCurrentEquipType_OrTag54 => 54,
-            Self::ConditionData_CheckEquipType => 55,
+            Self::ConditionData_CheckEquipType(_) => 55,
             Self::ConditionData_WeaponOut => 56,
             Self::ConditionData_IsSequencerPhaseChange => 57,
             Self::ConditionData_TestCheat(_) => 58,
@@ -3698,8 +3851,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsArresting => 89,
             Self::ConditionData_WantedLevel(_) => 90,
             Self::ConditionData_CheckWantedPrice(_) => 91,
-            Self::ConditionData_CheckCurrentEquipType_OrTag92 => 92,
-            Self::ConditionData_WantedState => 93,
+            Self::ConditionData_CheckCurrentEquipType_OrTag92(_) => 92,
+            Self::ConditionData_WantedState(_) => 93,
             Self::ConditionData_CheckSeriousCrime => 94,
             Self::ConditionData_CheckWantedNPC => 95,
             Self::ConditionData_IsInWantedBoundary => 96,
@@ -3719,9 +3872,9 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckExchangeItemSelected => 110,
             Self::ConditionData_CheckUsableGate => 111,
             Self::ConditionData_CheckGateKnowledge => 112,
-            Self::ConditionData_CheckGimmickTag => 113,
+            Self::ConditionData_CheckGimmickTag(_) => 113,
             Self::ConditionData_CheckCatcherGimmickTag => 114,
-            Self::ConditionData_CheckCatcheeGimmickTag => 115,
+            Self::ConditionData_CheckCatcheeGimmickTag(_) => 115,
             Self::ConditionData_CatchTag => 116,
             Self::ConditionData_CheckLoadingComplete => 117,
             Self::ConditionData_CheckLevelLoadingComplete => 118,
@@ -3753,7 +3906,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickEventParamAngle(_) => 144,
             Self::ConditionData_CheckCCType(_) => 145,
             Self::ConditionData_CheckField(_) => 146,
-            Self::ConditionData_IsTarget => 147,
+            Self::ConditionData_IsTarget(_) => 147,
             Self::ConditionData_GetFriendly(_) => 148,
             Self::ConditionData_CheckFriendlyLevel(_) => 149,
             Self::ConditionData_GetFactionfriendly(_) => 150,
@@ -3784,9 +3937,9 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTarget(_) => 175,
             Self::ConditionData_GetGimmickVariable(_) => 176,
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(_) => 177,
-            Self::ConditionData_CheckStoreType => 178,
+            Self::ConditionData_CheckStoreType(_) => 178,
             Self::ConditionData_IsExistStoreItemToSell => 179,
-            Self::ConditionData_CheckNpcFunctionType => 180,
+            Self::ConditionData_CheckNpcFunctionType(_) => 180,
             Self::ConditionData_CheckExistPrice => 181,
             Self::ConditionData_SubTimelineName(_) => 182,
             Self::ConditionData_ExistTimeline(_) => 183,
@@ -3812,7 +3965,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckBreaked => 203,
             Self::ConditionData_IsDockingChild => 204,
             Self::ConditionData_CheckTriggerVolumeGroupIndex(_) => 205,
-            Self::ConditionData_Weather => 206,
+            Self::ConditionData_Weather(_) => 206,
             Self::ConditionData_CheckGimmickParentLinkCount(_) => 207,
             Self::ConditionData_CheckGimmickRemoteCatchType => 208,
             Self::ConditionData_CheckGimmickTriggerCount(_) => 209,
@@ -3820,7 +3973,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickAttachmentType => 211,
             Self::ConditionData_CheckGimmickTargetCount(_) => 212,
             Self::ConditionData_CheckGimmickNonBreakTargetCount(_) => 213,
-            Self::ConditionData_CheckExistStealItem => 214,
+            Self::ConditionData_CheckExistStealItem(_) => 214,
             Self::ConditionData_CheckElementalMaterialType => 215,
             Self::ConditionData_IsGimmickSealComplete => 216,
             Self::ConditionData_IsAcquiredItem => 217,
@@ -3859,7 +4012,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRidingVehicleType(_) => 250,
             Self::ConditionData_CheckRidingVehicleKey(_) => 251,
             Self::ConditionData_CheckRidingVehicleKeyList(_) => 252,
-            Self::ConditionData_CheckThreatReward => 253,
+            Self::ConditionData_CheckThreatReward(_) => 253,
             Self::ConditionData_IsCrossHairTarget => 254,
             Self::ConditionData_IsAiJumpClimbTarget => 255,
             Self::ConditionData_Macro(_) => 256,
@@ -3869,7 +4022,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckPlayerCameraFocusActorCovered => 260,
             Self::ConditionData_CheckDamageElementalType(_) => 261,
             Self::ConditionData_IsRidingVehicle => 262,
-            Self::ConditionData_CharacterTier => 263,
+            Self::ConditionData_CharacterTier(_) => 263,
             Self::ConditionData_CheckEquipTargetItemActor => 264,
             Self::ConditionData_GetFactionNodeState(_) => 265,
             Self::ConditionData_GetCurrentFactionNodeState(_) => 266,
@@ -3878,7 +4031,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFactionResource(_) => 269,
             Self::ConditionData_IsFactionNodeMissionGaugeEnable(_) => 270,
             Self::ConditionData_CheckCharacterGroupKey(_) => 271,
-            Self::ConditionData_GameEventParam => 272,
+            Self::ConditionData_GameEventParam(_) => 272,
             Self::ConditionData_CheckFactionRelation(_) => 273,
             Self::ConditionData_CheckUsableStore => 274,
             Self::ConditionData_CheckRide(_) => 275,
@@ -3893,7 +4046,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckCharacterItemSocket(_) => 284,
             Self::ConditionData_CheckGimmickItemSocket => 285,
             Self::ConditionData_CheckCurrentEquipType_OrTag286 => 286,
-            Self::ConditionData_IsInSpecialModeStage => 287,
+            Self::ConditionData_IsInSpecialModeStage(_) => 287,
             Self::ConditionData_IsSpawnedOnPlatform => 288,
             Self::ConditionData_GetInventoryWeightLevel(_) => 289,
             Self::ConditionData_CheckReserveSlot(_) => 290,
@@ -3906,7 +4059,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTargetHackable(_) => 297,
             Self::ConditionData_IsHackable(_) => 298,
             Self::ConditionData_CheckDockingParentDead => 299,
-            Self::ConditionData_CheckAttackName => 300,
+            Self::ConditionData_CheckAttackName(_) => 300,
             Self::ConditionData_CheckAttackFromType(_) => 301,
             Self::ConditionData_CheckGimmickAngleToTarget(_) => 302,
             Self::ConditionData_CheckSpawnPositionRegion(_) => 303,
@@ -3928,7 +4081,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_DockingChildTagCount(_) => 319,
             Self::ConditionData_HasBagDocking => 320,
             Self::ConditionData_IsSpecialModeStartComplete => 321,
-            Self::ConditionData_IsInteractable => 322,
+            Self::ConditionData_IsInteractable(_) => 322,
             Self::ConditionData_CheckVehicleType(_) => 323,
             Self::ConditionData_IsVehicleLinked => 324,
             Self::ConditionData_IsSpawnByLinkedVehicle => 325,
@@ -3949,7 +4102,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_HasLinkedDecoGimmick => 340,
             Self::ConditionData_IsClientOnlyActor => 341,
             Self::ConditionData_HasQuestDialog(_) => 342,
-            Self::ConditionData_CheckQuestDialogCategory => 343,
+            Self::ConditionData_CheckQuestDialogCategory(_) => 343,
             Self::ConditionData_IsSpeakingQuestDialog => 344,
             Self::ConditionData_CheckTarget(_) => 345,
             Self::ConditionData_CheckHaveLoadingTargetStage_OrTag346 => 346,
@@ -3957,10 +4110,10 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsDetectModeShowEnemy => 348,
             Self::ConditionData_CheckHireMercenary => 349,
             Self::ConditionData_IsExistSoldItemToStore => 350,
-            Self::ConditionData_CheckCurrentEquipType_OrTag351 => 351,
+            Self::ConditionData_CheckCurrentEquipType_OrTag351(_) => 351,
             Self::ConditionData_GetCampDonatedItemCount(_) => 352,
             Self::ConditionData_IsGimmick => 353,
-            Self::ConditionData_IsCharacter => 354,
+            Self::ConditionData_IsCharacter(_) => 354,
             Self::ConditionData_IsItem => 355,
             Self::ConditionData_IsTargetOfOperatorDockingGimmick(_) => 356,
             Self::ConditionData_CheckMercenaryOccupationState => 357,
@@ -3980,7 +4133,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsDokcingParentHiredMercenary => 371,
             Self::ConditionData_CheckCurrentGlobalGameEvent(_) => 372,
             Self::ConditionData_CheckGamePlayVariable(_) => 373,
-            Self::ConditionData_IsSpawnOwner => 374,
+            Self::ConditionData_IsSpawnOwner(_) => 374,
             Self::ConditionData_IsLiftable => 375,
             Self::ConditionData_IsOwnerPlayer => 376,
             Self::ConditionData_IsAbleToFeed => 377,
@@ -4027,29 +4180,29 @@ impl<'a> ConditionDataVariant<'a> {
             8 => Self::ConditionData_DockingGetItemCount(ConditionData_DockingGetItemCountPayload::read_from(data, offset)?),
             9 => Self::ConditionData_CheckTime(ConditionData_CheckTimePayload::read_from(data, offset)?),
             10 => Self::ConditionData_IsNightTime,
-            11 => Self::ConditionData_DayOfWeek,
+            11 => Self::ConditionData_DayOfWeek(OneByteBodyPayload::read_from(data, offset)?),
             12 => Self::ConditionData_CheckRemainTimer(ConditionData_CheckRemainTimerPayload::read_from(data, offset)?),
             13 => Self::ConditionData_CheckEquipItem(ConditionData_CheckEquipItemPayload::read_from(data, offset)?),
             14 => Self::ConditionData_CheckCharacterKey(ConditionData_CheckCharacterKeyPayload::read_from(data, offset)?),
             15 => Self::ConditionData_CheckTribe(ConditionData_CheckTribePayload::read_from(data, offset)?),
             16 => Self::ConditionData_CheckTribeMassLevel(ConditionData_CheckTribeMassLevelPayload::read_from(data, offset)?),
-            17 => Self::ConditionData_CheckDead,
-            18 => Self::ConditionData_CheckDeadOrRetreat,
-            19 => Self::ConditionData_CheckGroggy,
-            20 => Self::ConditionData_CheckDeadPoseOK,
-            21 => Self::ConditionData_CheckFatal,
-            22 => Self::ConditionData_CheckStageFail,
+            17 => Self::ConditionData_CheckDead(OneByteBodyPayload::read_from(data, offset)?),
+            18 => Self::ConditionData_CheckDeadOrRetreat(OneByteBodyPayload::read_from(data, offset)?),
+            19 => Self::ConditionData_CheckGroggy(OneByteBodyPayload::read_from(data, offset)?),
+            20 => Self::ConditionData_CheckDeadPoseOK(OneByteBodyPayload::read_from(data, offset)?),
+            21 => Self::ConditionData_CheckFatal(OneByteBodyPayload::read_from(data, offset)?),
+            22 => Self::ConditionData_CheckStageFail(OneByteBodyPayload::read_from(data, offset)?),
             23 => Self::ConditionData_GetDataDefinedStaticStat(ConditionData_GetDataDefinedStaticStatPayload::read_from(data, offset)?),
             24 => Self::ConditionData_GetDataDefinedRegenerateStat(ConditionData_GetDataDefinedRegenerateStatPayload::read_from(data, offset)?),
             25 => Self::ConditionData_HasLootItem,
-            26 => Self::ConditionData_CheckHasImportantItem,
-            27 => Self::ConditionData_IsFocusActor,
+            26 => Self::ConditionData_CheckHasImportantItem(OneByteBodyPayload::read_from(data, offset)?),
+            27 => Self::ConditionData_IsFocusActor(OneByteBodyPayload::read_from(data, offset)?),
             28 => Self::ConditionData_IsLootable,
-            29 => Self::ConditionData_CheckMoneyForBuyingStock,
+            29 => Self::ConditionData_CheckMoneyForBuyingStock(OneByteBodyPayload::read_from(data, offset)?),
             30 => Self::ConditionData_CheckAction(ConditionData_CheckActionPayload::read_from(data, offset)?),
-            31 => Self::ConditionData_CheckActionAttribute,
+            31 => Self::ConditionData_CheckActionAttribute(ConditionData_CheckActionAttributePayload::read_from(data, offset)?),
             32 => Self::ConditionData_CheckActionSkillKey(ConditionData_CheckActionSkillKeyPayload::read_from(data, offset)?),
-            33 => Self::ConditionData_CheckActionCharacterState,
+            33 => Self::ConditionData_CheckActionCharacterState(OneByteBodyPayload::read_from(data, offset)?),
             34 => Self::ConditionData_CheckCharacterKeys(ConditionData_CheckCharacterKeysPayload::read_from(data, offset)?),
             35 => Self::ConditionData_Controlable,
             36 => Self::ConditionData_CheckKnowledge(ConditionData_CheckKnowledgePayload::read_from(data, offset)?),
@@ -4071,7 +4224,7 @@ impl<'a> ConditionDataVariant<'a> {
             52 => Self::ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload::read_from(data, offset)?),
             53 => Self::ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload::read_from(data, offset)?),
             54 => Self::ConditionData_CheckCurrentEquipType_OrTag54,
-            55 => Self::ConditionData_CheckEquipType,
+            55 => Self::ConditionData_CheckEquipType(ThreeU32BodyPayload::read_from(data, offset)?),
             56 => Self::ConditionData_WeaponOut,
             57 => Self::ConditionData_IsSequencerPhaseChange,
             58 => Self::ConditionData_TestCheat(ConditionData_TestCheatPayload::read_from(data, offset)?),
@@ -4108,8 +4261,8 @@ impl<'a> ConditionDataVariant<'a> {
             89 => Self::ConditionData_IsArresting,
             90 => Self::ConditionData_WantedLevel(ConditionData_WantedLevelPayload::read_from(data, offset)?),
             91 => Self::ConditionData_CheckWantedPrice(ConditionData_CheckWantedPricePayload::read_from(data, offset)?),
-            92 => Self::ConditionData_CheckCurrentEquipType_OrTag92,
-            93 => Self::ConditionData_WantedState,
+            92 => Self::ConditionData_CheckCurrentEquipType_OrTag92(OneByteBodyPayload::read_from(data, offset)?),
+            93 => Self::ConditionData_WantedState(OneByteBodyPayload::read_from(data, offset)?),
             94 => Self::ConditionData_CheckSeriousCrime,
             95 => Self::ConditionData_CheckWantedNPC,
             96 => Self::ConditionData_IsInWantedBoundary,
@@ -4129,9 +4282,9 @@ impl<'a> ConditionDataVariant<'a> {
             110 => Self::ConditionData_CheckExchangeItemSelected,
             111 => Self::ConditionData_CheckUsableGate,
             112 => Self::ConditionData_CheckGateKnowledge,
-            113 => Self::ConditionData_CheckGimmickTag,
+            113 => Self::ConditionData_CheckGimmickTag(OneCStringBodyPayload::read_from(data, offset)?),
             114 => Self::ConditionData_CheckCatcherGimmickTag,
-            115 => Self::ConditionData_CheckCatcheeGimmickTag,
+            115 => Self::ConditionData_CheckCatcheeGimmickTag(OneCStringBodyPayload::read_from(data, offset)?),
             116 => Self::ConditionData_CatchTag,
             117 => Self::ConditionData_CheckLoadingComplete,
             118 => Self::ConditionData_CheckLevelLoadingComplete,
@@ -4163,7 +4316,7 @@ impl<'a> ConditionDataVariant<'a> {
             144 => Self::ConditionData_CheckGimmickEventParamAngle(ConditionData_CheckGimmickEventParamAnglePayload::read_from(data, offset)?),
             145 => Self::ConditionData_CheckCCType(ConditionData_CheckCCTypePayload::read_from(data, offset)?),
             146 => Self::ConditionData_CheckField(ConditionData_CheckFieldPayload::read_from(data, offset)?),
-            147 => Self::ConditionData_IsTarget,
+            147 => Self::ConditionData_IsTarget(OneByteBodyPayload::read_from(data, offset)?),
             148 => Self::ConditionData_GetFriendly(ConditionData_GetFriendlyPayload::read_from(data, offset)?),
             149 => Self::ConditionData_CheckFriendlyLevel(ConditionData_CheckFriendlyLevelPayload::read_from(data, offset)?),
             150 => Self::ConditionData_GetFactionfriendly(ConditionData_GetFactionfriendlyPayload::read_from(data, offset)?),
@@ -4194,9 +4347,9 @@ impl<'a> ConditionDataVariant<'a> {
             175 => Self::ConditionData_CheckGimmickTarget(ConditionData_CheckGimmickTargetPayload::read_from(data, offset)?),
             176 => Self::ConditionData_GetGimmickVariable(ConditionData_GetGimmickVariablePayload::read_from(data, offset)?),
             177 => Self::ConditionData_GetRandomPercentBySpawnPositionSeed(ConditionData_GetRandomPercentBySpawnPositionSeedPayload::read_from(data, offset)?),
-            178 => Self::ConditionData_CheckStoreType,
+            178 => Self::ConditionData_CheckStoreType(OneByteBodyPayload::read_from(data, offset)?),
             179 => Self::ConditionData_IsExistStoreItemToSell,
-            180 => Self::ConditionData_CheckNpcFunctionType,
+            180 => Self::ConditionData_CheckNpcFunctionType(OneByteBodyPayload::read_from(data, offset)?),
             181 => Self::ConditionData_CheckExistPrice,
             182 => Self::ConditionData_SubTimelineName(ConditionData_SubTimelineNamePayload::read_from(data, offset)?),
             183 => Self::ConditionData_ExistTimeline(ConditionData_ExistTimelinePayload::read_from(data, offset)?),
@@ -4222,7 +4375,7 @@ impl<'a> ConditionDataVariant<'a> {
             203 => Self::ConditionData_CheckBreaked,
             204 => Self::ConditionData_IsDockingChild,
             205 => Self::ConditionData_CheckTriggerVolumeGroupIndex(ConditionData_CheckTriggerVolumeGroupIndexPayload::read_from(data, offset)?),
-            206 => Self::ConditionData_Weather,
+            206 => Self::ConditionData_Weather(ConditionData_WeatherPayload::read_from(data, offset)?),
             207 => Self::ConditionData_CheckGimmickParentLinkCount(ConditionData_CheckGimmickParentLinkCountPayload::read_from(data, offset)?),
             208 => Self::ConditionData_CheckGimmickRemoteCatchType,
             209 => Self::ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload::read_from(data, offset)?),
@@ -4232,7 +4385,7 @@ impl<'a> ConditionDataVariant<'a> {
                                           format!("opaque ConditionData variant {} (ConditionData_CheckGimmickTargetCount) — needs further decode", disc))),
             213 => return Err(io::Error::new(io::ErrorKind::InvalidData,
                                           format!("opaque ConditionData variant {} (ConditionData_CheckGimmickNonBreakTargetCount) — needs further decode", disc))),
-            214 => Self::ConditionData_CheckExistStealItem,
+            214 => Self::ConditionData_CheckExistStealItem(U32U16BodyPayload::read_from(data, offset)?),
             215 => Self::ConditionData_CheckElementalMaterialType,
             216 => Self::ConditionData_IsGimmickSealComplete,
             217 => Self::ConditionData_IsAcquiredItem,
@@ -4271,7 +4424,7 @@ impl<'a> ConditionDataVariant<'a> {
             250 => Self::ConditionData_CheckRidingVehicleType(ConditionData_CheckRidingVehicleTypePayload::read_from(data, offset)?),
             251 => Self::ConditionData_CheckRidingVehicleKey(ConditionData_CheckRidingVehicleKeyPayload::read_from(data, offset)?),
             252 => Self::ConditionData_CheckRidingVehicleKeyList(ConditionData_CheckRidingVehicleKeyListPayload::read_from(data, offset)?),
-            253 => Self::ConditionData_CheckThreatReward,
+            253 => Self::ConditionData_CheckThreatReward(OneByteBodyPayload::read_from(data, offset)?),
             254 => Self::ConditionData_IsCrossHairTarget,
             255 => Self::ConditionData_IsAiJumpClimbTarget,
             256 => Self::ConditionData_Macro(ConditionData_MacroPayload::read_from(data, offset)?),
@@ -4281,7 +4434,7 @@ impl<'a> ConditionDataVariant<'a> {
             260 => Self::ConditionData_CheckPlayerCameraFocusActorCovered,
             261 => Self::ConditionData_CheckDamageElementalType(ConditionData_CheckDamageElementalTypePayload::read_from(data, offset)?),
             262 => Self::ConditionData_IsRidingVehicle,
-            263 => Self::ConditionData_CharacterTier,
+            263 => Self::ConditionData_CharacterTier(OneByteBodyPayload::read_from(data, offset)?),
             264 => Self::ConditionData_CheckEquipTargetItemActor,
             265 => Self::ConditionData_GetFactionNodeState(ConditionData_GetFactionNodeStatePayload::read_from(data, offset)?),
             266 => Self::ConditionData_GetCurrentFactionNodeState(ConditionData_GetCurrentFactionNodeStatePayload::read_from(data, offset)?),
@@ -4290,7 +4443,7 @@ impl<'a> ConditionDataVariant<'a> {
             269 => Self::ConditionData_GetFactionResource(ConditionData_GetFactionResourcePayload::read_from(data, offset)?),
             270 => Self::ConditionData_IsFactionNodeMissionGaugeEnable(ConditionData_IsFactionNodeMissionGaugeEnablePayload::read_from(data, offset)?),
             271 => Self::ConditionData_CheckCharacterGroupKey(ConditionData_CheckCharacterGroupKeyPayload::read_from(data, offset)?),
-            272 => Self::ConditionData_GameEventParam,
+            272 => Self::ConditionData_GameEventParam(ConditionData_GameEventParamPayload::read_from(data, offset)?),
             273 => Self::ConditionData_CheckFactionRelation(ConditionData_CheckFactionRelationPayload::read_from(data, offset)?),
             274 => Self::ConditionData_CheckUsableStore,
             275 => Self::ConditionData_CheckRide(ConditionData_CheckRidePayload::read_from(data, offset)?),
@@ -4305,7 +4458,7 @@ impl<'a> ConditionDataVariant<'a> {
             284 => Self::ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload::read_from(data, offset)?),
             285 => Self::ConditionData_CheckGimmickItemSocket,
             286 => Self::ConditionData_CheckCurrentEquipType_OrTag286,
-            287 => Self::ConditionData_IsInSpecialModeStage,
+            287 => Self::ConditionData_IsInSpecialModeStage(OneU32BodyPayload::read_from(data, offset)?),
             288 => Self::ConditionData_IsSpawnedOnPlatform,
             289 => Self::ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload::read_from(data, offset)?),
             290 => Self::ConditionData_CheckReserveSlot(ConditionData_CheckReserveSlotPayload::read_from(data, offset)?),
@@ -4319,7 +4472,7 @@ impl<'a> ConditionDataVariant<'a> {
                                           format!("opaque ConditionData variant {} (ConditionData_CheckGimmickTargetHackable) — needs further decode", disc))),
             298 => Self::ConditionData_IsHackable(ConditionData_IsHackablePayload::read_from(data, offset)?),
             299 => Self::ConditionData_CheckDockingParentDead,
-            300 => Self::ConditionData_CheckAttackName,
+            300 => Self::ConditionData_CheckAttackName(OneU32BodyPayload::read_from(data, offset)?),
             301 => Self::ConditionData_CheckAttackFromType(ConditionData_CheckAttackFromTypePayload::read_from(data, offset)?),
             302 => return Err(io::Error::new(io::ErrorKind::InvalidData,
                                           format!("opaque ConditionData variant {} (ConditionData_CheckGimmickAngleToTarget) — needs further decode", disc))),
@@ -4342,7 +4495,7 @@ impl<'a> ConditionDataVariant<'a> {
             319 => Self::ConditionData_DockingChildTagCount(ConditionData_DockingChildTagCountPayload::read_from(data, offset)?),
             320 => Self::ConditionData_HasBagDocking,
             321 => Self::ConditionData_IsSpecialModeStartComplete,
-            322 => Self::ConditionData_IsInteractable,
+            322 => Self::ConditionData_IsInteractable(OneByteBodyPayload::read_from(data, offset)?),
             323 => Self::ConditionData_CheckVehicleType(ConditionData_CheckVehicleTypePayload::read_from(data, offset)?),
             324 => Self::ConditionData_IsVehicleLinked,
             325 => Self::ConditionData_IsSpawnByLinkedVehicle,
@@ -4363,7 +4516,7 @@ impl<'a> ConditionDataVariant<'a> {
             340 => Self::ConditionData_HasLinkedDecoGimmick,
             341 => Self::ConditionData_IsClientOnlyActor,
             342 => Self::ConditionData_HasQuestDialog(ConditionData_HasQuestDialogPayload::read_from(data, offset)?),
-            343 => Self::ConditionData_CheckQuestDialogCategory,
+            343 => Self::ConditionData_CheckQuestDialogCategory(OneByteBodyPayload::read_from(data, offset)?),
             344 => Self::ConditionData_IsSpeakingQuestDialog,
             345 => return Err(io::Error::new(io::ErrorKind::InvalidData,
                                           format!("opaque ConditionData variant {} (ConditionData_CheckTarget) — needs further decode", disc))),
@@ -4373,10 +4526,10 @@ impl<'a> ConditionDataVariant<'a> {
             348 => Self::ConditionData_IsDetectModeShowEnemy,
             349 => Self::ConditionData_CheckHireMercenary,
             350 => Self::ConditionData_IsExistSoldItemToStore,
-            351 => Self::ConditionData_CheckCurrentEquipType_OrTag351,
+            351 => Self::ConditionData_CheckCurrentEquipType_OrTag351(OneByteBodyPayload::read_from(data, offset)?),
             352 => Self::ConditionData_GetCampDonatedItemCount(ConditionData_GetCampDonatedItemCountPayload::read_from(data, offset)?),
             353 => Self::ConditionData_IsGimmick,
-            354 => Self::ConditionData_IsCharacter,
+            354 => Self::ConditionData_IsCharacter(OneByteBodyPayload::read_from(data, offset)?),
             355 => Self::ConditionData_IsItem,
             356 => Self::ConditionData_IsTargetOfOperatorDockingGimmick(ConditionData_IsTargetOfOperatorDockingGimmickPayload::read_from(data, offset)?),
             357 => Self::ConditionData_CheckMercenaryOccupationState,
@@ -4396,7 +4549,7 @@ impl<'a> ConditionDataVariant<'a> {
             371 => Self::ConditionData_IsDokcingParentHiredMercenary,
             372 => Self::ConditionData_CheckCurrentGlobalGameEvent(ConditionData_CheckCurrentGlobalGameEventPayload::read_from(data, offset)?),
             373 => Self::ConditionData_CheckGamePlayVariable(ConditionData_CheckGamePlayVariablePayload::read_from(data, offset)?),
-            374 => Self::ConditionData_IsSpawnOwner,
+            374 => Self::ConditionData_IsSpawnOwner(OneByteBodyPayload::read_from(data, offset)?),
             375 => Self::ConditionData_IsLiftable,
             376 => Self::ConditionData_IsOwnerPlayer,
             377 => Self::ConditionData_IsAbleToFeed,
@@ -4444,29 +4597,29 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_DockingGetItemCount(p) => p.write_to(w),
             Self::ConditionData_CheckTime(p) => p.write_to(w),
             Self::ConditionData_IsNightTime => Ok(()),
-            Self::ConditionData_DayOfWeek => Ok(()),
+            Self::ConditionData_DayOfWeek(p) => p.write_to(w),
             Self::ConditionData_CheckRemainTimer(p) => p.write_to(w),
             Self::ConditionData_CheckEquipItem(p) => p.write_to(w),
             Self::ConditionData_CheckCharacterKey(p) => p.write_to(w),
             Self::ConditionData_CheckTribe(p) => p.write_to(w),
             Self::ConditionData_CheckTribeMassLevel(p) => p.write_to(w),
-            Self::ConditionData_CheckDead => Ok(()),
-            Self::ConditionData_CheckDeadOrRetreat => Ok(()),
-            Self::ConditionData_CheckGroggy => Ok(()),
-            Self::ConditionData_CheckDeadPoseOK => Ok(()),
-            Self::ConditionData_CheckFatal => Ok(()),
-            Self::ConditionData_CheckStageFail => Ok(()),
+            Self::ConditionData_CheckDead(p) => p.write_to(w),
+            Self::ConditionData_CheckDeadOrRetreat(p) => p.write_to(w),
+            Self::ConditionData_CheckGroggy(p) => p.write_to(w),
+            Self::ConditionData_CheckDeadPoseOK(p) => p.write_to(w),
+            Self::ConditionData_CheckFatal(p) => p.write_to(w),
+            Self::ConditionData_CheckStageFail(p) => p.write_to(w),
             Self::ConditionData_GetDataDefinedStaticStat(p) => p.write_to(w),
             Self::ConditionData_GetDataDefinedRegenerateStat(p) => p.write_to(w),
             Self::ConditionData_HasLootItem => Ok(()),
-            Self::ConditionData_CheckHasImportantItem => Ok(()),
-            Self::ConditionData_IsFocusActor => Ok(()),
+            Self::ConditionData_CheckHasImportantItem(p) => p.write_to(w),
+            Self::ConditionData_IsFocusActor(p) => p.write_to(w),
             Self::ConditionData_IsLootable => Ok(()),
-            Self::ConditionData_CheckMoneyForBuyingStock => Ok(()),
+            Self::ConditionData_CheckMoneyForBuyingStock(p) => p.write_to(w),
             Self::ConditionData_CheckAction(p) => p.write_to(w),
-            Self::ConditionData_CheckActionAttribute => Ok(()),
+            Self::ConditionData_CheckActionAttribute(p) => p.write_to(w),
             Self::ConditionData_CheckActionSkillKey(p) => p.write_to(w),
-            Self::ConditionData_CheckActionCharacterState => Ok(()),
+            Self::ConditionData_CheckActionCharacterState(p) => p.write_to(w),
             Self::ConditionData_CheckCharacterKeys(p) => p.write_to(w),
             Self::ConditionData_Controlable => Ok(()),
             Self::ConditionData_CheckKnowledge(p) => p.write_to(w),
@@ -4488,7 +4641,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckEquipSlotName(p) => p.write_to(w),
             Self::ConditionData_CheckCurrentEquipSlotName(p) => p.write_to(w),
             Self::ConditionData_CheckCurrentEquipType_OrTag54 => Ok(()),
-            Self::ConditionData_CheckEquipType => Ok(()),
+            Self::ConditionData_CheckEquipType(p) => p.write_to(w),
             Self::ConditionData_WeaponOut => Ok(()),
             Self::ConditionData_IsSequencerPhaseChange => Ok(()),
             Self::ConditionData_TestCheat(p) => p.write_to(w),
@@ -4525,8 +4678,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsArresting => Ok(()),
             Self::ConditionData_WantedLevel(p) => p.write_to(w),
             Self::ConditionData_CheckWantedPrice(p) => p.write_to(w),
-            Self::ConditionData_CheckCurrentEquipType_OrTag92 => Ok(()),
-            Self::ConditionData_WantedState => Ok(()),
+            Self::ConditionData_CheckCurrentEquipType_OrTag92(p) => p.write_to(w),
+            Self::ConditionData_WantedState(p) => p.write_to(w),
             Self::ConditionData_CheckSeriousCrime => Ok(()),
             Self::ConditionData_CheckWantedNPC => Ok(()),
             Self::ConditionData_IsInWantedBoundary => Ok(()),
@@ -4546,9 +4699,9 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckExchangeItemSelected => Ok(()),
             Self::ConditionData_CheckUsableGate => Ok(()),
             Self::ConditionData_CheckGateKnowledge => Ok(()),
-            Self::ConditionData_CheckGimmickTag => Ok(()),
+            Self::ConditionData_CheckGimmickTag(p) => p.write_to(w),
             Self::ConditionData_CheckCatcherGimmickTag => Ok(()),
-            Self::ConditionData_CheckCatcheeGimmickTag => Ok(()),
+            Self::ConditionData_CheckCatcheeGimmickTag(p) => p.write_to(w),
             Self::ConditionData_CatchTag => Ok(()),
             Self::ConditionData_CheckLoadingComplete => Ok(()),
             Self::ConditionData_CheckLevelLoadingComplete => Ok(()),
@@ -4580,7 +4733,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickEventParamAngle(p) => p.write_to(w),
             Self::ConditionData_CheckCCType(p) => p.write_to(w),
             Self::ConditionData_CheckField(p) => p.write_to(w),
-            Self::ConditionData_IsTarget => Ok(()),
+            Self::ConditionData_IsTarget(p) => p.write_to(w),
             Self::ConditionData_GetFriendly(p) => p.write_to(w),
             Self::ConditionData_CheckFriendlyLevel(p) => p.write_to(w),
             Self::ConditionData_GetFactionfriendly(p) => p.write_to(w),
@@ -4611,9 +4764,9 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTarget(p) => p.write_to(w),
             Self::ConditionData_GetGimmickVariable(p) => p.write_to(w),
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(p) => p.write_to(w),
-            Self::ConditionData_CheckStoreType => Ok(()),
+            Self::ConditionData_CheckStoreType(p) => p.write_to(w),
             Self::ConditionData_IsExistStoreItemToSell => Ok(()),
-            Self::ConditionData_CheckNpcFunctionType => Ok(()),
+            Self::ConditionData_CheckNpcFunctionType(p) => p.write_to(w),
             Self::ConditionData_CheckExistPrice => Ok(()),
             Self::ConditionData_SubTimelineName(p) => p.write_to(w),
             Self::ConditionData_ExistTimeline(p) => p.write_to(w),
@@ -4639,7 +4792,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckBreaked => Ok(()),
             Self::ConditionData_IsDockingChild => Ok(()),
             Self::ConditionData_CheckTriggerVolumeGroupIndex(p) => p.write_to(w),
-            Self::ConditionData_Weather => Ok(()),
+            Self::ConditionData_Weather(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickParentLinkCount(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickRemoteCatchType => Ok(()),
             Self::ConditionData_CheckGimmickTriggerCount(p) => p.write_to(w),
@@ -4647,7 +4800,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickAttachmentType => Ok(()),
             Self::ConditionData_CheckGimmickTargetCount(p) => w.write_all(&p.raw_bytes),
             Self::ConditionData_CheckGimmickNonBreakTargetCount(p) => w.write_all(&p.raw_bytes),
-            Self::ConditionData_CheckExistStealItem => Ok(()),
+            Self::ConditionData_CheckExistStealItem(p) => p.write_to(w),
             Self::ConditionData_CheckElementalMaterialType => Ok(()),
             Self::ConditionData_IsGimmickSealComplete => Ok(()),
             Self::ConditionData_IsAcquiredItem => Ok(()),
@@ -4686,7 +4839,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRidingVehicleType(p) => p.write_to(w),
             Self::ConditionData_CheckRidingVehicleKey(p) => p.write_to(w),
             Self::ConditionData_CheckRidingVehicleKeyList(p) => p.write_to(w),
-            Self::ConditionData_CheckThreatReward => Ok(()),
+            Self::ConditionData_CheckThreatReward(p) => p.write_to(w),
             Self::ConditionData_IsCrossHairTarget => Ok(()),
             Self::ConditionData_IsAiJumpClimbTarget => Ok(()),
             Self::ConditionData_Macro(p) => p.write_to(w),
@@ -4696,7 +4849,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckPlayerCameraFocusActorCovered => Ok(()),
             Self::ConditionData_CheckDamageElementalType(p) => p.write_to(w),
             Self::ConditionData_IsRidingVehicle => Ok(()),
-            Self::ConditionData_CharacterTier => Ok(()),
+            Self::ConditionData_CharacterTier(p) => p.write_to(w),
             Self::ConditionData_CheckEquipTargetItemActor => Ok(()),
             Self::ConditionData_GetFactionNodeState(p) => p.write_to(w),
             Self::ConditionData_GetCurrentFactionNodeState(p) => p.write_to(w),
@@ -4705,7 +4858,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFactionResource(p) => p.write_to(w),
             Self::ConditionData_IsFactionNodeMissionGaugeEnable(p) => p.write_to(w),
             Self::ConditionData_CheckCharacterGroupKey(p) => p.write_to(w),
-            Self::ConditionData_GameEventParam => Ok(()),
+            Self::ConditionData_GameEventParam(p) => p.write_to(w),
             Self::ConditionData_CheckFactionRelation(p) => p.write_to(w),
             Self::ConditionData_CheckUsableStore => Ok(()),
             Self::ConditionData_CheckRide(p) => p.write_to(w),
@@ -4720,7 +4873,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckCharacterItemSocket(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickItemSocket => Ok(()),
             Self::ConditionData_CheckCurrentEquipType_OrTag286 => Ok(()),
-            Self::ConditionData_IsInSpecialModeStage => Ok(()),
+            Self::ConditionData_IsInSpecialModeStage(p) => p.write_to(w),
             Self::ConditionData_IsSpawnedOnPlatform => Ok(()),
             Self::ConditionData_GetInventoryWeightLevel(p) => p.write_to(w),
             Self::ConditionData_CheckReserveSlot(p) => p.write_to(w),
@@ -4733,7 +4886,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTargetHackable(p) => w.write_all(&p.raw_bytes),
             Self::ConditionData_IsHackable(p) => p.write_to(w),
             Self::ConditionData_CheckDockingParentDead => Ok(()),
-            Self::ConditionData_CheckAttackName => Ok(()),
+            Self::ConditionData_CheckAttackName(p) => p.write_to(w),
             Self::ConditionData_CheckAttackFromType(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickAngleToTarget(p) => w.write_all(&p.raw_bytes),
             Self::ConditionData_CheckSpawnPositionRegion(p) => p.write_to(w),
@@ -4755,7 +4908,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_DockingChildTagCount(p) => p.write_to(w),
             Self::ConditionData_HasBagDocking => Ok(()),
             Self::ConditionData_IsSpecialModeStartComplete => Ok(()),
-            Self::ConditionData_IsInteractable => Ok(()),
+            Self::ConditionData_IsInteractable(p) => p.write_to(w),
             Self::ConditionData_CheckVehicleType(p) => p.write_to(w),
             Self::ConditionData_IsVehicleLinked => Ok(()),
             Self::ConditionData_IsSpawnByLinkedVehicle => Ok(()),
@@ -4776,7 +4929,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_HasLinkedDecoGimmick => Ok(()),
             Self::ConditionData_IsClientOnlyActor => Ok(()),
             Self::ConditionData_HasQuestDialog(p) => p.write_to(w),
-            Self::ConditionData_CheckQuestDialogCategory => Ok(()),
+            Self::ConditionData_CheckQuestDialogCategory(p) => p.write_to(w),
             Self::ConditionData_IsSpeakingQuestDialog => Ok(()),
             Self::ConditionData_CheckTarget(p) => w.write_all(&p.raw_bytes),
             Self::ConditionData_CheckHaveLoadingTargetStage_OrTag346 => Ok(()),
@@ -4784,10 +4937,10 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsDetectModeShowEnemy => Ok(()),
             Self::ConditionData_CheckHireMercenary => Ok(()),
             Self::ConditionData_IsExistSoldItemToStore => Ok(()),
-            Self::ConditionData_CheckCurrentEquipType_OrTag351 => Ok(()),
+            Self::ConditionData_CheckCurrentEquipType_OrTag351(p) => p.write_to(w),
             Self::ConditionData_GetCampDonatedItemCount(p) => p.write_to(w),
             Self::ConditionData_IsGimmick => Ok(()),
-            Self::ConditionData_IsCharacter => Ok(()),
+            Self::ConditionData_IsCharacter(p) => p.write_to(w),
             Self::ConditionData_IsItem => Ok(()),
             Self::ConditionData_IsTargetOfOperatorDockingGimmick(p) => p.write_to(w),
             Self::ConditionData_CheckMercenaryOccupationState => Ok(()),
@@ -4807,7 +4960,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsDokcingParentHiredMercenary => Ok(()),
             Self::ConditionData_CheckCurrentGlobalGameEvent(p) => p.write_to(w),
             Self::ConditionData_CheckGamePlayVariable(p) => p.write_to(w),
-            Self::ConditionData_IsSpawnOwner => Ok(()),
+            Self::ConditionData_IsSpawnOwner(p) => p.write_to(w),
             Self::ConditionData_IsLiftable => Ok(()),
             Self::ConditionData_IsOwnerPlayer => Ok(()),
             Self::ConditionData_IsAbleToFeed => Ok(()),
@@ -4874,42 +5027,223 @@ impl<'a> ConditionDataOptionData<'a> {
     }
 }
 
-/// Full ConditionData record: u16 tag + variant payload + optional subcond tail.
-/// Stream layout: [u16 tag][variant_body:N][u8 option_present][option_data if option_present != 0]
+/// Returns `true` if the given tag's vtable slot 19 is the
+/// `0x1402D3A80 → return 1;` no-op variant (consumes zero bytes from the
+/// stream). For these tags we skip the option_present read entirely.
+///
+/// All other tags route through `sub_14B933930`-style readers that
+/// consume `[u8 option_present][optional ConditionDataOptionData]`.
+fn variant_skips_option_block(tag: u16) -> bool {
+    matches!(tag,
+        81 | 272 |
+        // Verified via vanilla byte-math: vanilla_len = case(1)+tag(2)+body+footer(3)
+        // with NO option_block byte between body and footer.
+        300 | 256 | 401 | 2 | 79 | 195 |
+        // Verified via Win-IDA vtable[19] = 0x1402D3A80 (no-op `return 1;`)
+        306 | 126
+    )
+}
+
+/// Generic CString-only payload — used by variants whose vtable[16]
+/// reads a single CString (length-prefixed UTF-8 string).
 #[derive(Debug)]
-pub struct ConditionData<'a> {
-    pub base: ConditionDataBase,
-    pub variant: ConditionDataVariant<'a>,
+pub struct OneCStringBodyPayload<'a> {
+    pub value: CString<'a>,
+}
+impl<'a> OneCStringBodyPayload<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let value = CString::read_from(data, offset)?;
+        Ok(Self { value })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.value.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Generic 4-byte payload — used by variants whose vtable[16] reads a
+/// single u32 field.
+#[derive(Debug)]
+pub struct OneU32BodyPayload {
+    pub value: u32,
+}
+impl OneU32BodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let value = u32::read_from(data, offset)?;
+        Ok(Self { value })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.value.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Generic 2-byte payload — single u16 field.
+#[derive(Debug)]
+pub struct OneU16BodyPayload {
+    pub value: u16,
+}
+impl OneU16BodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let value = u16::read_from(data, offset)?;
+        Ok(Self { value })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.value.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Three-u32 payload (12 bytes total) — used by variants like CheckEquipType
+/// that read three consecutive u32 fields.
+#[derive(Debug)]
+pub struct ThreeU32BodyPayload {
+    pub a: u32,
+    pub b: u32,
+    pub c: u32,
+}
+impl ThreeU32BodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let a = u32::read_from(data, offset)?;
+        let b = u32::read_from(data, offset)?;
+        let c = u32::read_from(data, offset)?;
+        Ok(Self { a, b, c })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.a.write_to(w)?;
+        self.b.write_to(w)?;
+        self.c.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// u32 + u16 payload (6 bytes total).
+#[derive(Debug)]
+pub struct U32U16BodyPayload {
+    pub a: u32,
+    pub b: u16,
+}
+impl U32U16BodyPayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let a = u32::read_from(data, offset)?;
+        let b = u16::read_from(data, offset)?;
+        Ok(Self { a, b })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.a.write_to(w)?;
+        self.b.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// Tag 31 — ConditionData_CheckActionAttribute body.
+/// vtable[16] = sub_14F1A1B20: reads a 16-byte buffer (loop 1-byte-at-a-time)
+/// stored at struct +0x18, then 1 byte at struct +0x28.
+/// Body is therefore 16 bytes + 1 byte = 17 bytes wire size.
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub struct ConditionData_CheckActionAttributePayload {
+    pub field_at_24_a: u32,
+    pub field_at_24_b: u32,
+    pub field_at_24_c: u32,
+    pub field_at_24_d: u32,
+    pub field_at_40: u8,
+}
+impl ConditionData_CheckActionAttributePayload {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let field_at_24_a = u32::read_from(data, offset)?;
+        let field_at_24_b = u32::read_from(data, offset)?;
+        let field_at_24_c = u32::read_from(data, offset)?;
+        let field_at_24_d = u32::read_from(data, offset)?;
+        let field_at_40 = u8::read_from(data, offset)?;
+        Ok(Self { field_at_24_a, field_at_24_b, field_at_24_c, field_at_24_d, field_at_40 })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.field_at_24_a.write_to(w)?;
+        self.field_at_24_b.write_to(w)?;
+        self.field_at_24_c.write_to(w)?;
+        self.field_at_24_d.write_to(w)?;
+        self.field_at_40.write_to(w)?;
+        Ok(())
+    }
+}
+
+/// `ConditionDataOptionData` per IDA `sub_14B933930` (called from each
+/// variant's vtable[19] when option_present != 0):
+///   - CString label (u32 len + N bytes)
+///   - u64 qword_a
+///   - u8 byte_b, u8 byte_c, u8 byte_d
+#[derive(Debug)]
+pub struct ConditionDataOptionBlock<'a> {
     pub option_present: u8,
     pub option_data: Option<ConditionDataOptionData<'a>>,
 }
 
-impl<'a> ConditionData<'a> {
+impl<'a> ConditionDataOptionBlock<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let base = ConditionDataBase::read_from(data, offset)?;
-        let disc = base.tag;
-        let variant = ConditionDataVariant::read_from(disc, data, offset)?;
-        // After every variant body the dispatcher (sub_141C87CE0) calls vtable
-        // slot 19 (+0x98) which reads a 1-byte presence flag and, if non-zero,
-        // a ConditionDataOptionData via 0x14b933930. ALWAYS read the presence
-        // byte; conditionally read the option_data.
         let option_present = u8::read_from(data, offset)?;
         let option_data = if option_present != 0 {
             Some(ConditionDataOptionData::read_from(data, offset)?)
         } else {
             None
         };
-        Ok(Self { base, variant, option_present, option_data })
+        Ok(Self { option_present, option_data })
+    }
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.option_present.write_to(w)?;
+        if self.option_present != 0 {
+            if let Some(d) = &self.option_data {
+                d.write_to(w)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Full ConditionData record: u16 tag + variant payload + optional
+/// option block.
+///
+/// Stream layout: `[u16 tag][variant_body:N][option_block?]`
+///
+/// Per the Win-binary dispatcher `sub_141C87CE0`, after construction:
+///   - slot 16 (+0x80): reads the variant body
+///   - slot 19 (+0x98): either `0x1402D3A80 → return 1;` (no-op) for tag
+///     81/272, OR the option_block reader (`sub_141C8D560` style) for
+///     other variants — reads u8 option_present, conditionally an
+///     ConditionDataOptionData (CString + u64 + 3 u8s).
+#[derive(Debug)]
+pub struct ConditionData<'a> {
+    pub base: ConditionDataBase,
+    pub variant: ConditionDataVariant<'a>,
+    pub option_block: Option<ConditionDataOptionBlock<'a>>,
+}
+
+thread_local! {
+    /// Tracks the most-recently-attempted ConditionData tag during decode.
+    /// Validators read this when read_from returns Err to identify which
+    /// variant's recipe is wrong.
+    pub static LAST_ATTEMPTED_TAG: std::cell::Cell<Option<u16>> =
+        const { std::cell::Cell::new(None) };
+}
+
+impl<'a> ConditionData<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let base = ConditionDataBase::read_from(data, offset)?;
+        let disc = base.tag;
+        LAST_ATTEMPTED_TAG.with(|c| c.set(Some(disc)));
+        let variant = ConditionDataVariant::read_from(disc, data, offset)?;
+        let option_block = if variant_skips_option_block(disc) {
+            None
+        } else {
+            Some(ConditionDataOptionBlock::read_from(data, offset)?)
+        };
+        Ok(Self { base, variant, option_block })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
-        // Mirror read: always emit presence byte; emit option_data only if set.
-        self.option_present.write_to(w)?;
-        if self.option_present != 0 {
-            if let Some(opt) = &self.option_data {
-                opt.write_to(w)?;
-            }
+        if let Some(b) = &self.option_block {
+            b.write_to(w)?;
         }
         Ok(())
     }
