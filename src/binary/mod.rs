@@ -9,6 +9,7 @@ pub mod paz;
 pub mod paloc;
 pub mod variant;
 pub mod variants;
+pub mod optional_game_condition;
 
 pub use types::*;
 
