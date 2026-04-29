@@ -8,10 +8,8 @@
 //!   1. u32 key                 (sub_100F1A450, width 4)
 //!   2. CString string_key      (sub_1006B3F50, struct +8)
 //!   3. u8 is_blocked           (sub_1006B3CC0, struct +16)
-//!   4. [u8; 12] position       (sub_1006B48A8, struct +20, vec3 of
-//!      3× f32 — same helper as `_projectileShotSpread` in
-//!      game_global_effect_info)
-//!   5. u32 rotation_y          (sub_1006B3DE0, struct +32, f32-as-u32)
+//!   4. [f32; 3] position       (sub_1006B48A8, struct +20, Vec3 of f32)
+//!   5. f32 rotation_y          (sub_1006B3DE0, struct +32)
 //!      ← TAIL STARTS HERE
 //!   6. (tail) _sequencerStageChartDesc (sub_10109D1F4, +40,
 //!      stride 232) — POLYMORPHIC SequencerStageChartDesc family
@@ -32,8 +30,8 @@ pabgh_typed_blob_table! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub position: [u8; 12],
-        pub rotation_y: u32,
+        pub position: [f32; 3],
+        pub rotation_y: f32,
     }
     tail: tail_blob;
 }

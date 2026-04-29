@@ -15,7 +15,7 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub world_position: [u8; 12],
+        pub world_position: [f32; 3],
         pub ui_template_name: u32,
         pub ui_texture_name: u32,
         pub ui_small_texture_name: u32,

@@ -145,8 +145,8 @@ pub struct GamePlayTriggerInfo<'a> {
     pub safe_zone_type: u8,
     pub player_condition_info: u32,
     pub ui_map_texture_info: u32,
-    pub position: [u8; 12],
-    pub rotation_y: u32,
+    pub position: [f32; 3],
+    pub rotation_y: f32,
     pub world_map_color_r: u8,
     pub field_revive_info: u32,
     pub target_data_list: CArray<TargetDataItem>,
@@ -177,8 +177,8 @@ impl<'a> GamePlayTriggerInfo<'a> {
         let safe_zone_type = u8::read_from(data, offset)?;
         let player_condition_info = u32::read_from(data, offset)?;
         let ui_map_texture_info = u32::read_from(data, offset)?;
-        let position = <[u8; 12]>::read_from(data, offset)?;
-        let rotation_y = u32::read_from(data, offset)?;
+        let position = <[f32; 3]>::read_from(data, offset)?;
+        let rotation_y = f32::read_from(data, offset)?;
         let world_map_color_r = u8::read_from(data, offset)?;
         let field_revive_info = u32::read_from(data, offset)?;
         let target_data_list = CArray::<TargetDataItem>::read_from(data, offset)?;
@@ -233,8 +233,8 @@ impl<'a> GamePlayTriggerInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "safe_zone_type")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "player_condition_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_map_texture_info")?)?;
-        <[u8; 12] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
+        <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "world_map_color_r")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_revive_info")?)?;
         <CArray<TargetDataItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_data_list")?)?;

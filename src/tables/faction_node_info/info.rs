@@ -14,8 +14,8 @@
 //!   9. CString memo                             (_memo)
 //!  10. CArray<u32> child_faction_info_list      (_childFactionInfoList)
 //!  11. CArray<u32> node_line_main_faction_info_list (_nodeLineMainFactionInfoList)
-//!  12. [u8; 12] world_position                  (_worldPosition, vec3)
-//!  13. u32 node_radius                          (_nodeRadius, f32-as-u32)
+//!  12. [f32; 3] world_position                  (_worldPosition, Vec3)
+//!  13. f32 node_radius                          (_nodeRadius)
 //!  14. _applySkillDataList (sub_141115FD0 → struct +88) ← TAIL STARTS HERE
 //!  15. (body) _resourceItemList, …
 //!
@@ -44,8 +44,8 @@ pabgh_typed_blob_table! {
         pub memo: CString<'a>,
         pub child_faction_info_list: CArray<u32>,
         pub node_line_main_faction_info_list: CArray<u32>,
-        pub world_position: [u8; 12],
-        pub node_radius: u32,
+        pub world_position: [f32; 3],
+        pub node_radius: f32,
     }
     tail: tail_blob;
 }
