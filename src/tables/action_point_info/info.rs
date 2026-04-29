@@ -25,7 +25,7 @@ py_binary_struct! {
         pub field_e: u32,
         pub field_f: u32,
         pub field_g: u32,
-        pub block_c: [u8; 12],
+        pub block_c: [f32; 3],
         pub field_h: u32,
     }
 }
@@ -45,6 +45,7 @@ mod tests {
     use super::*;
 
     const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\actionpointinfo.pabgb";
+
 
     #[test]
     fn roundtrip() {
