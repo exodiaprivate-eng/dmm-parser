@@ -7,6 +7,9 @@
 
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -136,6 +139,71 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         self.discover_type.write_to(w)?;
         self.ignore_same_gimmick_discover_distance.write_to(w)?;
         self.discover_gimmick_state_hash.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("level_name".to_string(), self.level_name.to_json_value());
+        m.insert("_data_list_b64".to_string(), Value::String(B64.encode(&self.data_list)));
+        m.insert("map_icon_texture_info".to_string(), self.map_icon_texture_info.to_json_value());
+        m.insert("discover_near_fog".to_string(), self.discover_near_fog.to_json_value());
+        m.insert("fog_map_icon_texture_info".to_string(), self.fog_map_icon_texture_info.to_json_value());
+        m.insert("fog_distance".to_string(), self.fog_distance.to_json_value());
+        m.insert("over_abyss_icon_texture_info".to_string(), self.over_abyss_icon_texture_info.to_json_value());
+        m.insert("over_abyss_fog_map_icon_texture_info".to_string(), self.over_abyss_fog_map_icon_texture_info.to_json_value());
+        m.insert("over_abyss_fog_distance".to_string(), self.over_abyss_fog_distance.to_json_value());
+        m.insert("discover_distance".to_string(), self.discover_distance.to_json_value());
+        m.insert("show_icon_condition_type".to_string(), self.show_icon_condition_type.to_json_value());
+        m.insert("use_teleport".to_string(), self.use_teleport.to_json_value());
+        m.insert("use_guide_effect".to_string(), self.use_guide_effect.to_json_value());
+        m.insert("is_sub_inner_gimmick".to_string(), self.is_sub_inner_gimmick.to_json_value());
+        m.insert("check_game_level_load_state".to_string(), self.check_game_level_load_state.to_json_value());
+        m.insert("completed_discover_map_icon_texture_info".to_string(), self.completed_discover_map_icon_texture_info.to_json_value());
+        m.insert("over_abyss_completed_discover_map_icon_texture_info".to_string(), self.over_abyss_completed_discover_map_icon_texture_info.to_json_value());
+        m.insert("guide_effect_socket_name".to_string(), self.guide_effect_socket_name.to_json_value());
+        m.insert("ore_vein_index".to_string(), self.ore_vein_index.to_json_value());
+        m.insert("discover_type".to_string(), self.discover_type.to_json_value());
+        m.insert("ignore_same_gimmick_discover_distance".to_string(), self.ignore_same_gimmick_discover_distance.to_json_value());
+        m.insert("discover_gimmick_state_hash".to_string(), self.discover_gimmick_state_hash.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "level_name")?)?;
+        let b64 = json_get_field(obj, "_data_list_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "LevelGimmickSceneObjectInfo: _data_list_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("LevelGimmickSceneObjectInfo: _data_list_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "map_icon_texture_info")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_near_fog")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_map_icon_texture_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_distance")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_icon_texture_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_fog_map_icon_texture_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_fog_distance")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_distance")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "show_icon_condition_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_teleport")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_guide_effect")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_sub_inner_gimmick")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "check_game_level_load_state")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "completed_discover_map_icon_texture_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_completed_discover_map_icon_texture_info")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "guide_effect_socket_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ore_vein_index")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ignore_same_gimmick_discover_distance")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_gimmick_state_hash")?)?;
         Ok(())
     }
 }

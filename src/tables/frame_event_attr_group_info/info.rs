@@ -6,6 +6,9 @@
 //! Captured as a single byte-blob trailing the simple pre-fields.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -40,6 +43,31 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         w.write_all(&self.data_list)?;
+        Ok(())
+    }
+
+    /// Expose typed prefix fields as named JSON; the polymorphic
+    /// FrameEventAttr CArray rides as `_data_list_b64`.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("_data_list_b64".to_string(), Value::String(B64.encode(&self.data_list)));
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let b64 = json_get_field(obj, "_data_list_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "FrameEventAttrGroupInfo: _data_list_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("FrameEventAttrGroupInfo: _data_list_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
         Ok(())
     }
 }

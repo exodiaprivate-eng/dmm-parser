@@ -7,6 +7,9 @@
 
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -91,6 +94,45 @@ impl<'a> DropSetInfo<'a> {
         w.write_all(&self.need_weight)?;
         w.write_all(&self.total_drop_rate)?;
         self.original_string.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("drop_roll_type".to_string(), self.drop_roll_type.to_json_value());
+        m.insert("drop_roll_count".to_string(), self.drop_roll_count.to_json_value());
+        m.insert("drop_condition_string".to_string(), self.drop_condition_string.to_json_value());
+        m.insert("drop_tag_name_hash".to_string(), self.drop_tag_name_hash.to_json_value());
+        m.insert("_list_b64".to_string(), Value::String(B64.encode(&self.list)));
+        m.insert("nee_slot_count".to_string(), self.nee_slot_count.to_json_value());
+        m.insert("need_weight".to_string(), self.need_weight.to_json_value());
+        m.insert("total_drop_rate".to_string(), self.total_drop_rate.to_json_value());
+        m.insert("original_string".to_string(), self.original_string.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_roll_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_roll_count")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_condition_string")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_tag_name_hash")?)?;
+        let b64 = json_get_field(obj, "_list_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "DropSetInfo: _list_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("DropSetInfo: _list_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "nee_slot_count")?)?;
+        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_weight")?)?;
+        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "total_drop_rate")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "original_string")?)?;
         Ok(())
     }
 }

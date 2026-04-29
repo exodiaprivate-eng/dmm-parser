@@ -5,6 +5,9 @@
 //! with variable inner sizes. Captured the four-field tail as one byte-blob.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -42,6 +45,29 @@ impl<'a> FactionSpawnDataInfo<'a> {
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         w.write_all(&self.spawn_data_blob)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("_spawn_data_blob_b64".to_string(), Value::String(B64.encode(&self.spawn_data_blob)));
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let b64 = json_get_field(obj, "_spawn_data_blob_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "FactionSpawnDataInfo: _spawn_data_blob_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("FactionSpawnDataInfo: _spawn_data_blob_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
         Ok(())
     }
 }

@@ -7,6 +7,9 @@
 
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -111,6 +114,57 @@ impl<'a> MiniGameDataInfo<'a> {
         self.game_event_handler_info.write_to(w)?;
         self.knowledge_info.write_to(w)?;
         self.game_advice_info_list.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("script_name".to_string(), self.script_name.to_json_value());
+        m.insert("phase_panel_tag_name".to_string(), self.phase_panel_tag_name.to_json_value());
+        m.insert("ui_view_id".to_string(), self.ui_view_id.to_json_value());
+        m.insert("use_deactive_result".to_string(), self.use_deactive_result.to_json_value());
+        m.insert("need_change_character_scale".to_string(), self.need_change_character_scale.to_json_value());
+        m.insert("entrance_fee_list".to_string(),
+            Value::Array(self.entrance_fee_list.iter().map(|f| f.0.to_json_value()).collect()));
+        m.insert("default_reward_drop_set_info".to_string(), self.default_reward_drop_set_info.to_json_value());
+        m.insert("_data_lists_blob_b64".to_string(), Value::String(B64.encode(&self.data_lists_blob)));
+        m.insert("game_event_handler_info".to_string(), self.game_event_handler_info.to_json_value());
+        m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
+        m.insert("game_advice_info_list".to_string(), self.game_advice_info_list.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "script_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "phase_panel_tag_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_view_id")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_deactive_result")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_change_character_scale")?)?;
+        let fees = json_get_field(obj, "entrance_fee_list")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "MiniGameDataInfo: entrance_fee_list must be a JSON array"))?;
+        (fees.len() as u32).write_to(w)?;
+        for f in fees {
+            <[u8; 28] as WriteJsonValue>::write_from_json(w, f)?;
+        }
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "default_reward_drop_set_info")?)?;
+        let b64 = json_get_field(obj, "_data_lists_blob_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "MiniGameDataInfo: _data_lists_blob_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("MiniGameDataInfo: _data_lists_blob_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_event_handler_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_advice_info_list")?)?;
         Ok(())
     }
 }

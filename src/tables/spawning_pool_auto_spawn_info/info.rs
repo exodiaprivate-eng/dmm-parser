@@ -6,6 +6,9 @@
 
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -109,6 +112,53 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         self.attach_to_socket.write_to(w)?;
         self.is_exist_indoor_type.write_to(w)?;
         self.collect_filter_dev.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("_spawn_list_b64".to_string(), Value::String(B64.encode(&self.spawn_list)));
+        m.insert("mesh_name_list".to_string(), self.mesh_name_list.to_json_value());
+        m.insert("spawning_pool_data".to_string(), self.spawning_pool_data.to_json_value());
+        m.insert("type_".to_string(), self.type_.to_json_value());
+        m.insert("level_action_point_info".to_string(), self.level_action_point_info.to_json_value());
+        m.insert("near_inner_radius".to_string(), self.near_inner_radius.to_json_value());
+        m.insert("near_outer_radius".to_string(), self.near_outer_radius.to_json_value());
+        m.insert("spawn_safety_distance".to_string(), self.spawn_safety_distance.to_json_value());
+        m.insert("use_random_rotation".to_string(), self.use_random_rotation.to_json_value());
+        m.insert("check_forbidden_area".to_string(), self.check_forbidden_area.to_json_value());
+        m.insert("attach_to_socket".to_string(), self.attach_to_socket.to_json_value());
+        m.insert("is_exist_indoor_type".to_string(), self.is_exist_indoor_type.to_json_value());
+        m.insert("collect_filter_dev".to_string(), self.collect_filter_dev.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let b64 = json_get_field(obj, "_spawn_list_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "SpawningPoolAutoSpawnInfo: _spawn_list_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("SpawningPoolAutoSpawnInfo: _spawn_list_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mesh_name_list")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawning_pool_data")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "type_")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "level_action_point_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "near_inner_radius")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "near_outer_radius")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_safety_distance")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_random_rotation")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "check_forbidden_area")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "attach_to_socket")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_exist_indoor_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "collect_filter_dev")?)?;
         Ok(())
     }
 }

@@ -12,6 +12,9 @@
 
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -105,6 +108,57 @@ impl<'a> BuffInfo<'a> {
         self.elemental_status_info.write_to(w)?;
         self.is_use_skill_info_pattern_description.write_to(w)?;
         self.use_counting_by_global_timer.write_to(w)?;
+        Ok(())
+    }
+
+    /// Convert this BuffInfo record to a JSON dict with every typed prefix
+    /// field by name. The typed-but-polymorphic `buff_data_list` (CArray of
+    /// BuffData variants) round-trips as base64 under `_buff_data_list_b64`
+    /// — clone-perfect across mods until BuffData gets its own JSON shim.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        let mut bd_bytes = Vec::new();
+        let _ = self.buff_data_list.write_to(&mut bd_bytes);
+        m.insert("_buff_data_list_b64".to_string(), Value::String(B64.encode(&bd_bytes)));
+        m.insert("min_level".to_string(), self.min_level.to_json_value());
+        m.insert("max_level".to_string(), self.max_level.to_json_value());
+        m.insert("sequencer_file_name".to_string(), self.sequencer_file_name.to_json_value());
+        m.insert("buff_level_calculate_type".to_string(), self.buff_level_calculate_type.to_json_value());
+        m.insert("ui_template_name".to_string(), self.ui_template_name.to_json_value());
+        m.insert("ui_component_name".to_string(), self.ui_component_name.to_json_value());
+        m.insert("elemental_status_info".to_string(), self.elemental_status_info.to_json_value());
+        m.insert("is_use_skill_info_pattern_description".to_string(), self.is_use_skill_info_pattern_description.to_json_value());
+        m.insert("use_counting_by_global_timer".to_string(), self.use_counting_by_global_timer.to_json_value());
+        m
+    }
+
+    /// Inverse of `to_json_dict`. Reads typed fields by name; the
+    /// polymorphic buff_data_list is base64-decoded from
+    /// `_buff_data_list_b64` and written verbatim.
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let bd_b64 = json_get_field(obj, "_buff_data_list_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "BuffInfo: _buff_data_list_b64 must be a base64 string"))?;
+        let bd_bytes = B64.decode(bd_b64).map_err(|e| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("BuffInfo: _buff_data_list_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bd_bytes);
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "min_level")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sequencer_file_name")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_level_calculate_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_template_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_component_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "elemental_status_info")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_use_skill_info_pattern_description")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_counting_by_global_timer")?)?;
         Ok(())
     }
 }

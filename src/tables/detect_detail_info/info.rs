@@ -6,7 +6,9 @@
 //! DetectSenseData is the same recursive type from `tables::detect_info`.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::tables::detect_info::DetectSenseData;
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 const DETAIL_LIST_LEN: usize = 0x3B; // 59 fixed entries per IDA sub_1415BE000
@@ -47,6 +49,37 @@ impl<'a> DetectDetailInfo<'a> {
         }
         for entry in &self.detect_detail_data_list_new {
             entry.write_to(w)?;
+        }
+        Ok(())
+    }
+
+    /// Fully typed JSON: 59 DetectSenseData entries are individually
+    /// editable as a JSON array.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("detect_detail_data_list_new".to_string(),
+            Value::Array(self.detect_detail_data_list_new.iter().map(|e| e.to_json_value()).collect()));
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let entries = json_get_field(obj, "detect_detail_data_list_new")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "DetectDetailInfo: detect_detail_data_list_new must be a JSON array"))?;
+        if entries.len() != DETAIL_LIST_LEN {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                format!("DetectDetailInfo: detect_detail_data_list_new must have exactly {} entries (got {})",
+                    DETAIL_LIST_LEN, entries.len())));
+        }
+        for e in entries {
+            <DetectSenseData as WriteJsonValue>::write_from_json(w, e)?;
         }
         Ok(())
     }

@@ -11,6 +11,8 @@
 //!   u32 trailing_id
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -62,6 +64,37 @@ impl<'a> CharacterChangeInfo<'a> {
         }
         self.hash_lookup_list.write_to(w)?;
         self.trailing_id.write_to(w)?;
+        Ok(())
+    }
+
+    /// Fully typed JSON: every field is editable. `name_list` rides as a
+    /// JSON array of strings; the wire-format u32-length prefix is implicit.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("name_list".to_string(),
+            Value::Array(self.name_list.iter().map(|s| s.to_json_value()).collect()));
+        m.insert("hash_lookup_list".to_string(), self.hash_lookup_list.to_json_value());
+        m.insert("trailing_id".to_string(), self.trailing_id.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let names = json_get_field(obj, "name_list")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "CharacterChangeInfo: name_list must be a JSON array"))?;
+        (names.len() as u32).write_to(w)?;
+        for n in names {
+            <CString as WriteJsonValue>::write_from_json(w, n)?;
+        }
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_lookup_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing_id")?)?;
         Ok(())
     }
 }

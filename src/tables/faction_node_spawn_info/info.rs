@@ -5,6 +5,9 @@
 //! Captured as raw byte-blob; no tail.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -49,6 +52,34 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         self.faction_node_info.write_to(w)?;
         w.write_all(&self.boundary_box)?;
         w.write_all(&self.patrol_ai_spline_data_list)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("faction_node_info".to_string(), self.faction_node_info.to_json_value());
+        m.insert("boundary_box".to_string(), self.boundary_box.to_json_value());
+        m.insert("_patrol_ai_spline_data_list_b64".to_string(),
+            Value::String(B64.encode(&self.patrol_ai_spline_data_list)));
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_node_info")?)?;
+        <[u8; 24] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_box")?)?;
+        let b64 = json_get_field(obj, "_patrol_ai_spline_data_list_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "FactionNodeSpawnInfo: _patrol_ai_spline_data_list_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("FactionNodeSpawnInfo: _patrol_ai_spline_data_list_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
         Ok(())
     }
 }

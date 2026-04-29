@@ -7,6 +7,9 @@
 
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -147,6 +150,69 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         self.spawn_at_height_field_landscape.write_to(w)?;
         self.fish_summon_time_frequency_type.write_to(w)?;
         self.spawn_reason_list.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("possible_list".to_string(), self.possible_list.to_json_value());
+        m.insert("auto_spawn_spline_name".to_string(), self.auto_spawn_spline_name.to_json_value());
+        m.insert("auto_spawn_spline_except_name".to_string(), self.auto_spawn_spline_except_name.to_json_value());
+        m.insert("region_info_list".to_string(), self.region_info_list.to_json_value());
+        m.insert("not_spawn_region_info_list".to_string(), self.not_spawn_region_info_list.to_json_value());
+        m.insert("spawn_region_tag_list".to_string(), self.spawn_region_tag_list.to_json_value());
+        m.insert("not_spawn_region_tag_list".to_string(), self.not_spawn_region_tag_list.to_json_value());
+        m.insert("_spawn_list_b64".to_string(), Value::String(B64.encode(&self.spawn_list)));
+        m.insert("voxel_type".to_string(), self.voxel_type.to_json_value());
+        m.insert("road_group_type".to_string(), self.road_group_type.to_json_value());
+        m.insert("is_only_summon_data".to_string(), self.is_only_summon_data.to_json_value());
+        m.insert("is_only_check_data".to_string(), self.is_only_check_data.to_json_value());
+        m.insert("stage_category".to_string(), self.stage_category.to_json_value());
+        m.insert("tag_list".to_string(), self.tag_list.to_json_value());
+        m.insert("is_default_activated".to_string(), self.is_default_activated.to_json_value());
+        m.insert("all_terrain_region".to_string(), self.all_terrain_region.to_json_value());
+        m.insert("bitmap_position_info".to_string(), self.bitmap_position_info.to_json_value());
+        m.insert("bitmap_color_list_for_spawn".to_string(), self.bitmap_color_list_for_spawn.to_json_value());
+        m.insert("spawn_at_height_field_landscape".to_string(), self.spawn_at_height_field_landscape.to_json_value());
+        m.insert("fish_summon_time_frequency_type".to_string(), self.fish_summon_time_frequency_type.to_json_value());
+        m.insert("spawn_reason_list".to_string(), self.spawn_reason_list.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "possible_list")?)?;
+        <CArray<CString> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "auto_spawn_spline_name")?)?;
+        <CArray<CString> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "auto_spawn_spline_except_name")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "region_info_list")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_info_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_region_tag_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_tag_list")?)?;
+        let b64 = json_get_field(obj, "_spawn_list_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "TerrainRegionAutoSpawnInfo: _spawn_list_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("TerrainRegionAutoSpawnInfo: _spawn_list_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "voxel_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "road_group_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_only_summon_data")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_only_check_data")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_category")?)?;
+        <CArray<CString> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_default_activated")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "all_terrain_region")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bitmap_position_info")?)?;
+        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bitmap_color_list_for_spawn")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_at_height_field_landscape")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fish_summon_time_frequency_type")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_reason_list")?)?;
         Ok(())
     }
 }
