@@ -23,18 +23,21 @@
 //! - sub_tag 2 (SetUIPlayGuideParameter): 12-byte body. Init constants
 //!   `*(_DWORD *)(v11 + 16) = 0; *(_WORD *)(v11 + 20) = -1; *(_DWORD *)(v11 + 24) = 0`
 //!   imply runtime layout u32 + u16(hash sentinel) + u32. Wire is 12 bytes
-//!   forming three u32 slots. Empirically, slot 1 mirrors the entry key, slot
-//!   2 looks like a hash key (random pattern), slot 3 is consistently a
-//!   float-pattern u32 (`0x4Xxxxxxx` range — small positive f32). Exposed as
-//!   `(u32, u32, f32)` since the float interpretation of slot 3 is
-//!   unambiguous across all 422 entries.
+//!   forming `play_guide_key: u32`, `lookup_hash: u32`, `duration_seconds: f32`.
+//!   Empirical findings across 422 vanilla entries:
+//!     * `play_guide_key` mirrors the entry key in 339/422 — a self-reference
+//!       in the common case. The 83 mismatches are entries with synthetic
+//!       high keys (0xfffe-style) referencing a normal-range guide key.
+//!     * `lookup_hash` is high-entropy random pattern (string-content hash).
+//!     * `duration_seconds` clusters at 0.0 (184 entries), 30.0 (181), 20.0
+//!       (45), with a long tail (60.0, 120.0, 9999.0, etc.) — classic
+//!       game-side timeout/duration distribution.
 //!
 //! - sub_tag 3 (SetUIFullscreenGuideParameter): 6-byte body. Init constant
 //!   `*(_DWORD *)(v11 + 16) = -65536` → bytes `00 00 FF FF` → numeric u16 at
-//!   +16 (default 0) + hash-sentinel u16 at +18. Wire is u16 + u32 = 6 bytes,
-//!   matching the pattern (u16 numeric followed by u32 hash key that resolves
-//!   to the runtime u16 at +18). Empirically, the leading u16 mirrors the
-//!   entry key.
+//!   +16 (default 0) + hash-sentinel u16 at +18. Wire is u16 + u32 = 6 bytes:
+//!   `fullscreen_guide_key: u16` + `lookup_hash: u32`. Empirically,
+//!   `fullscreen_guide_key` equals the entry key in 260/260 entries.
 //!
 //! Sub_tags 0, 1, 4 don't appear in vanilla data; the Raw fallback handles
 //! them byte-perfect if a future build introduces them.
@@ -58,26 +61,31 @@ use std::io::{self, Write};
 // ── Per-sub_tag payloads ──────────────────────────────────────────────────
 
 py_binary_struct! {
-    /// sub_tag 2 body (12 bytes). All three fields are u32-wide on the wire.
-    /// Slot 1 (`field_a`) mirrors the entry's `key` in vanilla data;
-    /// slot 2 (`lookup_b`) is a hash key (random pattern, runtime resolves
-    /// to a u16 at +20 with sentinel 0xFFFF default); slot 3 (`value_c`)
-    /// is consistently a float-pattern u32 (exposed as f32 since this
-    /// interpretation is unambiguous across all 422 vanilla entries).
+    /// sub_tag 2 body (12 bytes). Three u32-wide wire fields:
+    /// - `play_guide_key`: foreign-key reference to a play-guide entry
+    ///   (matches the consuming entry's own `key` in 339/422 vanilla cases;
+    ///    the rest are synthetic-key entries pointing to a normal-range
+    ///    guide).
+    /// - `lookup_hash`: u32 hash key resolved at runtime to a u16 at
+    ///   offset +20 (init sentinel 0xFFFF for "not found").
+    /// - `duration_seconds`: f32 timeout/duration. Clusters at 0.0 (184
+    ///   entries), 30.0 (181), 20.0 (45) with a long tail.
     pub struct SetUIPlayGuideParameterPayload {
-        pub field_a: u32,
-        pub lookup_b: u32,
-        pub value_c: f32,
+        pub play_guide_key: u32,
+        pub lookup_hash: u32,
+        pub duration_seconds: f32,
     }
 }
 
 py_binary_struct! {
-    /// sub_tag 3 body (6 bytes). u16 numeric + u32 hash-key.
-    /// `field_a` mirrors the entry's `key` in vanilla data; `lookup_b`
-    /// is a u32 hash key the runtime resolves to a u16 at +18.
+    /// sub_tag 3 body (6 bytes). u16 self-key + u32 hash-key:
+    /// - `fullscreen_guide_key`: matches the entry's own `key` in 260/260
+    ///   vanilla entries (data-redundancy self-reference).
+    /// - `lookup_hash`: u32 hash key resolved at runtime to a u16 at
+    ///   offset +18 (init sentinel 0xFFFF for "not found").
     pub struct SetUIFullscreenGuideParameterPayload {
-        pub field_a: u16,
-        pub lookup_b: u32,
+        pub fullscreen_guide_key: u16,
+        pub lookup_hash: u32,
     }
 }
 
