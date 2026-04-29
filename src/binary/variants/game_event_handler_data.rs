@@ -120,12 +120,13 @@ impl GameEventHandlerDataBody {
 
 #[derive(Debug)]
 pub enum GameEventHandlerData {
-    /// Recognized sub_tag (2 or 3 in vanilla); body fields are typed.
-    /// On wire: `[sub_tag, ...body]`.
+    /// Recognized sub_tag (2, 3, or 4); body fields are typed per
+    /// sub_tag. On wire: `[sub_tag, ...body]`.
     Decoded(GameEventHandlerDataBody),
-    /// Fallback for unrecognized sub_tag (0/1/4 in dispatcher but not in
-    /// vanilla data; or future builds), short data, or any decode failure.
-    /// Bytes preserved verbatim — round-trips byte-perfect.
+    /// Fallback for unrecognized sub_tag (0/1 in dispatcher but not in
+    /// vanilla data — readers obfuscated, no empirical samples to type),
+    /// short data, or any decode failure. Bytes preserved verbatim —
+    /// round-trips byte-perfect.
     Raw(Vec<u8>),
 }
 
