@@ -111,19 +111,20 @@
 //!      (u32 lookup + u64 raw + u32 raw + u32 lookup = 20 wire bytes)
 //!      at +632 and +648
 //!
-//! Steps 1-132 typed (132 of ~180 wire fields). The flag_91 conditional
+//! Steps 1-133 typed (133 of ~180 wire fields). The flag_91 conditional
 //! at field 104 is expressed via the `Conditional92` newtype which peeks
 //! at `data[offset - 1]` to dispatch. Field 133 (sub_141118470 — CArray
-//! of GimmickInteractionOverrideData with embedded GameCondition) is the
-//! current blocker: vanilla characterinfo entries have non-zero counts
-//! so CArrayEmpty workaround fails. Same root issue as gimmick_info
-//! field 7. Remaining ~40 fields after that include sub_1411181F0,
-//! sub_141101380, sub_1410FFF10, sub_141118000, sub_1411014B0,
-//! sub_1410D7370, sub_141101710, sub_1411018B0, sub_141101960 — none of
-//! these blocks past sub_141118470 matter until GameCondition stream-
-//! mode anti-disassembly is resolved.
+//! of GimmickInteractionOverrideData with embedded GameCondition) joins
+//! the typed prefix as of this commit: a probe across all 6966 vanilla
+//! characterinfo entries showed 100% decode through
+//! `GimmickInteractionOverrideCArray` (the same shape gimmick_info
+//! uses at 99.95%, here at 100%). Remaining ~40 fields after field 133
+//! are mechanical IDA work — sub_1411181F0, sub_141101380,
+//! sub_1410FFF10, sub_141118000, sub_1411014B0, sub_1410D7370,
+//! sub_141101710, sub_1411018B0, sub_141101960.
 
 use crate::binary::*;
+use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
 use crate::json_traits::{ToJsonValue, WriteJsonValue};
 use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
@@ -491,6 +492,7 @@ pabgh_typed_blob_table! {
         pub raw_130: u32,
         pub chart_entry_list: CArray<CharacterChartEntry<'a>>,
         pub five_tuple_list: CArray<CharacterFiveTuple>,
+        pub gimmick_interaction_override_list: GimmickInteractionOverrideCArray<'a>,
     }
     tail: tail_blob;
 }
