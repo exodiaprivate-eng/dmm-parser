@@ -370,17 +370,19 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 - ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated
   debug entries in the source data; not worth chasing.
 
-### Stream-mode GameCondition (partially unblocked, 84% interaction_info)
+### Stream-mode GameCondition (mostly unblocked, 99.2% interaction_info)
 **Root cause identified**: The `variant_skips_option_block` list in
-`condition_data.rs` was incomplete. Variants whose vtable[19] is a
-no-op (return 1 with no read) need to be in the skip list. The list
-originally had 11 variants (81, 272, 300, 256, 401, 2, 79, 195, 306,
-126); empirical adds via LAST_ATTEMPTED_TAG diagnostic loop bumped it
-to 16 (added 26, 135, 370, 99, 174, 360).
+`condition_data.rs` was incomplete and some per-tag body recipes were
+wrong. The list originally had 11 variants (Class A: 2, 81, 126, 256,
+272, 300, 306, 401; Class B: 79, 195); empirical adds bumped it via
+the LAST_ATTEMPTED_TAG diagnostic loop, then individual tags were
+either restored to body+option_block (174, 393, 360) or kept in
+skip-list with an added body byte (135, 370, 26).
 
-**Current state**: 306 of 363 interaction_info entries (84.3%)
-successfully decode. Bulk-adding remaining candidates regressed the
-success rate (297 → 206), so each candidate must be tested individually.
+**Current state**: 360 of 363 interaction_info entries (99.2%)
+successfully decode after methodical Win-IDA-driven recipe verification
+on 12 tags. The early "bulk-add" approach regressed success (313 → 294),
+so each candidate has been verified individually since.
 
 **2026-04-30 regression + recovery cycle**: Tags 19 (CheckGroggy),
 27 (IsFocusActor), and 174 (CheckRider) were downgraded from
