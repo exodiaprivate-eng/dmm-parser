@@ -369,9 +369,10 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
   reference implementation
 
 ### Tables
-- `src/tables/condition_info/info.rs` — **just-shipped Tier 1** with
-  typed GameCondition wrapper. Use as the model for wiring future
-  family decoders into their consuming tables.
+- `src/tables/condition_info/info.rs` — **canonical Tier 1 model**
+  with typed GameCondition wrapper (Decoded|Raw fallback, 99.78% Decoded
+  on 8,934 entries). Use as the template for wiring family decoders
+  into consuming tables.
 - `src/tables/skill_info/` — original blueprint for Tier 1 with
   polymorphic body (BuffData)
 - `docs/449_TABLE_CATALOG.md` — per-table status
