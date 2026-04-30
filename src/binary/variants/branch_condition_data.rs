@@ -3,6 +3,10 @@
 //! Total variants: 14
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 /// Common base fields shared by every BranchConditionData variant.
@@ -29,234 +33,94 @@ impl BranchConditionDataBase {
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionDataPayload {
-    pub byte_at_8: u8,
-}
-impl BranchConditionDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let byte_at_8 = u8::read_from(data, offset)?;
-        Ok(Self { byte_at_8 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.byte_at_8.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionDataPayload {
+        pub byte_at_8: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_QuestPayload {
-    pub questinfo_id: u32,
-    pub stageinfo_id: u32,
-}
-impl BranchConditionData_QuestPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let questinfo_id = u32::read_from(data, offset)?;
-        let stageinfo_id = u32::read_from(data, offset)?;
-        Ok(Self { questinfo_id, stageinfo_id })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.questinfo_id.write_to(w)?;
-        self.stageinfo_id.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_QuestPayload {
+        pub questinfo_id: u32,
+        pub stageinfo_id: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_MissionPayload {
-    pub missioninfo_id: u32,
-}
-impl BranchConditionData_MissionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let missioninfo_id = u32::read_from(data, offset)?;
-        Ok(Self { missioninfo_id })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.missioninfo_id.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_MissionPayload {
+        pub missioninfo_id: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_SubMissionPayload {
-    pub missioninfo_id: u32,
-    pub submission_idx: u32,
-}
-impl BranchConditionData_SubMissionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let missioninfo_id = u32::read_from(data, offset)?;
-        let submission_idx = u32::read_from(data, offset)?;
-        Ok(Self { missioninfo_id, submission_idx })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.missioninfo_id.write_to(w)?;
-        self.submission_idx.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_SubMissionPayload {
+        pub missioninfo_id: u32,
+        pub submission_idx: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_StagePayload {
-    pub stageinfo_id: u32,
-}
-impl BranchConditionData_StagePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let stageinfo_id = u32::read_from(data, offset)?;
-        Ok(Self { stageinfo_id })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.stageinfo_id.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_StagePayload {
+        pub stageinfo_id: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_KnowledgePayload {
-    pub knowledgeinfo_id: u32,
-    pub knowledge_field: u32,
-}
-impl BranchConditionData_KnowledgePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let knowledgeinfo_id = u32::read_from(data, offset)?;
-        let knowledge_field = u32::read_from(data, offset)?;
-        Ok(Self { knowledgeinfo_id, knowledge_field })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.knowledgeinfo_id.write_to(w)?;
-        self.knowledge_field.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_KnowledgePayload {
+        pub knowledgeinfo_id: u32,
+        pub knowledge_field: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_ItemPayload {
-    pub iteminfo_id: u32,
-    pub item_count: u64,
-}
-impl BranchConditionData_ItemPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let iteminfo_id = u32::read_from(data, offset)?;
-        let item_count = u64::read_from(data, offset)?;
-        Ok(Self { iteminfo_id, item_count })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.iteminfo_id.write_to(w)?;
-        self.item_count.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_ItemPayload {
+        pub iteminfo_id: u32,
+        pub item_count: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_IsHiredMercenaryPayload {
-    pub characterinfo_id: u32,
-}
-impl BranchConditionData_IsHiredMercenaryPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let characterinfo_id = u32::read_from(data, offset)?;
-        Ok(Self { characterinfo_id })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.characterinfo_id.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_IsHiredMercenaryPayload {
+        pub characterinfo_id: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_IsHiredMercenaryTypePayload {
-    pub mercenary_type: u8,
-}
-impl BranchConditionData_IsHiredMercenaryTypePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let mercenary_type = u8::read_from(data, offset)?;
-        Ok(Self { mercenary_type })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.mercenary_type.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_IsHiredMercenaryTypePayload {
+        pub mercenary_type: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_BranchIndexPayload {
-    pub branch_index: u8,
-    pub branch_flag: u8,
-}
-impl BranchConditionData_BranchIndexPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let branch_index = u8::read_from(data, offset)?;
-        let branch_flag = u8::read_from(data, offset)?;
-        Ok(Self { branch_index, branch_flag })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.branch_index.write_to(w)?;
-        self.branch_flag.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_BranchIndexPayload {
+        pub branch_index: u8,
+        pub branch_flag: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_BranchPayload {
-    pub byte_at_8: u8,
-}
-impl BranchConditionData_BranchPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let byte_at_8 = u8::read_from(data, offset)?;
-        Ok(Self { byte_at_8 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.byte_at_8.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_BranchPayload {
+        pub byte_at_8: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_NearMissionPayload {
-    pub byte_at_8: u8,
-}
-impl BranchConditionData_NearMissionPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let byte_at_8 = u8::read_from(data, offset)?;
-        Ok(Self { byte_at_8 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.byte_at_8.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_NearMissionPayload {
+        pub byte_at_8: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_GameLevelStatePayload<'a> {
-    pub levelinfo_id: u32,
-    pub state_name: CString<'a>,
-}
-impl<'a> BranchConditionData_GameLevelStatePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let levelinfo_id = u32::read_from(data, offset)?;
-        let state_name = CString::read_from(data, offset)?;
-        Ok(Self { levelinfo_id, state_name })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.levelinfo_id.write_to(w)?;
-        self.state_name.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_GameLevelStatePayload<'a> {
+        pub levelinfo_id: u32,
+        pub state_name: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct BranchConditionData_GamePlayVariablePayload {
-    pub gameplayvariableinfo_id: u32,
-    pub gpv_flag: u8,
-}
-impl BranchConditionData_GamePlayVariablePayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let gameplayvariableinfo_id = u32::read_from(data, offset)?;
-        let gpv_flag = u8::read_from(data, offset)?;
-        Ok(Self { gameplayvariableinfo_id, gpv_flag })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.gameplayvariableinfo_id.write_to(w)?;
-        self.gpv_flag.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BranchConditionData_GamePlayVariablePayload {
+        pub gameplayvariableinfo_id: u32,
+        pub gpv_flag: u8,
     }
 }
 
@@ -319,6 +183,60 @@ impl<'a> BranchConditionDataVariant<'a> {
         }
     }
 
+    /// Per-variant JSON: emits {"type": variant_name, "body": typed dict}.
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("type".into(), Value::String(self.variant_name().to_string()));
+        match self {
+            Self::BranchConditionData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_Quest(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_Mission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_SubMission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_Stage(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_Knowledge(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_Item(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_IsHiredMercenary(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_IsHiredMercenaryType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_BranchIndex(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_Branch(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_NearMission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_GameLevelState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_GamePlayVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+        }
+        Value::Object(m)
+    }
+
+    pub fn write_from_json(
+        disc: u8,
+        w: &mut Vec<u8>,
+        v: &Value,
+    ) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "BranchConditionDataVariant: expected object",
+        ))?;
+        match disc {
+            0 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData: missing body object"))?; BranchConditionDataPayload::write_from_json_dict(w, body)?; }
+            1 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_Quest: missing body object"))?; BranchConditionData_QuestPayload::write_from_json_dict(w, body)?; }
+            2 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_Mission: missing body object"))?; BranchConditionData_MissionPayload::write_from_json_dict(w, body)?; }
+            3 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_SubMission: missing body object"))?; BranchConditionData_SubMissionPayload::write_from_json_dict(w, body)?; }
+            4 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_Stage: missing body object"))?; BranchConditionData_StagePayload::write_from_json_dict(w, body)?; }
+            5 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_Knowledge: missing body object"))?; BranchConditionData_KnowledgePayload::write_from_json_dict(w, body)?; }
+            6 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_Item: missing body object"))?; BranchConditionData_ItemPayload::write_from_json_dict(w, body)?; }
+            7 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_IsHiredMercenary: missing body object"))?; BranchConditionData_IsHiredMercenaryPayload::write_from_json_dict(w, body)?; }
+            8 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_IsHiredMercenaryType: missing body object"))?; BranchConditionData_IsHiredMercenaryTypePayload::write_from_json_dict(w, body)?; }
+            9 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_BranchIndex: missing body object"))?; BranchConditionData_BranchIndexPayload::write_from_json_dict(w, body)?; }
+            10 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_Branch: missing body object"))?; BranchConditionData_BranchPayload::write_from_json_dict(w, body)?; }
+            11 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_NearMission: missing body object"))?; BranchConditionData_NearMissionPayload::write_from_json_dict(w, body)?; }
+            12 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_GameLevelState: missing body object"))?; BranchConditionData_GameLevelStatePayload::write_from_json_dict(w, body)?; }
+            13 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_GamePlayVariable: missing body object"))?; BranchConditionData_GamePlayVariablePayload::write_from_json_dict(w, body)?; }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("BranchConditionDataVariant: unknown disc {}", other))),
+        }
+        Ok(())
+    }
+
+
     pub fn read_from(disc: u8, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match disc {
             0 => Self::BranchConditionData(BranchConditionDataPayload::read_from(data, offset)?),
@@ -374,9 +292,41 @@ impl<'a> BranchConditionData<'a> {
         Ok(Self { base, variant })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        // tag is the first byte of base — base.write_to writes it
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
+        Ok(())
+    }
+
+    /// JSON shape:
+    /// - `base`: { tag: u8 }
+    /// - `variant`: { type, body? } — per-variant typed JSON via
+    ///   BranchConditionDataVariant::to_json_value.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        let mut base_m = Map::new();
+        base_m.insert("tag".into(), self.base.tag.to_json_value());
+        m.insert("base".into(), Value::Object(base_m));
+        m.insert("variant".into(), self.variant.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let base_v = json_get_field(obj, "base")?;
+        let base_obj = base_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "BranchConditionData.base: expected object",
+        ))?;
+        let tag = json_get_field(base_obj, "tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "BranchConditionData.base.tag: expected u8"))?;
+        if tag > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("BranchConditionData.base.tag: {} out of u8 range", tag)));
+        }
+        (tag as u8).write_to(w)?;
+        let variant_v = json_get_field(obj, "variant")?;
+        BranchConditionDataVariant::write_from_json(tag as u8, w, variant_v)?;
         Ok(())
     }
 }
