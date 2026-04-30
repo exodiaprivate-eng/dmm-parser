@@ -92,6 +92,33 @@ py_binary_struct! {
     }
 }
 
+// GimmickAliasInner — sub_1410E2030 + trailing u8.
+// Wire: u8 + 3× u32 lookup + u8 = 14 wire bytes per element.
+py_binary_struct! {
+    pub struct GimmickAliasInnerEntry {
+        pub flag: u8,
+        pub lookup_a: u32,
+        pub lookup_b: u32,
+        pub lookup_c: u32,
+        pub raw: u8,
+    }
+}
+
+// GimmickAliasData — sub_1410E41E0 inner, 40 mem bytes.
+// Wire: 2× u32 raw + 2× u32 lookup + u32 raw + u16 region lookup +
+// CArray<GimmickAliasInnerEntry>.
+py_binary_struct! {
+    pub struct GimmickAliasData {
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub knowledge_info: u32,        // sub_1411006D0
+        pub condition_logic: u32,       // sub_1410FF430
+        pub raw_c: u32,
+        pub region_info: u16,           // sub_1410FF220 (wire u16)
+        pub aliases: CArray<GimmickAliasInnerEntry>,
+    }
+}
+
 // GimmickConstraintData — sub_1410E3E90 inner, 64 mem bytes.
 // Wire: CString (sub_1410A9D40) + 5 u8 + u32 + 2× Vec3 +
 // CString (sub_1410A9D40) + CArray<CString> (sub_141102990).
@@ -138,6 +165,28 @@ pabgh_typed_blob_table! {
         pub initial_body_motion_type: u8,
         pub sequencer_level_allow_gimmick_event_key_list: CArray<u32>,
         pub sequencer_level_connect_alias_name_list: CArray<CString<'a>>,
+        pub gimmick_alias_data_list: CArray<GimmickAliasData>,
+        pub logout_time_after_break: u64,
+        pub attack_by_collision_info_list_key: u32,
+        pub flag_28_4: u8,
+        pub flag_28_5: u8,
+        pub flag_28_6: u8,
+        pub flag_28_7: u8,
+        pub flag_29_0: u8,
+        pub flag_29_1: u8,
+        pub flag_29_2: u8,
+        pub flag_29_3: u8,
+        pub flag_29_4: u8,
+        pub flag_29_5: u8,
+        pub flag_29_6: u8,
+        pub flag_29_7: u8,
+        pub flag_30_0: u8,
+        pub flag_30_1: u8,
+        pub flag_30_2: u8,
+        pub flag_30_3: u8,
+        pub flag_30_4: u8,
+        pub flag_30_5: u8,
+        pub flag_30_6: u8,
     }
     tail: tail_blob;
 }
