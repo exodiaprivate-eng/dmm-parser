@@ -118,10 +118,18 @@
 //! the typed prefix as of this commit: a probe across all 6966 vanilla
 //! characterinfo entries showed 100% decode through
 //! `GimmickInteractionOverrideCArray` (the same shape gimmick_info
-//! uses at 99.95%, here at 100%). Remaining ~40 fields after field 133
-//! are mechanical IDA work — sub_1411181F0, sub_141101380,
-//! sub_1410FFF10, sub_141118000, sub_1411014B0, sub_1410D7370,
-//! sub_141101710, sub_1411018B0, sub_141101960.
+//! uses at 99.95%, here at 100%).
+//!
+//! Remaining ~40 fields after field 133 are mechanical IDA work —
+//! sub_1411181F0, sub_141101380, sub_1410FFF10, sub_141118000,
+//! sub_1411014B0, sub_1410D7370, sub_141101710, sub_1411018B0,
+//! sub_141101960. NOTE: an iteration attempt to add sub_1411181F0
+//! directly after field 133 panicked with a bogus CArray count
+//! (1595939328 = 0x5F22EE40), confirming sub_1411181F0 is NOT the
+//! next reader — there's at least one undocumented field between
+//! field 133 and sub_1411181F0. Decompiling sub_1410D7480
+//! around the field-133 call site (currently buried in an 8616-byte
+//! function) is needed before extending.
 
 use crate::binary::*;
 use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
