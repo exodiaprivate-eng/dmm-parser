@@ -263,24 +263,27 @@ macro_rules! pabgh_typed_blob_table {
 
             /// Convert this typed-prefix-plus-tail record to a JSON dict.
             /// Each typed prefix field becomes a named entry; the opaque
-            /// tail blob is emitted as base64 under `_tail_b64`. Authors
-            /// editing v3 mods get every typed field by name without
-            /// losing the tail bytes (which round-trip verbatim through
-            /// `write_from_json_dict`).
+            /// tail blob is emitted as base64 under `_tail_b64` *only when
+            /// non-empty*. When the typed prefix consumes every byte of
+            /// every vanilla entry (Tier 1 in practice), the field is
+            /// omitted to keep the JSON shape clean.
             pub fn to_json_dict(&self) -> ::serde_json::Map<String, ::serde_json::Value> {
                 use $crate::json_traits::ToJsonValue;
                 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
                 let mut m = ::serde_json::Map::new();
                 $(m.insert(stringify!($field).to_string(), self.$field.to_json_value());)*
-                m.insert("_tail_b64".to_string(), ::serde_json::Value::String(B64.encode(&self.$tail)));
+                if !self.$tail.is_empty() {
+                    m.insert("_tail_b64".to_string(), ::serde_json::Value::String(B64.encode(&self.$tail)));
+                }
                 m
             }
 
             /// Write a JSON dict (as produced by `to_json_dict` and possibly
             /// mutated by a v3 mod) back to bytes. Reads each typed prefix
-            /// field by name and decodes the tail from `_tail_b64`. Skips
-            /// missing typed fields with an error so partial dicts can't
-            /// accidentally produce malformed records.
+            /// field by name and decodes the tail from `_tail_b64`. The
+            /// tail field is optional — missing key is treated as empty
+            /// tail (matches the new `to_json_dict` shape for fully-typed
+            /// records).
             pub fn write_from_json_dict(
                 w: &mut Vec<u8>,
                 obj: &::serde_json::Map<String, ::serde_json::Value>,
@@ -288,15 +291,16 @@ macro_rules! pabgh_typed_blob_table {
                 use $crate::json_traits::{WriteJsonValue, get_field as json_get_field};
                 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
                 $(<$ty as WriteJsonValue>::write_from_json(w, json_get_field(obj, stringify!($field))?)?;)*
-                let tail_b64 = json_get_field(obj, "_tail_b64")?
-                    .as_str()
-                    .ok_or_else(|| std::io::Error::new(
+                if let Some(tail_v) = obj.get("_tail_b64") {
+                    let tail_b64 = tail_v.as_str()
+                        .ok_or_else(|| std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("{}: _tail_b64 must be a base64 string", stringify!($name))))?;
+                    let tail = B64.decode(tail_b64).map_err(|e| std::io::Error::new(
                         std::io::ErrorKind::InvalidData,
-                        format!("{}: _tail_b64 must be a base64 string", stringify!($name))))?;
-                let tail = B64.decode(tail_b64).map_err(|e| std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("{}: _tail_b64 invalid base64: {}", stringify!($name), e)))?;
-                w.extend_from_slice(&tail);
+                        format!("{}: _tail_b64 invalid base64: {}", stringify!($name), e)))?;
+                    w.extend_from_slice(&tail);
+                }
                 Ok(())
             }
         }
