@@ -363,7 +363,9 @@ pub struct GameConditionOptional<'a> {
 #[derive(Debug)]
 pub struct GameConditionInner<'a> {
     pub tree: super::game_condition::GameConditionNode<'a>,
-    pub trailer: [u8; 3],
+    pub trailer_0: u8,
+    pub trailer_1: u8,
+    pub trailer_2: u8,
 }
 
 impl<'a> GameConditionOptional<'a> {
@@ -373,10 +375,12 @@ impl<'a> GameConditionOptional<'a> {
             return Ok(Self { presence, inner: None });
         }
         let tree = super::game_condition::GameConditionNode::read_from(data, offset)?;
-        let trailer = <[u8; 3]>::read_from(data, offset)?;
+        let trailer_0 = u8::read_from(data, offset)?;
+        let trailer_1 = u8::read_from(data, offset)?;
+        let trailer_2 = u8::read_from(data, offset)?;
         Ok(Self {
             presence,
-            inner: Some(GameConditionInner { tree, trailer }),
+            inner: Some(GameConditionInner { tree, trailer_0, trailer_1, trailer_2 }),
         })
     }
 
@@ -384,7 +388,9 @@ impl<'a> GameConditionOptional<'a> {
         self.presence.write_to(w)?;
         if let Some(inner) = &self.inner {
             inner.tree.write_to(w)?;
-            inner.trailer.write_to(w)?;
+            inner.trailer_0.write_to(w)?;
+            inner.trailer_1.write_to(w)?;
+            inner.trailer_2.write_to(w)?;
         }
         Ok(())
     }
@@ -398,7 +404,9 @@ impl<'a> GameConditionOptional<'a> {
                 Some(i) => {
                     let mut im = Map::new();
                     im.insert("tree".into(), i.tree.to_json_value());
-                    im.insert("trailer".into(), i.trailer.to_json_value());
+                    im.insert("trailer_0".into(), i.trailer_0.to_json_value());
+                    im.insert("trailer_1".into(), i.trailer_1.to_json_value());
+                    im.insert("trailer_2".into(), i.trailer_2.to_json_value());
                     Value::Object(im)
                 }
                 None => Value::Null,
@@ -431,7 +439,9 @@ impl<'a> GameConditionOptional<'a> {
         super::game_condition::GameConditionNode::write_from_json(
             w, json_get_field(inner_obj, "tree")?,
         )?;
-        <[u8; 3] as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_0")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_1")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_2")?)?;
         Ok(())
     }
 }
