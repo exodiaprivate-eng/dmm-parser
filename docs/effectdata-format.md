@@ -1,7 +1,7 @@
 # EffectData Binary Format — effectinfo.pabgb
 
 Empirically derived from effectinfo.pabgb dumps via Python hex analysis
-(`tools/analyze_effectinfo[1-23].py`). Documents the **outer blob structure**
+(`tools/analyze_effectinfo[1-25].py`). Documents the **outer blob structure**
 as seen from the wire; the IDA-derived field-level decoder for the inner
 EffectDataElement record lives in `src/binary/variants/effect_data.rs` and
 uses a different (non-empirical) analysis layer.
@@ -325,7 +325,7 @@ Full field-level map from systematic byte and 4-byte-window scans across all
 | 28..40        | 12   | f32[3]  | **color2** (end color, RGB normalised 0..1): default (0,0,0); 22 entries non-zero. When both color1 and color2 are non-zero they are usually equal (constant color). |
 | 40..52        | 12   | f32[3]  | 3 floats, each 0.0 or 0.05f (`cd cc 4c 3d`); only 2 of 1952 entries use this |
 | 52..88        | 36   | zero    | always zero |
-| 88..92        | 4    | f32     | ~99% zero; rarely non-zero (small positive float) |
+| 88..92        | 4    | f32     | ~99% zero; 15 of 2057 entries non-zero with clean values {0.3, 0.5, 1.0, 1.5} — a float parameter (possibly opacity or blend multiplier) |
 
 ### Region 2 — Inner sub-struct (prefix[92..145])
 
@@ -453,9 +453,23 @@ Total mesh size: 508 bytes (298 standard + 4 count + 120 names + 4 count + 24 we
 
 Two entries (`Inspect_SocketMarker`) have size 373 = 323 + 50. The standard
 mc_off region (blob[311:323]) is all zeros (K=0, M=0). The 50 extra bytes at
-blob[323:373] contain unknown data — partially (1.0, 0.0, 1.0, 0.0) float-like
-values followed by hash-like bytes. Not yet decoded. Possibly socket/attachment
-marker geometry.
+blob[323:373] are partially decoded:
+
+```
+blob[323:327]  u32 = 1                     (count or type)
+blob[327:331]  u32 = 0                     (padding)
+blob[331]      u8  = 0x00                  (alignment byte)
+blob[332:352]  6 × f32 (4-byte aligned)    (float params — entry-specific)
+  entry1: 1.0, 0.0, 0.0, 0.0, 1.0, 0.0
+  entry2: 1.0, 1.0, 0.3, 0.0, 1.0, 0.0
+blob[355:371]  4 hash IDs (0xe173xxxx pattern, same as prefix[264:280] region)
+  first 2 are shared between entries; last 2 are entry-specific
+blob[371:373]  u16 = 0xeac5 (constant sentinel tail)
+```
+
+The 6 floats vary between entries and look like scale/blend parameters.
+The hash IDs match the structure and sentinel bytes of the standard
+`0xe173eac5` hash region. Likely socket/attachment anchor data.
 
 ### Type C — Split-reference mesh (1787, 2151-byte blobs)
 
@@ -560,9 +574,10 @@ data, differing only in outer blob metadata.
 
 ## Next Steps
 
-1. **prefix[40:52] and prefix[88:92]** — prefix[40:52] is now confirmed to mirror
-   NamedItemStruct struct[24:36] (same 0.05f triplet). The rarely-nonzero float
-   at prefix[88:92] is still unmapped; scan co-variation with other fields.
+1. **prefix[88:92]** — now known to carry clean floats {0.3, 0.5, 1.0, 1.5}
+   in ~0.7% of entries (not "rarely"); semantics not yet confirmed (possibly
+   opacity or blend multiplier). prefix[40:52] is confirmed to mirror
+   NamedItemStruct struct[24:36] (both = the 0.05f triplet).
 
 2. **Identify prefix[256:264] IDs** — two per-entry u16 identifiers at
    prefix[258:262]; likely reference external tables (texture IDs, material
@@ -571,10 +586,10 @@ data, differing only in outer blob metadata.
 3. **Type B irregular blobs (373-byte)** — 50 bytes of unknown structure at
    blob[323:373] for `Inspect_SocketMarker`.
 
-4. **mesh[0] slot directory hashes** — the slot_k hashes stored in the directory
-   (at [12:16], [20:24], etc. for k=1..M-1) have unknown semantic roles; they are
-   NOT the same as the null-slot null hashes (those are 0). Determine whether
-   they are references into the effects table or intra-blob cross-refs.
+4. **mesh[0] slot directory hashes** — the slot_k hashes (at [12:16], [20:24],
+   etc. for k=1..M-1) are external asset IDs: confirmed NOT blob keys within
+   effectinfo.pabgb (0 hits out of 233 cross-referenced). Likely mesh/model
+   asset IDs pointing into a different archive (e.g. geometry tables).
 
 5. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
 
