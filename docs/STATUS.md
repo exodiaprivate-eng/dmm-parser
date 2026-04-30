@@ -211,8 +211,11 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 - `StageInfo` — vestigial empty `tail_blob` removed (was always-empty
   Vec<u8> + `_tail_blob_b64` JSON field). Reader now strict-asserts
   full consumption.
-- Added `json_roundtrip` test for SkillInfo (now part of 304 tests
+- Added `json_roundtrip` test for SkillInfo (now part of 308 tests
   passing on local main, plus 1 ignored — `interaction_info::tests::diag_raw_entries`).
+  Test count grew from 304 → 308 with the lane-b merge that added
+  4 diagnostic modules (filter_condition, game_level, sequencer_spawn,
+  special_mode).
 
 ### Polymorphic family decoders
 | Family | Status | Tables that consume it |
