@@ -62,12 +62,32 @@
 //!  92. u32 lookup_84                      (sub_141BF63C0 wire u32)
 //!  93. CArray<u32> list_f                 (sub_141F8F830 — per element 4
 //!      wire bytes hashed via sub_141BF61C0)
+//!  94. u32 raw_h                          (4 raw bytes at +392)
+//!  95. u8 flag_85                         (at +396)
+//!  96. u8 flag_86                         (at +397)
+//!  97. u32 lookup_87                      (inline u32 → qword_145F113B0
+//!      hash lookup → u16 at +398)
+//!  98. u8 flag_88                         (at +400)
+//!  99. u32 lookup_89                      (sub_1411006D0 wire u32, +402)
+//! 100. u8 flag_90                         (at +404)
+//! 101. CArray<CharacterMercenaryEntry> mercenary_list (sub_141118980 →
+//!      sub_1410D9880; 96 mem bytes / 20 wire fields per entry incl.
+//!      CString hash, LocalizableString, 4 lookups, 11 raw u8/u32)
+//! 102. CArray<u16> list_g                 (sub_1410FF0C0 wire u16)
+//! 103. u8 flag_91                         (at +440)
 //!      ← TAIL STARTS HERE
-//!  94. (body) ~50 more wire reads — _factionInfo continued plus
-//!      _appearanceName, _characterGamePlayDataName, _characterPrefabPath,
-//!      _skeletonName, more u8 flags, CArrays, polymorphic descriptors.
+//! 104. (tail, conditional) when flag_91 == 0: sub_141105AC0 read.
+//!      Then sub_141100C20 + 2 raw bytes + 2 u8 + sub_1410FFAC0
+//!      (CArray<u16>) + u8 + CString + sub_1410FEE90 + while loop +
+//!      sub_141100C90/D00 + 4 raw bytes + u8 + sub_141100510 (CArray<u32>)
+//!      + 2× sub_1410FF890 (CArray<u32>) + 4 raw + sub_1411187E0 + u8 +
+//!      sub_141100510 + sub_141100D80 + sub_141100E90 (CArray of 32-byte
+//!      items) + 2× sub_141118620.
 //!
-//! Steps 1-93 are typed (93 of ~150 wire fields).
+//! Steps 1-103 are typed (103 of ~150 wire fields). Field 104+ blocked
+//! on conditional read pattern + several unknown helpers
+//! (sub_141105AC0, sub_141100C20, sub_1410FEE90, sub_141100C90,
+//! sub_141100D00, sub_1411187E0, sub_141100D80, sub_141118620).
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -88,6 +108,33 @@ py_binary_struct! {
         pub flag_b: u8,
         pub flag_c: u8,
         pub flag_d: u8,
+    }
+}
+
+// sub_1410D9880 inner — 96 mem bytes / 20 wire fields, CArray element of
+// sub_141118980 (CharacterInfo's _hireableMercenaryList).
+py_binary_struct! {
+    pub struct CharacterMercenaryEntry<'a> {
+        pub lookup_a: u32,                      // sub_1410FF5C0 wire u32
+        pub lookup_b: u32,                      // sub_141100740 wire u32
+        pub lookup_c: u32,                      // sub_1410FF340 wire u32
+        pub raw_a: u32,
+        pub key_str: CString<'a>,               // sub_1410A9D40 wire CString
+        pub lookup_d: u32,                      // sub_1410FF340 wire u32
+        pub raw_b: u32,
+        pub flag_a: u8,
+        pub lookup_e: u32,                      // sub_1411006D0 wire u32
+        pub label: LocalizableString<'a>,
+        pub raw_c: u32,
+        pub flag_b: u8,
+        pub raw_d: u32,
+        pub raw_e: u32,
+        pub flag_c: u8,
+        pub lookup_f: u32,                      // sub_1411006D0 wire u32
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub raw_f: u32,
+        pub raw_g: u32,
     }
 }
 
@@ -186,6 +233,16 @@ pabgh_typed_blob_table! {
         pub raw_g: u32,
         pub lookup_84: u32,
         pub list_f: CArray<u32>,
+        pub raw_h: u32,
+        pub flag_85: u8,
+        pub flag_86: u8,
+        pub lookup_87: u32,
+        pub flag_88: u8,
+        pub lookup_89: u32,
+        pub flag_90: u8,
+        pub mercenary_list: CArray<CharacterMercenaryEntry<'a>>,
+        pub list_g: CArray<u16>,
+        pub flag_91: u8,
     }
     tail: tail_blob;
 }
