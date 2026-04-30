@@ -366,8 +366,9 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
    in DMM-BETA's mod-loader to route conditioninfo edits through the
    new typed parser. Small CLAUDE.md change in the consuming repo.
 6. **Promote remaining internal-Tier-1.5 sub-fields to fully typed** —
-   see "Remaining Tier 1.5" section above (EquipSlotInfo header/footer,
-   QuestInfo FilterCondition, GimmickInfo post_blob). Catalog-level T2
+   see "Remaining Tier 1.5" section above (QuestInfo FilterCondition
+   variant family, GimmickInfo post_blob). EquipSlotInfo was just
+   promoted to Tier 1 by lane-c (commit `338dfa0`). Catalog-level T2
    count is already 0; these are sub-field opacities inside otherwise-T1
    tables, blocked on family decoder reverse engineering.
 
