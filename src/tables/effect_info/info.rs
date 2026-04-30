@@ -4,20 +4,19 @@
 //!   1. u32 key
 //!   2. CString string_key
 //!   3. u8 is_blocked
-//!   4. effect_data: CArray<EffectData> via sub_141116A70 — each element
-//!      is variable-wire-size (read by sub_1410DBAF0). We keep this list
-//!      as `effect_data_blob: Vec<u8>` for now; the per-element body is
-//!      a giant nested struct with 6+ helper readers that haven't all
-//!      been decompiled yet. The `effect_data_count` is exposed
-//!      separately so consumers can know how many elements live in there.
+//!   4. effect_data: CArray<EffectDataElement> via sub_141116A70 — each
+//!      element exposes 10 named fields plus a typed `core_block` (47
+//!      named sub-fields). The recursive `inner_map` portion of each
+//!      element is bounded but still rides as opaque bytes pending
+//!      reverse of its anti-disassembly tail.
 //!   5. mesh_effect_data: u32 count + N × 50-byte MeshEffectData (read
-//!      by sub_1410DBD90). Fully typed below. ← this is the win.
+//!      by sub_1410DBD90). Fully typed below.
 //!   6. u8 has_equip_type
 //!   7. u8 has_preset
 //!   8. u8 target_color_lerp_type
 //!
-//! The mesh+effect lists used to be one combined opaque blob. They're
-//! now split, with mesh fully field-level editable.
+//! Both lists are now per-element typed. The combined opaque blob from
+//! earlier sessions is gone.
 //!
 //! ## MeshEffectData wire (per sub_1410DBD90)
 //!
@@ -155,9 +154,8 @@ pub struct EffectInfo<'a> {
     pub string_key: CString<'a>,
     pub is_blocked: u8,
     /// Effect-data CArray, fully typed per element. Each element exposes
-    /// 10 named fields directly editable; the deeply-recursive
-    /// `inner_map_blob` per element stays opaque-but-bounded for
-    /// byte-perfect round-trip.
+    /// 10 named fields plus a typed `core_block` (47 sub-fields) and a
+    /// typed `inner_map` of `(u32 key, EffectDataInner)` pairs.
     pub effect_data: Vec<EffectDataElement<'a>>,
     /// Mesh-effect data — fully typed. Each element is 50 bytes on wire.
     pub mesh_effect_data: Vec<MeshEffectData>,
