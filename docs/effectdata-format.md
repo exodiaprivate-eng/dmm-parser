@@ -467,13 +467,35 @@ also standard. This blob fits the general formula — it was previously
 miscounted in the coverage table because K=7 is larger than the K≤2 samples
 used to set the formula range.
 
-### Type E — Unknown variant (1407-byte blobs)
+### Type E — Keyed-entry mesh (1407-byte blobs)
 
 Two entries (`cdfx_mc_onguard_shield_fxpreset_01` and
-`cdfx_mc_onguard_shield_fxpreset_01_applyAnimationSpeed`) have blob[311:315]=1
-and blob[315:319]=u32=3. Size 1407 does not fit any of: standard
-mesh formula (315+M×364+8), sub-element formula (311+K×316+12), or split-reference
-formula (315+K×8+(K-1)×356+8). Structure not yet mapped.
+`cdfx_mc_onguard_shield_fxpreset_01_applyAnimationSpeed`) use a "keyed outer
+entry" format distinct from all other types:
+
+```
+blob[303:311]               8 zeros (standard)
+blob[311:315]               K  (outer entry count — currently only K=1 observed)
+blob[315:315+K×12]          K outer entries, each = (u32=M, u32=hash_A, u32=hash_B)
+blob[315+K×12:end-12]       M × 356-byte bodies
+blob[end-12:end]            12 trailing zeros
+```
+
+Size formula: `315 + K×12 + M×356 + 12`
+
+For K=1, M=3: `315 + 12 + 3×356 + 12 = 1407`. ✓
+
+Body layout (each 356 bytes), inner sub-struct with `0a 05` at body[152]:
+
+| body index | body[0:4]        | body[4:8]       | body[8:16]          |
+|------------|------------------|-----------------|---------------------|
+| 0 (active) | hash_own         | M (total count) | hash_own × 2        |
+| 1 (active) | hash_own         | 0               | hash_own × 2        |
+| 2 (last)   | 0 (inactive)     | 0x00080000      | hash_outer × 2      |
+
+The `0x00080000` value at body[2][4:8] is the same "last-slot marker" seen in
+standard null mesh slots at mesh[8:12]. The two instances of this blob type
+have identical post-prefix data, differing only in outer blob metadata.
 
 ---
 
