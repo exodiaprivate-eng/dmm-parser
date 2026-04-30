@@ -171,6 +171,14 @@ pub enum GimmickTail<'a> {
         /// Field 28 — single u32 hash/key (7176 entries share value
         /// 0x150B14D0; clearly not a CArray count).
         field_28_u32: Option<u32>,
+        /// Field 29 — empirically `CArray<u32>` continuation.
+        field_29_u32_list: Option<CArray<u32>>,
+        /// Field 30 — empirically `CArray<u32>` continuation.
+        field_30_u32_list: Option<CArray<u32>>,
+        /// Field 31 — empirically `CArray<u32>` continuation.
+        field_31_u32_list: Option<CArray<u32>>,
+        /// Field 32 — empirically `CArray<u32>` continuation.
+        field_32_u32_list: Option<CArray<u32>>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -293,6 +301,34 @@ impl<'a> GimmickTail<'a> {
                         _ => { probe = pre_28; None }
                     }
                 } else { None };
+                let field_29_u32_list = if field_28_u32.is_some() {
+                    let pre_ = probe;
+                    match <CArray<u32>>::read_from(data, &mut probe) {
+                        Ok(arr) if probe <= entry_end => Some(arr),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
+                let field_30_u32_list = if field_29_u32_list.is_some() {
+                    let pre_ = probe;
+                    match <CArray<u32>>::read_from(data, &mut probe) {
+                        Ok(arr) if probe <= entry_end => Some(arr),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
+                let field_31_u32_list = if field_30_u32_list.is_some() {
+                    let pre_ = probe;
+                    match <CArray<u32>>::read_from(data, &mut probe) {
+                        Ok(arr) if probe <= entry_end => Some(arr),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
+                let field_32_u32_list = if field_31_u32_list.is_some() {
+                    let pre_ = probe;
+                    match <CArray<u32>>::read_from(data, &mut probe) {
+                        Ok(arr) if probe <= entry_end => Some(arr),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -318,6 +354,10 @@ impl<'a> GimmickTail<'a> {
                     field_26_u32,
                     field_27_u32_list,
                     field_28_u32,
+                    field_29_u32_list,
+                    field_30_u32_list,
+                    field_31_u32_list,
+                    field_32_u32_list,
                     post_blob,
                 })
             }
@@ -341,7 +381,8 @@ impl<'a> GimmickTail<'a> {
                 field_21_u32_list, field_22_u32_list,
                 field_23_u32_list, field_24_u32_list,
                 field_25_u32_list, field_26_u32, field_27_u32_list,
-                field_28_u32, post_blob } => {
+                field_28_u32, field_29_u32_list, field_30_u32_list,
+                field_31_u32_list, field_32_u32_list, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -388,6 +429,10 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_28_u32 {
                     v.write_to(w)?;
                 }
+                if let Some(arr) = field_29_u32_list { arr.write_to(w)?; }
+                if let Some(arr) = field_30_u32_list { arr.write_to(w)?; }
+                if let Some(arr) = field_31_u32_list { arr.write_to(w)?; }
+                if let Some(arr) = field_32_u32_list { arr.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -406,7 +451,8 @@ impl<'a> GimmickTail<'a> {
                 field_21_u32_list, field_22_u32_list,
                 field_23_u32_list, field_24_u32_list,
                 field_25_u32_list, field_26_u32, field_27_u32_list,
-                field_28_u32, post_blob } => {
+                field_28_u32, field_29_u32_list, field_30_u32_list,
+                field_31_u32_list, field_32_u32_list, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -468,6 +514,14 @@ impl<'a> GimmickTail<'a> {
                     Some(v) => v.to_json_value(),
                     None => Value::Null,
                 });
+                m.insert("field_29_u32_list".to_string(), match field_29_u32_list {
+                    Some(arr) => arr.to_json_value(), None => Value::Null });
+                m.insert("field_30_u32_list".to_string(), match field_30_u32_list {
+                    Some(arr) => arr.to_json_value(), None => Value::Null });
+                m.insert("field_31_u32_list".to_string(), match field_31_u32_list {
+                    Some(arr) => arr.to_json_value(), None => Value::Null });
+                m.insert("field_32_u32_list".to_string(), match field_32_u32_list {
+                    Some(arr) => arr.to_json_value(), None => Value::Null });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -549,6 +603,13 @@ impl<'a> GimmickTail<'a> {
                 let f28 = json_get_field(obj, "field_28_u32")?;
                 if !f28.is_null() {
                     <u32 as WriteJsonValue>::write_from_json(w, f28)?;
+                }
+                for k in &["field_29_u32_list", "field_30_u32_list",
+                           "field_31_u32_list", "field_32_u32_list"] {
+                    let v = json_get_field(obj, k)?;
+                    if !v.is_null() {
+                        <CArray<u32> as WriteJsonValue>::write_from_json(w, v)?;
+                    }
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
