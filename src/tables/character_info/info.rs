@@ -267,6 +267,50 @@ py_binary_struct! {
     }
 }
 
+// sub_141B536F0 inner — 76 mem bytes, ~78 wire bytes (with empty
+// strings) / 24 wire fields. Wire ORDER (not mem order):
+py_binary_struct! {
+    pub struct CharacterChartEntry<'a> {
+        pub lookup_a: u32,             // inline u32 → qword_145F0DA38
+        pub lookup_b: u32,             // inline u32 → qword_145F0DA08
+        pub lookup_c: u32,             // inline u32 → qword_145F0DA00
+        pub key_a: CString<'a>,        // sub_1410A9D40 wire CString
+        pub key_b: CString<'a>,        // sub_1410A9D40
+        pub raw_block_a: [u8; 16],     // sub_141107700 = 4× u32
+        pub raw_a: u16,
+        pub raw_b: u32,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub flag_f: u8,
+        pub lookup_d: u32,             // sub_1410FF430 wire u32 (inserted mid-sequence)
+        pub flag_g: u8,
+        pub flag_h: u8,
+        pub flag_i: u8,
+        pub flag_j: u8,
+        pub flag_k: u8,
+        pub flag_l: u8,
+        pub key_c: CString<'a>,        // sub_1410A9D40
+        pub flag_m: u8,
+        pub raw_block_b: [u8; 16],     // sub_141107700 = 4× u32
+    }
+}
+
+// sub_141101210 inner — 20 mem bytes / 5 wire fields = 17 wire bytes.
+// Wire reads in stack-stuffing order: u32 raw + u8 flag + u32 raw +
+// u32 raw + u32 raw.
+py_binary_struct! {
+    pub struct CharacterFiveTuple {
+        pub raw_a: u32,
+        pub flag: u8,
+        pub raw_b: u32,
+        pub raw_c: u32,
+        pub raw_d: u32,
+    }
+}
+
 // sub_141100E90 inner — 32 mem bytes / 28 wire bytes (f32 + 3× 8 bytes).
 // Same shape as faction_node_info::FactionAdjacencyMobItem.
 py_binary_struct! {
@@ -441,6 +485,8 @@ pabgh_typed_blob_table! {
         pub flag_128: u8,
         pub short_pair_list: CArray<CharacterShortPair>,
         pub raw_130: u32,
+        pub chart_entry_list: CArray<CharacterChartEntry<'a>>,
+        pub five_tuple_list: CArray<CharacterFiveTuple>,
     }
     tail: tail_blob;
 }
