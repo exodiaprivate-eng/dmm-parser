@@ -53,6 +53,61 @@ This file is for collaborators picking up round-trip work. It's the
   modeled as `Option<OptionalDropTarget>` to capture RandomBox's outer
   wrapper presence plus sub_141D03AA0's own inner presence.
 
+### Reverse-engineering notes — QuestInfo FilterCondition family
+
+The FilterCondition family (used by QuestInfo's `_questDialogFilterDataList`)
+was previously labeled "polymorphic, 11 variants" and DEFERRED. Probing
+showed it's actually decodable but with substantial nesting depth:
+
+```
+QuestDialog_FilterData (sub_1410F42E0, ~144 mem bytes)
+├── 4× scalar fields (u8 + u8 + u32 + u32 + u32 + u32-hash)
+├── sub_141102CB0 (u32 wire / u32 mem)  — qword_145F0EF20 hash
+├── sub_141107000 (CArray<FilterCondition>)  — used 2×
+├── sub_141107120 (CArray<sub_14110B380 result>)
+├── sub_14110B380 (CArray<sub_1410F4050 result>, 112-byte stride) — used 2×
+├── sub_14110B150 (similar to sub_14110B380)
+├── sub_14110AF20 (CArray<{u32-hash + sub_1410F4050}>, 120-byte stride)
+├── sub_1410FF050 (u16 wire/mem hash)
+└── 4× u8 scalar trailer
+
+sub_1410F4050 (per-element of B380/B150/AF20, 112 mem bytes)
+├── u32 raw + sub_1411006D0 (u16 hash) + u32 raw
+├── sub_1410F3DE0 (48 mem bytes inner)
+│   ├── sub_141100510 (CArray<u32-hash>)
+│   ├── sub_141103310 (CArray<{u16-hash + u64}>, 12 wire / 16 mem stride)
+│   ├── sub_141102D90 (u16 hash) + 2 raw + 4 raw + 1 raw
+├── sub_14110B8C0 (16 mem)
+├── sub_14110B710 (16 mem)
+└── sub_14110B570 (16 mem)
+
+FilterCondition (sub_141D8F740, 64 mem bytes)
+├── u8 dispatch_tag
+├── sub_1410FFAC0 (CArray<u16>)
+├── CArray<{Vec3 + u32}>, 16-byte stride
+├── sub_141103310 (CArray<{u16-hash + u64}>, 16 mem stride)
+└── per-tag variant tail (cases 0/1/A: 0 bytes; 2: u16; 3: u16-2;
+    4/5/6: u32; 7: u32; 8: u32+u32; 9: u32)
+```
+
+All 14+ helpers verified as fixed-shape via IDA decompile. The depth
+makes this a focused multi-session crack rather than an in-loop win;
+shipping it would unlock `QuestInfo.quest_dialog_filter_data_list_blob`
+and probably `MiniGameDataInfo.spawn_data_list_blob` which uses
+overlapping helpers (sub_14110BCC0 → sub_1410F3220 + sub_141103B30 +
+sub_14110BE50).
+
+### Reverse-engineering notes — TriggerGamePlayEventHandlerData
+
+GimmickInfo's `post_blob` field 17 (sub_1411125E0) calls sub_141D80A90
+which is the `TriggerGamePlayEventHandlerData` polymorphic dispatcher
+with 8 cases (0..7). Each case allocates a different-sized struct
+(40/48/112/144 bytes) and constructs via case-specific vtables; the
+actual wire reads happen in `vtable[85]` per case. Cracking it needs
+walking 8 vtables to extract the slot-85 reader pointers, then
+decoding each (similar to ConditionData's 405-variant rollout but
+much smaller scope).
+
 ### JSON exposure upgrades (lane-c)
 - `SkillInfo.buff_level_list` (CArray<CArray<BuffDataOptional>>) — was
   base64; now fully typed nested JSON via BuffData ToJsonValue +
