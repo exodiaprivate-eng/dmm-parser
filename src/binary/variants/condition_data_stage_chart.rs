@@ -87,9 +87,7 @@ impl<'a> ConditionDataStageChart<'a> {
             Self::BranchB { ivariant_selector, item } => {
                 m.insert("branch".into(), Value::String("B".into()));
                 m.insert("ivariant_selector".into(), ivariant_selector.to_json_value());
-                let mut buf = Vec::new();
-                item.write_to(&mut buf).expect("write_to Vec");
-                m.insert("item_b64".into(), Value::String(B64.encode(&buf)));
+                m.insert("item".into(), Value::Object(item.to_json_dict()));
             }
         }
         m
@@ -119,15 +117,11 @@ impl<'a> ConditionDataStageChart<'a> {
             "B" => {
                 w.push(0u8);  // outer_presence == 0 implies BranchB
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ivariant_selector")?)?;
-                let s = json_get_field(obj, "item_b64")?.as_str().ok_or_else(|| {
+                let item_obj = json_get_field(obj, "item")?.as_object().ok_or_else(|| {
                     io::Error::new(io::ErrorKind::InvalidData,
-                        "item_b64: expected base64 string")
+                        "StageChart.item: expected object")
                 })?;
-                let bytes = B64.decode(s).map_err(|e| io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("item_b64: invalid base64: {}", e),
-                ))?;
-                w.extend_from_slice(&bytes);
+                IVariantItem::write_from_json_dict(w, item_obj)?;
             }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataStageChart.branch: unknown {:?}", other))),

@@ -22,6 +22,8 @@
 //! positional `0`/`1`/`2`. Wire layout is unchanged — round-trip preserved.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -143,5 +145,107 @@ impl<'a> IVariantItem<'a> {
             IVariantItemPayload::Uint32 { value } => value.write_to(w),
             IVariantItemPayload::HashCode { hash_code } => hash_code.write_to(w),
         }
+    }
+
+    /// JSON shape: {tag: u8, payload: {kind: "Empty"|"StaticString"|...,
+    /// ...payload-specific fields}}.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("tag".into(), self.tag.to_json_value());
+        let mut p = Map::new();
+        match &self.payload {
+            IVariantItemPayload::Empty => {
+                p.insert("kind".into(), Value::String("Empty".into()));
+            }
+            IVariantItemPayload::StaticString { value } => {
+                p.insert("kind".into(), Value::String("StaticString".into()));
+                p.insert("value".into(), value.to_json_value());
+            }
+            IVariantItemPayload::StaticStringPair { first, second } => {
+                p.insert("kind".into(), Value::String("StaticStringPair".into()));
+                p.insert("first".into(), first.to_json_value());
+                p.insert("second".into(), second.to_json_value());
+            }
+            IVariantItemPayload::StaticStringPairAlt { first, second } => {
+                p.insert("kind".into(), Value::String("StaticStringPairAlt".into()));
+                p.insert("first".into(), first.to_json_value());
+                p.insert("second".into(), second.to_json_value());
+            }
+            IVariantItemPayload::InteractionWithHash { value, interaction_key, hash_code } => {
+                p.insert("kind".into(), Value::String("InteractionWithHash".into()));
+                p.insert("value".into(), value.to_json_value());
+                p.insert("interaction_key".into(), interaction_key.to_json_value());
+                p.insert("hash_code".into(), hash_code.to_json_value());
+            }
+            IVariantItemPayload::Interaction { value, interaction_key } => {
+                p.insert("kind".into(), Value::String("Interaction".into()));
+                p.insert("value".into(), value.to_json_value());
+                p.insert("interaction_key".into(), interaction_key.to_json_value());
+            }
+            IVariantItemPayload::StageBranch { value, branch_type } => {
+                p.insert("kind".into(), Value::String("StageBranch".into()));
+                p.insert("value".into(), value.to_json_value());
+                p.insert("branch_type".into(), branch_type.to_json_value());
+            }
+            IVariantItemPayload::Uint32 { value } => {
+                p.insert("kind".into(), Value::String("Uint32".into()));
+                p.insert("value".into(), value.to_json_value());
+            }
+            IVariantItemPayload::HashCode { hash_code } => {
+                p.insert("kind".into(), Value::String("HashCode".into()));
+                p.insert("hash_code".into(), hash_code.to_json_value());
+            }
+        }
+        m.insert("payload".into(), Value::Object(p));
+        m
+    }
+
+    /// Inverse of to_json_dict. Tag is read from JSON (not the outer
+    /// caller as in read_from_with_tag) since the JSON dict carries
+    /// it explicitly.
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        // Tag is informational here; the outer StageChart caller emits
+        // its own ivariant_selector byte before this call.
+        let payload_v = json_get_field(obj, "payload")?;
+        let p = payload_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "IVariantItem.payload: expected object",
+        ))?;
+        let kind = json_get_field(p, "kind")?.as_str().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData,
+                "IVariantItem.payload.kind: expected string")
+        })?;
+        match kind {
+            "Empty" => {}
+            "StaticString" => {
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(p, "value")?)?;
+            }
+            "StaticStringPair" | "StaticStringPairAlt" => {
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(p, "first")?)?;
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(p, "second")?)?;
+            }
+            "InteractionWithHash" => {
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "value")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "interaction_key")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "hash_code")?)?;
+            }
+            "Interaction" => {
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "value")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "interaction_key")?)?;
+            }
+            "StageBranch" => {
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "value")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(p, "branch_type")?)?;
+            }
+            "Uint32" => {
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "value")?)?;
+            }
+            "HashCode" => {
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(p, "hash_code")?)?;
+            }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("IVariantItem.payload.kind: unknown {:?}", other))),
+        }
+        Ok(())
     }
 }
