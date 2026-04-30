@@ -4714,23 +4714,23 @@ impl<'a> ConditionDataOptionData<'a> {
 /// ## Failure histogram (from `interaction_info::diag_raw_entries`,
 /// captured 2026-04-30 — running tally; latest re-run after tag 7/99 fix):
 ///
-/// Current state — `n=9` Raw entries (down from 57 baseline; -48 net,
-/// 97.5% interaction_info decoded — 354 of 363):
-///   tag 246 (IsCrimeTarget):     4 entries
-///   tag 90, 214:                 2 entries each
-///   tag 54:                      1 entry
+/// Current state — `n=3` Raw entries (down from 57 baseline; -54 net,
+/// 99.2% interaction_info decoded — 360 of 363):
+///   tag 214:                     2 entries
+///   tag 54:                      1 entry  ← anti-disassembly family
 ///
 /// Already-fixed (Win-IDA verified) since the n=101 regression peak:
 ///   tag 7   (GetItemCount)      — added trailing u16 via `08b7afc`
+///   tag 29  (CheckMoneyForBuyingStock) — downgraded to unit via `584f79c`
 ///   tag 99  (CheckAllyType)     — removed from skip-list via `5922251`
 ///   tag 116 (CatchTag)          — added OneCStringBodyPayload via `4469883`
 ///   tag 135 (CheckTargetToPushInventory) — added 1-byte body, KEPT in
-///                                  skip-list (different from prior
-///                                  attempt that also removed from skip)
-///                                  via `93cc34d`; cleared all 18 entries
+///                                  skip-list via `93cc34d`; cleared all
+///                                  18 entries
 ///   tag 174 (CheckRider)        — restored 1-byte body via `8f01078`
 ///   tag 358 (CheckMercenaryType)— added OneByteBodyPayload via `147fd7f`
 ///   tag 360 (CheckTargetDropListToPushInventory) — 1-byte body via `2102303`
+///   tag 370 (CheckOwnershipState) — 1-byte body, KEPT in skip-list via `41bc97f`
 ///   tag 393 (CheckAccompanyType)— added 1-byte body via `d91d961`
 ///   tag 19/27 (CheckGroggy/IsFocusActor) — kept as unit variant
 ///
@@ -4782,7 +4782,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // GetLevel has the same thunk and reads option_block normally).
         // These adds may be masking real bugs elsewhere — see
         // docs/STATUS.md "Stream-mode GameCondition" section.
-        26
+        26 | 54
     )
 }
 

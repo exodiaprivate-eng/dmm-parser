@@ -1,6 +1,6 @@
 //! Tier 1 (with Decoded|Raw fallback) — typed prefix plus a per-entry
 //! enum that exposes the full body when decode succeeds and falls back
-//! to opaque bytes for just 9 / 363 vanilla entries (2.5%, down from
+//! to opaque bytes for just 3 / 363 vanilla entries (0.8%, down from
 //! 57 baseline as ConditionData per-tag recipes are verified) where
 //! the ConditionPair stream-mode decode still hits unresolved variants.
 //!
@@ -35,12 +35,13 @@
 //!  28. CString cstring_b
 //!  29-38. 10× u8 trailing flags
 //!
-//! 354 / 363 vanilla entries (97.5%) route through `Decoded`. The
-//! remaining 9 hit ConditionData stream-mode tags inside the
+//! 360 / 363 vanilla entries (99.2%) route through `Decoded`. The
+//! remaining 3 hit ConditionData stream-mode tags inside the
 //! cond_data_list and route through `Raw { tail_blob }`. Every typed
 //! prefix field stays editable in both cases. Remaining blockers:
-//! tag 246 (4 entries), tag 90/214 (2 each), tag 54 (1) — all in the
-//! anti-disassembly-protected family.
+//! tag 214 (2 entries), tag 54 (1) — all in the anti-disassembly-
+//! protected family (tag 54 is `CheckCurrentEquipType_OrTag54`, an
+//! obfuscated reader called out in `game_condition.rs::Raw` comment).
 
 use crate::binary::*;
 use crate::binary::condition_pair::ConditionPairCArray;
