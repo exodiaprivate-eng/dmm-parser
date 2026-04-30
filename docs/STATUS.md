@@ -145,10 +145,27 @@ GimmickInfo's `post_blob` field 17 (sub_1411125E0) calls sub_141D80A90
 which is the `TriggerGamePlayEventHandlerData` polymorphic dispatcher
 with 8 cases (0..7). Each case allocates a different-sized struct
 (40/48/112/144 bytes) and constructs via case-specific vtables; the
-actual wire reads happen in `vtable[85]` per case. Cracking it needs
-walking 8 vtables to extract the slot-85 reader pointers, then
-decoding each (similar to ConditionData's 405-variant rollout but
-much smaller scope).
+actual wire reads happen in `vtable[85]` per case.
+
+**Per-case factory + body reader (Win-IDA, decoded 2026-04-30 instance A):**
+
+| tag | mem | class | vtable[85] body reader | wire summary |
+|---|---|---|---|---|
+| 0 | 112 | TriggerGamePlayEventHandlerData_Gimmick | sub_141D836E0 | sub_1410AA1B0 + 7× u32 + 1 u8 |
+| 1 | 40 | …_IgnoreFallingDamageToTarget | 0x1402D3A80 (no-op) | 0 bytes |
+| 2 | 48 | …_ApplyPassiveSkillToTarget | sub_141D84010 | 1× u64 (8 bytes) |
+| 3 | 144 | (Gimmick variant via sub_141D84340) | sub_141D84xxx | TBD |
+| 4 | 40 | …_MoveSyncGimmickWithPlatform | 0x1402D3A80 (no-op) | 0 bytes |
+| 5 | 48 | (variant via sub_141D867F0) | TBD | TBD |
+| 6 | 40 | …_TriggerRegionInfo | 0x1402D3A80 (no-op) | 0 bytes |
+| 7 | 40 | …_ElementalArea | 0x1402D3A80 (no-op) | 0 bytes |
+
+5 of 8 variants are unit (no body bytes). Tag 0 has the most complex
+body (1 helper + 7 u32 + 1 u8). Tags 3 & 5 still need their vtable[85]
+extracted. Cracking enough to ship would make `gimmick_info::post_blob`
+field 17 typeable as a `Decoded|Raw` enum following the same pattern
+as `ConditionData` / `SpawnDataList`. Outer wrapper sub_1411125E0 is
+`CArray<COptional<TriggerGamePlayEventHandlerData>>`.
 
 ### JSON exposure upgrades (lane-c)
 - `SkillInfo.buff_level_list` (CArray<CArray<BuffDataOptional>>) — was
