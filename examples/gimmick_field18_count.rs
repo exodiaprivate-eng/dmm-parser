@@ -16,6 +16,7 @@ fn main() {
     let mut raw = 0usize;
     let mut tgpehd_typed = 0usize;
     let mut chart_param_typed = 0usize;
+    let mut field_19_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -28,11 +29,13 @@ fn main() {
             GimmickTail::Decoded {
                 trigger_event_handler_list,
                 gimmick_chart_parameter_list,
+                field_19_u32_list,
                 post_blob, ..
             } => {
                 decoded += 1;
                 if trigger_event_handler_list.is_some() { tgpehd_typed += 1; }
                 if gimmick_chart_parameter_list.is_some() { chart_param_typed += 1; }
+                if field_19_u32_list.is_some() { field_19_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -44,6 +47,7 @@ fn main() {
     println!("Raw:           {}", raw);
     println!("TGPEHD typed:  {} / {}", tgpehd_typed, decoded);
     println!("Field 18 (gimmick_chart_parameter_list) typed: {} / {}", chart_param_typed, decoded);
+    println!("Field 19 (field_19_u32_list) typed:            {} / {}", field_19_typed, decoded);
 
     post_blob_sizes.sort();
     if !post_blob_sizes.is_empty() {

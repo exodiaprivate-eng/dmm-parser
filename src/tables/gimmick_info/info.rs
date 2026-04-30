@@ -141,6 +141,10 @@ pub enum GimmickTail<'a> {
         /// bytes per element (u32+u8+u32+u8). Best-effort typed; bytes
         /// remain in post_blob if decode under/over-reads.
         gimmick_chart_parameter_list: Option<CArray<GimmickChartParameter>>,
+        /// Field 19 — empirically `CArray<u32>` (count=0 in 99.4% of vanilla
+        /// entries; first u32 of post_blob after field 18 is 0x00000000).
+        /// Only attempted if field 18 succeeded.
+        field_19_u32_list: Option<CArray<u32>>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -187,6 +191,16 @@ impl<'a> GimmickTail<'a> {
                 } else {
                     None
                 };
+                // Field 19: empirically CArray<u32>, mostly empty.
+                let field_19_u32_list = if gimmick_chart_parameter_list.is_some() {
+                    let pre_19 = probe;
+                    match <CArray<u32>>::read_from(data, &mut probe) {
+                        Ok(arr) if probe <= entry_end => Some(arr),
+                        _ => { probe = pre_19; None }
+                    }
+                } else {
+                    None
+                };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -202,6 +216,7 @@ impl<'a> GimmickTail<'a> {
                     hash_single_list: hsl,
                     trigger_event_handler_list,
                     gimmick_chart_parameter_list,
+                    field_19_u32_list,
                     post_blob,
                 })
             }
@@ -220,7 +235,8 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list,
+                field_19_u32_list, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -237,6 +253,9 @@ impl<'a> GimmickTail<'a> {
                 if let Some(arr) = gimmick_chart_parameter_list {
                     arr.write_to(w)?;
                 }
+                if let Some(arr) = field_19_u32_list {
+                    arr.write_to(w)?;
+                }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -250,7 +269,8 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list,
+                field_19_u32_list, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -269,6 +289,10 @@ impl<'a> GimmickTail<'a> {
                     None => Value::Null,
                 });
                 m.insert("gimmick_chart_parameter_list".to_string(), match gimmick_chart_parameter_list {
+                    Some(arr) => arr.to_json_value(),
+                    None => Value::Null,
+                });
+                m.insert("field_19_u32_list".to_string(), match field_19_u32_list {
                     Some(arr) => arr.to_json_value(),
                     None => Value::Null,
                 });
@@ -313,6 +337,10 @@ impl<'a> GimmickTail<'a> {
                 let gcp = json_get_field(obj, "gimmick_chart_parameter_list")?;
                 if !gcp.is_null() {
                     <CArray<GimmickChartParameter> as WriteJsonValue>::write_from_json(w, gcp)?;
+                }
+                let f19 = json_get_field(obj, "field_19_u32_list")?;
+                if !f19.is_null() {
+                    <CArray<u32> as WriteJsonValue>::write_from_json(w, f19)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
