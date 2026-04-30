@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed parser with variant-boundary probe for the polymorphic
 //! `_questDialogFilterDataList` field.
 //!

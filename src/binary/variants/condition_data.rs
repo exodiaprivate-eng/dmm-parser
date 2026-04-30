@@ -4854,11 +4854,10 @@ impl<'a> ConditionDataOptionBlock<'a> {
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.option_present.write_to(w)?;
-        if self.option_present != 0 {
-            if let Some(d) = &self.option_data {
+        if self.option_present != 0
+            && let Some(d) = &self.option_data {
                 d.write_to(w)?;
             }
-        }
         Ok(())
     }
     pub fn to_json_dict(&self) -> Map<String, Value> {

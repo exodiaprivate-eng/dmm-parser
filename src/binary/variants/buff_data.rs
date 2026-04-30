@@ -725,7 +725,7 @@ impl ImmuneBuffDataPayload {
         let body = &self.entries.1;
         let body_arr: Vec<Value> = match self.header_tag {
             0 => body.iter().map(|&b| Value::from(b as u64)).collect(),
-            1 | 2 | 3 => body.chunks_exact(4)
+            1..=3 => body.chunks_exact(4)
                 .map(|c| Value::from(u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u64))
                 .collect(),
             4 => Vec::new(),
@@ -766,7 +766,7 @@ impl ImmuneBuffDataPayload {
             ))?;
             match header_tag {
                 0 => w.push(n as u8),
-                1 | 2 | 3 => w.extend_from_slice(&(n as u32).to_le_bytes()),
+                1..=3 => w.extend_from_slice(&(n as u32).to_le_bytes()),
                 4 => return Err(io::Error::new(io::ErrorKind::InvalidData,
                     "ImmuneBuffData header_tag=4 must have empty body")),
                 5 => w.extend_from_slice(&n.to_le_bytes()),
@@ -1368,6 +1368,7 @@ py_binary_struct! {
 
 /// BuffData variant — discriminated union of 120 cases.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum BuffDataVariant<'a> {
     DamageBuffData(DamageBuffDataPayload),
     VaryRegenerateValueBuffData(VaryRegenerateValueBuffDataPayload),

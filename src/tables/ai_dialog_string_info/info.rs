@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Hand-corrected: IDA-derived parser for `AIDialogStringInfo.pabgb`.
 //!
 //! Per IDA sub_1410D5210: 11 fields, fully field-level typed.

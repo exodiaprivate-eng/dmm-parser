@@ -305,11 +305,11 @@ impl ToJsonValue for EquipSlotInfo {
         json!({
             "key": self.key,
             "string_key": "",
-            "header_blob": self.header_blob.iter().copied().collect::<Vec<u8>>(),
+            "header_blob": self.header_blob.to_vec(),
             "flag_u8": self.flag_u8,
             "flag_u16": self.flag_u16,
             "entries": Value::Array(self.entries.iter().map(|e| e.to_json_value()).collect()),
-            "footer_extra": self.footer_extra.iter().copied().collect::<Vec<u8>>(),
+            "footer_extra": self.footer_extra.to_vec(),
             "footer_terminator_a": self.footer_terminator_a,
             "footer_terminator_b": self.footer_terminator_b,
         })

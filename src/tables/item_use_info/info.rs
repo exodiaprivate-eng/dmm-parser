@@ -273,6 +273,7 @@ py_binary_struct! {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum ItemUseDataVariant<'a> {
     Skill { base: BaseUseData<'a>, payload: SkillPayload },
     ExpandInventorySlot { base: BaseUseData<'a>, payload: ExpandInventorySlotPayload },
@@ -522,7 +523,7 @@ impl<'a> ItemUseDataVariant<'a> {
             14 => SequencerStageChartDescPartial::write_from_json(w, payload)?,
             15 => RegisterReserveSlotPayload::write_from_json_dict(w, payload_obj(payload, "RegisterReserveSlot")?)?,
             16 => OpenUIPayload::write_from_json_dict(w, payload_obj(payload, "OpenUI")?)?,
-            17 | 18 | 19 | 20 => {} // base only
+            17..=20 => {} // base only
             21 => {} // base only — payload should be null on JSON in
             //         and no extra bytes emitted on JSON out.
             22 => SpecialModePayload::write_from_json_dict(w, payload_obj(payload, "SpecialMode")?)?,

@@ -77,7 +77,7 @@ pub enum StoreStockDataValuePayload {
 }
 
 impl StoreStockDataValuePayload {
-    pub fn read_from<'a>(disc: u8, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+    pub fn read_from(disc: u8, data: &[u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match disc {
             0 => Self::Disc0(u32::read_from(data, offset)?),
             1 => Self::Disc1(u32::read_from(data, offset)?),
@@ -226,7 +226,7 @@ pub struct StoreStockDataValue {
 }
 
 impl StoreStockDataValue {
-    pub fn read_from<'a>(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let raw_q = u64::read_from(data, offset)?;
         let disc = u8::read_from(data, offset)?;
         let lookup_a = u32::read_from(data, offset)?;
@@ -311,7 +311,7 @@ pub struct OptionalStoreStockDataValue {
 }
 
 impl OptionalStoreStockDataValue {
-    pub fn read_from<'a>(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let presence = u8::read_from(data, offset)?;
         let inner = if presence != 0 {
             Some(StoreStockDataValue::read_from(data, offset)?)
@@ -363,7 +363,7 @@ pub struct OptionalStoreStockSubData {
 }
 
 impl OptionalStoreStockSubData {
-    pub fn read_from<'a>(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let presence = u8::read_from(data, offset)?;
         let inner = if presence != 0 {
             Some(StoreStockSubData::read_from(data, offset)?)
@@ -427,7 +427,7 @@ pub struct StoreStockData {
 }
 
 impl StoreStockData {
-    pub fn read_from<'a>(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let lookup_a = u16::read_from(data, offset)?;
         let raw_a = u64::read_from(data, offset)?;
         let raw_b = u64::read_from(data, offset)?;
