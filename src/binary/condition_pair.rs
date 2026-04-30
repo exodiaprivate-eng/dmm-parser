@@ -145,8 +145,8 @@ pub struct ConditionPairCArray<'a> {
     pub items: Vec<OptionalConditionPair<'a>>,
 }
 
-impl<'a> ConditionPairCArray<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+impl<'a> BinaryRead<'a> for ConditionPairCArray<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let count = u32::read_from(data, offset)?;
         let mut items = Vec::with_capacity(count as usize);
         for _ in 0..count {
@@ -154,20 +154,40 @@ impl<'a> ConditionPairCArray<'a> {
         }
         Ok(Self { items })
     }
+}
 
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+impl<'a> BinaryWrite for ConditionPairCArray<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         (self.items.len() as u32).write_to(w)?;
         for item in &self.items {
             item.write_to(w)?;
         }
         Ok(())
     }
+}
 
-    pub fn to_json_value(&self) -> Value {
+impl<'a> BinaryReadTracked<'a> for ConditionPairCArray<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let item = <Self as BinaryRead>::read_from(data, offset)?;
+        ranges.push(FieldRange { path: path.clone(), start, end: *offset, ty: "ConditionPairCArray" });
+        Ok(item)
+    }
+}
+
+impl<'a> ToJsonValue for ConditionPairCArray<'a> {
+    fn to_json_value(&self) -> Value {
         Value::Array(self.items.iter().map(|i| i.to_json_value()).collect())
     }
+}
 
-    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+impl<'a> WriteJsonValue for ConditionPairCArray<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         let arr = v.as_array().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData,
             "ConditionPairCArray: expected array",

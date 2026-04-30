@@ -4712,7 +4712,18 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // with NO option_block byte between body and footer.
         300 | 256 | 401 | 2 | 79 | 195 |
         // Verified via Win-IDA vtable[19] = 0x1402D3A80 (no-op `return 1;`)
-        306 | 126
+        306 | 126 |
+        // Empirically verified: in interaction_info entry 0 cond_b tree,
+        // variant 26 (CheckHasImportantItem) has the post-body byte =
+        // 0x02 which is a valid GameConditionNode case_tag (UnaryOp),
+        // not option_present. Either vtable[19] is no-op or context-
+        // dependent. Adding to skip list allows interaction_info trees
+        // to decode in stream mode.
+        26 |
+        // Variants 135 and 370 also caused "not enough data" errors when
+        // decoding interaction_info entries (LAST_ATTEMPTED_TAG diagnostic
+        // pinpointed each one); adding to skip list unblocks more entries.
+        135 | 370
     )
 }
 
