@@ -20,11 +20,20 @@
 //!   9. CArray<CString> gimmick_tag_list         (_gimmickTagList,
 //!      sub_141102990 — runtime hashes each tag to u32 via
 //!      sub_1410A9D40, wire is CString)
+//!  10. CString gimmick_chart_path               (_gimmickChartPath)
+//!  11. u8 gimmick_type                          (_gimmickType)
+//!  12. u8 gimmick_placement_style               (_gimmickPlacementStyle)
+//!  13. u8 gimmick_interface_type                (_gimmickInterfaceType)
+//!  14. [f32; 3] gimmick_remote_catchable_data
+//!      (_gimmickRemoteCatchableData, Vec3 — 12 raw wire bytes)
+//!  15. u8 use_attack_target_owner_constraint
+//!  16. u8 use_self_constraint
 //!      ← TAIL STARTS HERE
-//!  10. _gimmickChartPath, _gimmickType, _gimmickPlacementStyle,
-//!      _gimmickInterfaceType, _gimmickRemoteCatchableData,
-//!      _autoTargetingConstraintDataList, _gimmickConstraintDataList,
-//!      _gimmickInfoList, _gameEventHandlerList,
+//!  17. _autoTargetingConstraintDataList (sub_141113A50 → CArray<64-byte
+//!      composite via sub_1410E3E90>; 11-field GimmickConstraintData
+//!      with 2 CString-hash + 5 u8 + u32 + 2 Vec3 + CArray<CString>)
+//!  18. _gimmickConstraintDataList (sub_141113A50 — same composite)
+//!  19. _gimmickInfoList, _gameEventHandlerList,
 //!      _unlockableIDataList, _defaultSpawnReasonHash,
 //!      _initialBodyMotionType,
 //!      _sequencerLevelAllowGimmickEventKeyList,
@@ -33,7 +42,7 @@
 //!      _useSlidingMotionProperty, _isEditorUseable,
 //!      _isGetKnowledgeWhenGetItem, _isUseConstrainSound, …
 //!
-//! Steps 1-9 are typed (9 fields). Body has 80+ wire reads with
+//! Steps 1-16 are typed (16 fields). Body has 80+ wire reads with
 //! several deep composites; reopens cleanly when those are decoded.
 //!
 //! Helper: `sub_141104AE0` = u32 lookup at qword_145F11D70.
@@ -72,6 +81,13 @@ pabgh_typed_blob_table! {
         pub link_signal_group_list: CArray<GimmickProperty<'a>>,
         pub property_list: CArray<u32>,
         pub gimmick_tag_list: CArray<CString<'a>>,
+        pub gimmick_chart_path: CString<'a>,
+        pub gimmick_type: u8,
+        pub gimmick_placement_style: u8,
+        pub gimmick_interface_type: u8,
+        pub gimmick_remote_catchable_data: [f32; 3],
+        pub use_attack_target_owner_constraint: u8,
+        pub use_self_constraint: u8,
     }
     tail: tail_blob;
 }
