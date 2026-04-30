@@ -131,14 +131,14 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
-- `GimmickInfo` — Decoded tail extended to **341 typed fields** (1-16
-  prefix + 325 tail). post_blob average **1118 → 723 bytes** (4.90M
+- `GimmickInfo` — Decoded tail extended to **472 typed fields** (1-16
+  prefix + 456 tail). post_blob average **1118 → 707 bytes** (5.10M
   bytes recovered total over 12393 entries). Tail expansion includes
   TGPEHD list, GimmickChartParameter list, then 100+ Option<u32>
   fields (mostly opaque hashes/flags but byte-addressable for mods).
-  Long-tail entries (~25%) carry XML string content needing a
-  string-aware parser before further reduction. (loop session
-  2026-04-30)
+  Long-tail entries (~539 entries with named TriggerEntry CArrays;
+  e.g. "UnnamedTrigger_0", "Platform"). Field 342 = u32 trigger
+  count, 343 = u8 flag, then bulk u32 body. (loop session 2026-04-30)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
