@@ -251,11 +251,12 @@ first 12 bytes of the prefix's inner sub-struct). No TRS or hash/ID region.
 | `vec_a`     | 0..12        | named-item colour (RGB f32[3])                            |
 | `vec_b`     | 12..24       | named-item secondary colour (RGB f32[3])                  |
 | `vec_c`     | 24..36       | 0.0 or 0.05f triplet (mirrors prefix[40:52])              |
+| `field_84`  | 84..88       | per-stage intensity multiplier — f32 (IDA types as u32); 0.0 default; non-zero only in `_switch_` and ribbon effects (see prefix[88:92]) |
 | `byte_136`  | 136..137     | bitmask flags (same role as prefix[142])                  |
 | `byte_137`  | 137..138     | named-item bool: 0 or 1 (same role as prefix[143])        |
 | `word_138`  | 138..140     | `0x0a 0x05` constant type marker (same as prefix[140:142])|
 
-`vec_d`–`vec_g` and `field_84`–`field_140` are IDA-derived anonymous names;
+`vec_d`–`vec_g` and `field_88`–`field_140` are IDA-derived anonymous names;
 semantics not yet confirmed beyond the mirror relationship with prefix[92:144].
 
 ---
@@ -390,7 +391,7 @@ Full field-level map from systematic byte and 4-byte-window scans across all
 | 28..40        | 12   | f32[3]  | **color2** (end color, RGB normalised 0..1): default (0,0,0); 22 entries non-zero. When both color1 and color2 are non-zero they are usually equal (constant color). |
 | 40..52        | 12   | f32[3]  | 3 floats, each 0.0 or 0.05f (`cd cc 4c 3d`); only 2 of 1952 entries use this |
 | 52..88        | 36   | zero    | always zero |
-| 88..92        | 4    | f32     | ~99% zero; 15 of 2057 entries non-zero with clean values {0.3, 0.5, 1.0, 1.5} — a float parameter (possibly opacity or blend multiplier) |
+| 88..92        | 4    | f32     | **per-stage intensity multiplier** (IDA: `d3.field_84`; Rust: `EffectDataD3Block.field_84`, typed u32 but semantically f32): default 0.0 (99.3% of entries). All 15 non-zero entries are `_switch_` or ribbon effects. Wolf-claw switch series: _01=0.3, _02=0.5, _03=1.0 — a 3-stage opacity ramp (30%→50%→100%). Ribbon entries: damian variants = 1.0, com (common player) variants = 1.5. Encodes per-switch-state brightness; 0.0 = inactive/no override. |
 
 ### Region 2 — Inner sub-struct (prefix[92..145])
 
@@ -583,9 +584,10 @@ baseline(324) + 3×364(inner_map). Standard layout; no special handling required
 
 ## Next Steps
 
-1. **prefix[88:92]** — carries clean floats {0.3, 0.5, 1.0, 1.5} in ~0.7% of
-   entries; semantics not yet confirmed (possibly opacity or blend multiplier).
-   prefix[40:52] is confirmed to mirror NamedItemStruct struct[24:36] (0.05f triplet).
+1. ~~**prefix[88:92]**~~ **Resolved**: per-stage intensity multiplier (`d3.field_84`, f32).
+   All 15 non-zero entries are `_switch_`/ribbon effects; wolf-claw switch stages step
+   0.3→0.5→1.0 (_01/_02/_03). IDA types field as u32; actual wire values are clean f32.
+   prefix[40:52] confirmed to mirror NamedItemStruct struct[24:36] (0.05f triplet).
 
 2. **Identify prefix[256:264] IDs** — two per-entry u16 identifiers at
    prefix[258:262]; likely reference external tables (texture IDs, material hashes?).
