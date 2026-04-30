@@ -315,30 +315,30 @@ In 4-24, confirmed up to n=16 (6148-byte blob).
 Only mesh[0] carries a full slot directory; trailing null slots carry only a
 truncated self-reference and their own hash.
 
-**Slot directory (mesh[0] only, variable size 28..68 bytes depending on M):**
+**Slot directory (mesh[0] only, variable size 20..68 bytes depending on M):**
 
 mesh[0] encodes a linked "slot directory" covering all M active mesh slots.
-The directory is `max(M,2)×8 + 12` bytes (always ≥ 28 bytes):
+The directory is `M×8 + 12` bytes (20 bytes minimum for M=1):
 
 ```
 [0:4]         = 1 (active flag — slot 0)
 [4:8]         = hash_A (slot 0's own hash/ID)
 
-For k = 1 .. max(M-1, 1):         ← (M-1) other slots; for M=1 this is one self-ref
+For k = 1 .. M-1:               ← (M-1) additional slots; empty range for M=1
   [8k:8k+4]   = 1 (active flag for slot k)
-  [8k+4:8k+8] = hash_k (slot k's hash; for M=1, k=1 → hash_A self-ref)
+  [8k+4:8k+8] = hash_k (slot k's hash/ID)
 
-[8+8M:8+8M+4] = M  (total slot count)
-[8+8M+4:8+8M+8]  = hash_A (repeated)
-[8+8M+8:8+8M+12] = hash_A (repeated again)
-[8+8M+12 : 80]   = zeros (for standard entries; some complex entries override)
+[8M:8M+4]     = M  (total slot count)
+[8M+4:8M+8]   = hash_A (repeated)
+[8M+8:8M+12]  = hash_A (repeated again)
+[8M+12 : 80]  = zeros (for standard entries; some complex entries override)
 ```
 
 Concrete examples (from 70-sample scan — all M values confirmed):
 
 | M | directory bytes | M field at | hash_A terminator at |
 |---|-----------------|------------|----------------------|
-| 1 | 28  | [16:20] | [20:28] |
+| 1 | 20  | [8:12]  | [12:20] |
 | 2 | 28  | [16:20] | [20:28] |
 | 3 | 36  | [24:28] | [28:36] |
 | 4 | 44  | [32:36] | [36:44] |
@@ -346,8 +346,8 @@ Concrete examples (from 70-sample scan — all M values confirmed):
 | 6 | 60  | [48:52] | [52:60] |
 | 7 | 68  | [56:60] | [60:68] |
 
-For M=1: the second slot pair (k=1) is a self-reference, so [8:12]=1 and [12:16]=hash_A.
-For M≥2: each slot pair (k=1..M-1) references one of the other active mesh slots.
+For M=1: no additional pairs (k range 1..0 is empty); directory = 20 bytes.
+For M≥2: each pair k=1..M-1 references one of the other active mesh slots.
 
 **Null/trailing mesh slots** contain only a compact back-reference (no directory):
 zeros at [0:4] (inactive), hash at [4:8], zeros elsewhere in [0:80].
@@ -356,28 +356,51 @@ zeros at [0:4] (inactive), hash at [4:8], zeros elsewhere in [0:80].
 
 | mesh offset | size | description |
 |-------------|------|-------------|
-| 0..8+8M+12  | var  | slot directory (see above) |
-| 8+8M+12..80 | var  | zeros for standard entries; one observed entry has f32=4.0 and RGB at [44:56] |
+| 0..8M+12    | var  | slot directory (see above) |
+| 8M+12..80   | var  | zeros for standard entries; one observed entry has f32=4.0 and RGB at [44:56] |
 | 80..104     | 24   | zeros (confirmed across all 70 active mesh[0] samples) |
 | 104..108    | 4    | f32: 0.0 or ~1.4 (1 of 70 active samples) |
 
-**Shared inner sub-struct (mesh[108..364]):**
+**Shared inner sub-struct (mesh[M×8+100..364]):**
 
-The first 208 bytes (mesh[108..316]) mirror fixed_prefix[92..300] with a +16
-byte shift (mesh[108+X] ≅ prefix[92+X]). Confirmed landmarks:
+Starts at mesh[M×8+100] and mirrors fixed_prefix[92..300] (208 bytes) with the
+alignment `mesh[M×8+100+X] ≅ prefix[92+X]`. The `0a 05` marker therefore lands
+at mesh[M×8+148] for every M (confirmed for all M=1..16).
 
-| mesh offset | prefix equiv | landmark |
-|-------------|--------------|----------|
-| 108         | prefix[92]   | float cluster start |
-| 156         | prefix[140]  | `0a 05` type marker |
-| 196         | prefix[180]  | −π/2 constant |
-| 216..252    | prefix[200..236] | TRS (position, scale, rotation) |
-| 252         | prefix[236]  | constant `0x01` |
-| 260..284    | prefix[244..268] | flags/IDs region |
-| 280..296    | prefix[264..280] | `0xe173eac5` hash region |
+Landmarks below use M=1 base offsets (sub-struct start = mesh[108]); for M>1
+add M×8 to each mesh offset:
 
-The remaining mesh[316..364] (48 bytes) extends beyond the fixed_prefix and
-is not yet mapped.
+| mesh offset (M=1) | prefix equiv     | landmark |
+|-------------------|------------------|----------|
+| 108               | prefix[92]       | float cluster start (f32 ≈ 1.0) |
+| 156               | prefix[140]      | `0a 05` type marker |
+| 196               | prefix[180]      | −π/2 constant |
+| 216..252          | prefix[200..236] | TRS (position, scale, rotation) |
+| 252               | prefix[236]      | constant `0x00000001` |
+| 268               | prefix[252]      | constant `0x01000005` |
+| 274..298          | prefix[258..282] | lookups_c (6×u32, null sentinel `0xeac5e173`) |
+| 298..315          | prefix[282..299] | fields_d (16 bytes) + byte_e |
+
+**Sub-struct boundary and mesh[316..364] content:**
+
+The sub-struct occupies mesh[M×8+100 .. M×8+308]. For M=7 the sub-struct
+exactly fills the mesh to byte 364. For M≤6 the sub-struct ends before 364
+and the remainder is zeros. For M≥8 the sub-struct is truncated at byte 364
+and the tail of Region 5 / Region 4 is absent from the mesh.
+
+| M  | sub-struct end | mesh[316:364] content |
+|----|----------------|-----------------------|
+| 1  | mesh[316]      | all zeros (sub-struct ends at 316) |
+| 2  | mesh[324]      | [316:324] = last 8 bytes of fields_d/byte_e (zeros); [324:364] zeros |
+| 3  | mesh[332]      | [316:332] = last 16 bytes of fields_d region (zeros); [332:364] zeros |
+| 4  | mesh[340]      | [316:340] = lookups_c[4..5] + fields_d; [340:364] zeros |
+| 5  | mesh[348]      | [316:348] = lookups_c[3..5] + fields_d; [348:364] zeros |
+| 6  | mesh[356]      | [316:356] = prefix[252..292] (`0x01000005` + lc[0..4]); [356:364] zeros |
+| 7  | mesh[364]      | [316:364] = prefix[252..300] (`0x01000005` + lc[] + fields_d + byte_e) |
+| 8  | mesh[372]†     | [316:364] = prefix[244..292] (Region 5 flags + lookups_c partial) |
+| 16 | mesh[436]†     | [316:364] = prefix[180..228] (−π/2 + Region 3 zeros + TRS partial) |
+
+† Truncated at mesh boundary; prefix bytes past the cutoff are absent.
 
 ---
 
@@ -646,10 +669,13 @@ baseline(324) + 3×364(inner_map). Standard layout; no special handling required
    body[266:290]=lookups_c with null sentinels. The 48-byte tail is entirely zeros —
    no hidden fields beyond the prefix-equivalent range.
 
-6. **InnerMapElement inner sub-struct tail (mesh[316..364], 48 bytes)** — the inner
-   sub-struct mirrors prefix[92..300] (208 bytes) at mesh[108..316]; the remaining
-   48 bytes extend beyond the fixed_prefix. The analogous tail in Type C bodies
-   (body[308..356]) is all zeros across all 9 bodies, making it likely that
-   mesh[316..364] is also all zeros. Direct verification from standard inner_map
-   blob entries is pending; the earlier "flags/IDs region" hypothesis is now
-   unlikely.
+6. ~~**InnerMapElement inner sub-struct tail (mesh[316..364], 48 bytes)**~~ **Resolved**:
+   the sub-struct does not start at a fixed mesh[108]. It starts at mesh[M×8+100],
+   shifting 8 bytes per active slot. The `0a 05` marker is at mesh[M×8+148] for every
+   M=1..16. Sub-struct end = mesh[M×8+308]; for M=7 this is exactly mesh[364] (no
+   tail). mesh[316:364] is NOT padding: for M≤6 it is the trailing fields_d/byte_e
+   region of the sub-struct followed by zeros; for M≥7 it is an interior slice of
+   Region 5 / Region 4 data (lookups_c, TRS, or −π/2 depending on M). For M≥8 the
+   sub-struct is truncated at the 364-byte mesh boundary. Slot directory formula
+   also corrected: M×8+12 bytes (not max(M,2)×8+12); M=1 directory = 20 bytes with
+   no self-reference pair.
