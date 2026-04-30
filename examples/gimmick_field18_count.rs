@@ -52,6 +52,10 @@ fn main() {
     let mut field_52_typed = 0usize;
     let mut field_53_typed = 0usize;
     let mut field_54_typed = 0usize;
+    let mut field_55_typed = 0usize;
+    let mut field_56_typed = 0usize;
+    let mut field_57_typed = 0usize;
+    let mut field_58_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -100,6 +104,10 @@ fn main() {
                 field_52_u32_list,
                 field_53_u32_list,
                 field_54_u32_list,
+                field_55_u32_list,
+                field_56_u32_list,
+                field_57_u32_list,
+                field_58_u32_list,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -141,6 +149,10 @@ fn main() {
                 if field_52_u32_list.is_some() { field_52_typed += 1; }
                 if field_53_u32_list.is_some() { field_53_typed += 1; }
                 if field_54_u32_list.is_some() { field_54_typed += 1; }
+                if field_55_u32_list.is_some() { field_55_typed += 1; }
+                if field_56_u32_list.is_some() { field_56_typed += 1; }
+                if field_57_u32_list.is_some() { field_57_typed += 1; }
+                if field_58_u32_list.is_some() { field_58_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -188,6 +200,10 @@ fn main() {
     println!("Field 52 (field_52_u32_list)          typed:     {} / {}", field_52_typed, decoded);
     println!("Field 53 (field_53_u32_list)          typed:     {} / {}", field_53_typed, decoded);
     println!("Field 54 (field_54_u32_list)          typed:     {} / {}", field_54_typed, decoded);
+    println!("Field 55 (field_55_u32_list)          typed:     {} / {}", field_55_typed, decoded);
+    println!("Field 56 (field_56_u32_list)          typed:     {} / {}", field_56_typed, decoded);
+    println!("Field 57 (field_57_u32_list)          typed:     {} / {}", field_57_typed, decoded);
+    println!("Field 58 (field_58_u32_list)          typed:     {} / {}", field_58_typed, decoded);
 
     post_blob_sizes.sort();
     if !post_blob_sizes.is_empty() {
