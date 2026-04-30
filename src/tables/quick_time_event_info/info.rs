@@ -255,7 +255,7 @@ pub struct QuickTimeEventInfoData {
     pub field_d: u32,
     pub field_e: u32,
     pub field_f: u32,
-    pub block: [u8; 8],
+    pub block: u64,
     pub flag_a: u8,
     pub flag_b: u8,
     pub field_g: u32,
@@ -273,10 +273,7 @@ impl QuickTimeEventInfoData {
         let field_d = u32::read_from(data, offset)?;
         let field_e = u32::read_from(data, offset)?;
         let field_f = u32::read_from(data, offset)?;
-        let mut block = [0u8; 8];
-        for b in &mut block {
-            *b = u8::read_from(data, offset)?;
-        }
+        let block = u64::read_from(data, offset)?;
         let flag_a = u8::read_from(data, offset)?;
         let flag_b = u8::read_from(data, offset)?;
         let field_g = u32::read_from(data, offset)?;
@@ -298,7 +295,7 @@ impl QuickTimeEventInfoData {
         self.field_d.write_to(w)?;
         self.field_e.write_to(w)?;
         self.field_f.write_to(w)?;
-        w.write_all(&self.block)?;
+        self.block.write_to(w)?;
         self.flag_a.write_to(w)?;
         self.flag_b.write_to(w)?;
         self.field_g.write_to(w)?;
@@ -334,7 +331,7 @@ impl QuickTimeEventInfoData {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_d")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_e")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_f")?)?;
-        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "block")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "block")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_g")?)?;

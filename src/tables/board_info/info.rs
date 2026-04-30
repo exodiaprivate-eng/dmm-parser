@@ -49,7 +49,9 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct BoardDataGroup<'a> {
-        pub spawn_percent: [u8; 8],
+        // Promoted [u8;8] → u64 — preserves any NaN bit patterns
+        // losslessly through JSON (u-types don't normalize NaN).
+        pub spawn_percent: u64,
         pub total_rate: u32,
         pub category: u8,
         pub name: LocalizableString<'a>,
