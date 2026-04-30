@@ -87,17 +87,22 @@ X       var     struct_section     u32_le count + count × 144-byte NamedItemStr
 Y       var     sub_elements       K × SUB bytes  (K implicit: (mc_off − Y) ÷ SUB)
 mc_off  4       inner_map_count    u32_le  (IDA: CArray<{u32 key, EffectDataInner}> count)
 mc_off+4  n×364   inner_map_elems  n × 364-byte inner_map entry (key + EffectDataInner)
-end−8   4       MeshEffectData count  u32_le  (IDA: CArray<MeshEffectData>; 50 bytes each)
-end−4   m×50    mesh_elements        real mesh data (50 bytes/element per IDA sub_1410DBD90)
-end     8       {0,0,0,0,0,0,0,0}  trailing zeros
+end−8   8       {0,0,0,0,0,0,0,0}  trailing zeros (= inner_map_count=0 + mesh_count=0
+                                    when no mesh; see IDA note below)
 ```
 
+> **IDA-reality note:** Per `info.rs`, the actual blob wire format is
+> `[effect_count(4)][EffectDataElement(var)][mesh_count(4)][m×50 MeshEffectData]`.
+> The empirical "8 trailing zeros" = the inner_map CArray count (last 4 bytes of
+> EffectDataElement, = 0 when n=0) plus the outer mesh_count (= 0 when m=0). For
+> entries with m>0 real mesh elements the trailing section is
+> `[inner_map_count=0][mesh_count=m][m×50 bytes]` — not all zeros.
+>
 > **Naming note:** Early empirical analysis (and Snow's external doc) called the 364-byte
 > chunks "MeshEffectData." Per IDA they are `inner_map` entries: `u32 key +
-> EffectDataInner`. The 364-byte wire size holds when all of EffectDataInner's CArrays are
-> empty. Real `MeshEffectData` per IDA `sub_1410DBD90` is 50 bytes:
-> `u8 + 8×u32 + u8 + 4×u32` (lookups). The two fields appear sequentially after the
-> EffectDataElement's variable-length body; the layout above reflects this.
+> EffectDataInner`. The 364-byte wire size holds when all of EffectDataInner's embedded
+> CArrays are empty. Real `MeshEffectData` per IDA `sub_1410DBD90` is 50 bytes:
+> `u8 + 8×u32 + u8 + 4×u32` (lookups).
 
 Where per-version constants are:
 
@@ -122,10 +127,13 @@ mc_off = Y + K × SUB   (solve from blob_size: see mc_off detection below)
 ```
 
 **mc_off detection** — two-step: (1) iterate candidate `n` (inner_map count) from
-largest to smallest; for each, compute `mc_off = blob_size − 8 − 4 − n×364`; check
+largest to smallest; for each, compute `mc_off = blob_size − 8 − n×364`; check
 that `u32_le(blob, mc_off) == n`. (2) verify `(mc_off − Y) % SUB == 0`.
 The divisibility check is required to avoid false positives: when inner_map data
 happens to be zero at a candidate mc_off, step (1) alone gives wrong n.
+For entries with real mesh (m>0) the blob is longer by `m×50` — `find_mesh_split`
+in `info.rs` locates the mesh boundary first, then mc_off detection runs on the
+effect-data sub-slice.
 
 ---
 
@@ -465,14 +473,16 @@ constant `0xeac5` values. The two fully-variable fields are effectively:
 
 | dump      | entries | parsed | failures | failure sizes |
 |-----------|---------|--------|----------|---------------|
-| 2026-4-11 | 2039    | ~2036  | 3        | 361×2 (TypeA-equiv), 806×1, 1788×1 (TypeC-equiv) |
+| 2026-4-11 | 2039    | ~2035  | ~5       | 361×2, 806×1, 1356×2, 1723×1, 2074×1 (sizes +1 from original; not re-classified) |
 | 2026-4-24 | 2057    | 2054   | 3        | 832×1 (TypeA), 1788×1 (TypeC), 2152×1 (TypeC) |
 
-Each failure size is exactly 13 more than the 4-11 counterpart, confirming the
-13-byte per-entry growth. Types B, D, and E are standard after the FP=300 correction:
+4-24 failure sizes are exactly 13 more than their 4-11 counterparts. Types B, D, and E
+are standard after the FP=300 correction:
 - Type B (374-byte) = standard mesh=1 (one 50-byte MeshEffectData)
 - Type D (2536-byte) = standard K=7 sub-elements
 - Type E (1416-byte) = standard inner_map=3
+
+4-11 failure classification not re-verified after FP correction; some may also resolve.
 
 ---
 
