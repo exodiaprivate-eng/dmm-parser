@@ -1792,7 +1792,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_GetDataDefinedRegenerateStat(ConditionData_GetDataDefinedRegenerateStatPayload),
     ConditionData_HasLootItem,
     ConditionData_CheckHasImportantItem(OneByteBodyPayload),
-    ConditionData_IsFocusActor,
+    ConditionData_IsFocusActor(OneByteBodyPayload),
     ConditionData_IsLootable,
     ConditionData_CheckMoneyForBuyingStock(OneByteBodyPayload),
     ConditionData_CheckAction(ConditionData_CheckActionPayload),
@@ -2202,7 +2202,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetDataDefinedRegenerateStat(_) => 24,
             Self::ConditionData_HasLootItem => 25,
             Self::ConditionData_CheckHasImportantItem(_) => 26,
-            Self::ConditionData_IsFocusActor => 27,
+            Self::ConditionData_IsFocusActor(_) => 27,
             Self::ConditionData_IsLootable => 28,
             Self::ConditionData_CheckMoneyForBuyingStock(_) => 29,
             Self::ConditionData_CheckAction(_) => 30,
@@ -2615,7 +2615,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetDataDefinedRegenerateStat(_) => "ConditionData_GetDataDefinedRegenerateStat",
             Self::ConditionData_HasLootItem => "ConditionData_HasLootItem",
             Self::ConditionData_CheckHasImportantItem(_) => "ConditionData_CheckHasImportantItem",
-            Self::ConditionData_IsFocusActor => "ConditionData_IsFocusActor",
+            Self::ConditionData_IsFocusActor(_) => "ConditionData_IsFocusActor",
             Self::ConditionData_IsLootable => "ConditionData_IsLootable",
             Self::ConditionData_CheckMoneyForBuyingStock(_) => "ConditionData_CheckMoneyForBuyingStock",
             Self::ConditionData_CheckAction(_) => "ConditionData_CheckAction",
@@ -3029,7 +3029,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetDataDefinedRegenerateStat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_HasLootItem => {}
             Self::ConditionData_CheckHasImportantItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_IsFocusActor => {}
+            Self::ConditionData_IsFocusActor(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsLootable => {}
             Self::ConditionData_CheckMoneyForBuyingStock(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckAction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3450,7 +3450,7 @@ impl<'a> ConditionDataVariant<'a> {
             24 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetDataDefinedRegenerateStat: missing body object"))?; ConditionData_GetDataDefinedRegenerateStatPayload::write_from_json_dict(w, body)?; }
             25 => {}
             26 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHasImportantItem: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
-            27 => {}
+            27 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsFocusActor: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             28 => {}
             29 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMoneyForBuyingStock: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             30 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAction: missing body object"))?; ConditionData_CheckActionPayload::write_from_json_dict(w, body)?; }
@@ -3865,7 +3865,7 @@ impl<'a> ConditionDataVariant<'a> {
             24 => Self::ConditionData_GetDataDefinedRegenerateStat(ConditionData_GetDataDefinedRegenerateStatPayload::read_from(data, offset)?),
             25 => Self::ConditionData_HasLootItem,
             26 => Self::ConditionData_CheckHasImportantItem(OneByteBodyPayload::read_from(data, offset)?),
-            27 => Self::ConditionData_IsFocusActor,
+            27 => Self::ConditionData_IsFocusActor(OneByteBodyPayload::read_from(data, offset)?),
             28 => Self::ConditionData_IsLootable,
             29 => Self::ConditionData_CheckMoneyForBuyingStock(OneByteBodyPayload::read_from(data, offset)?),
             30 => Self::ConditionData_CheckAction(ConditionData_CheckActionPayload::read_from(data, offset)?),
@@ -4276,7 +4276,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetDataDefinedRegenerateStat(p) => p.write_to(w),
             Self::ConditionData_HasLootItem => Ok(()),
             Self::ConditionData_CheckHasImportantItem(p) => p.write_to(w),
-            Self::ConditionData_IsFocusActor => Ok(()),
+            Self::ConditionData_IsFocusActor(p) => p.write_to(w),
             Self::ConditionData_IsLootable => Ok(()),
             Self::ConditionData_CheckMoneyForBuyingStock(p) => p.write_to(w),
             Self::ConditionData_CheckAction(p) => p.write_to(w),
