@@ -79,6 +79,7 @@
 
 use crate::binary::*;
 use crate::binary::variants::gimmick_interaction_override::GimmickInteractionOverrideCArray;
+use crate::binary::variants::trigger_gameplay_event_handler_data::OptionalTriggerGamePlayEventHandlerData;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -119,6 +120,11 @@ pub enum GimmickTail<'a> {
         dev_memo: CString<'a>,
         hash_pair_list: CArray<GimmickHashPair<'a>>,    // sub_141104D20
         hash_single_list: CArray<GimmickHashSingle<'a>>, // sub_141102990
+        /// sub_1411125E0 — `CArray<COptional<TriggerGamePlayEventHandlerData>>`.
+        /// Decoded when the typed reader cleanly consumes the bytes; falls
+        /// back to leaving these bytes inside `post_blob` if any TGPEHD
+        /// variant decode under/over-reads.
+        trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData<'a>>>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -147,6 +153,13 @@ impl<'a> GimmickTail<'a> {
         })();
         match try_decode {
             Ok((list, ui, sp, pl, gnh, gn, eti, dm, hpl, hsl)) => {
+                // Try to type field 17 (CArray<COptional<TGPEHD>>); fall back
+                // to leaving it in post_blob if any sub-decode misaligns.
+                let pre_tgpehd = probe;
+                let trigger_event_handler_list = match <CArray<OptionalTriggerGamePlayEventHandlerData>>::read_from(data, &mut probe) {
+                    Ok(arr) if probe <= entry_end => Some(arr),
+                    _ => { probe = pre_tgpehd; None }
+                };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -160,6 +173,7 @@ impl<'a> GimmickTail<'a> {
                     dev_memo: dm,
                     hash_pair_list: hpl,
                     hash_single_list: hsl,
+                    trigger_event_handler_list,
                     post_blob,
                 })
             }
@@ -177,7 +191,8 @@ impl<'a> GimmickTail<'a> {
                 use_interaction_ui_socket, use_sub_part_for_interaction,
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
-                hash_pair_list, hash_single_list, post_blob } => {
+                hash_pair_list, hash_single_list,
+                trigger_event_handler_list, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -188,6 +203,9 @@ impl<'a> GimmickTail<'a> {
                 dev_memo.write_to(w)?;
                 hash_pair_list.write_to(w)?;
                 hash_single_list.write_to(w)?;
+                if let Some(arr) = trigger_event_handler_list {
+                    arr.write_to(w)?;
+                }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -200,7 +218,8 @@ impl<'a> GimmickTail<'a> {
                 use_interaction_ui_socket, use_sub_part_for_interaction,
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
-                hash_pair_list, hash_single_list, post_blob } => {
+                hash_pair_list, hash_single_list,
+                trigger_event_handler_list, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -214,6 +233,10 @@ impl<'a> GimmickTail<'a> {
                 m.insert("dev_memo".to_string(), dev_memo.to_json_value());
                 m.insert("hash_pair_list".to_string(), hash_pair_list.to_json_value());
                 m.insert("hash_single_list".to_string(), hash_single_list.to_json_value());
+                m.insert("trigger_event_handler_list".to_string(), match trigger_event_handler_list {
+                    Some(arr) => arr.to_json_value(),
+                    None => Value::Null,
+                });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -248,6 +271,10 @@ impl<'a> GimmickTail<'a> {
                 <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_memo")?)?;
                 <CArray<GimmickHashPair> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_pair_list")?)?;
                 <CArray<GimmickHashSingle> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_single_list")?)?;
+                let teh = json_get_field(obj, "trigger_event_handler_list")?;
+                if !teh.is_null() {
+                    <CArray<OptionalTriggerGamePlayEventHandlerData> as WriteJsonValue>::write_from_json(w, teh)?;
+                }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                         "GimmickTail.Decoded._post_blob_b64: expected string"))?;

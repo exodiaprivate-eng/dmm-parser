@@ -29,6 +29,7 @@ pub mod elemental_material;
 pub mod special_mode;
 pub mod store_data;
 pub mod interaction_data;
+pub mod trigger_gameplay_event_handler_data;
 
 #[cfg(test)]
 mod validate_buffdata;
