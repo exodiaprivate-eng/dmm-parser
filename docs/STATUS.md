@@ -1,6 +1,6 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-04-29
+**Last updated**: 2026-04-30
 **Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
 
@@ -188,6 +188,35 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
   consumption.
 - ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated
   debug entries in the source data; not worth chasing.
+
+### Stream-mode GameCondition (blocks 5 Tier 1.5 tables)
+**Issue**: Tables that embed `sub_141103B30` in CArray context
+(character_info, gimmick_info, interaction_info, stage_info,
+global_stage_sequencer_info) cannot use the same slice-bounded
+GameCondition decoder that works for ConditionInfo. In stream mode,
+GameConditionNode::read_from must consume an EXACT number of bytes; if
+a single ConditionData variant size is off, the recursive walk
+misaligns and downstream reads fail (often with Utf8Error in CString,
+or unknown case_tag for invalid bytes).
+
+**Verified**: byte-walking the GameCondition tree in interaction_info
+entry 0 fails at offset 0x17b with case_tag=71 (invalid for GameCondition
+which only has cases 0-8). This is downstream of variant size
+miscalculation somewhere earlier in the walk.
+
+**Architectural fix needed** (one of):
+1. Verify all 366 ConditionData variant payload sizes against the IDA
+   decompile of each variant's reader (some variants like
+   ConditionData_CheckActionAttribute = 17 bytes per the struct
+   definition might actually consume different bytes per the dispatcher).
+2. Add a Raw-bytes fallback wrapper that captures opaque GameCondition
+   bytes when typed decode fails, with explicit byte-extent tracking
+   from the consumer (entry boundary).
+3. Reverse-engineer separate per-consumer dispatcher tables in case
+   stream-mode tables use a different ConditionData variant set.
+
+Until any of (1)-(3) is resolved, the 5 Tier 1.5 tables remain at
+typed-prefix + tail_blob.
 
 ---
 
