@@ -6,9 +6,14 @@
 
 > **Active work (instance A, lane-A — `dmm-parser/`):** ConditionData
 > per-tag recipe verification against Win-IDA, driven by the
-> `interaction_info::diag_raw_entries` failure histogram. Goal:
-> eliminate the 50 Raw-fallback entries on interaction_info and
-> promote it to full Tier 1.
+> `interaction_info::diag_raw_entries` failure histogram. Original
+> goal was to eliminate the 50-ish Raw-fallback entries on
+> interaction_info; **achieved**: down to **3 / 363 Raw** (99.2%
+> Decoded). The remaining 3 (tag 54 ×1, tag 214 ×2) are genuine
+> anti-disassembly readers — RTTI is present but vtables aren't
+> findable in IDA. Continuing with doc-drift cleanup across STATUS.md,
+> PARALLEL_LANES.md, condition_data.rs comments, and module
+> docstrings to keep the lane state synchronized.
 >
 > **Local-only commits** — per user directive, do NOT push until all
 > tables are field-level parsed. The remote `origin/main` is currently
