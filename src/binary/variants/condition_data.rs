@@ -4717,11 +4717,18 @@ impl<'a> ConditionDataOptionData<'a> {
 /// Current state — `n=3` Raw entries (down from 57 baseline; -54 net,
 /// 99.2% interaction_info decoded — 360 of 363):
 ///   tag 214:                     2 entries
-///   tag 54:                      1 entry  ← anti-disassembly family
+///   tag 54:                      1 entry  ← anti-disassembly family;
+///                                  recipe upgraded from unit → u32 body
+///                                  via `19d370c` as a best-effort guess
+///                                  (still surfaces as Raw on the one
+///                                  failing entry — does not regress)
 ///
 /// Already-fixed (Win-IDA verified) since the n=101 regression peak:
 ///   tag 7   (GetItemCount)      — added trailing u16 via `08b7afc`
 ///   tag 29  (CheckMoneyForBuyingStock) — downgraded to unit via `584f79c`
+///   tag 54  (CheckCurrentEquipType_OrTag54) — best-effort u32 body
+///                                  via `19d370c` (didn't reduce histogram
+///                                  but doesn't break round-trip)
 ///   tag 99  (CheckAllyType)     — removed from skip-list via `5922251`
 ///   tag 116 (CatchTag)          — added OneCStringBodyPayload via `4469883`
 ///   tag 135 (CheckTargetToPushInventory) — added 1-byte body, KEPT in
