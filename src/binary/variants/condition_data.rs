@@ -4712,29 +4712,33 @@ impl<'a> ConditionDataOptionData<'a> {
 /// `[u8 option_present][optional ConditionDataOptionData]` block.
 ///
 /// ## Failure histogram (from `interaction_info::diag_raw_entries`,
-/// captured 2026-04-30 — running tally; latest re-run after tag 7/99 fix):
+/// captured 2026-04-30):
 ///
-/// Current state — `n=3` Raw entries (down from 57 baseline; -54 net,
-/// 99.2% interaction_info decoded — 360 of 363):
-///   tag 214:                     2 entries
-///   tag 54:                      1 entry  ← anti-disassembly family;
-///                                  recipe upgraded from unit → u32 body
-///                                  via `19d370c` as a best-effort guess
-///                                  (still surfaces as Raw on the one
-///                                  failing entry — does not regress)
+/// Current state — `n=0` Raw entries on interaction_info (100%
+/// decoded, 363 of 363); condition_info 8918/8934 = 99.82%.
 ///
-/// Already-fixed (Win-IDA verified) since the n=101 regression peak:
+/// Anti-disasm-family tags 54 and 214 were resolved via the **Mac
+/// binary** (CrimsonDesert_Steam.app), where the vtables are not
+/// stripped. Itanium ABI vtable layout has TWO destructor slots vs
+/// MSVC's one, so vfn[16]=writer and vfn[17]=reader on Mac (vs
+/// vfn[16]=reader on Win). Verified against tag 7 (GetItemCount)
+/// where the Win-known body matched Mac's vfn[17].
+///
+/// Already-fixed since the n=101 regression peak:
 ///   tag 7   (GetItemCount)      — added trailing u16 via `08b7afc`
 ///   tag 29  (CheckMoneyForBuyingStock) — downgraded to unit via `584f79c`
-///   tag 54  (CheckCurrentEquipType_OrTag54) — best-effort u32 body
-///                                  via `19d370c` (didn't reduce histogram
-///                                  but doesn't break round-trip)
+///   tag 54  (CheckCurrentEquipType_OrTag54) — Mac vfn[17] = `0x100FBEB78`
+///                                  reads 2× u32 → TwoU32BodyPayload
 ///   tag 99  (CheckAllyType)     — removed from skip-list via `5922251`
 ///   tag 116 (CatchTag)          — added OneCStringBodyPayload via `4469883`
 ///   tag 135 (CheckTargetToPushInventory) — added 1-byte body, KEPT in
 ///                                  skip-list via `93cc34d`; cleared all
 ///                                  18 entries
 ///   tag 174 (CheckRider)        — restored 1-byte body via `8f01078`
+///   tag 214 (CheckExistStealItem) — Mac vfn[17] = `0x100FF106C`,
+///                                  delegates to `sub_10101FB50`
+///                                  (CArray<u16> reader) → ItemGroupKey
+///                                  list. New `CheckExistStealItemPayload`.
 ///   tag 358 (CheckMercenaryType)— added OneByteBodyPayload via `147fd7f`
 ///   tag 360 (CheckTargetDropListToPushInventory) — 1-byte body via `2102303`
 ///   tag 370 (CheckOwnershipState) — 1-byte body, KEPT in skip-list via `41bc97f`
