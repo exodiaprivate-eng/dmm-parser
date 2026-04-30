@@ -72,6 +72,14 @@ fn main() {
     let mut field_72_typed = 0usize;
     let mut field_73_typed = 0usize;
     let mut field_74_typed = 0usize;
+    let mut field_75_typed = 0usize;
+    let mut field_76_typed = 0usize;
+    let mut field_77_typed = 0usize;
+    let mut field_78_typed = 0usize;
+    let mut field_79_typed = 0usize;
+    let mut field_80_typed = 0usize;
+    let mut field_81_typed = 0usize;
+    let mut field_82_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -140,6 +148,14 @@ fn main() {
                 field_72_u32,
                 field_73_u32,
                 field_74_u32,
+                field_75_u32,
+                field_76_u32,
+                field_77_u32,
+                field_78_u32,
+                field_79_u32,
+                field_80_u32,
+                field_81_u32,
+                field_82_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -201,6 +217,14 @@ fn main() {
                 if field_72_u32.is_some() { field_72_typed += 1; }
                 if field_73_u32.is_some() { field_73_typed += 1; }
                 if field_74_u32.is_some() { field_74_typed += 1; }
+                if field_75_u32.is_some() { field_75_typed += 1; }
+                if field_76_u32.is_some() { field_76_typed += 1; }
+                if field_77_u32.is_some() { field_77_typed += 1; }
+                if field_78_u32.is_some() { field_78_typed += 1; }
+                if field_79_u32.is_some() { field_79_typed += 1; }
+                if field_80_u32.is_some() { field_80_typed += 1; }
+                if field_81_u32.is_some() { field_81_typed += 1; }
+                if field_82_u32.is_some() { field_82_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -262,7 +286,10 @@ fn main() {
     println!("Field 66 (field_66_u32 = f32 1.0)     typed:     {} / {}", field_66_typed, decoded);
     for (i, count) in [(67usize, field_67_typed), (68, field_68_typed), (69, field_69_typed),
                        (70, field_70_typed), (71, field_71_typed), (72, field_72_typed),
-                       (73, field_73_typed), (74, field_74_typed)] {
+                       (73, field_73_typed), (74, field_74_typed),
+                       (75, field_75_typed), (76, field_76_typed), (77, field_77_typed),
+                       (78, field_78_typed), (79, field_79_typed), (80, field_80_typed),
+                       (81, field_81_typed), (82, field_82_typed)] {
         println!("Field {} (field_{}_u32)                  typed:     {} / {}", i, i, count, decoded);
     }
 
