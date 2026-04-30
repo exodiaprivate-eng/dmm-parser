@@ -85,6 +85,13 @@ This file is for collaborators picking up round-trip work. It's the
   entries (typed decode for 99.8%, raw-bytes fallback for 0.2%)
 
 ### Recent Tier 1 promotions (lane-c)
+- `FilterConditionBlock.raw_block` — `[u8; 12]` → 3× named u32
+  (`raw_block_dword_{0..2}`). 16-byte vmovups inline element of
+  FilterCondition's third CArray; STATUS documents the leading 12 bytes
+  as Vec3 + u32. Split as 3 named u32 dwords (NaN-safe, JSON-addressable)
+  per the same precedent as CharacterChartEntry.block_a_dword_*.
+  Quest_info roundtrip + json_roundtrip + 308/308 full suite pass.
+  (lane-c, 2026-04-30)
 - `QuestInfo.quest_dialog_filter_data_list` — wired to consume the
   FilterCondition family decoder (binary::variants::filter_condition,
   shipped by lane-b). Replaced `quest_dialog_filter_data_list_blob: Vec<u8>`

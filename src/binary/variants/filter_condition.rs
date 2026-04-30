@@ -163,10 +163,18 @@ pub struct FilterCondition {
 }
 
 py_binary_struct! {
-    /// 16-byte inline element of the third CArray in FilterCondition:
-    /// 12 raw bytes + u32. Per IDA, written via vmovups (full 16 bytes).
+    /// 16-byte inline element of the third CArray in FilterCondition.
+    /// Wire: 3× u32 dword + u32. Per IDA, written via vmovups (full
+    /// 16 bytes). STATUS.md documents the leading 12 bytes as a Vec3
+    /// (likely a position/region center); split here as 3 named u32
+    /// dwords to preserve any NaN bit patterns and provide JSON
+    /// addressability without committing to f32 semantics
+    /// (lane-c, 2026-04-30 — same precedent as
+    /// CharacterChartEntry.block_a_dword_*).
     pub struct FilterConditionBlock {
-        pub raw_block: [u8; 12],
+        pub raw_block_dword_0: u32,
+        pub raw_block_dword_1: u32,
+        pub raw_block_dword_2: u32,
         pub raw_u32: u32,
     }
 }
