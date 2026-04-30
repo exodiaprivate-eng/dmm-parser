@@ -598,9 +598,15 @@ baseline(324) + 3×364(inner_map). Standard layout; no special handling required
    "unique per-entry ID" interpretation was an artefact of reading lc[0] as two u16s in
    isolation.
 
-3. **inner_map slot directory hashes** — the slot_k hashes in InnerMapElement[0] are
-   external asset IDs: confirmed NOT blob keys within effectinfo.pabgb (0 hits out of
-   233 cross-referenced). Likely mesh/model asset IDs pointing into a different archive.
+3. ~~**inner_map slot directory hashes**~~ **Resolved**: `InnerMapEntry.key` (the u32 map
+   key stored at `mc_off+4 + n×364`) is a **Crimson Desert Jenkins hashlittle2 hash of a
+   skeleton bone name** (init = `length + 0xDEBA1DCD`, returns `c`). The same value is
+   redundantly stored as `EffectDataInner.field_0` (first u32 of the inner body). 9 of 168
+   unique keys were cross-verified against `stringinfo.pabgb`: all decode to Biped
+   skeleton bones (`Bip_Sphere_01`, `Bip_Spine_03/04/05`, `Bip_Spin_01..05` for the Kutum
+   boss entry). The remaining 159 unique keys are almost certainly additional bone names
+   not present in `stringinfo`. Confirmed NOT blob keys within effectinfo.pabgb (0 hits);
+   the "different archive" hypothesis was wrong — these are inline skeleton attachments.
 
 4. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
 
