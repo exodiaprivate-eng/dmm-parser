@@ -78,6 +78,10 @@
 //!      ← TAIL STARTS HERE
 //! 104. (tail, conditional) when flag_91 == 0: sub_141105AC0 reads u32
 //!      wire / u16 mem at +442. When flag_91 != 0, this read is SKIPPED.
+//!      Vanilla distribution: flag_91 == 0 (2035 entries), flag_91 == 2
+//!      (4931 entries). Promotion past field 103 requires manual impl
+//!      to dispatch on flag_91 — pabgh_typed_blob_table macro can't
+//!      express conditional reads.
 //! 105. (tail) sub_141100C20 — u16 wire / u16 mem at +444
 //! 106. (tail) 2 raw bytes (u16) at +446
 //! 107. (tail) u8 at +448
