@@ -2123,7 +2123,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsItem,
     ConditionData_IsTargetOfOperatorDockingGimmick(ConditionData_IsTargetOfOperatorDockingGimmickPayload),
     ConditionData_CheckMercenaryOccupationState,
-    ConditionData_CheckMercenaryType,
+    ConditionData_CheckMercenaryType(OneByteBodyPayload),
     ConditionData_IsPassableState,
     ConditionData_CheckTargetDropListToPushInventory(OneByteBodyPayload),
     ConditionData_IsMiniGameBanned,
@@ -2533,7 +2533,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsItem => 355,
             Self::ConditionData_IsTargetOfOperatorDockingGimmick(_) => 356,
             Self::ConditionData_CheckMercenaryOccupationState => 357,
-            Self::ConditionData_CheckMercenaryType => 358,
+            Self::ConditionData_CheckMercenaryType(_) => 358,
             Self::ConditionData_IsPassableState => 359,
             Self::ConditionData_CheckTargetDropListToPushInventory(_) => 360,
             Self::ConditionData_IsMiniGameBanned => 361,
@@ -2946,7 +2946,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsItem => "ConditionData_IsItem",
             Self::ConditionData_IsTargetOfOperatorDockingGimmick(_) => "ConditionData_IsTargetOfOperatorDockingGimmick",
             Self::ConditionData_CheckMercenaryOccupationState => "ConditionData_CheckMercenaryOccupationState",
-            Self::ConditionData_CheckMercenaryType => "ConditionData_CheckMercenaryType",
+            Self::ConditionData_CheckMercenaryType(_) => "ConditionData_CheckMercenaryType",
             Self::ConditionData_IsPassableState => "ConditionData_IsPassableState",
             Self::ConditionData_CheckTargetDropListToPushInventory(_) => "ConditionData_CheckTargetDropListToPushInventory",
             Self::ConditionData_IsMiniGameBanned => "ConditionData_IsMiniGameBanned",
@@ -3360,7 +3360,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsItem => {}
             Self::ConditionData_IsTargetOfOperatorDockingGimmick(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckMercenaryOccupationState => {}
-            Self::ConditionData_CheckMercenaryType => {}
+            Self::ConditionData_CheckMercenaryType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsPassableState => {}
             Self::ConditionData_CheckTargetDropListToPushInventory(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsMiniGameBanned => {}
@@ -3781,7 +3781,7 @@ impl<'a> ConditionDataVariant<'a> {
             355 => {}
             356 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsTargetOfOperatorDockingGimmick: missing body object"))?; ConditionData_IsTargetOfOperatorDockingGimmickPayload::write_from_json_dict(w, body)?; }
             357 => {}
-            358 => {}
+            358 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMercenaryType: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             359 => {}
             360 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTargetDropListToPushInventory: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             361 => {}
@@ -4196,7 +4196,7 @@ impl<'a> ConditionDataVariant<'a> {
             355 => Self::ConditionData_IsItem,
             356 => Self::ConditionData_IsTargetOfOperatorDockingGimmick(ConditionData_IsTargetOfOperatorDockingGimmickPayload::read_from(data, offset)?),
             357 => Self::ConditionData_CheckMercenaryOccupationState,
-            358 => Self::ConditionData_CheckMercenaryType,
+            358 => Self::ConditionData_CheckMercenaryType(OneByteBodyPayload::read_from(data, offset)?),
             359 => Self::ConditionData_IsPassableState,
             360 => Self::ConditionData_CheckTargetDropListToPushInventory(OneByteBodyPayload::read_from(data, offset)?),
             361 => Self::ConditionData_IsMiniGameBanned,
@@ -4607,7 +4607,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsItem => Ok(()),
             Self::ConditionData_IsTargetOfOperatorDockingGimmick(p) => p.write_to(w),
             Self::ConditionData_CheckMercenaryOccupationState => Ok(()),
-            Self::ConditionData_CheckMercenaryType => Ok(()),
+            Self::ConditionData_CheckMercenaryType(p) => p.write_to(w),
             Self::ConditionData_IsPassableState => Ok(()),
             Self::ConditionData_CheckTargetDropListToPushInventory(p) => p.write_to(w),
             Self::ConditionData_IsMiniGameBanned => Ok(()),
