@@ -238,7 +238,12 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 
 ---
 
-## What just shipped (this session, all in `origin/main`)
+## What just shipped (older session — see Active state banner above for current 2026-04-30 work)
+
+> Note: as of the current session local `main` is ~48 commits ahead of
+> `origin/main` per the user's no-push directive. The chronological
+> list below is from a prior session; the 2026-04-30 work is
+> summarized in the "Session results" block at the top of this file.
 
 ```
 GameEventHandlerData: ship Tier 1 family decoder + wire GameEventHandlerInfo
