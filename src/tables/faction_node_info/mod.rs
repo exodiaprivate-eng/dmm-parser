@@ -1,1 +1,1 @@
-mod info; pub use info::FactionNodeInfo;
+pub mod info; pub use info::FactionNodeInfo;

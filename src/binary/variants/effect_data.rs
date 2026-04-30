@@ -24,12 +24,8 @@
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
-
-/// Wire size of one EffectDataD3Block (sub_1410D3DC0 record).
-const D3_BLOCK_SIZE: usize = 144;
 
 py_binary_struct! {
     /// 144-byte sub-block read by sub_1410D3DC0. Used both as the leading
@@ -311,116 +307,6 @@ pub struct EffectDataElement<'a> {
     pub nested_u32_lists: Vec<Vec<u32>>,
     /// `CArray<{u32 key, EffectDataInner value}>` — typed in this commit.
     pub inner_map: Vec<EffectDataInnerMapEntry<'a>>,
-}
-
-/// Walk a CArray<u32> wire layout and return its total byte size.
-fn walk_carray_u32(data: &[u8], offset: usize) -> io::Result<usize> {
-    if offset + 4 > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "carray u32 count"));
-    }
-    let n = u32::from_le_bytes(data[offset..offset+4].try_into().unwrap()) as usize;
-    let total = 4 + n * 4;
-    if offset + total > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "carray u32 body"));
-    }
-    Ok(total)
-}
-
-/// Walk a CArray<CString>.
-fn walk_carray_cstring(data: &[u8], offset: usize) -> io::Result<usize> {
-    if offset + 4 > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "carray cstring count"));
-    }
-    let n = u32::from_le_bytes(data[offset..offset+4].try_into().unwrap()) as usize;
-    let mut cur = offset + 4;
-    for _ in 0..n {
-        if cur + 4 > data.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "cstring length prefix"));
-        }
-        let len = u32::from_le_bytes(data[cur..cur+4].try_into().unwrap()) as usize;
-        cur += 4 + len;
-        if cur > data.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "cstring body"));
-        }
-    }
-    Ok(cur - offset)
-}
-
-/// Walk a CArray<{fixed N bytes}>.
-fn walk_carray_fixed(data: &[u8], offset: usize, item_size: usize) -> io::Result<usize> {
-    if offset + 4 > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "carray fixed count"));
-    }
-    let n = u32::from_le_bytes(data[offset..offset+4].try_into().unwrap()) as usize;
-    let total = 4 + n * item_size;
-    if offset + total > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "carray fixed body"));
-    }
-    Ok(total)
-}
-
-/// Walk `nested_u32_lists`: CArray<CArray<u32>>. Each outer element is
-/// just a nested CArray<u32> — no per-element key. Per sub_141116ED0
-/// reading sub_141101AB0 once per outer element.
-fn walk_nested_u32_lists(data: &[u8], offset: usize) -> io::Result<usize> {
-    if offset + 4 > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "nested u32 lists count"));
-    }
-    let n = u32::from_le_bytes(data[offset..offset+4].try_into().unwrap()) as usize;
-    let mut cur = offset + 4;
-    for _ in 0..n {
-        cur += walk_carray_u32(data, cur)?;
-    }
-    Ok(cur - offset)
-}
-
-/// Walk one EffectDataInner record (sub_1410DB840).
-fn walk_effect_data_inner(data: &[u8], offset: usize) -> io::Result<usize> {
-    let mut cur = offset;
-    // u32 prefix
-    cur += 4;
-    // sub_1410D4110 block: 254 bytes fixed
-    cur += 254; // EffectDataCoreBlock fixed wire size
-    // 6 × read_u32_lookup_DA30 (4 bytes each)
-    cur += 24;
-    // sub_141102990: CArray<u32-lookup-as-u16>. Per sub_1410A9D40, each
-    // element is a CString-style record (u32 len + len bytes that get
-    // hashed at runtime), NOT a fixed-4-byte u32 — the v11-byte seek
-    // forward in the reader is the giveaway.
-    cur += walk_carray_cstring(data, cur)?;
-    // sub_141102A60: CArray<f32> (4 bytes per element)
-    cur += walk_carray_u32(data, cur)?;
-    // 12 + 12 + 12 + 12 + 4 = 52 bytes of vectors
-    cur += 52;
-    // sub_14106BAC0: CArray<CString>
-    cur += walk_carray_cstring(data, cur)?;
-    // sub_141117080: CArray<EffectDataD3Block>  (144-byte fixed records)
-    cur += walk_carray_fixed(data, cur, D3_BLOCK_SIZE)?;
-    // 2-byte trailing field
-    cur += 2;
-    if cur > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "effect data inner overran"));
-    }
-    Ok(cur - offset)
-}
-
-/// Walk inner_map: CArray<{u32 key, EffectDataInner value}>.
-fn walk_inner_map(data: &[u8], offset: usize) -> io::Result<usize> {
-    if offset + 4 > data.len() {
-        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "inner_map count"));
-    }
-    let n = u32::from_le_bytes(data[offset..offset+4].try_into().unwrap()) as usize;
-    let mut cur = offset + 4;
-    for _ in 0..n {
-        // u32 key
-        if cur + 4 > data.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "inner_map key"));
-        }
-        cur += 4;
-        // EffectDataInner value
-        cur += walk_effect_data_inner(data, cur)?;
-    }
-    Ok(cur - offset)
 }
 
 impl<'a> EffectDataElement<'a> {

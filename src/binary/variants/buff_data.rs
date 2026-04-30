@@ -5,19 +5,18 @@
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-/// Shared 28-byte BuffData value block (sub_141E2BB80). Wire reads
-/// u64 + u64 + u64 + u32 in order. Used as a recurring sub-record
-/// across DamageBuffData (3×), VaryRegenerateValueBuffData,
-/// AdditionalRegenerateValueBuffData, and other variants.
-///
-/// The runtime types of these fields aren't recovered yet; keeping
-/// them as integer primitives preserves the bit pattern losslessly
-/// (mod authors can reinterpret as f64/f32 if needed).
 py_binary_struct! {
+    /// Shared 28-byte BuffData value block (sub_141E2BB80). Wire reads
+    /// u64 + u64 + u64 + u32 in order. Used as a recurring sub-record
+    /// across DamageBuffData (3×), VaryRegenerateValueBuffData,
+    /// AdditionalRegenerateValueBuffData, and other variants.
+    ///
+    /// The runtime types of these fields aren't recovered yet; keeping
+    /// them as integer primitives preserves the bit pattern losslessly
+    /// (mod authors can reinterpret as f64/f32 if needed).
     pub struct BuffDataValueBlock {
         pub field_0: u64,
         pub field_8: u64,
@@ -276,20 +275,17 @@ py_binary_struct! {
     }
 }
 
-/// SummonBuffData (tag 10): full variant tail per IDA sub_1419DD000 + sub_1410F7440.
-/// vftable @ 0x144C72038. 392-byte allocation. Variant tail layout:
-///   sub_1410F7440 reads ~35 stream items into struct at offset +144 of object.
-///   Then outer reader sub_1419DD000 appends u8 + u32 + u32 (this+376/380/384).
-///
-/// The GameCondition optional inside sub_141103B30 is captured as opaque bytes
-/// (parsed via GameConditionNode to determine length, then stored verbatim from
-/// the input buffer for byte-perfect round-trip independent of GameCondition
-/// parser bugs).
 py_binary_struct! {
-    /// SummonBuffData payload — 41 typed fields. paired_lookups is a
-    /// CArray<u32> of paired u16 lookups (sub_1411003E0 +
-    /// sub_1410FF220). game_condition_opt is sub_141103B30:
-    /// u8 presence + (if !0: GameConditionNode tree + 3 trailer u8s).
+    /// SummonBuffData (tag 10): full variant tail per IDA sub_1419DD000
+    /// + sub_1410F7440. vftable @ 0x144C72038. 392-byte allocation.
+    /// Variant tail: sub_1410F7440 reads ~35 stream items into struct
+    /// at offset +144 of object. Then outer reader sub_1419DD000
+    /// appends u8 + u32 + u32 (this+376/380/384).
+    ///
+    /// 41 typed fields. paired_lookups is a CArray<u32> of paired u16
+    /// lookups (sub_1411003E0 + sub_1410FF220). game_condition_opt is
+    /// sub_141103B30: u8 presence + (if !0: GameConditionNode tree +
+    /// 3 trailer u8s) — fully typed via `GameConditionOptional`.
     /// u8_outer_376 / u32_outer_380 / u32_outer_384 are the outer
     /// wrapper bytes appended by sub_1419DD000 after sub_1410F7440
     /// returns.
@@ -707,15 +703,35 @@ impl ImmuneBuffDataPayload {
         let mut m = Map::new();
         m.insert("header_tag".into(), self.header_tag.to_json_value());
         m.insert("flag".into(), self.flag.to_json_value());
+        // entries.body is decoded into a typed JSON array of integers
+        // sized by header_tag's element width. tag 4 emits an empty
+        // array (zero-byte stride).
+        let body = &self.entries.1;
+        let body_arr: Vec<Value> = match self.header_tag {
+            0 => body.iter().map(|&b| Value::from(b as u64)).collect(),
+            1 | 2 | 3 => body.chunks_exact(4)
+                .map(|c| Value::from(u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u64))
+                .collect(),
+            4 => Vec::new(),
+            5 => body.chunks_exact(8)
+                .map(|c| Value::from(u64::from_le_bytes(
+                    [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]])))
+                .collect(),
+            _ => Vec::new(),
+        };
         let mut em = Map::new();
         em.insert("count".into(), self.entries.0.to_json_value());
-        em.insert("body_b64".into(), Value::String(B64.encode(&self.entries.1)));
+        em.insert("body".into(), Value::Array(body_arr));
         m.insert("entries".into(), Value::Object(em));
         m.insert("trailing".into(), self.trailing.to_json_value());
         m
     }
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_tag")?)?;
+        let header_tag = json_get_field(obj, "header_tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ImmuneBuffData.header_tag: expected u8"))? as u8;
+        header_tag.write_to(w)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)?;
         let entries_v = json_get_field(obj, "entries")?;
         let entries_obj = entries_v.as_object().ok_or_else(|| io::Error::new(
@@ -723,15 +739,25 @@ impl ImmuneBuffDataPayload {
             "ImmuneBuffData.entries: expected object",
         ))?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(entries_obj, "count")?)?;
-        let body_str = json_get_field(entries_obj, "body_b64")?.as_str().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::InvalidData,
-                "ImmuneBuffData.entries.body_b64: expected base64 string")
-        })?;
-        let body_bytes = B64.decode(body_str).map_err(|e| io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("ImmuneBuffData.entries.body_b64: {}", e),
-        ))?;
-        w.extend_from_slice(&body_bytes);
+        let body_arr = json_get_field(entries_obj, "body")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ImmuneBuffData.entries.body: expected array"))?;
+        for v in body_arr {
+            let n = v.as_u64().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ImmuneBuffData.entries.body: element must be u64",
+            ))?;
+            match header_tag {
+                0 => w.push(n as u8),
+                1 | 2 | 3 => w.extend_from_slice(&(n as u32).to_le_bytes()),
+                4 => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    "ImmuneBuffData header_tag=4 must have empty body")),
+                5 => w.extend_from_slice(&n.to_le_bytes()),
+                _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("unknown header_tag {}", header_tag))),
+            }
+        }
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing")?)?;
         Ok(())
     }
@@ -1251,33 +1277,41 @@ impl AdditionalUseResourceStatBuffDataPayload {
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("f00".into(), self.f00.to_json_value());
+        // Each entry is a 22-byte fixed-size opaque record exposed as an
+        // array of 22 u8 integers — fully byte-addressable through JSON.
         let entries: Vec<Value> = self.f01.iter()
-            .map(|b| Value::String(B64.encode(b)))
+            .map(|b| Value::Array(b.iter().map(|&x| Value::from(x as u64)).collect()))
             .collect();
-        m.insert("f01_entries_b64".into(), Value::Array(entries));
+        m.insert("f01_entries".into(), Value::Array(entries));
         m
     }
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "f00")?)?;
-        let arr = json_get_field(obj, "f01_entries_b64")?
+        let arr = json_get_field(obj, "f01_entries")?
             .as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "AdditionalUseResourceStat.f01_entries_b64: expected array"))?;
+                "AdditionalUseResourceStat.f01_entries: expected array"))?;
         (arr.len() as u32).write_to(w)?;
         for (i, item) in arr.iter().enumerate() {
-            let s = item.as_str().ok_or_else(|| io::Error::new(
+            let inner = item.as_array().ok_or_else(|| io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("AdditionalUseResourceStat.f01_entries_b64[{}]: expected base64 string", i),
+                format!("AdditionalUseResourceStat.f01_entries[{}]: expected array of 22 u8", i),
             ))?;
-            let bytes = B64.decode(s).map_err(|e| io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("AdditionalUseResourceStat.f01_entries_b64[{}]: {}", i, e),
-            ))?;
-            if bytes.len() != 22 {
+            if inner.len() != 22 {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("AdditionalUseResourceStat.f01_entries_b64[{}]: expected 22 bytes, got {}", i, bytes.len())));
+                    format!("AdditionalUseResourceStat.f01_entries[{}]: expected 22 elements, got {}", i, inner.len())));
             }
-            w.extend_from_slice(&bytes);
+            for (j, v) in inner.iter().enumerate() {
+                let n = v.as_u64().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("AdditionalUseResourceStat.f01_entries[{}][{}]: expected u8", i, j),
+                ))?;
+                if n > u8::MAX as u64 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("AdditionalUseResourceStat.f01_entries[{}][{}]: {} out of u8 range", i, j, n)));
+                }
+                w.push(n as u8);
+            }
         }
         Ok(())
     }
@@ -2257,5 +2291,20 @@ impl<'a> BuffData<'a> {
         let variant_v = json_get_field(obj, "variant")?;
         BuffDataVariant::write_from_json(tag as u8, w, variant_v)?;
         Ok(())
+    }
+}
+
+impl<'a> crate::json_traits::ToJsonValue for BuffData<'a> {
+    fn to_json_value(&self) -> Value {
+        Value::Object(self.to_json_dict())
+    }
+}
+
+impl<'a> crate::json_traits::WriteJsonValue for BuffData<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "BuffData: expected object",
+        ))?;
+        BuffData::write_from_json_dict(w, obj)
     }
 }

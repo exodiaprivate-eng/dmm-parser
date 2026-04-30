@@ -1,22 +1,90 @@
-//! Hand-corrected: IDA-derived parser for `FrameEventAttrGroupInfo.pabgb`.
+//! Tier 1 — fully typed parser for `FrameEventAttrGroupInfo.pabgb`.
 //!
 //! Per IDA sub_1410E17C0: 4 fields (key, stringKey, isBlocked, dataList).
-//! The data list is a CArray<polymorphic-FrameEventAttr> via sub_1410E14F0
-//! (424-byte stride per element with deeply nested variant dispatch).
-//! Captured as a single byte-blob trailing the simple pre-fields.
+//! `dataList` is a `CArray<FrameEventAttr>` via sub_1410E14F0 (421 wire
+//! bytes / 424 mem bytes per element). Despite the original guess of
+//! "deeply nested variant dispatch", sub_1410E14F0 is a fixed-shape
+//! reader: u8 + 5× (3× u32) + 5× sub_1410E1250 (9× u32) +
+//! 5× sub_1410E13E0 (2× u32 + Vec3 + 2× u32) + 5× (2× u32).
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use crate::py_binary_struct;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// Inner of FrameEventAttr triplet block (3× u32 per iter, 5 iters).
+    pub struct FrameEventAttrTriplet {
+        pub a: u32,
+        pub b: u32,
+        pub c: u32,
+    }
+}
+
+py_binary_struct! {
+    /// Inner of FrameEventAttr secondary block — sub_1410E1250 reads 9× u32
+    /// per element (36 wire bytes).
+    pub struct FrameEventAttrSecondary {
+        pub a: u32, pub b: u32, pub c: u32,
+        pub d: u32, pub e: u32, pub f: u32,
+        pub g: u32, pub h: u32, pub i: u32,
+    }
+}
+
+py_binary_struct! {
+    /// Inner of FrameEventAttr tertiary block — sub_1410E13E0 reads
+    /// u32 + u32 + Vec3 + u32 + u32 (28 wire bytes / 7 fields).
+    pub struct FrameEventAttrTertiary {
+        pub a: u32,
+        pub b: u32,
+        pub vec: [f32; 3],
+        pub d: u32,
+        pub e: u32,
+    }
+}
+
+py_binary_struct! {
+    /// Inner of FrameEventAttr trailing block (2× u32 per iter, 5 iters).
+    pub struct FrameEventAttrPair {
+        pub a: u32,
+        pub b: u32,
+    }
+}
+
+py_binary_struct! {
+    /// `sub_1410E14F0` per-element. Fixed-shape, 421 wire bytes / 424 mem.
+    pub struct FrameEventAttr {
+        pub flag: u8,
+        pub triplet_0: FrameEventAttrTriplet,
+        pub triplet_1: FrameEventAttrTriplet,
+        pub triplet_2: FrameEventAttrTriplet,
+        pub triplet_3: FrameEventAttrTriplet,
+        pub triplet_4: FrameEventAttrTriplet,
+        pub secondary_0: FrameEventAttrSecondary,
+        pub secondary_1: FrameEventAttrSecondary,
+        pub secondary_2: FrameEventAttrSecondary,
+        pub secondary_3: FrameEventAttrSecondary,
+        pub secondary_4: FrameEventAttrSecondary,
+        pub tertiary_0: FrameEventAttrTertiary,
+        pub tertiary_1: FrameEventAttrTertiary,
+        pub tertiary_2: FrameEventAttrTertiary,
+        pub tertiary_3: FrameEventAttrTertiary,
+        pub tertiary_4: FrameEventAttrTertiary,
+        pub pair_0: FrameEventAttrPair,
+        pub pair_1: FrameEventAttrPair,
+        pub pair_2: FrameEventAttrPair,
+        pub pair_3: FrameEventAttrPair,
+        pub pair_4: FrameEventAttrPair,
+    }
+}
 
 #[derive(Debug)]
 pub struct FrameEventAttrGroupInfo<'a> {
     pub key: u32,
     pub string_key: CString<'a>,
     pub is_blocked: u8,
-    pub data_list: Vec<u8>,
+    pub data_list: CArray<FrameEventAttr>,
 }
 
 impl<'a> FrameEventAttrGroupInfo<'a> {
@@ -31,9 +99,12 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
-
-        let data_list = data[*offset..entry_end].to_vec();
-        *offset = entry_end;
+        let data_list = <CArray<FrameEventAttr>>::read_from(data, offset)?;
+        if *offset != entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("FrameEventAttrGroupInfo: under/over-read (cursor {} expected {})",
+                    *offset, entry_end)));
+        }
 
         Ok(Self { key, string_key, is_blocked, data_list })
     }
@@ -42,18 +113,16 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        w.write_all(&self.data_list)?;
+        self.data_list.write_to(w)?;
         Ok(())
     }
 
-    /// Expose typed prefix fields as named JSON; the polymorphic
-    /// FrameEventAttr CArray rides as `_data_list_b64`.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("_data_list_b64".to_string(), Value::String(B64.encode(&self.data_list)));
+        m.insert("data_list".to_string(), self.data_list.to_json_value());
         m
     }
 
@@ -61,13 +130,7 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        let b64 = json_get_field(obj, "_data_list_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "FrameEventAttrGroupInfo: _data_list_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("FrameEventAttrGroupInfo: _data_list_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        <CArray<FrameEventAttr> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "data_list")?)?;
         Ok(())
     }
 }

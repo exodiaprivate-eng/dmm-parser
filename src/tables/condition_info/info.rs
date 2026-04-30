@@ -16,14 +16,15 @@
 //! See `dmm-parser/src/binary/variants/game_condition.rs` for the wrapper
 //! and `condition_data.rs` for the 405 variant decoders.
 //!
-//! ### JSON exposure (current)
+//! ### JSON exposure
 //!
-//! `game_condition` rides as `_game_condition_b64` (base64-encoded
-//! wrapper bytes). Users can clone-between-entries but can't yet edit
-//! the recursive tree as nested JSON — that's a future enhancement
-//! requiring per-variant ToJsonValue/WriteJsonValue impls (tracked
-//! separately). All other fields (key, string_key, is_blocked,
-//! original_string, parser_type) are individually field-addressable.
+//! All six fields are field-addressable. `game_condition` ships as a
+//! tree-navigable object: `kind: "decoded"` exposes the recursive node
+//! tree (BinaryOpA/B, UnaryOp, and per-family leaf cases with typed
+//! body fields where the variant has a typed body, or `wire_b64` while
+//! a per-family typed rollout is still pending), plus `tail_a`/`b`/`c`
+//! u8s. `kind: "raw"` exposes `raw_b64` for the 0.2% of entries that
+//! hit anti-disassembly variants.
 //!
 //! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
 //! "Hand-corrected" header marker on line 1.

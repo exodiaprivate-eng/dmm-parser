@@ -8,11 +8,9 @@
 //! Reports per-tag pass/fail counts so we know which ConditionData variants
 //! still have wrong byte recipes.
 
-use dmm_parser::binary::variants::game_condition::{GameCondition, GameConditionNode};
+use dmm_parser::binary::variants::game_condition::GameCondition;
 use dmm_parser::binary::variant::{entry_ranges, find_cstring_u8_trailer, load_pabgh_offsets};
-use dmm_parser::binary::*;
 use std::collections::BTreeMap;
-use std::io::Write;
 use std::path::Path;
 
 const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\conditioninfo.pabgb";

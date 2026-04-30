@@ -1,4 +1,4 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410F60E0` in CrimsonDesert.exe (Win build).
 //!
@@ -7,13 +7,14 @@
 //!   2. CString string_key                   (_stringKey)
 //!   3. u8 is_blocked                        (_isBlocked)
 //!   4. u8 type_                             (_type, Rust keyword suffix)
-//!   5. u32 active_condition_info            (_activeConditionInfo)
+//!   5. u32 active_condition_info            (_activeConditionInfo,
+//!      sub_1410FF430 wire u32)
 //!   6. CString post_process_sequencer_name  (_postProcessSequencerName)
 //!   7. u32 time_scale                       (_timeScale, f32-as-u32)
 //!   8. u32 player_time_scale                (_playerTimeScale)
-//!   9. u32 mode_radius                      (_modeRadius)
+//!   9. u32 mode_radius                      (_modeRadius, f32)
 //!  10. u32 passive_skill                    (_passiveSkill, sub_1410FEBE0
-//!      → qword_145F0DA68)
+//!      wire u32 → qword_145F0DA68)
 //!  11. u32 skill_level                      (_skillLevel)
 //!  12. u32 input_key_hash                   (_inputKeyHash)
 //!  13. u32 cancel_input_key_hash            (_cancelInputKeyHash)
@@ -25,17 +26,126 @@
 //!  19. u8 change_minimap_scale              (_changeMinimapScale)
 //!  20. u8 is_minimap_zoom_out               (_isMinimapZoomOut)
 //!  21. u8 is_allow_dialog                   (_isAllowDialog)
-//!  22. _optionList (24× sub_141128AF0(struct +72+16*i) CArray-like
-//!      24-iter loop reading 16-byte items) ← TAIL STARTS HERE
-//!  23. (body) _detectModeAreaData, _playerActionLimitDesc
+//!  22. SpecialModeOptionSlots option_slots  (24 fixed CArray slots, each
+//!      a CArray<SpecialModeOption> via sub_141128AF0 → sub_1410F5A30)
+//!  23. DetectModeAreaData detect_mode_area_data
+//!      (sub_1410F5F80, 64 mem bytes / 8 wire fields at a2+456)
+//!  24. PlayerActionLimitDesc player_action_limit_desc
+//!      (sub_14B92C740 via thunk sub_1410D4540, ~40 mem bytes / 8 wire
+//!      fields at a2+520)
 //!
-//! Steps 1-21 are typed; step 22 onward lives in `tail_blob`. Reopens
-//! cleanly when the 16-byte item helper sub_141128AF0 is decoded.
+//! SpecialModeOption (sub_1410F5A30 inner, 176 mem bytes / 32 wire fields).
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
 
-pabgh_typed_blob_table! {
+// sub_14110A460 inner element — 24 mem bytes / 3 wire fields (variable).
+py_binary_struct! {
+    pub struct SpecialModeOptionMacroEntry<'a> {
+        pub key_str: CString<'a>,    // sub_1410A9D40 (wire = CString)
+        pub name: CString<'a>,       // direct read_CString
+        pub flag: u8,
+    }
+}
+
+// sub_1410F5A30 inner — 176 mem bytes / 32 wire fields.
+py_binary_struct! {
+    pub struct SpecialModeOption<'a> {
+        pub flag_a: u8,
+        pub lookup_a: u32,
+        pub lookup_b: u32,
+        pub key_a: CString<'a>,
+        pub raw_a: u32,
+        pub key_b: CString<'a>,
+        pub raw_b: u32,
+        pub raw_c: u32,
+        pub raw_d: u32,
+        pub raw_e: u32,
+        pub raw_f: u64,
+        pub raw_g: u64,
+        pub lookup_c: u32,
+        pub flag_b: u8,
+        pub list_u32: CArray<u32>,
+        pub list_macro: CArray<SpecialModeOptionMacroEntry<'a>>,
+        pub lookup_d: u32,
+        pub name: CString<'a>,
+        pub flag_c: u8,
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub raw_h: u32,
+        pub raw_i: u32,
+        pub raw_j: u32,
+        pub flag_f: u8,
+        pub raw_k: u32,
+        pub raw_l: u32,
+        pub raw_m: u32,
+        pub raw_n: u32,
+        pub raw_o: u32,
+        pub raw_p: u32,
+        pub trailing_16: [u8; 16],
+    }
+}
+
+// 24 fixed CArray<SpecialModeOption> slots — _optionList iterates 0..24.
+// Each slot is a separate CArray header (16 mem bytes).
+py_binary_struct! {
+    pub struct SpecialModeOptionSlots<'a> {
+        pub slot_00: CArray<SpecialModeOption<'a>>,
+        pub slot_01: CArray<SpecialModeOption<'a>>,
+        pub slot_02: CArray<SpecialModeOption<'a>>,
+        pub slot_03: CArray<SpecialModeOption<'a>>,
+        pub slot_04: CArray<SpecialModeOption<'a>>,
+        pub slot_05: CArray<SpecialModeOption<'a>>,
+        pub slot_06: CArray<SpecialModeOption<'a>>,
+        pub slot_07: CArray<SpecialModeOption<'a>>,
+        pub slot_08: CArray<SpecialModeOption<'a>>,
+        pub slot_09: CArray<SpecialModeOption<'a>>,
+        pub slot_10: CArray<SpecialModeOption<'a>>,
+        pub slot_11: CArray<SpecialModeOption<'a>>,
+        pub slot_12: CArray<SpecialModeOption<'a>>,
+        pub slot_13: CArray<SpecialModeOption<'a>>,
+        pub slot_14: CArray<SpecialModeOption<'a>>,
+        pub slot_15: CArray<SpecialModeOption<'a>>,
+        pub slot_16: CArray<SpecialModeOption<'a>>,
+        pub slot_17: CArray<SpecialModeOption<'a>>,
+        pub slot_18: CArray<SpecialModeOption<'a>>,
+        pub slot_19: CArray<SpecialModeOption<'a>>,
+        pub slot_20: CArray<SpecialModeOption<'a>>,
+        pub slot_21: CArray<SpecialModeOption<'a>>,
+        pub slot_22: CArray<SpecialModeOption<'a>>,
+        pub slot_23: CArray<SpecialModeOption<'a>>,
+    }
+}
+
+// sub_1410F5F80 — DetectModeAreaData, 64 mem bytes / 8 wire fields.
+py_binary_struct! {
+    pub struct DetectModeAreaData<'a> {
+        pub flag_a: u8,
+        pub name_a: CString<'a>,
+        pub name_b: CString<'a>,
+        pub vec_a: [f32; 3],
+        pub vec_b: [f32; 3],
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub flag_b: u8,
+    }
+}
+
+// sub_14B92C740 (thunked via sub_1410D4540) — PlayerActionLimitDesc.
+py_binary_struct! {
+    pub struct PlayerActionLimitDesc {
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub flag_f: u8,
+        pub list_a: CArray<u16>,
+        pub list_b: CArray<u16>,
+    }
+}
+
+py_binary_struct! {
     pub struct SpecialModeInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
@@ -58,8 +168,25 @@ pabgh_typed_blob_table! {
         pub change_minimap_scale: u8,
         pub is_minimap_zoom_out: u8,
         pub is_allow_dialog: u8,
+        pub option_slots: SpecialModeOptionSlots<'a>,
+        pub detect_mode_area_data: DetectModeAreaData<'a>,
+        pub player_action_limit_desc: PlayerActionLimitDesc,
     }
-    tail: tail_blob;
+}
+
+impl<'a> SpecialModeInfo<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("SpecialModeInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
 }
 
 #[cfg(test)]

@@ -1,14 +1,138 @@
-//! Hand-corrected: IDA-derived parser for `FactionNodeSpawnInfo.pabgb`.
+//! Tier 1 — fully typed parser for `FactionNodeSpawnInfo.pabgb`.
 //!
-//! Per IDA sub_1410DED80: 6 fields. _patrolAISplineDataList is a CArray
-//! with COptional<sub_1413F8A20> inner elements (variable per-element size).
-//! Captured as raw byte-blob; no tail.
+//! Per IDA sub_1410DED80: 6 fields. _patrolAISplineDataList is a
+//! `CArray<COptional<{u8 + CArray<PatrolSplineElement>}>>` (sub_1413F8A20
+//! outer, sub_1413F9BD0 inner). Each PatrolSplineElement is 65 wire bytes
+//! / 68 mem bytes (Vec3 + 4× u32 + f32 + u8 + 2× Vec3 + f32 + u32).
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use crate::py_binary_struct;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// `sub_1413F9BD0` per-element. 65 wire bytes, 68 mem bytes.
+    pub struct PatrolSplineElement {
+        pub vec_a: [f32; 3],   // 12 bytes raw at mem +0
+        pub block_a: [u32; 4], // 16 bytes via sub_1410AA0D0 (4× u32) at mem +12
+        pub raw_a: f32,        // 4 bytes raw at mem +28
+        pub flag_a: u8,        // 1 byte raw at mem +32
+        pub vec_b: [f32; 3],   // 12 bytes raw at mem +36
+        pub vec_c: [f32; 3],   // 12 bytes raw at mem +48
+        pub raw_b: f32,        // 4 bytes raw at mem +60
+        pub raw_c: u32,        // 4 bytes raw at mem +64
+    }
+}
+
+/// `sub_141115890` per-element. Wire: 16 raw bytes (header — semantics
+/// opaque, kept as `[u8; 16]`) followed by a `COptional<PatrolSplineGroup>`.
+#[derive(Debug)]
+pub struct PatrolSplineEntry {
+    pub header: [u8; 16],
+    pub group: OptionalPatrolSplineGroup,
+}
+
+impl<'a> BinaryRead<'a> for PatrolSplineEntry {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let header = <[u8; 16]>::read_from(data, offset)?;
+        let group = OptionalPatrolSplineGroup::read_from(data, offset)?;
+        Ok(Self { header, group })
+    }
+}
+
+impl BinaryWrite for PatrolSplineEntry {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.header.write_to(w)?;
+        self.group.write_to(w)
+    }
+}
+
+impl ToJsonValue for PatrolSplineEntry {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("header".to_string(), self.header.to_json_value());
+        m.insert("group".to_string(), self.group.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl WriteJsonValue for PatrolSplineEntry {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "PatrolSplineEntry: expected object",
+        ))?;
+        <[u8; 16] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header")?)?;
+        OptionalPatrolSplineGroup::write_from_json(w, json_get_field(obj, "group")?)
+    }
+}
+
+/// `sub_1413F8A20` — `u8 presence + (if present: u8 + CArray<PatrolSplineElement>)`.
+#[derive(Debug)]
+pub struct OptionalPatrolSplineGroup {
+    pub inner: Option<PatrolSplineGroup>,
+}
+
+#[derive(Debug)]
+pub struct PatrolSplineGroup {
+    pub flag: u8,
+    pub elements: CArray<PatrolSplineElement>,
+}
+
+impl<'a> BinaryRead<'a> for OptionalPatrolSplineGroup {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let presence = u8::read_from(data, offset)?;
+        let inner = if presence != 0 {
+            let flag = u8::read_from(data, offset)?;
+            let elements = <CArray<PatrolSplineElement>>::read_from(data, offset)?;
+            Some(PatrolSplineGroup { flag, elements })
+        } else {
+            None
+        };
+        Ok(Self { inner })
+    }
+}
+
+impl BinaryWrite for OptionalPatrolSplineGroup {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match &self.inner {
+            Some(g) => { 1u8.write_to(w)?; g.flag.write_to(w)?; g.elements.write_to(w) }
+            None => 0u8.write_to(w),
+        }
+    }
+}
+
+impl ToJsonValue for OptionalPatrolSplineGroup {
+    fn to_json_value(&self) -> Value {
+        match &self.inner {
+            Some(g) => {
+                let mut m = Map::new();
+                m.insert("flag".to_string(), g.flag.to_json_value());
+                m.insert("elements".to_string(), g.elements.to_json_value());
+                Value::Object(m)
+            }
+            None => Value::Null,
+        }
+    }
+}
+
+impl WriteJsonValue for OptionalPatrolSplineGroup {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() {
+            0u8.write_to(w)
+        } else {
+            let obj = v.as_object().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "OptionalPatrolSplineGroup: expected object or null",
+            ))?;
+            1u8.write_to(w)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)?;
+            <CArray<PatrolSplineElement> as WriteJsonValue>::write_from_json(
+                w, json_get_field(obj, "elements")?,
+            )
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct FactionNodeSpawnInfo<'a> {
@@ -19,7 +143,7 @@ pub struct FactionNodeSpawnInfo<'a> {
     /// 3D bounding box (Vec3 min, Vec3 max) — 24 wire bytes total.
     pub boundary_box_min: [f32; 3],
     pub boundary_box_max: [f32; 3],
-    pub patrol_ai_spline_data_list: Vec<u8>,
+    pub patrol_ai_spline_data_list: CArray<PatrolSplineEntry>,
 }
 
 impl<'a> FactionNodeSpawnInfo<'a> {
@@ -37,9 +161,12 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         let faction_node_info = u32::read_from(data, offset)?;
         let boundary_box_min = <[f32; 3]>::read_from(data, offset)?;
         let boundary_box_max = <[f32; 3]>::read_from(data, offset)?;
-
-        let patrol_ai_spline_data_list = data[*offset..entry_end].to_vec();
-        *offset = entry_end;
+        let patrol_ai_spline_data_list = <CArray<PatrolSplineEntry>>::read_from(data, offset)?;
+        if *offset != entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("FactionNodeSpawnInfo: under/over-read (cursor {} expected {})",
+                    *offset, entry_end)));
+        }
 
         Ok(Self {
             key, string_key, is_blocked, faction_node_info,
@@ -54,7 +181,7 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         self.faction_node_info.write_to(w)?;
         self.boundary_box_min.write_to(w)?;
         self.boundary_box_max.write_to(w)?;
-        w.write_all(&self.patrol_ai_spline_data_list)?;
+        self.patrol_ai_spline_data_list.write_to(w)?;
         Ok(())
     }
 
@@ -66,8 +193,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         m.insert("faction_node_info".to_string(), self.faction_node_info.to_json_value());
         m.insert("boundary_box_min".to_string(), self.boundary_box_min.to_json_value());
         m.insert("boundary_box_max".to_string(), self.boundary_box_max.to_json_value());
-        m.insert("_patrol_ai_spline_data_list_b64".to_string(),
-            Value::String(B64.encode(&self.patrol_ai_spline_data_list)));
+        m.insert("patrol_ai_spline_data_list".to_string(),
+            self.patrol_ai_spline_data_list.to_json_value());
         m
     }
 
@@ -78,13 +205,9 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_node_info")?)?;
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_box_min")?)?;
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_box_max")?)?;
-        let b64 = json_get_field(obj, "_patrol_ai_spline_data_list_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "FactionNodeSpawnInfo: _patrol_ai_spline_data_list_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("FactionNodeSpawnInfo: _patrol_ai_spline_data_list_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        <CArray<PatrolSplineEntry> as WriteJsonValue>::write_from_json(
+            w, json_get_field(obj, "patrol_ai_spline_data_list")?,
+        )?;
         Ok(())
     }
 }

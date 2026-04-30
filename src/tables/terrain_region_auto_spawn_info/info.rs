@@ -1,14 +1,14 @@
-//! Hand-corrected: IDA-derived parser for `TerrainRegionAutoSpawnInfo.pabgb`.
+//! Tier 1 — fully typed parser for `TerrainRegionAutoSpawnInfo.pabgb`.
 //!
-//! Per IDA sub_1410FA5B0: 24 fields. _spawnList (field 11) is polymorphic
-//! CArray via sub_1411092E0 with deeply-nested element structure. The
-//! polymorphic block is captured as raw bytes by probing trailing-field
-//! validity from candidate boundaries.
+//! Per IDA sub_1410FA5B0: 24 fields. `_spawnList` is
+//! `CArray<AutoSpawnEntry>` via sub_1411092E0 + sub_1410FA2A0 (shared with
+//! SpawningPoolAutoSpawnInfo). Per-element wire layout reverse-engineered
+//! and lives in `crate::binary::auto_spawn_entry`. Despite the original
+//! "polymorphic" docstring, sub_1410FA2A0 is fixed-shape.
 
-use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::binary::auto_spawn_entry::AutoSpawnEntry;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -24,7 +24,7 @@ pub struct TerrainRegionAutoSpawnInfo<'a> {
     pub not_spawn_region_info_list: CArray<u16>,
     pub spawn_region_tag_list: CArray<u32>,
     pub not_spawn_region_tag_list: CArray<u32>,
-    pub spawn_list: Vec<u8>,
+    pub spawn_list: CArray<AutoSpawnEntry>,
     pub voxel_type: u32,
     pub road_group_type: u8,
     pub is_only_summon_data: u8,
@@ -40,43 +40,13 @@ pub struct TerrainRegionAutoSpawnInfo<'a> {
     pub spawn_reason_list: CArray<u32>,
 }
 
-/// Try to read the tail starting at `probe`. Returns Some(bytes_consumed) on
-/// success. Used by the variant boundary probe.
-fn try_read_tail(data: &[u8], probe: usize, end: usize) -> Option<usize> {
-    let mut cursor = probe;
-    // 4 + 1 + 1 + 1 + 1
-    if cursor + 8 > end { return None; }
-    let _voxel_type = u32::read_from(data, &mut cursor).ok()?;
-    let _road_group = u8::read_from(data, &mut cursor).ok()?;
-    let _only_summon = u8::read_from(data, &mut cursor).ok()?;
-    let _only_check = u8::read_from(data, &mut cursor).ok()?;
-    let _stage_cat = u8::read_from(data, &mut cursor).ok()?;
-    // CArray<CString>
-    let _tag_list = CArray::<CString>::read_from(data, &mut cursor).ok()?;
-    if cursor > end { return None; }
-    // 1 + 1 + 4
-    if cursor + 6 > end { return None; }
-    let _is_default = u8::read_from(data, &mut cursor).ok()?;
-    let _all_terrain = u8::read_from(data, &mut cursor).ok()?;
-    let _bitmap_pos = u32::read_from(data, &mut cursor).ok()?;
-    let _bitmap_color = CArray::<u8>::read_from(data, &mut cursor).ok()?;
-    if cursor > end { return None; }
-    if cursor + 2 > end { return None; }
-    let _spawn_at_height = u8::read_from(data, &mut cursor).ok()?;
-    let _fish_freq = u8::read_from(data, &mut cursor).ok()?;
-    let _reason_list = CArray::<u32>::read_from(data, &mut cursor).ok()?;
-    if cursor != end { return None; }
-    Some(cursor - probe)
-}
-
 impl<'a> TerrainRegionAutoSpawnInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
         offset: &mut usize,
         entry_size: usize,
     ) -> io::Result<Self> {
-        let entry_start = *offset;
-        let entry_end = entry_start + entry_size;
+        let _ = entry_size; // typed reader is byte-perfect; size is informational
 
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
@@ -89,13 +59,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         let spawn_region_tag_list = CArray::<u32>::read_from(data, offset)?;
         let not_spawn_region_tag_list = CArray::<u32>::read_from(data, offset)?;
 
-        let post_pre = *offset;
-        let variant_size = find_variant_boundary(data, post_pre, entry_end, 4, |probe| {
-            try_read_tail(data, probe, entry_end)
-        })?;
-
-        let spawn_list = data[post_pre..post_pre + variant_size].to_vec();
-        *offset = post_pre + variant_size;
+        let spawn_list = <CArray<AutoSpawnEntry>>::read_from(data, offset)?;
 
         let voxel_type = u32::read_from(data, offset)?;
         let road_group_type = u8::read_from(data, offset)?;
@@ -136,7 +100,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         self.not_spawn_region_info_list.write_to(w)?;
         self.spawn_region_tag_list.write_to(w)?;
         self.not_spawn_region_tag_list.write_to(w)?;
-        w.write_all(&self.spawn_list)?;
+        self.spawn_list.write_to(w)?;
         self.voxel_type.write_to(w)?;
         self.road_group_type.write_to(w)?;
         self.is_only_summon_data.write_to(w)?;
@@ -165,7 +129,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         m.insert("not_spawn_region_info_list".to_string(), self.not_spawn_region_info_list.to_json_value());
         m.insert("spawn_region_tag_list".to_string(), self.spawn_region_tag_list.to_json_value());
         m.insert("not_spawn_region_tag_list".to_string(), self.not_spawn_region_tag_list.to_json_value());
-        m.insert("_spawn_list_b64".to_string(), Value::String(B64.encode(&self.spawn_list)));
+        m.insert("spawn_list".to_string(), self.spawn_list.to_json_value());
         m.insert("voxel_type".to_string(), self.voxel_type.to_json_value());
         m.insert("road_group_type".to_string(), self.road_group_type.to_json_value());
         m.insert("is_only_summon_data".to_string(), self.is_only_summon_data.to_json_value());
@@ -193,13 +157,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_info_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_region_tag_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_tag_list")?)?;
-        let b64 = json_get_field(obj, "_spawn_list_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "TerrainRegionAutoSpawnInfo: _spawn_list_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("TerrainRegionAutoSpawnInfo: _spawn_list_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        <CArray<AutoSpawnEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_list")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "voxel_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "road_group_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_only_summon_data")?)?;

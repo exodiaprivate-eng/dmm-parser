@@ -3,7 +3,6 @@
 //! Hand-written from IDA decompile of sub_141CB6480.
 //! Stream layout: [u32 property_id]
 
-use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {

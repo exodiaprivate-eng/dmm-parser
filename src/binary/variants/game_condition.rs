@@ -19,16 +19,6 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-/// Encode a typed leaf value to base64 by re-emitting its wire bytes.
-fn leaf_b64<F>(write_fn: F) -> Value
-where
-    F: FnOnce(&mut Vec<u8>) -> io::Result<()>,
-{
-    let mut buf = Vec::new();
-    write_fn(&mut buf).expect("write_to Vec");
-    Value::String(B64.encode(&buf))
-}
-
 fn decode_b64(v: &Value, ctx: &str) -> io::Result<Vec<u8>> {
     let s = v.as_str().ok_or_else(|| {
         io::Error::new(io::ErrorKind::InvalidData, format!("{}: expected base64 string", ctx))
@@ -281,8 +271,9 @@ impl<'a> GameConditionNode<'a> {
     }
 
     /// Tree-navigable JSON. Operator nodes recurse into typed children;
-    /// leaf nodes expose their family name + wire bytes as base64.
-    /// Per-variant field-level JSON is a future per-family rollout.
+    /// leaf nodes route through their family's typed `to_json_dict()`
+    /// (ConditionData, BranchConditionData, ScheduleCompleteConditionData,
+    /// ConditionGimmickData, StageChart, GlobalEffectConditionData).
     pub fn to_json_value(&self) -> Value {
         let mut m = Map::new();
         match self {

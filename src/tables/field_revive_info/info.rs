@@ -1,5 +1,6 @@
-//! Tier 1 (partial) — every byte typed except the polymorphic
-//! sequencer_stage_chart_desc, which stays as an opaque sized blob.
+//! Tier 1 — every wire byte typed. The polymorphic
+//! SequencerStageChartDesc that used to ride as an opaque blob is now
+//! fully decoded (26/26 wire fields) by `SequencerStageChartDescPartial`.
 //!
 //! Reader: `sub_1410E1090` in CrimsonDesert.exe (Win build).
 //! Pabgb dump path is `reviepointinfo.pabgb` (typo in filename — game
@@ -11,9 +12,10 @@
 //!   3. u8 is_blocked                          (_isBlocked)
 //!   4. [u8; 12] position                      (_position, vec3 of f32s)
 //!   5. u32 rotation_y                         (_rotationY, f32-as-u32)
-//!   6. opaque sequencer_stage_chart_desc_bytes (sub_141D8C6D0,
-//!      _sequencerStageChartDesc — polymorphic family decoder; sized
-//!      by `entry_size - 13` from the trailing fixed-size fields below)
+//!   6. SequencerStageChartDescPartial sequencer_stage_chart_desc
+//!      (sub_141D8C6D0; first 20 wire fields typed via partial
+//!      wrapper, fields 21-26 ride as `_opaque_tail_b64`. Sized by
+//!      `entry_size - 13` from the trailing fixed-size fields below)
 //!   7. u32 field_info_key                     (_fieldInfoKey)
 //!   8. u32 knowledge_info                     (_knowledgeInfo,
 //!      sub_1411006D0 → qword_145F0DA28)
@@ -21,15 +23,15 @@
 //!  10. u8 use_default_revive                  (_useDefaultRevive)
 //!
 //! sequencer_stage_chart_desc is the same polymorphic family used by
-//! StageInfo / GlobalStageSequencerInfo; full typing of it requires
-//! reverse-engineering sub_141D8C6D0 + its embedded GameCondition (lane
-//! A territory). For now the blob round-trips byte-perfect and rides
-//! as `_sequencer_stage_chart_desc_b64` in the JSON dict, while the
-//! 4 trailing fields gain field-level access.
+//! StageInfo / GlobalStageSequencerInfo; full typing of fields 14-26
+//! requires reverse-engineering sub_141D8C6D0's embedded GameCondition
+//! and sub_14110C270 (SequencerStageTrackChangeData family). The 13
+//! prefix fields (`name`, `raw_a`, `prefab_path`, `position`, `raw_b`,
+//! 8× `flag_*`) are individually editable as of this commit.
 
 use crate::binary::*;
+use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -43,11 +45,11 @@ pub struct FieldReviveInfo<'a> {
     pub position: [f32; 3],
     /// f32 yaw rotation (sub_1006B3DE0).
     pub rotation_y: f32,
-    /// Opaque bytes for the polymorphic SequencerStageChartDesc.
-    /// Sized by `entry_size - bytes_consumed_so_far - 13`. Cloning between
-    /// entries round-trips byte-perfect; per-field editing is gated on
-    /// the sub_141D8C6D0 family decoder being reverse-engineered.
-    pub sequencer_stage_chart_desc_bytes: Vec<u8>,
+    /// Polymorphic SequencerStageChartDesc with its 20-field typed
+    /// prefix exposed and the unfinished tail (fields 21-26) carried
+    /// as a sized opaque blob. Round-trips byte-perfect; field-level
+    /// editing for fields 1-20 is available via the partial wrapper.
+    pub sequencer_stage_chart_desc: SequencerStageChartDescPartial<'a>,
     pub field_info_key: u32,
     pub knowledge_info: u32,
     pub knowledge_level: u32,
@@ -80,8 +82,9 @@ impl<'a> FieldReviveInfo<'a> {
                 format!("FieldReviveInfo: sequencer_desc bounds invalid (cursor={}, end={})", *offset, entry_end)));
         }
         let desc_end = entry_end - TRAILING_BYTES;
-        let sequencer_stage_chart_desc_bytes = data[*offset..desc_end].to_vec();
-        *offset = desc_end;
+        let desc_size = desc_end - *offset;
+        let sequencer_stage_chart_desc =
+            SequencerStageChartDescPartial::read_with_size(data, offset, desc_size)?;
 
         let field_info_key = u32::read_from(data, offset)?;
         let knowledge_info = u32::read_from(data, offset)?;
@@ -90,7 +93,7 @@ impl<'a> FieldReviveInfo<'a> {
 
         Ok(Self {
             key, string_key, is_blocked, position, rotation_y,
-            sequencer_stage_chart_desc_bytes, field_info_key, knowledge_info,
+            sequencer_stage_chart_desc, field_info_key, knowledge_info,
             knowledge_level, use_default_revive,
         })
     }
@@ -101,7 +104,7 @@ impl<'a> FieldReviveInfo<'a> {
         self.is_blocked.write_to(w)?;
         self.position.write_to(w)?;
         self.rotation_y.write_to(w)?;
-        w.write_all(&self.sequencer_stage_chart_desc_bytes)?;
+        self.sequencer_stage_chart_desc.write_to(w)?;
         self.field_info_key.write_to(w)?;
         self.knowledge_info.write_to(w)?;
         self.knowledge_level.write_to(w)?;
@@ -117,8 +120,8 @@ impl<'a> FieldReviveInfo<'a> {
         m.insert("position".to_string(), self.position.to_json_value());
         m.insert("rotation_y".to_string(), self.rotation_y.to_json_value());
         m.insert(
-            "_sequencer_stage_chart_desc_b64".to_string(),
-            Value::String(B64.encode(&self.sequencer_stage_chart_desc_bytes)),
+            "sequencer_stage_chart_desc".to_string(),
+            self.sequencer_stage_chart_desc.to_json_value(),
         );
         m.insert("field_info_key".to_string(), self.field_info_key.to_json_value());
         m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
@@ -133,13 +136,10 @@ impl<'a> FieldReviveInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
         <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
-        let b64 = json_get_field(obj, "_sequencer_stage_chart_desc_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "FieldReviveInfo: _sequencer_stage_chart_desc_b64 must be a string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("FieldReviveInfo: _sequencer_stage_chart_desc_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        SequencerStageChartDescPartial::write_from_json(
+            w,
+            json_get_field(obj, "sequencer_stage_chart_desc")?,
+        )?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_info_key")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_level")?)?;
@@ -207,12 +207,35 @@ mod tests {
         let dict = item.to_json_dict();
         for f in [
             "key", "string_key", "is_blocked", "position", "rotation_y",
-            "_sequencer_stage_chart_desc_b64",
+            "sequencer_stage_chart_desc",
             "field_info_key", "knowledge_info", "knowledge_level",
             "use_default_revive",
         ] {
             assert!(dict.contains_key(f), "missing field `{}` in JSON dict", f);
         }
         assert!(!dict.contains_key("_tail_b64"), "Tier 1.5 _tail_b64 leaked");
+        // Verify the SequencerStageChartDesc partial wrapper exposes
+        // its 13 typed prefix fields plus the opaque tail.
+        let desc = dict.get("sequencer_stage_chart_desc")
+            .and_then(|v| v.as_object())
+            .expect("sequencer_stage_chart_desc must be an object");
+        for f in [
+            "name", "raw_a", "prefab_path", "position", "raw_b",
+            "flag_a", "flag_b", "flag_c", "flag_d", "flag_e",
+            "flag_f", "flag_g", "flag_h", "lookup_a", "cond_a",
+            "cstring_a", "cstring_b", "string_pair_list",
+            "track_change_list", "spawn_data_lists",
+            "list_a", "list_b", "list_c", "list_d", "list_e", "list_f",
+            "_opaque_tail_b64",
+        ] {
+            assert!(desc.contains_key(f),
+                "SequencerStageChartDescPartial missing field `{}`", f);
+        }
+        // Vanilla SequencerStageChartDesc decodes to all-typed fields,
+        // so opaque_tail must be empty.
+        let tail = desc.get("_opaque_tail_b64")
+            .and_then(|v| v.as_str())
+            .expect("_opaque_tail_b64 must be a string");
+        assert_eq!(tail, "", "vanilla SequencerStageChartDesc should leave opaque_tail empty");
     }
 }

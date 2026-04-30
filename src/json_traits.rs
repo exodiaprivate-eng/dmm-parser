@@ -17,7 +17,6 @@
 //! serde_json::Number's full integer range (it stores them losslessly even
 //! though JSON proper has no integer type).
 
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{json, Map, Value};
 use std::io;
 

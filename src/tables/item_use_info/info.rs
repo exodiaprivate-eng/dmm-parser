@@ -17,10 +17,11 @@
 //!     `inner_data_bytes`.
 //!   - Disc 13 (CustomizeCharacter) is fully typed: dye_lookup +
 //!     CArray<u16> color_data + CArray<u16> texture_data.
-//!   - Disc 14 (PlaySequencerOnly) still rides as `DeepVariantPayload`
-//!     because the inner `sub_141D8C6D0` is not self-delimiting at the
-//!     boundary needed for partial typing; full typing requires
-//!     reverse-engineering each of its nested composite sub-readers.
+//!   - Disc 14 (PlaySequencerOnly) is fully typed via
+//!     `SequencerStageChartDescPartial` (sub_141D8C6D0). All 26 wire
+//!     fields are field-level addressable. See
+//!     `binary::sequencer_stage_chart_desc` for the wrapper and the
+//!     full extracted wire layout.
 //!
 //! The pabgh sister file is consulted to know each entry's total size on
 //! disk, which is the only way to bound the variant payload reliably for
@@ -59,9 +60,9 @@
 //! it via the "Hand-corrected" header marker on line 1.
 
 use crate::binary::*;
+use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -175,52 +176,45 @@ py_binary_struct! {
 
 // RandomBox (variant 2) — sub_141E45240.
 // Wire after BaseUseData: u8 flag_a + (if flag_a) u32 lookup_a
-// (sub_141100370 → qword_145F113C8) + u8 flag_b + (if flag_b) variable
-// inner bytes via sub_141D03AA0 (deep recursive, kept opaque) + u32
-// final_lookup (read_u32_lookup_DA30 → qword_145F0DA30). The inner
-// blob is sized by extra_size minus the 4-byte trailing final_lookup
-// minus whatever has been consumed by the surrounding flag/lookup
-// fields. Cloning a whole RandomBoxPayload between entries stays
-// byte-perfect; per-field editing of the inner blob is gated on the
-// sub_141600210 family decoder being reverse-engineered.
+// (sub_141100370 → qword_145F113C8) + u8 outer_present + (if
+// outer_present) sub_141D03AA0 (= u8 inner_present + sub_141600210
+// DropTargetData) + u32 final_lookup (read_u32_lookup_DA30 →
+// qword_145F0DA30). Note RandomBox has BOTH the outer presence flag
+// AND the inner sub_141D03AA0 presence — two distinct bytes —
+// whereas DropSetInfo._list calls sub_141D03AA0 directly so it only
+// has the single inner presence. The inner DropTarget is fully
+// field-addressable via `crate::binary::drop_target`.
 #[derive(Debug)]
 pub struct RandomBoxPayload {
     pub lookup_a: Option<u32>,
-    pub inner_data_bytes: Option<Vec<u8>>,
+    /// Outer wrapper around the OptionalDropTarget. `None` when the
+    /// outer presence flag is 0; otherwise carries the inner
+    /// `OptionalDropTarget` (which itself may be empty when its inner
+    /// presence is 0).
+    pub inner: Option<crate::binary::drop_target::OptionalDropTarget>,
     pub final_lookup: u32,
 }
 
 impl RandomBoxPayload {
     pub fn read_with_size(data: &[u8], offset: &mut usize, extra_size: usize) -> io::Result<Self> {
-        let extra_end = *offset + extra_size;
-        if extra_end > data.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
-                format!("RandomBox: extra_size {} runs past end of data", extra_size)));
-        }
+        let _ = extra_size; // typed reader is byte-perfect; size is informational
         let flag_a = u8::read_from(data, offset)?;
         let lookup_a = if flag_a != 0 { Some(u32::read_from(data, offset)?) } else { None };
-        let flag_b = u8::read_from(data, offset)?;
-        let inner_data_bytes = if flag_b != 0 {
-            if extra_end < 4 || *offset > extra_end - 4 {
-                return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("RandomBox: inner_data bounds invalid (cursor={}, extra_end={})", *offset, extra_end)));
-            }
-            let inner_end = extra_end - 4;
-            let bytes = data[*offset..inner_end].to_vec();
-            *offset = inner_end;
-            Some(bytes)
+        let outer = u8::read_from(data, offset)?;
+        let inner = if outer != 0 {
+            Some(crate::binary::drop_target::OptionalDropTarget::read_from(data, offset)?)
         } else {
             None
         };
         let final_lookup = u32::read_from(data, offset)?;
-        Ok(Self { lookup_a, inner_data_bytes, final_lookup })
+        Ok(Self { lookup_a, inner, final_lookup })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         (self.lookup_a.is_some() as u8).write_to(w)?;
         if let Some(v) = self.lookup_a { v.write_to(w)?; }
-        (self.inner_data_bytes.is_some() as u8).write_to(w)?;
-        if let Some(ref b) = self.inner_data_bytes { w.write_all(b)?; }
+        (self.inner.is_some() as u8).write_to(w)?;
+        if let Some(ref i) = self.inner { i.write_to(w)?; }
         self.final_lookup.write_to(w)?;
         Ok(())
     }
@@ -231,8 +225,8 @@ impl RandomBoxPayload {
             Some(v) => v.to_json_value(),
             None => Value::Null,
         });
-        m.insert("inner_data_b64".to_string(), match &self.inner_data_bytes {
-            Some(b) => Value::String(B64.encode(b)),
+        m.insert("inner".to_string(), match &self.inner {
+            Some(i) => i.to_json_value(),
             None => Value::Null,
         });
         m.insert("final_lookup".to_string(), self.final_lookup.to_json_value());
@@ -247,16 +241,14 @@ impl RandomBoxPayload {
             w.push(1);
             <u32 as WriteJsonValue>::write_from_json(w, lookup_a)?;
         }
-        let inner = obj.get("inner_data_b64").unwrap_or(&Value::Null);
+        let inner = obj.get("inner").unwrap_or(&Value::Null);
         if inner.is_null() {
             w.push(0);
         } else {
-            let s = inner.as_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "RandomBox.inner_data_b64: expected string or null"))?;
-            let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-                format!("RandomBox.inner_data_b64: invalid base64: {}", e)))?;
             w.push(1);
-            w.extend_from_slice(&bytes);
+            <crate::binary::drop_target::OptionalDropTarget as WriteJsonValue>::write_from_json(
+                w, inner,
+            )?;
         }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "final_lookup")?)?;
         Ok(())
@@ -275,13 +267,6 @@ py_binary_struct! {
         pub texture_data_list: CArray<u16>,
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Deep variants — payload kept as opaque bytes (round-trip safe).
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Debug)]
-pub struct DeepVariantPayload(pub Vec<u8>);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Top-level variant enum
@@ -303,7 +288,7 @@ pub enum ItemUseDataVariant<'a> {
     Projectile { base: BaseUseData<'a>, payload: ProjectilePayload },
     ExpandFarmSlot { base: BaseUseData<'a>, payload: ConvertCharacterPayload },
     CustomizeCharacter { base: BaseUseData<'a>, payload: CustomizeCharacterPayload },
-    PlaySequencerOnly { base: BaseUseData<'a>, payload: DeepVariantPayload },
+    PlaySequencerOnly { base: BaseUseData<'a>, payload: SequencerStageChartDescPartial<'a> },
     RegisterReserveSlot { base: BaseUseData<'a>, payload: RegisterReserveSlotPayload },
     OpenUI { base: BaseUseData<'a>, payload: OpenUIPayload<'a> },
     Inspect { base: BaseUseData<'a> },
@@ -391,7 +376,7 @@ impl<'a> ItemUseDataVariant<'a> {
             },
             14 => Self::PlaySequencerOnly {
                 base,
-                payload: read_deep_payload(data, offset, extra_size)?,
+                payload: SequencerStageChartDescPartial::read_with_size(data, offset, extra_size)?,
             },
             15 => Self::RegisterReserveSlot {
                 base,
@@ -443,7 +428,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::Projectile { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::ExpandFarmSlot { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::CustomizeCharacter { base, payload } => { base.write_to(w)?; payload.write_to(w) }
-            Self::PlaySequencerOnly { base, payload } => { base.write_to(w)?; w.write_all(&payload.0) }
+            Self::PlaySequencerOnly { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::RegisterReserveSlot { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::OpenUI { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::Inspect { base } => base.write_to(w),
@@ -485,7 +470,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::Projectile { base, payload } => ("Projectile", base, Value::Object(payload.to_json_dict())),
             Self::ExpandFarmSlot { base, payload } => ("ExpandFarmSlot", base, Value::Object(payload.to_json_dict())),
             Self::CustomizeCharacter { base, payload } => ("CustomizeCharacter", base, Value::Object(payload.to_json_dict())),
-            Self::PlaySequencerOnly { base, payload } => ("PlaySequencerOnly", base, deep_to_json(&payload.0)),
+            Self::PlaySequencerOnly { base, payload } => ("PlaySequencerOnly", base, payload.to_json_value()),
             Self::RegisterReserveSlot { base, payload } => ("RegisterReserveSlot", base, Value::Object(payload.to_json_dict())),
             Self::OpenUI { base, payload } => ("OpenUI", base, Value::Object(payload.to_json_dict())),
             Self::Inspect { base } => ("Inspect", base, Value::Null),
@@ -534,7 +519,7 @@ impl<'a> ItemUseDataVariant<'a> {
             11 => ProjectilePayload::write_from_json_dict(w, payload_obj(payload, "Projectile")?)?,
             12 => ConvertCharacterPayload::write_from_json_dict(w, payload_obj(payload, "ExpandFarmSlot")?)?,
             13 => CustomizeCharacterPayload::write_from_json_dict(w, payload_obj(payload, "CustomizeCharacter")?)?,
-            14 => write_deep_from_json(w, payload, "PlaySequencerOnly")?,
+            14 => SequencerStageChartDescPartial::write_from_json(w, payload)?,
             15 => RegisterReserveSlotPayload::write_from_json_dict(w, payload_obj(payload, "RegisterReserveSlot")?)?,
             16 => OpenUIPayload::write_from_json_dict(w, payload_obj(payload, "OpenUI")?)?,
             17 | 18 | 19 | 20 => {} // base only
@@ -547,43 +532,9 @@ impl<'a> ItemUseDataVariant<'a> {
     }
 }
 
-fn deep_to_json(bytes: &[u8]) -> Value {
-    let mut m = Map::new();
-    m.insert("_b64".to_string(), Value::String(B64.encode(bytes)));
-    Value::Object(m)
-}
-
 fn payload_obj<'v>(v: &'v Value, kind: &str) -> io::Result<&'v Map<String, Value>> {
     v.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
         format!("ItemUseDataVariant::{}: payload must be an object", kind)))
-}
-
-fn write_deep_from_json(w: &mut Vec<u8>, v: &Value, kind: &str) -> io::Result<()> {
-    let obj = payload_obj(v, kind)?;
-    let s = json_get_field(obj, "_b64")?
-        .as_str()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-            format!("ItemUseDataVariant::{}: _b64 must be a string", kind)))?;
-    let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-        format!("ItemUseDataVariant::{}: _b64 invalid base64: {}", kind, e)))?;
-    w.extend_from_slice(&bytes);
-    Ok(())
-}
-
-fn read_deep_payload<'a>(
-    data: &'a [u8],
-    offset: &mut usize,
-    size: usize,
-) -> io::Result<DeepVariantPayload> {
-    if *offset + size > data.len() {
-        return Err(io::Error::new(
-            io::ErrorKind::UnexpectedEof,
-            format!("deep payload size {} runs past end of data", size),
-        ));
-    }
-    let bytes = data[*offset..*offset + size].to_vec();
-    *offset += size;
-    Ok(DeepVariantPayload(bytes))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
