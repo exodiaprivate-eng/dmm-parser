@@ -201,6 +201,8 @@ pub enum GimmickTail<'a> {
         field_41_u32: Option<u32>,
         /// Field 42 — single u32 continuation.
         field_42_u32: Option<u32>,
+        /// Field 43 — single u32 (6011 entries share `0xff008000`).
+        field_43_u32: Option<u32>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -421,6 +423,13 @@ impl<'a> GimmickTail<'a> {
                         _ => { probe = pre_; None }
                     }
                 } else { None };
+                let field_43_u32 = if field_42_u32.is_some() && probe + 4 <= entry_end {
+                    let pre_ = probe;
+                    match u32::read_from(data, &mut probe) {
+                        Ok(v) => Some(v),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -460,6 +469,7 @@ impl<'a> GimmickTail<'a> {
                     field_40_u32_list,
                     field_41_u32,
                     field_42_u32,
+                    field_43_u32,
                     post_blob,
                 })
             }
@@ -489,7 +499,7 @@ impl<'a> GimmickTail<'a> {
                 field_35_u32_list, field_36_u32,
                 field_37_u32, field_38_u32,
                 field_39_u32_list, field_40_u32_list,
-                field_41_u32, field_42_u32, post_blob } => {
+                field_41_u32, field_42_u32, field_43_u32, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -550,6 +560,7 @@ impl<'a> GimmickTail<'a> {
                 if let Some(arr) = field_40_u32_list { arr.write_to(w)?; }
                 if let Some(v) = field_41_u32 { v.write_to(w)?; }
                 if let Some(v) = field_42_u32 { v.write_to(w)?; }
+                if let Some(v) = field_43_u32 { v.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -574,7 +585,7 @@ impl<'a> GimmickTail<'a> {
                 field_35_u32_list, field_36_u32,
                 field_37_u32, field_38_u32,
                 field_39_u32_list, field_40_u32_list,
-                field_41_u32, field_42_u32, post_blob } => {
+                field_41_u32, field_42_u32, field_43_u32, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -663,6 +674,8 @@ impl<'a> GimmickTail<'a> {
                 m.insert("field_41_u32".to_string(), match field_41_u32 {
                     Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("field_42_u32".to_string(), match field_42_u32 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("field_43_u32".to_string(), match field_43_u32 {
                     Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
@@ -790,6 +803,10 @@ impl<'a> GimmickTail<'a> {
                 let f42 = json_get_field(obj, "field_42_u32")?;
                 if !f42.is_null() {
                     <u32 as WriteJsonValue>::write_from_json(w, f42)?;
+                }
+                let f43 = json_get_field(obj, "field_43_u32")?;
+                if !f43.is_null() {
+                    <u32 as WriteJsonValue>::write_from_json(w, f43)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,

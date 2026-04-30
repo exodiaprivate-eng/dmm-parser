@@ -40,6 +40,7 @@ fn main() {
     let mut field_40_typed = 0usize;
     let mut field_41_typed = 0usize;
     let mut field_42_typed = 0usize;
+    let mut field_43_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -76,6 +77,7 @@ fn main() {
                 field_40_u32_list,
                 field_41_u32,
                 field_42_u32,
+                field_43_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -105,6 +107,7 @@ fn main() {
                 if field_40_u32_list.is_some() { field_40_typed += 1; }
                 if field_41_u32.is_some() { field_41_typed += 1; }
                 if field_42_u32.is_some() { field_42_typed += 1; }
+                if field_43_u32.is_some() { field_43_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -140,6 +143,7 @@ fn main() {
     println!("Field 40 (field_40_u32_list)         typed:     {} / {}", field_40_typed, decoded);
     println!("Field 41 (field_41_u32 single u32)   typed:     {} / {}", field_41_typed, decoded);
     println!("Field 42 (field_42_u32 single u32)   typed:     {} / {}", field_42_typed, decoded);
+    println!("Field 43 (field_43_u32 single u32)   typed:     {} / {}", field_43_typed, decoded);
 
     post_blob_sizes.sort();
     if !post_blob_sizes.is_empty() {
