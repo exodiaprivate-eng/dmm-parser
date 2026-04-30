@@ -1820,7 +1820,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickSatisfiedStatus,
     ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload),
     ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload),
-    ConditionData_CheckCurrentEquipType_OrTag54,
+    ConditionData_CheckCurrentEquipType_OrTag54(OneU32BodyPayload),
     ConditionData_CheckEquipType(ThreeU32BodyPayload),
     ConditionData_WeaponOut,
     ConditionData_IsSequencerPhaseChange,
@@ -2230,7 +2230,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickSatisfiedStatus => 51,
             Self::ConditionData_CheckEquipSlotName(_) => 52,
             Self::ConditionData_CheckCurrentEquipSlotName(_) => 53,
-            Self::ConditionData_CheckCurrentEquipType_OrTag54 => 54,
+            Self::ConditionData_CheckCurrentEquipType_OrTag54(_) => 54,
             Self::ConditionData_CheckEquipType(_) => 55,
             Self::ConditionData_WeaponOut => 56,
             Self::ConditionData_IsSequencerPhaseChange => 57,
@@ -2643,7 +2643,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickSatisfiedStatus => "ConditionData_CheckGimmickSatisfiedStatus",
             Self::ConditionData_CheckEquipSlotName(_) => "ConditionData_CheckEquipSlotName",
             Self::ConditionData_CheckCurrentEquipSlotName(_) => "ConditionData_CheckCurrentEquipSlotName",
-            Self::ConditionData_CheckCurrentEquipType_OrTag54 => "ConditionData_CheckCurrentEquipType_OrTag54",
+            Self::ConditionData_CheckCurrentEquipType_OrTag54(_) => "ConditionData_CheckCurrentEquipType_OrTag54",
             Self::ConditionData_CheckEquipType(_) => "ConditionData_CheckEquipType",
             Self::ConditionData_WeaponOut => "ConditionData_WeaponOut",
             Self::ConditionData_IsSequencerPhaseChange => "ConditionData_IsSequencerPhaseChange",
@@ -3057,7 +3057,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickSatisfiedStatus => {}
             Self::ConditionData_CheckEquipSlotName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckCurrentEquipSlotName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_CheckCurrentEquipType_OrTag54 => {}
+            Self::ConditionData_CheckCurrentEquipType_OrTag54(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckEquipType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_WeaponOut => {}
             Self::ConditionData_IsSequencerPhaseChange => {}
@@ -3478,7 +3478,7 @@ impl<'a> ConditionDataVariant<'a> {
             51 => {}
             52 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipSlotName: missing body object"))?; ConditionData_CheckEquipSlotNamePayload::write_from_json_dict(w, body)?; }
             53 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipSlotName: missing body object"))?; ConditionData_CheckCurrentEquipSlotNamePayload::write_from_json_dict(w, body)?; }
-            54 => {}
+            54 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipType_OrTag54: missing body object"))?; OneU32BodyPayload::write_from_json_dict(w, body)?; }
             55 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipType: missing body object"))?; ThreeU32BodyPayload::write_from_json_dict(w, body)?; }
             56 => {}
             57 => {}
@@ -3893,7 +3893,7 @@ impl<'a> ConditionDataVariant<'a> {
             51 => Self::ConditionData_CheckGimmickSatisfiedStatus,
             52 => Self::ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload::read_from(data, offset)?),
             53 => Self::ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload::read_from(data, offset)?),
-            54 => Self::ConditionData_CheckCurrentEquipType_OrTag54,
+            54 => Self::ConditionData_CheckCurrentEquipType_OrTag54(OneU32BodyPayload::read_from(data, offset)?),
             55 => Self::ConditionData_CheckEquipType(ThreeU32BodyPayload::read_from(data, offset)?),
             56 => Self::ConditionData_WeaponOut,
             57 => Self::ConditionData_IsSequencerPhaseChange,
@@ -4304,7 +4304,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickSatisfiedStatus => Ok(()),
             Self::ConditionData_CheckEquipSlotName(p) => p.write_to(w),
             Self::ConditionData_CheckCurrentEquipSlotName(p) => p.write_to(w),
-            Self::ConditionData_CheckCurrentEquipType_OrTag54 => Ok(()),
+            Self::ConditionData_CheckCurrentEquipType_OrTag54(p) => p.write_to(w),
             Self::ConditionData_CheckEquipType(p) => p.write_to(w),
             Self::ConditionData_WeaponOut => Ok(()),
             Self::ConditionData_IsSequencerPhaseChange => Ok(()),
