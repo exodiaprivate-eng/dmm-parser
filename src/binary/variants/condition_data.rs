@@ -1881,7 +1881,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickTag(OneCStringBodyPayload<'a>),
     ConditionData_CheckCatcherGimmickTag,
     ConditionData_CheckCatcheeGimmickTag(OneCStringBodyPayload<'a>),
-    ConditionData_CatchTag,
+    ConditionData_CatchTag(OneCStringBodyPayload<'a>),
     ConditionData_CheckLoadingComplete,
     ConditionData_CheckLevelLoadingComplete,
     ConditionData_CheckInteractionSocketBoneName(ConditionData_CheckInteractionSocketBoneNamePayload<'a>),
@@ -2291,7 +2291,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTag(_) => 113,
             Self::ConditionData_CheckCatcherGimmickTag => 114,
             Self::ConditionData_CheckCatcheeGimmickTag(_) => 115,
-            Self::ConditionData_CatchTag => 116,
+            Self::ConditionData_CatchTag(_) => 116,
             Self::ConditionData_CheckLoadingComplete => 117,
             Self::ConditionData_CheckLevelLoadingComplete => 118,
             Self::ConditionData_CheckInteractionSocketBoneName(_) => 119,
@@ -2704,7 +2704,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTag(_) => "ConditionData_CheckGimmickTag",
             Self::ConditionData_CheckCatcherGimmickTag => "ConditionData_CheckCatcherGimmickTag",
             Self::ConditionData_CheckCatcheeGimmickTag(_) => "ConditionData_CheckCatcheeGimmickTag",
-            Self::ConditionData_CatchTag => "ConditionData_CatchTag",
+            Self::ConditionData_CatchTag(_) => "ConditionData_CatchTag",
             Self::ConditionData_CheckLoadingComplete => "ConditionData_CheckLoadingComplete",
             Self::ConditionData_CheckLevelLoadingComplete => "ConditionData_CheckLevelLoadingComplete",
             Self::ConditionData_CheckInteractionSocketBoneName(_) => "ConditionData_CheckInteractionSocketBoneName",
@@ -3118,7 +3118,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckCatcherGimmickTag => {}
             Self::ConditionData_CheckCatcheeGimmickTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_CatchTag => {}
+            Self::ConditionData_CatchTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckLoadingComplete => {}
             Self::ConditionData_CheckLevelLoadingComplete => {}
             Self::ConditionData_CheckInteractionSocketBoneName(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3539,7 +3539,7 @@ impl<'a> ConditionDataVariant<'a> {
             113 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTag: missing body object"))?; OneCStringBodyPayload::write_from_json_dict(w, body)?; }
             114 => {}
             115 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCatcheeGimmickTag: missing body object"))?; OneCStringBodyPayload::write_from_json_dict(w, body)?; }
-            116 => {}
+            116 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CatchTag: missing body object"))?; OneCStringBodyPayload::write_from_json_dict(w, body)?; }
             117 => {}
             118 => {}
             119 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckInteractionSocketBoneName: missing body object"))?; ConditionData_CheckInteractionSocketBoneNamePayload::write_from_json_dict(w, body)?; }
@@ -3954,7 +3954,7 @@ impl<'a> ConditionDataVariant<'a> {
             113 => Self::ConditionData_CheckGimmickTag(OneCStringBodyPayload::read_from(data, offset)?),
             114 => Self::ConditionData_CheckCatcherGimmickTag,
             115 => Self::ConditionData_CheckCatcheeGimmickTag(OneCStringBodyPayload::read_from(data, offset)?),
-            116 => Self::ConditionData_CatchTag,
+            116 => Self::ConditionData_CatchTag(OneCStringBodyPayload::read_from(data, offset)?),
             117 => Self::ConditionData_CheckLoadingComplete,
             118 => Self::ConditionData_CheckLevelLoadingComplete,
             119 => Self::ConditionData_CheckInteractionSocketBoneName(ConditionData_CheckInteractionSocketBoneNamePayload::read_from(data, offset)?),
@@ -4365,7 +4365,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickTag(p) => p.write_to(w),
             Self::ConditionData_CheckCatcherGimmickTag => Ok(()),
             Self::ConditionData_CheckCatcheeGimmickTag(p) => p.write_to(w),
-            Self::ConditionData_CatchTag => Ok(()),
+            Self::ConditionData_CatchTag(p) => p.write_to(w),
             Self::ConditionData_CheckLoadingComplete => Ok(()),
             Self::ConditionData_CheckLevelLoadingComplete => Ok(()),
             Self::ConditionData_CheckInteractionSocketBoneName(p) => p.write_to(w),
