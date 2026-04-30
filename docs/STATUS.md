@@ -43,7 +43,9 @@
 > - `interaction_info`: Decoded 248 → **360** (+112), Raw 115 → **3** (97% drop). 99.2% typed.
 > - `condition_info`: 8914 / 8934 Decoded (99.78%); diagnostic counter added.
 > - `gimmick_info`: 12393 / 12399 Decoded (99.95%).
-> - 12 ConditionData tag recipes fixed: 7, 19, 27, 29, 99, 116, 135, 174, 358, 360, 370, 393.
+> - 13 ConditionData tag recipes touched: 7, 19, 27, 29, 54, 99, 116,
+>   135, 174, 358, 360, 370, 393. Tag 54 was a best-effort u32-body
+>   upgrade (`19d370c`) — byte-perfect but doesn't reduce the histogram.
 > - Catalog: **92 T1 / 0 T2** (3 stale T2s promoted).
 > - **QuestInfo Tier 1.5 → Tier 1** via `6cdc22c` (lane-c wired
 >   FilterCondition family decoder shipped by lane-b in `2e416b4`).
