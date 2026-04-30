@@ -68,6 +68,40 @@ py_binary_struct! {
     }
 }
 
+// sub_1410ECC50 — sub_14110DCE0 inner, 104 mem bytes / 12 wire fields.
+py_binary_struct! {
+    pub struct MissionResultData2<'a> {
+        pub flag_a: u8,
+        pub name_a: CString<'a>,
+        pub name_b: CString<'a>,
+        pub region_lookup: u16,             // sub_1410FF220 (wire u16)
+        pub lookup_a: u16,                  // sub_141106810 (wire u16)
+        pub flag_b: u8,
+        pub name_c: CString<'a>,
+        pub list_a: CArray<u32>,            // sub_1410FFC20
+        pub list_b: CArray<u32>,            // sub_141102FF0
+        pub list_c: CArray<u32>,            // sub_141102EF0
+        pub raw: u64,
+        pub flag_c: u8,
+    }
+}
+
+// sub_1410ECFD0 — sub_14110DB10 inner, 32 mem bytes / 9 wire fields.
+// First 4 fields are sub_1410E2030 (u8 flag + 3× u32 lookup).
+py_binary_struct! {
+    pub struct MissionStageData {
+        pub flag_a: u8,
+        pub lookup_a: u32,                  // sub_1410FF430
+        pub lookup_b: u32,                  // sub_1410FF430
+        pub lookup_c: u32,                  // sub_1410FF430
+        pub list: CArray<u32>,              // sub_141101610
+        pub lookup_d: u32,                  // sub_1410FF5C0
+        pub lookup_e: u16,                  // sub_141100620 (wire u16)
+        pub flag_b: u8,
+        pub flag_c: u8,
+    }
+}
+
 // sub_1410EC8B0 — MissionUIDesc, 80 mem bytes / 18 wire fields.
 py_binary_struct! {
     pub struct MissionUIDesc {
@@ -155,6 +189,9 @@ pabgh_typed_blob_table! {
         pub label_b: LocalizableString<'a>,
         pub label_c: LocalizableString<'a>,
         pub label_d: LocalizableString<'a>,
+        pub result_data_2_lookup: u32,       // sub_141102D90 (KNOWN)
+        pub result_data_list_2: CArray<MissionResultData2<'a>>,
+        pub mission_stage_list: CArray<MissionStageData>,
     }
     tail: tail_blob;
 }
