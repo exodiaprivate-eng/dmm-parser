@@ -82,7 +82,12 @@ py_binary_struct! {
         pub raw_n: u32,
         pub raw_o: u32,
         pub raw_p: u32,
-        pub trailing_16: [u8; 16],
+        // Per IDA sub_1410F5A30: 16 individual 1-byte reads in a loop
+        // (read 1 byte, increment, until 16 collected) — split into named u8 fields.
+        pub trailing_00: u8, pub trailing_01: u8, pub trailing_02: u8, pub trailing_03: u8,
+        pub trailing_04: u8, pub trailing_05: u8, pub trailing_06: u8, pub trailing_07: u8,
+        pub trailing_08: u8, pub trailing_09: u8, pub trailing_10: u8, pub trailing_11: u8,
+        pub trailing_12: u8, pub trailing_13: u8, pub trailing_14: u8, pub trailing_15: u8,
     }
 }
 
