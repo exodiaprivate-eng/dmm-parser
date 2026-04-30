@@ -719,3 +719,60 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         Ok(())
     }
 }
+
+// Stream-mode trait impls — used when the desc is embedded inside a
+// CArray (sequencer_spawn_info, stage_info field 7, etc.) where there
+// is no per-element size bound. opaque_tail stays empty in that mode;
+// any future-format leftover bytes would surface as a parser-error
+// downstream rather than going into the desc's blob.
+impl<'a> BinaryRead<'a> for SequencerStageChartDescPartial<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Self {
+            name: CString::read_from(data, offset)?,
+            raw_a: u32::read_from(data, offset)?,
+            prefab_path: CString::read_from(data, offset)?,
+            position: <[f32; 3]>::read_from(data, offset)?,
+            raw_b: u32::read_from(data, offset)?,
+            flag_a: u8::read_from(data, offset)?,
+            flag_b: u8::read_from(data, offset)?,
+            flag_c: u8::read_from(data, offset)?,
+            flag_d: u8::read_from(data, offset)?,
+            flag_e: u8::read_from(data, offset)?,
+            flag_f: u8::read_from(data, offset)?,
+            flag_g: u8::read_from(data, offset)?,
+            flag_h: u8::read_from(data, offset)?,
+            lookup_a: u32::read_from(data, offset)?,
+            cond_a: OptionalGameCondition::read_from(data, offset)?,
+            cstring_a: CString::read_from(data, offset)?,
+            cstring_b: CString::read_from(data, offset)?,
+            string_pair_list: CArray::<StringPair>::read_from(data, offset)?,
+            track_change_list: CArray::<ChartTrackChangeElement>::read_from(data, offset)?,
+            spawn_data_lists: CArray::<CArray<SequencerStageSpawnData>>::read_from(data, offset)?,
+            list_a: CArray::<u16>::read_from(data, offset)?,
+            list_b: CArray::<u16>::read_from(data, offset)?,
+            list_c: CArray::<u32>::read_from(data, offset)?,
+            list_d: CArray::<u32>::read_from(data, offset)?,
+            list_e: CArray::<u32>::read_from(data, offset)?,
+            list_f: CArray::<u32>::read_from(data, offset)?,
+            opaque_tail: Vec::new(),
+        })
+    }
+}
+
+impl<'a> BinaryWrite for SequencerStageChartDescPartial<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        Self::write_to(self, w)
+    }
+}
+
+impl<'a> ToJsonValue for SequencerStageChartDescPartial<'a> {
+    fn to_json_value(&self) -> Value {
+        Self::to_json_value(self)
+    }
+}
+
+impl<'a> WriteJsonValue for SequencerStageChartDescPartial<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        Self::write_from_json(w, v)
+    }
+}
