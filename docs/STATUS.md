@@ -162,14 +162,16 @@ FilterCondition (sub_141D8F740, 64 mem bytes)
 All 14+ helpers verified as fixed-shape via IDA decompile. The depth
 made this a focused multi-session crack rather than an in-loop win.
 
-**Status update**: `src/binary/variants/filter_condition.rs` decoder
-**module is now shipped** (FilterCondition + 8 sub-readers all typed,
-1:1 mapping to IDA sub-routines). What's still pending: wiring it
-into `tables/quest_info/info.rs` to replace
-`quest_dialog_filter_data_list_blob: Vec<u8>` with the typed
-`Decoded|Raw` enum. Once wired, QuestInfo moves from internal-T1.5 →
-T1. (MiniGameDataInfo's separate spawn_data_list path was already
-typed via lane-c's `38ff7c3` work using SequencerStageSpawnData.)
+**Status update**: ✅ FULLY SHIPPED.
+1. Decoder module `src/binary/variants/filter_condition.rs` —
+   FilterCondition + 8 sub-readers all typed, 1:1 to IDA (lane-b).
+2. QuestInfo wiring shipped in `6cdc22c` (lane-c, 2026-04-30):
+   `quest_dialog_filter_data_list_blob: Vec<u8>` was replaced by the
+   typed `QuestDialogFilterDataList<'a>` Decoded|Raw enum, exposing
+   18 typed wire fields per QuestDialogFilterData with byte-perfect
+   Raw fallback. **QuestInfo is now Tier 1.** 308/308 tests pass.
+   (MiniGameDataInfo's separate spawn_data_list path was already
+   typed via lane-c's `38ff7c3` work using SequencerStageSpawnData.)
 
 ### Reverse-engineering notes — TriggerGamePlayEventHandlerData
 
@@ -248,7 +250,7 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 | **GameEventHandler** | ✅ shipped — per-sub_tag typed bodies (sub_tag 2 = 12-byte SetUIPlayGuideParameter, sub_tag 3 = 6-byte SetUIFullscreenGuideParameter, sub_tags 0/1/4 in-place or Raw fallback). | GameEventHandlerInfo (Tier 1) |
 | **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
 | **TriggerGamePlayEventHandlerData** (TGPEHD) | 🔵 researched (8/8 cases reverse-engineered, see "Reverse-engineering notes" section above), implementation pending | GimmickInfo `post_blob` (sub_1411125E0) — would unlock GimmickInfo internal-Tier-1.5 → Tier-1 |
-| **FilterCondition** family | ✅ decoder shipped — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). Wiring into QuestInfo still pending. | QuestInfo `_questDialogFilterDataList` — would move QuestInfo from internal-T1.5 → T1 |
+| **FilterCondition** family | ✅ FULLY SHIPPED — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). QuestInfo wired via `6cdc22c` (lane-c, 2026-04-30). | QuestInfo `_questDialogFilterDataList` — Tier 1 |
 
 ### Tables by tier
 - **Tier 1** (typed, all fields editable through JSON): all 92 on-disk
@@ -257,9 +259,10 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
   CharacterInfo, MiniGameDataInfo, EquipSlotInfo and others have all
   joined this tier in 2026-04-30 work.
 - **Tier 1.5** (sub-field opacities inside otherwise-T1 tables):
-  see "Remaining Tier 1.5" section above — QuestInfo
-  `quest_dialog_filter_data_list_blob` and GimmickInfo `post_blob`
-  remain blocked on family decoder reverse engineering.
+  see "Remaining Tier 1.5" section above — only GimmickInfo `post_blob`
+  remains, blocked on the TriggerGamePlayEventHandlerData (TGPEHD)
+  decoder. (QuestInfo's `quest_dialog_filter_data_list` was promoted
+  to Tier 1 via `6cdc22c`.)
 - **Tier 2** (whole-tail blob): **0 tables** — eliminated. The
   catalog-level T2 count is now 0 (was previously 3 stale entries).
 
