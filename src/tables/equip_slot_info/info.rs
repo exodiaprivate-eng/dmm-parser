@@ -355,6 +355,7 @@ mod tests {
     const PABGB: &str = r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\equipslotinfo.pabgb";
     const PABGH: &str = r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\equipslotinfo.pabgh";
 
+
     #[test]
     fn roundtrip_bytes() {
         let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP: pabgb missing"); return; };

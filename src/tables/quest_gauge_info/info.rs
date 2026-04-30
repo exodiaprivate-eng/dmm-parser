@@ -10,14 +10,26 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
+// EventData: 13-byte composite per empirical sweep.
+// Layout: u32 type (small enum, 0x0c/0x6a observed) + u32 (always 0) +
+// u32 (varies, often 0 or 0xffe51c00) + u8 trailing (0x00 or 0xff).
+py_binary_struct! {
+    pub struct QuestGaugeEventData {
+        pub event_type: u32,
+        pub field_b: u32,
+        pub field_c: u32,
+        pub trailing: u8,
+    }
+}
+
 py_binary_struct! {
     pub struct QuestGaugeInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub parent_quest: u32,
-        pub start_event_data: [u8; 13],
-        pub complete_event_data: [u8; 13],
+        pub start_event_data: QuestGaugeEventData,
+        pub complete_event_data: QuestGaugeEventData,
         pub quest_info_list: CArray<u32>,
         pub target_mission_info_list: CArray<u32>,
         pub exclude_stage_info_list: CArray<u32>,
