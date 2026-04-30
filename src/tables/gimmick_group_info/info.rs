@@ -104,6 +104,51 @@ py_binary_struct! {
     }
 }
 
+// GimmickCollisionTagData — sub_141113220 inner, 24 mem bytes.
+// Wire: CString name + u8 + 2× CString-hash (sub_1410A9D40).
+py_binary_struct! {
+    pub struct GimmickCollisionTagData<'a> {
+        pub name: CString<'a>,
+        pub flag: u8,
+        pub tag_a: CString<'a>,
+        pub tag_b: CString<'a>,
+    }
+}
+
+// GimmickInteractionData — sub_1411130A0 inner via sub_1410E4050,
+// 56 mem bytes / 10 wire fields.
+py_binary_struct! {
+    pub struct GimmickInteractionData<'a> {
+        pub lookup_a: u32,    // sub_141104AE0
+        pub raw_a: u32,
+        pub name_a: CString<'a>,
+        pub flag_a: u8,
+        pub lookup_b: u32,    // sub_141104AE0
+        pub raw_b: u32,
+        pub name_b: CString<'a>,
+        pub flag_b: u8,
+        pub name_c: CString<'a>,
+        pub raw_c: u32,
+    }
+}
+
+// GimmickFieldEntry — sub_141101B80 inner, 8 mem bytes / 2 wire fields.
+// Wire: u32 raw + u32 (hashed via sub_141BF6840 → qword_145F11478 lookup).
+py_binary_struct! {
+    pub struct GimmickFieldEntry {
+        pub raw: u32,
+        pub lookup_hash: u32,
+    }
+}
+
+// GimmickU32Pair — sub_141104B50 inner, 8 mem bytes / 2 u32 raw.
+py_binary_struct! {
+    pub struct GimmickU32Pair {
+        pub a: u32,
+        pub b: u32,
+    }
+}
+
 // GimmickAttackByCollisionData — sub_141C79D00 flat struct.
 // Wire: CString + CString + u32 + u32 + u32 = variable + 12 bytes.
 py_binary_struct! {
@@ -217,6 +262,13 @@ pabgh_typed_blob_table! {
         pub flag_356: u8,
         pub allow_event_keys: CArray<CString<'a>>,
         pub block_event_keys: CArray<CString<'a>>,
+        pub collision_tag_data_list: CArray<GimmickCollisionTagData<'a>>,
+        pub interaction_data_list: CArray<GimmickInteractionData<'a>>,
+        pub flag_424: u8,
+        pub flag_425: u8,
+        pub flag_426: u8,
+        pub field_list: CArray<GimmickFieldEntry>,
+        pub u32_pair_list: CArray<GimmickU32Pair>,
     }
     tail: tail_blob;
 }
