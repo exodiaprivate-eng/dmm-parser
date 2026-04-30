@@ -12,7 +12,6 @@ use super::game_expression::GameExpression;
 use super::ivariant_item::IVariantItem;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -80,9 +79,7 @@ impl<'a> ConditionDataStageChart<'a> {
                 m.insert("label".into(), label.to_json_value());
                 m.insert("byte_b".into(), byte_b.to_json_value());
                 m.insert("qword_c".into(), qword_c.to_json_value());
-                let mut buf = Vec::new();
-                expression.write_to(&mut buf).expect("write_to Vec");
-                m.insert("expression_b64".into(), Value::String(B64.encode(&buf)));
+                m.insert("expression".into(), Value::Object(expression.to_json_dict()));
             }
             Self::BranchB { ivariant_selector, item } => {
                 m.insert("branch".into(), Value::String("B".into()));
@@ -104,15 +101,11 @@ impl<'a> ConditionDataStageChart<'a> {
                 <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "label")?)?;
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_b")?)?;
                 <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_c")?)?;
-                let s = json_get_field(obj, "expression_b64")?.as_str().ok_or_else(|| {
+                let expr_obj = json_get_field(obj, "expression")?.as_object().ok_or_else(|| {
                     io::Error::new(io::ErrorKind::InvalidData,
-                        "expression_b64: expected base64 string")
+                        "StageChart.expression: expected object")
                 })?;
-                let bytes = B64.decode(s).map_err(|e| io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("expression_b64: invalid base64: {}", e),
-                ))?;
-                w.extend_from_slice(&bytes);
+                GameExpression::write_from_json_dict(w, expr_obj)?;
             }
             "B" => {
                 w.push(0u8);  // outer_presence == 0 implies BranchB
