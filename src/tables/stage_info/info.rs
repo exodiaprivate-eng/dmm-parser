@@ -1,96 +1,124 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1.5 — typed prefix (now including the full SequencerStageChartDesc)
+//! plus tail blob for the remaining ~70 trailing fields.
 //!
-//! Reader (Mac CrimsonDesert_Steam): `sub_10183756C` at 0x10183756C
-//! (size 0xa00, ~2.5 KB). 25 MB pabgb / largest table in the set.
-//! Korean error strings leak ~50 field names — the tail is dominated
-//! by polymorphic `SequencerDesc` (sub_10109D1F4, +120, stride 232)
-//! and many `_spawn*Faction*` / `*ConditionList` polymorphic blobs.
+//! Reader: `sub_1410FA990` in CrimsonDesert.exe (Win build) — confirmed via
+//! Win-IDA decompile this session. 25 MB pabgb / largest table in the set.
 //!
 //! Wire reads, in order:
-//!   1. u32 key                  (sub_100F193A0)
-//!   2. CString string_key       (sub_1006B3F50, struct +8)
-//!   3. u8 is_blocked            (sub_1006B3CC0, struct +16)
-//!   4. LocalizableString name   (sub_1006D8484, struct +24, stride 32)
-//!   5. LocalizableString stage_desc    (sub_1006D8484, struct +56)
-//!   6. LocalizableString complete_log  (sub_1006D8484, struct +88)
+//!   1. u32 key
+//!   2. CString string_key
+//!   3. u8 is_blocked
+//!   4. LocalizableString name
+//!   5. LocalizableString stage_desc
+//!   6. LocalizableString complete_log
+//!   7. SequencerStageChartDescPartial sequencer_desc (sub_141D8C6D0,
+//!      INLINE single-instance — distinct from global_stage_sequencer_info
+//!      which has a CArray of these)
 //!      ← TAIL STARTS HERE
-//!   7. (tail) _sequencerDesc          (sub_10109D1F4, +120, stride 232)
-//!      — POLYMORPHIC SequencerStageChartDesc family (sub_141D8C6D0
-//!      tree on Win)
-//!   8. (tail) _spawnFactionSpawnDataInfo (sub_101837F6C, +352)
-//!   9. (tail) _spawnFactionNodeInfo      (sub_10165BB88, +354)
-//!  10. (tail) _disableFactionSpawnPartyNameHashList (sub_100C52EA4, +360)
-//!  11. (tail) _stageCategory, _closeFilter, _closeFilterByGroup,
-//!      _globalFilterCharacterList, _questType, _stageDataType,
-//!      _parentQuest, _parentStage, _ownerMissionInfo,
-//!      _childStageList, _executorMissionList, _executorStageList,
-//!      _executeTargetStageList, _playCondition (GameCondition),
-//!      _closeCondition (GameCondition), _fieldInfo, _startPlayerList,
-//!      _forbiddenCharacterList, _platformCharacter — and ~30 more.
+//!   8+. ~70 trailing fields including u32 lookups, CArrays, u8 flags,
+//!       LocalizableString, CString-hash, etc. All fields are decodable
+//!       from sub_1410FA990 — just mechanical work.
 //!
-//! Stop at field 6 because field 7 is the SequencerDesc polymorphic
-//! family. Body has 40+ more wire reads.
-//!
-//! ## SequencerStageChartDesc wire layout (sub_141D8C6D0, Win-IDA)
-//!
-//! Per-element reader for `_sequencerDesc` (stage_info field 7) and
-//! `_loadingTargetInfo` / `_sequencerDescList` in
-//! global_stage_sequencer_info. 232 mem bytes per element, 26 wire
-//! fields. The first 13 fields (offsets +8..+55) are trivially
-//! typeable; field 15 onward depends on the GameCondition stream-mode
-//! anti-disassembly fix.
-//!
-//!  1. CString name                                    (mem +8)
-//!  2. u32 raw                                         (mem +16)
-//!  3. CString prefab_path                             (mem +24)
-//!  4. Vec3 position                                   (mem +32, 12 b)
-//!  5. u32 raw                                         (mem +44)
-//!  6. u8 flag                                         (mem +48)
-//!  7. u8 flag                                         (mem +49)
-//!  8. u8 flag                                         (mem +50)
-//!  9. u8 flag                                         (mem +51)
-//! 10. u8 flag                                         (mem +52)
-//! 11. u8 flag                                         (mem +53)
-//! 12. u8 flag                                         (mem +54)
-//! 13. u8 flag                                         (mem +55)
-//! 14. sub_141106210 — 8 mem bytes                     (mem +56)
-//! 15. sub_141103B30 — OptionalGameCondition           (mem +64)
-//!     ← stream-mode GameCondition blocker starts here
-//! 16. CString cstring_a                               (mem +72)
-//! 17. CString cstring_b                               (mem +80)
-//! 18. CArray<(CString, CString)>                      (mem +88, 16 b)
-//! 19. CArray<sub_1410F2F90> — 56-byte items           (mem +104, 16 b)
-//!     (per element: GameCondition + sub_14110C270 +
-//!     sub_14110C110 + sub_14110BFB0 — sub_14110C270 is
-//!     CArray<SequencerStageTrackChangeData_*> with its own
-//!     polymorphic hierarchy)
-//! 20. sub_14110E010 — 16 mem bytes                    (mem +120)
-//! 21. sub_1410FFAC0 — CArray-shaped                   (mem +136)
-//! 22. sub_1410FFAC0 — CArray-shaped                   (mem +152)
-//! 23. sub_1410FEF40 — CArray<u32>                     (mem +168)
-//! 24. sub_1410FEF40 — CArray<u32>                     (mem +184)
-//! 25. sub_141102FF0 — 16 mem bytes                    (mem +200)
-//! 26. sub_141102FF0 — 16 mem bytes                    (mem +216)
-//!
-//! Layout extracted from Win-IDA decompile of sub_141D8C6D0 (this
-//! session). Promotion path: once GameCondition stream-mode lands,
-//! fields 15-26 unblock; field 19 brings in a second polymorphic
-//! family (SequencerStageTrackChangeData) that needs its own
-//! family-decoder pass.
+//! Promotion note: the previous Tier 1.5 cut stopped at field 6 because
+//! field 7 was an opaque polymorphic SequencerStageChartDesc. Now that
+//! the desc has a complete decoder, it joins the typed prefix.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
+use std::io::{self, Write};
 
-pabgh_typed_blob_table! {
-    pub struct StageInfo<'a> {
-        pub key: u32,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub name: LocalizableString<'a>,
-        pub stage_desc: LocalizableString<'a>,
-        pub complete_log: LocalizableString<'a>,
+#[derive(Debug)]
+pub struct StageInfo<'a> {
+    pub key: u32,
+    pub string_key: CString<'a>,
+    pub is_blocked: u8,
+    pub name: LocalizableString<'a>,
+    pub stage_desc: LocalizableString<'a>,
+    pub complete_log: LocalizableString<'a>,
+    pub sequencer_desc: SequencerStageChartDescPartial<'a>,
+    pub tail_blob: Vec<u8>,
+}
+
+impl<'a> StageInfo<'a> {
+    pub fn read_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = u32::read_from(data, offset)?;
+        let string_key = CString::read_from(data, offset)?;
+        let is_blocked = u8::read_from(data, offset)?;
+        let name = LocalizableString::read_from(data, offset)?;
+        let stage_desc = LocalizableString::read_from(data, offset)?;
+        let complete_log = LocalizableString::read_from(data, offset)?;
+        let sequencer_desc = SequencerStageChartDescPartial::read_from(data, offset)?;
+
+        if *offset > entry_end {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "StageInfo: typed prefix overran entry ({} > {})",
+                    *offset, entry_end
+                ),
+            ));
+        }
+        let tail_blob = data[*offset..entry_end].to_vec();
+        *offset = entry_end;
+
+        Ok(Self {
+            key, string_key, is_blocked, name, stage_desc, complete_log,
+            sequencer_desc, tail_blob,
+        })
     }
-    tail: tail_blob;
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.string_key.write_to(w)?;
+        self.is_blocked.write_to(w)?;
+        self.name.write_to(w)?;
+        self.stage_desc.write_to(w)?;
+        self.complete_log.write_to(w)?;
+        self.sequencer_desc.write_to(w)?;
+        w.write_all(&self.tail_blob)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("name".to_string(), self.name.to_json_value());
+        m.insert("stage_desc".to_string(), self.stage_desc.to_json_value());
+        m.insert("complete_log".to_string(), self.complete_log.to_json_value());
+        m.insert("sequencer_desc".to_string(), self.sequencer_desc.to_json_value());
+        m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_desc")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complete_log")?)?;
+        <SequencerStageChartDescPartial as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sequencer_desc")?)?;
+        let b64 = json_get_field(obj, "_tail_blob_b64")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "StageInfo: _tail_blob_b64 must be a base64 string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("StageInfo: _tail_blob_b64 invalid base64: {}", e)))?;
+        w.extend_from_slice(&bytes);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -99,6 +127,7 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\stageinfo.pabgb";
     const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\stageinfo.pabgh";
+
     #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
@@ -120,15 +149,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
-            return;
-        };
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
