@@ -1,240 +1,185 @@
-# EffectData Binary Format — effectinfo.pabgb
+# EffectInfo Binary Format — effectinfo.pabgb
 
-Empirically derived from 2057 effectinfo entries via Python hex analysis
-(`tools/analyze_effectinfo[1-7].py`). Updated 2026-04-29 against the 2026-4-11
-pabgb (2039 entries). The game updated between the two dumps and all three inner
-blob sizes shrank: fixed_prefix 299→287, sub_element 316→303, mesh_element
-364→351. The outer container layout is unchanged. The Rust decoder in
-`src/binary/variants/effect_data.rs` uses the current (2026-4-11) sizes.
+Derived from Win-IDA decompilation of `sub_1410DBFC0` (entry parser) and
+`sub_1410DBAF0` (per-element EffectData reader). The Rust decoder lives in
+`src/binary/variants/effect_data.rs` and `src/tables/effect_info/info.rs`.
 
-Field names are guesses derived from context; the IDA class names are
-`EffectData` (stride 376 in C++ memory) and `MeshEffectData` (stride 48).
+IDA class names: `EffectData` (C++ memory stride 376), `MeshEffectData`
+(C++ memory stride 48).
 
 ---
 
-## Outer pabgb/pabgh Container
+## pabgb/pabgh Container
 
 `effectinfo.pabgb` uses the standard indexed blob format:
 
 - **`.pabgh`**: u16 entry_count, then entry_count × (u32 key, u32 offset)
-- **`.pabgb`**: concatenated entries; each entry spans `[offset .. next_offset)`
-
-Each raw entry starts with:
-
-```
-u32_le   key
-u32_le   string_len
-u8[string_len]  string_key
-u8       null          (CString null terminator)
-u8       is_blocked
-[blob]
-u8       has_equip_type    ┐
-u8       has_preset        ┤ TAIL_SIZE = 3 bytes, stripped before blob parsing
-u8       target_color_lerp_type ┘
-```
-
-The "blob" extracted after stripping the outer wrapper and the 3-byte tail
-is what the layout below describes.
+- **`.pabgb`**: concatenated raw entries; each entry spans `[offset .. next_offset)`
 
 ---
 
-## Blob Layout
+## Entry Layout (sub_1410DBFC0)
 
 ```
-Offset  Size    Field
-──────────────────────────────────────────────────────────────
-0       4       constant {0x01,0x00,0x00,0x00}  (LE u32=1; always present)
-4       287     fixed_prefix  (see § Fixed Prefix below)
-291     4       named_item_count   u32_le  (0 for ~95% of entries)
-295     var     string_pairs       named_item_count × StringPair
-X       var     struct_section     u32_le count + count × 144-byte NamedItemStruct
-Y       var     sub_elements       K × 303 bytes  (K implicit: (mc_off − Y) ÷ 303)
-mc_off  4       mesh_count         u32_le
-mc_off+4  m×351  mesh_elements    mesh_count × MeshEffectData (351 bytes each)
-end−8   8       {0,0,0,0,0,0,0,0}  trailing zeros
+u32          key
+CString      string_key          (u32 len + len bytes; no null on wire)
+u8           is_blocked
+u32          effect_count
+effect_count × EffectDataElement (variable size each)
+u32          mesh_count
+mesh_count × MeshEffectData      (50 bytes each)
+u8           has_equip_type
+u8           has_preset
+u8           target_color_lerp_type
 ```
 
-Where:
-
-```
-X       = 295 + Σ(4 + len_i)  for i in 0..named_item_count
-            ↑ 4 bytes = the length-prefix for each string pair
-            ↑ len_i  = byte length of the i-th string (no null terminator)
-
-Y       = X + 4 + named_item_count × 144
-            ↑ 4 bytes = the struct_section count prefix
-            ↑ always equal to named_item_count
-
-mc_off  = Y + K × 303   (K can be 0; solve from blob_size: mc_off = blob_size − 8 − 4 − mesh_count × 351)
-```
+The `find_mesh_split` helper in `effect_info/info.rs` locates the mesh-array
+boundary by reverse-probing: it finds the largest `n` such that a u32 equal
+to `n` appears exactly 4 + n×50 bytes from the end of the combined blob.
 
 ---
 
-## Size Examples (2026-4-11 pabgb, current)
-
-| blob_size | named_item_count | items | K (×303) | mesh_count (m×351) | notes |
-|-----------|-----------------|-------|----------|--------------------|-------|
-| 311       | 0               | —     | 0        | 0                  | baseline (1935 entries) |
-| 463       | 1               | "leaf"(4)     | 0 | 0              | |
-| 464       | 1               | "dist1"(5)    | 0 | 0              | |
-| 465       | 1               | "smoke1"(6)   | 0 | 0              | |
-| 615       | 2               | "par1"(4)+"par2"(4) | 0 | 0         | |
-| 616       | 2               | "lens1"(5)+"par1"(4) | 0 | 0        | |
-| 773       | 3               | "par1"+"vector1"+"vector2" | 0 | 0  | |
-| 614       | 0               | —     | 1        | 0                  | |
-| 917       | 0               | —     | 2        | 0                  | |
-| 662       | 0               | —     | 0        | 1                  | |
-| 1013      | 0               | —     | 0        | 2                  | |
-| 1364      | 0               | —     | 0        | 3                  | |
-| 1715      | 0               | —     | 0        | 4                  | |
-
-General formula for standard blobs: `blob_size = 311 + named_items_extra + K×303 + m×351`
-
-where `named_items_extra` = `Σ(4 + len_i)` for each named item string + `named_item_count × 144` for structs.
-
----
-
-## StringPair
+## MeshEffectData (50 bytes, sub_1410DBD90)
 
 ```
-u32_le  len          (byte length of name, no null terminator in stream)
-u8[len] name         (ASCII, e.g. "leaf", "core", "sub", "par1", "vector1")
+u8    field_a
+u32   field_b
+u32   field_c
+u32   field_d
+u32   field_e
+u32   field_f
+u32   field_g
+u32   field_h
+u32   field_i
+u8    field_flag
+u32   lookup_a      (u32 hash → u16 in C++ memory)
+u32   lookup_b
+u32   lookup_c
+u32   lookup_d
 ```
 
-All string pairs for an entry are stored consecutively (no structs between them).
+Wire: 1 + 8×4 + 1 + 4×4 = **50 bytes** total.
 
 ---
 
-## NamedItemStruct (144 bytes)
+## EffectDataElement (sub_1410DBAF0)
 
-Immediately follows the struct_section count u32. One per named item, same
-order as the string pairs. Internal layout **not yet fully mapped** — known
-landmarks:
+Variable-length. Fixed header is 300 bytes, followed by four CArrays.
 
-| offset (within struct) | observation |
-|------------------------|-------------|
-| ~132..135              | bytes `0a 05` appear (type or flag field) |
-| ~137..140              | `05 01 00 00` (u32=261) — appears identically in struct1 and struct2 of 626-blob |
-| various                | several `00 00 80 3f` = 1.0f IEEE 754, and `cd cc 4c 3d` ≈ 0.05f |
+```
+u8                 byte_a
+u32                lookup_b        (u32 hash → u16 via read_u32_lookup_EF18)
+EffectDataCoreBlock core_block     (254 bytes, sub_1410D4110)
+u32[6]             lookups_c       (6 × u32 hash → u16 via read_u32_lookup_DA30)
+u32[4]             fields_d
+u8                 byte_e
+CArray<CString>    cstring_list    (sub_14106BAC0)
+CArray<EffectDataD3Block> fixed144_list  (sub_141117080; each 144 bytes)
+CArray<CArray<u32>> nested_u32_lists    (sub_141116ED0 → sub_141101AB0)
+CArray<{u32, EffectDataInner}> inner_map (sub_141116CA0 → sub_1410DB840)
+```
 
-Total size confirmed: 144 bytes (derived from 475-blob: mc_off 463 − struct_start 319 = 144).
-
----
-
-## Sub-Element (303 bytes each)
-
-Present when the blob_size exceeds what named items alone account for.
-Count K is implicit (no count field stored). Known landmarks in the
-614-blob (K=1) sub-element starting at blob offset 299:
-
-| offset (within sub-element) | observation |
-|-----------------------------|-------------|
-| 0..7                        | zeros (blob[311..318] = all 0) |
-| 8                           | 0x01 (blob[319] = 0x01) |
-| 9..11                       | 0x57 0x04 0x06 (blob[320..322]) |
-| 12                          | 0x24 (blob[323]) |
-| ~92..                       | float 1.0 values appear (same pattern as main EffectData prefix) |
-| ~140..                      | `0a 05` flag signature |
-
-The 303-byte size is a fixed-size EffectData sub-element (a simplified copy
-of the main structure), based on the repeated float and flag patterns.
-
-Internal layout **not yet fully mapped**.
+Fixed total: 1 + 4 + 254 + 24 + 16 + 1 = **300 bytes**, plus four CArray headers
+(4 bytes each) = 316 bytes minimum.
 
 ---
 
-## MeshEffectData (351 bytes each)
+## EffectDataD3Block (144 bytes, sub_1410D3DC0)
 
-Each element is 351 bytes. Internal layout **not yet mapped**.
-The IDA C++ stride is 48 bytes (memory); the stream size changed from 364
-(older pabgb) to 351 (2026-4-11 pabgb).
+Used both as the leading 144 bytes of `EffectDataCoreBlock` and as the
+element type of `fixed144_list`.
 
-Location: immediately after `mesh_count` u32 at `mc_off + 4`.
+```
+f32[3]   vec_a       (12)
+f32[3]   vec_b       (12)
+f32[3]   vec_c       (12)
+f32[3]   vec_d       (12)
+f32[3]   vec_e       (12)
+f32[3]   vec_f       (12)
+f32[3]   vec_g       (12)
+u32      field_84
+u32      field_88
+u32      field_92
+u32      field_96
+u32      field_100
+u32      field_104
+u32      field_108
+u32[4]   vec4_a      (16)
+u32      field_128
+u32      field_132
+u8       byte_136
+u8       byte_137
+u16      word_138
+u32      field_140
+```
 
-Confirmed present in: 662 (m=1), 1013 (m=2), 1364 (m=3), 1715 (m=4), 2066 (m=5).
+7×12 + 7×4 + 16 + 2×4 + 2 + 2 + 4 = 84 + 28 + 16 + 8 + 2 + 2 + 4 = **144 bytes** ✓
 
 ---
 
-## Fixed Prefix (287 bytes, blob[4..291])
+## EffectDataCoreBlock (254 bytes, sub_1410D4110)
 
-Contains the bulk of scalar EffectData fields. Not yet decomposed field-by-field.
-Known landmarks from hex dumps across multiple entries:
+The 144-byte D3 block followed by 110 additional bytes.
 
-| blob offset | observation |
-|-------------|-------------|
-| 4..99       | mostly zeros for most entries |
-| 96..111     | float cluster: `00 00 80 3f` (1.0f) appears at ~4-byte-aligned positions |
-| 108, 112, 124, 128, 136, 140 | float 1.0 confirmed (from sub-element float scan in analyze_effectinfo6) |
-| ~144 (0x90) | `0a 05 00` sequence — likely a type/enum field |
-| ~172..220   | more scalar data including floats |
-| ~224..302   | trailing fixed fields |
+```
+EffectDataD3Block   d3          (144)
+u32                 field_144
+f32[3]              vec_h       (12)
+f32[3]              vec_i       (12)
+u64                 qword_172
+u32                 field_180
+f32[3]              vec_j       (12)
+f32[3]              vec_k       (12)
+f32[3]              vec_l       (12)
+f32[3]              vec_m       (12)
+u32                 field_232
+u32                 field_236
+u8 × 14             byte_240 .. byte_253   (14 individual reads per IDA)
+```
 
-The 373-blob (50 bytes extra, str_count=0, K=0 implied) has non-zero content
-at the END that doesn't conform to 8 trailing zeros — suggesting it may have
-a different internal structure or the sub-element is of a variable type. **TBD.**
+144 + 4 + 12+12 + 8 + 4 + 12+12+12+12 + 4+4 + 14 = **254 bytes** ✓
+
+---
+
+## EffectDataInner (sub_1410DB840)
+
+Recursive value type inside `inner_map`. Variable-length; fixed portion is
+336 bytes.
+
+```
+u32                 field_0
+EffectDataCoreBlock core_block     (254 bytes)
+u32[6]              lookups        (via read_u32_lookup_DA30)
+CArray<CString>     list_a         (sub_141102990 → sub_1410A9D40;
+                                    each element is u32 len + len bytes)
+CArray<u32>         list_b         (sub_141102A60)
+f32[3]              vec_a
+f32[3]              vec_b
+f32[3]              vec_c
+f32[3]              vec_d
+u32                 field_after_vecs
+CArray<CString>     cstring_list   (sub_14106BAC0)
+CArray<EffectDataD3Block> fixed144_list (sub_141117080)
+u16                 trailing_word
+```
+
+Fixed: 4 + 254 + 24 + 48 + 4 + 2 = **336 bytes**, plus four CArray headers = 352 bytes minimum.
+
+---
+
+## CString Wire Format
+
+Used by `cstring_list`, `list_a`, etc.:
+
+```
+u32   len     (byte length, no null terminator in stream)
+u8[len] name
+```
 
 ---
 
 ## Coverage
 
-The confirmed layout (with 2026-4-11 constants) parses **2032 / 2039 entries
-(99.7%)** correctly. 7 entries across 5 blob sizes don't fit: sz=361 (2),
-sz=806 (1), sz=1356 (2), sz=1723 (1), sz=2074 (1).
-
-All failures are "cannot determine mesh count": no value of `m` in 0..20
-satisfies `mc_off = sz − 8 − 4 − m×351` with `mc_off ≥ Y` and
-`(mc_off − Y) % 303 == 0`. These are likely the variable-length bone-name
-sub-element variant (same class as the 831-blob from the original analysis).
-They fall back to Raw bytes in `EffectDataBlob::Raw`, preserving round-trip.
-
----
-
-## Irregular Blobs (7 entries across 5 sizes: 361, 806, 1356, 1723, 2074)
-
-These entries don't fit `311 + named_items_extra + K×303 + m×351`.
-Evidence from the original-pabgb 831-blob: it contains a **bone name list**
-(CString array) inside what appears to be a sub-element with variable-length
-content:
-
-```
-(from 831-blob of older pabgb, starting at blob ~614)
-07 00 00 00             ← count = 7 bone names
-0b 00 00 00             ← len = 11
-42 69 70 30 31 20 53 70 69 6e 65   "Bip01 Spine"
-0c 00 00 00             ← len = 12
-42 69 70 30 31 20 53 70 69 6e 65 31  "Bip01 Spine1"
-... (7 names total: Spine, Spine1, Spine2, R Clavicle, R UpperArm, R Elbow, R Hand)
-(followed by 7 floats: 89 88 08 3e ≈ 0.133f, one per bone)
-```
-
-This bone name + weight structure is likely a `CArray<NamedBoneWeight>` living
-inside a variable-size sub-element type. The 303-byte fixed sub-element and this
-variable-size bone-name sub-element are likely different variants of the same
-`_effectDataList` sub-item type. **Full structure TBD.**
-
----
-
-## Next Steps for Decoder
-
-1. **Map the 299-byte fixed prefix** — compare 5-10 baseline blobs at the
-   byte level; extract scalar fields, floats, and enum bytes. Target: a
-   `FixedEffectDataPrefix` struct with ~15-20 named fields.
-
-2. **Map the 144-byte NamedItemStruct** — dump single-item blobs (475, 476,
-   477) and identify float clusters, enum bytes, and zero-padding.
-
-3. **Map the 316-byte sub-element** — compare multiple ×316 blobs (639, 955)
-   field by field. Note overlap with the main prefix float pattern.
-
-4. **Map the 364-byte MeshEffectData** — compare 687 (m=1) and 1051 (m=2)
-   blobs in the mesh region.
-
-5. **Resolve irregular blobs** — understand whether the bone-name sub-element
-   has its own count/size prefix, and whether the 373-blob is genuinely
-   malformed or uses a different variant tag.
-
-6. **Write Rust structs** in `src/binary/variants/effect_data.rs` using
-   the confirmed layout above. Start with the outer frame (constant, prefix
-   blob, named_item_count, mc_off detection, mesh_count, trailing) and
-   keep the prefix/item/sub-element/mesh-element bodies as `Vec<u8>` initially.
-   Then fill in field-by-field once each inner layout is confirmed.
+The typed decoder (`EffectDataElement` + `EffectDataInner`) parses all entries
+in the 2039-entry 2026-4-11 effectinfo.pabgb. Round-trip is verified by the
+`roundtrip` and `json_roundtrip` tests in `src/tables/effect_info/info.rs`.
