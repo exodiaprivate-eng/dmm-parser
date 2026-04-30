@@ -70,15 +70,15 @@ py_binary_struct! {
         pub size_pair: [f32; 2],
         pub height_pair: [f32; 2],
 
-        // Four standalone u32s. Hex values in vanilla suggest these are
-        // f32 bit-patterns (0xC66FFC00 ≈ -15359.0, etc.) — likely world
-        // bounds or camera limits. Confirmed: at least one entry has a
-        // NaN bit pattern that breaks JSON round-trip if exposed as f32.
-        // Stored as raw u32 to preserve any bit pattern through JSON.
+        // Per-slot NaN probe across all 7 vanilla entries:
+        //   unk_u32_d: 7/7 NaN  → must stay u32 (NaN bit patterns)
+        //   unk_u32_e: 6/7 NaN  → must stay u32
+        //   unk_u32_f: 2/7 NaN  → must stay u32 (some entries have NaN)
+        //   unk_u32_g: 0/7 NaN  → safe to promote to f32 (clean floats)
         pub unk_u32_d: u32,
         pub unk_u32_e: u32,
         pub unk_u32_f: u32,
-        pub unk_u32_g: u32,
+        pub unk_f32_g: f32,
 
         // u16 lookup via sub_141100C20 → qword_145F290B8.
         pub lookup_u16_a: u16,
@@ -104,6 +104,7 @@ mod tests {
     use super::*;
 
     const PABGB: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\fieldinfo.pabgb";
+
 
     #[test]
     fn roundtrip() {
