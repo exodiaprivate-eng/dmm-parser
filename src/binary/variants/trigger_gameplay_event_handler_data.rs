@@ -18,6 +18,16 @@
 //! |  6  |  40 | …_TriggerRegionInfo                                  | no-op (0)    | 0 bytes |
 //! |  7  |  40 | …_ElementalArea                                      | no-op (0)    | 0 bytes |
 //!
+//! Tag 16 (0x10) — UNIMPLEMENTED, body falls back to post_blob.
+//! Empirical analysis (2026-04-30, gimmick_info_diag.rs) of 1317 entries:
+//!   Wire layout (partial): u8+u8+u8 (always 0) + char[16] trigger_name
+//!   (fixed-size, all names exactly 16 chars) + CArray<CString> hide_list
+//!   (usually 0–1 entries, each a 16-char action name) + 88-byte fixed tail
+//!   (structure unknown without IDA — contains u8 flags and f32 parameters).
+//!   Affected entries remain in post_blob via the safe-probe fallback.
+//!   Body total: 3 + 16 + CArray_bytes + 88 bytes.  Needs IDA vtable[85]
+//!   for the tag-16 class to implement.
+//!
 //! Outer wrapper (sub_1411125E0, used by `gimmick_info::post_blob` field 17):
 //!   `CArray<COptional<TriggerGamePlayEventHandlerData>>` —
 //!   u32 count + per-element u8 presence + (if !=0) tag + body.

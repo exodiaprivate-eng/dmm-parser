@@ -134,7 +134,14 @@ This file is for collaborators picking up round-trip work. It's the
 - `GimmickInfo` — Decoded tail extended from 1 to 10 typed fields
   (use_interaction_ui_socket, use_sub_part_for_interaction,
   property_list, gimmick_name_hash, gimmick_name, emoji_texture_id,
-  dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded
+  dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded.
+  **Session follow-up (2026-04-30 loop):** field 18
+  `_gimmickChartParameterList` added (`4b4d237`; CArray<{u32+u8+u32+u8}>,
+  count=0 for 10119/10121 Decoded entries). Tag-16 TGPEHD entries (1317
+  of 12038 total) empirically mapped: body prefix = u8×3 + char[16] name
+  + CArray<CString> hide_list + 88-byte fixed tail; full decode blocked
+  without IDA vtable[85] for the tag-16 class. Entries remain in
+  post_blob via safe-probe fallback. TGPEHD docstring updated.
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:

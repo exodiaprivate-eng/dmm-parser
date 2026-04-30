@@ -35,13 +35,19 @@
 //!  18. _gimmickChartParameterList    (CArray of 16-mem-byte items via
 //!      sub_141C7F8B0; wire per element: u32 + u8 + u32 + u8 = 10 bytes,
 //!      mem a2+192). ✅ Typed — verified empirically: count=0 for 10119/
-//!      10121 Decoded entries; 2 entries where field 17 failed are Raw.
+//!      10121 Decoded entries; field 18 probe is skipped when field 17
+//!      (TGPEHD) failed (1317 tag-16 entries remain in post_blob).
 //!  19. … 80+ more wire reads.  Empirical probe (CrimsonDesertUpdates
 //!      2026-03-29 dump): after field 18 the minimum tail is 640 bytes.
 //!      First 36 bytes are all-zero (fields 19-26 or so are CArray count=0
 //!      or bool=false). Byte 36 = 0x01 in the base case — likely
 //!      `_isTargetable` u8=1 (gimmicks are targetable by default).
 //!      Wire order for 19-162 requires sub_1410E6FC0 decompile (IDA).
+//!
+//! TGPEHD tag-16 entries (1317 of 12038 = ~11%): empirically mapped
+//! body prefix: u8×3 (always 0) + char[16] name + CArray<CString>
+//! hide_list + 88-byte fixed tail (sub-dispatch structure unknown).
+//! These entries fall back to post_blob via the safe-probe pattern.
 //!
 //! Steps 1-18 are typed (joined with the prefix when Decoded). Each
 //! field beyond 16 uses the safe optional-probe pattern: if the read
