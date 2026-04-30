@@ -90,6 +90,7 @@ py_binary_struct! {
         pub field_at_24: u8,
         pub field_at_26: u32,
         pub field_at_32: u64,
+        pub field_at_40: u16,
     }
 }
 
