@@ -35,9 +35,24 @@
 //!                                        (sub_1411068C0 → sub_1410F3380)
 //!  24. u32 lookup_f                      (sub_1410FF430, qword_145F0E9C0)
 //!  25. u32 lookup_g                      (sub_1410FF430)
+//!  26. u32 lookup_h                      (qword_145F11398 hash)
+//!  27. CArray<u32> list_b                (sub_1410FF890, qword_145F0DA08)
+//!  28. CArray<u32> list_c                (sub_1410FF890, qword_145F0DA08)
+//!  29. u32 lookup_i                      (sub_1410FF340)
+//!  30. u32 raw_d
+//!  31. CString cstring_a                 (sub_1410A9D40 — wire CString)
+//!  32. u8 flag_c
+//!  33. u8 flag_d
+//!  34. u32 raw_e
+//!  35. u32 raw_f
+//!  36. u32 pair_a, u32 pair_b            (sub_1410AA070 — 2 raw u32s)
+//!  37. u64 raw_g
+//!  38. u32 raw_h
+//!  39. u16 raw_i
 //!      ← TAIL STARTS HERE
-//!  26+. ~55 trailing fields. All decodable from sub_1410FA990 lines
-//!       180-501 — just mechanical work to add.
+//!  40+. ~40 trailing fields. Several unknown helpers (sub_141108F70,
+//!       sub_141108DE0, sub_141108C30, sub_141107B30/C70, sub_141103530)
+//!       gate further extension — needs IDA per helper.
 //!
 //! Promotion note: the previous Tier 1.5 cut stopped at field 6 because
 //! field 7 was an opaque polymorphic SequencerStageChartDesc. Now that
@@ -92,6 +107,21 @@ pub struct StageInfo<'a> {
     pub filter_entry_list: CArray<StageFilterEntry>,
     pub lookup_f: u32,
     pub lookup_g: u32,
+    pub lookup_h: u32,
+    pub list_b: CArray<u32>,
+    pub list_c: CArray<u32>,
+    pub lookup_i: u32,
+    pub raw_d: u32,
+    pub cstring_a: CString<'a>,
+    pub flag_c: u8,
+    pub flag_d: u8,
+    pub raw_e: u32,
+    pub raw_f: u32,
+    pub pair_a: u32,
+    pub pair_b: u32,
+    pub raw_g: u64,
+    pub raw_h: u32,
+    pub raw_i: u16,
     pub tail_blob: Vec<u8>,
 }
 
@@ -129,6 +159,21 @@ impl<'a> StageInfo<'a> {
         let filter_entry_list = CArray::<StageFilterEntry>::read_from(data, offset)?;
         let lookup_f = u32::read_from(data, offset)?;
         let lookup_g = u32::read_from(data, offset)?;
+        let lookup_h = u32::read_from(data, offset)?;
+        let list_b = CArray::<u32>::read_from(data, offset)?;
+        let list_c = CArray::<u32>::read_from(data, offset)?;
+        let lookup_i = u32::read_from(data, offset)?;
+        let raw_d = u32::read_from(data, offset)?;
+        let cstring_a = CString::read_from(data, offset)?;
+        let flag_c = u8::read_from(data, offset)?;
+        let flag_d = u8::read_from(data, offset)?;
+        let raw_e = u32::read_from(data, offset)?;
+        let raw_f = u32::read_from(data, offset)?;
+        let pair_a = u32::read_from(data, offset)?;
+        let pair_b = u32::read_from(data, offset)?;
+        let raw_g = u64::read_from(data, offset)?;
+        let raw_h = u32::read_from(data, offset)?;
+        let raw_i = u16::read_from(data, offset)?;
 
         if *offset > entry_end {
             return Err(io::Error::new(
@@ -148,7 +193,9 @@ impl<'a> StageInfo<'a> {
             disable_faction_spawn_party_name_hash_list, raw_a, raw_b, raw_c,
             list_a, flag_a, flag_b, lookup_c, lookup_d, lookup_e,
             close_filter_a, close_filter_b, close_filter_c, filter_entry_list,
-            lookup_f, lookup_g,
+            lookup_f, lookup_g, lookup_h, list_b, list_c, lookup_i, raw_d,
+            cstring_a, flag_c, flag_d, raw_e, raw_f, pair_a, pair_b,
+            raw_g, raw_h, raw_i,
             tail_blob,
         })
     }
@@ -179,6 +226,21 @@ impl<'a> StageInfo<'a> {
         self.filter_entry_list.write_to(w)?;
         self.lookup_f.write_to(w)?;
         self.lookup_g.write_to(w)?;
+        self.lookup_h.write_to(w)?;
+        self.list_b.write_to(w)?;
+        self.list_c.write_to(w)?;
+        self.lookup_i.write_to(w)?;
+        self.raw_d.write_to(w)?;
+        self.cstring_a.write_to(w)?;
+        self.flag_c.write_to(w)?;
+        self.flag_d.write_to(w)?;
+        self.raw_e.write_to(w)?;
+        self.raw_f.write_to(w)?;
+        self.pair_a.write_to(w)?;
+        self.pair_b.write_to(w)?;
+        self.raw_g.write_to(w)?;
+        self.raw_h.write_to(w)?;
+        self.raw_i.write_to(w)?;
         w.write_all(&self.tail_blob)?;
         Ok(())
     }
@@ -210,6 +272,21 @@ impl<'a> StageInfo<'a> {
         m.insert("filter_entry_list".to_string(), self.filter_entry_list.to_json_value());
         m.insert("lookup_f".to_string(), self.lookup_f.to_json_value());
         m.insert("lookup_g".to_string(), self.lookup_g.to_json_value());
+        m.insert("lookup_h".to_string(), self.lookup_h.to_json_value());
+        m.insert("list_b".to_string(), self.list_b.to_json_value());
+        m.insert("list_c".to_string(), self.list_c.to_json_value());
+        m.insert("lookup_i".to_string(), self.lookup_i.to_json_value());
+        m.insert("raw_d".to_string(), self.raw_d.to_json_value());
+        m.insert("cstring_a".to_string(), self.cstring_a.to_json_value());
+        m.insert("flag_c".to_string(), self.flag_c.to_json_value());
+        m.insert("flag_d".to_string(), self.flag_d.to_json_value());
+        m.insert("raw_e".to_string(), self.raw_e.to_json_value());
+        m.insert("raw_f".to_string(), self.raw_f.to_json_value());
+        m.insert("pair_a".to_string(), self.pair_a.to_json_value());
+        m.insert("pair_b".to_string(), self.pair_b.to_json_value());
+        m.insert("raw_g".to_string(), self.raw_g.to_json_value());
+        m.insert("raw_h".to_string(), self.raw_h.to_json_value());
+        m.insert("raw_i".to_string(), self.raw_i.to_json_value());
         m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
         m
     }
@@ -240,6 +317,21 @@ impl<'a> StageInfo<'a> {
         <CArray<StageFilterEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "filter_entry_list")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_f")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_g")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_h")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_b")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_i")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_d")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_d")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_e")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_f")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pair_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pair_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_g")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_h")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_i")?)?;
         let b64 = json_get_field(obj, "_tail_blob_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
