@@ -52,8 +52,11 @@
 > - `[u8; N]` audit complete (1 remaining is genuinely opaque single 16-byte xmmword read per IDA).
 > - Remaining 3 interaction_info Raw entries are genuine anti-disasm
 >   (tags 54, 214 — RTTI present but vtables not findable in IDA).
-> - Remaining internal-Tier-1.5 sub-field: GimmickInfo `post_blob`
->   (blocked on TGPEHD decoder, fully researched in `8233982`).
+> - **No remaining internal-Tier-1.5 sub-fields**: GimmickInfo `post_blob`
+>   was unblocked when TGPEHD decoder shipped (`1fc44e8`); GimmickInfo
+>   wires `trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`.
+>   QuestInfo's `quest_dialog_filter_data_list_blob` was unblocked
+>   earlier (`6cdc22c`) via the FilterCondition family decoder.
 
 This file is for collaborators picking up round-trip work. It's the
 "where are we, what's next" snapshot. For per-table specs see
@@ -216,10 +219,13 @@ actual wire reads happen in `vtable[85]` per case.
 
 **5 of 8 are unit** (cases 1, 4, 6, 7 = no-op vtable[85]; tag 1 also no-op).
 Cases 0, 3, 5 have content. Outer wrapper sub_1411125E0 is
-`CArray<COptional<TriggerGamePlayEventHandlerData>>`. Implementation
-plan: define `TriggerGamePlayEventHandlerData` enum in
-`src/binary/variants/` with 8 variants, dispatch_tag u8 + per-tag body
-struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
+`CArray<COptional<TriggerGamePlayEventHandlerData>>`.
+
+**Status update**: ✅ FULLY SHIPPED via `1fc44e8`. The decoder lives at
+`binary::variants::trigger_gameplay_event_handler_data` with all 8
+variants typed (dispatch_tag u8 + per-tag body), wrapped in
+`Decoded|Raw` for byte-perfect fallback. GimmickInfo now exposes
+`trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`.
 
 ### JSON exposure upgrades (lane-c)
 - `SkillInfo.buff_level_list` (CArray<CArray<BuffDataOptional>>) — was
@@ -271,10 +277,10 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
   CharacterInfo, MiniGameDataInfo, EquipSlotInfo and others have all
   joined this tier in 2026-04-30 work.
 - **Tier 1.5** (sub-field opacities inside otherwise-T1 tables):
-  see "Remaining Tier 1.5" section above — only GimmickInfo `post_blob`
-  remains, blocked on the TriggerGamePlayEventHandlerData (TGPEHD)
-  decoder. (QuestInfo's `quest_dialog_filter_data_list` was promoted
-  to Tier 1 via `6cdc22c`.)
+  **None remaining.** Both prior blockers resolved on 2026-04-30:
+  QuestInfo's `quest_dialog_filter_data_list` via FilterCondition
+  family decoder (`6cdc22c`); GimmickInfo's `post_blob` via
+  TriggerGamePlayEventHandlerData family decoder (`1fc44e8`).
 - **Tier 2** (whole-tail blob): **0 tables** — eliminated. The
   catalog-level T2 count is now 0 (was previously 3 stale entries).
 
