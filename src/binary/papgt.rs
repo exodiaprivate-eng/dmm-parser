@@ -84,6 +84,12 @@ pub struct PackGroupTreeMeta {
     pub group_names_buffer: Vec<u8>,
 }
 
+impl Default for PackGroupTreeMeta {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PackGroupTreeMeta {
     /// Create a new empty PAPGT.
     #[allow(dead_code)]

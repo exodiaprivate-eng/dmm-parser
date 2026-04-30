@@ -1,3 +1,5 @@
+#![allow(clippy::doc_lazy_continuation, clippy::doc_overindented_list_items)]
+
 pub mod binary;
 pub mod crypto;
 pub mod item_info;

@@ -39,6 +39,7 @@ use std::io::{self, Write};
 /// One element of `target_data_list`. Wire shape: `u8 tag + u32 hash`.
 /// JSON shape: `{"kind": "<one of four names>", "value": <u32>}`.
 #[derive(Debug, Clone, Copy)]
+#[allow(clippy::enum_variant_names)]
 pub enum TargetDataItem {
     GimmickInfoRef(u32),
     GimmickGroupInfoRef(u32),

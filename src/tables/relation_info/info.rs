@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Hand-corrected: IDA-derived parser for `RelationInfo.pabgb`.
 //!
 //! Per IDA sub_1410F4C70 + sub_14110AA70:

@@ -120,6 +120,7 @@ pub struct InteractionTailDecoded<'a> {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum InteractionTail<'a> {
     Decoded(InteractionTailDecoded<'a>),
     Raw(Vec<u8>),

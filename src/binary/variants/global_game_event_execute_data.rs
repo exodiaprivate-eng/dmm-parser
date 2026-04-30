@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! GlobalGameEventExecuteData polymorphic family wrapper — per-sub_tag typed.
 //!
 //! Per Win-IDA dispatcher `sub_141156680`, the wire format is:

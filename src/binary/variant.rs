@@ -52,11 +52,10 @@ where
     let max_variant_size = end - start;
     for vs in min_variant_size..=max_variant_size {
         let probe = start + vs;
-        if let Some(consumed) = validate(probe) {
-            if probe + consumed == end {
+        if let Some(consumed) = validate(probe)
+            && probe + consumed == end {
                 return Ok(vs);
             }
-        }
     }
     Err(io::Error::new(
         io::ErrorKind::InvalidData,

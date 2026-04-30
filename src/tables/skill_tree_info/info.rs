@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed parser.
 //!
 //! Reader (Mac CrimsonDesert_Steam): `sub_101857BC0` at 0x101857BC0.

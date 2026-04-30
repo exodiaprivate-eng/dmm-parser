@@ -84,6 +84,12 @@ This file is for collaborators picking up round-trip work. It's the
 - **GameCondition wrapper: 100.0% round-trip** on 8,934 ConditionInfo
   entries (typed decode for 99.8%, raw-bytes fallback for 0.2%)
 
+### Recent Tier 1 promotions (catalog sync)
+- `AIDialogStringInfo` — parser was already fully typed (all 11 fields); catalog corrected to ✅ T1
+- `EffectInfo` — parser fully typed end-to-end (EffectDataElement + EffectDataInner + MeshEffectData); catalog corrected to ✅ T1
+- `FactionSpawnDataInfo` — parser was already fully typed (all 7 fields); catalog corrected to ✅ T1
+- Catalog count: T1 88 → 91, T2 4 → 1 (only MiniGameDataInfo remains, blocked by spawn_data_list fallback)
+
 ### Recent Tier 1 promotions (lane-c)
 - `FilterConditionBlock.raw_block` — `[u8; 12]` → 3× named u32
   (`raw_block_dword_{0..2}`). 16-byte vmovups inline element of

@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed.
 //!
 //! Reader: `sub_1410FA990` in CrimsonDesert.exe (Win build) — confirmed via
