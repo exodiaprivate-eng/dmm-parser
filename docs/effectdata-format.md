@@ -1,7 +1,7 @@
 # EffectData Binary Format — effectinfo.pabgb
 
 Empirically derived from effectinfo.pabgb dumps via Python hex analysis
-(`tools/analyze_effectinfo[1-22].py`). Documents the **outer blob structure**
+(`tools/analyze_effectinfo[1-23].py`). Documents the **outer blob structure**
 as seen from the wire; the IDA-derived field-level decoder for the inner
 EffectDataElement record lives in `src/binary/variants/effect_data.rs` and
 uses a different (non-empirical) analysis layer.
@@ -267,11 +267,9 @@ Only active slots carry meaningful body data.
 | 16..20      | 4    | **M** (total mesh count) stored in mesh[0] only; null/trailing slots store their own hash here |
 | 20..24      | 4    | hash field A repeated (= mesh[4:8]) for mesh[0]; 0 for null/trailing slots |
 | 24..28      | 4    | hash field A repeated again for mesh[0]; null/trailing slot stores its own hash |
-| 20..32      | 12   | f32[3]: 0.0 or 4.0 per component (dimension/bounds?) |
-| 32..44      | 12   | zeros (3 entries sampled) |
-| 44..56      | 12   | f32[3]: RGB colour (0 or normalised colour values) |
-| 56..104     | 48   | mostly zeros |
-| 104..108    | 4    | f32: 0.0 or ~1.4 |
+| 28..80      | 52   | **variable-content region**: hash/ID fields for ~60% of entries (42/70 active mesh[0] samples nonzero); null/simple effects are all zero. One observed entry with RGB colour data has f32=4.0 at [28:32] and RGB at [44:56]; other nonzero entries carry hash IDs. Not fully mapped. |
+| 80..104     | 24   | zeros (confirmed across all 70 active mesh[0] samples) |
+| 104..108    | 4    | f32: 0.0 or ~1.4 (1 of 70 active samples) |
 
 **Shared inner sub-struct (mesh[108..364]):**
 
@@ -450,9 +448,18 @@ Size formula: `315 + K×8 + (K−1)×356 + 8 = 364×K − 33`
 | 2151      | 6 | 5     | `fx_smokeshell_out` |
 
 The last two reference entries always share the same hash (a back-reference or
-deduplication marker). Body[0][0:4] = M (total body count); body[i>0][0:4] = 0.
-Body[i][4:8] = hash matching reference entry i's hash field. The 356-byte body
-format is not yet mapped to the standard 364-byte mesh layout.
+deduplication marker). Body layout (each 356 bytes):
+
+| body offset | size | description |
+|-------------|------|-------------|
+| 0..4        | 4    | M (total body count) for body[0]; 0 for body[i>0] |
+| 4..8        | 4    | hash — equals ref[i].hash for the corresponding reference entry |
+| 8..12       | 4    | same hash repeated |
+| 12..100     | 88   | zeros |
+| 100..356    | 256  | **inner sub-struct** — mirrors prefix[92..348] with body[100+X] ≅ prefix[92+X]; confirmed by body[100:104]=f32=1.0 (≅ prefix[92]=1.0) and body[148:150]=`0a 05` (≅ prefix[140:142]) |
+
+The body's inner sub-struct is identical in structure to standard MeshEffectData[108..364],
+but positioned 8 bytes earlier in the body's own coordinate space.
 
 ### Type D — Extended sub-element blob (2535-byte blob)
 
@@ -487,17 +494,37 @@ Size formula: `315 + K×12 + M×356 + 12`
 
 For K=1, M=3: `315 + 12 + 3×356 + 12 = 1407`. ✓
 
-Body layout (each 356 bytes), inner sub-struct with `0a 05` at body[152]:
+Body layout (each 356 bytes):
 
-| body index | body[0:4]        | body[4:8]       | body[8:16]          |
-|------------|------------------|-----------------|---------------------|
-| 0 (active) | hash_own         | M (total count) | hash_own × 2        |
-| 1 (active) | hash_own         | 0               | hash_own × 2        |
-| 2 (last)   | 0 (inactive)     | 0x00080000      | hash_outer × 2      |
+| body index | body[0:4]    | body[4:8]       | body[8:16]      |
+|------------|--------------|-----------------|-----------------|
+| 0 (active) | hash_own     | M (total count) | hash_own × 2   |
+| 1 (active) | 0            | 0               | hash_own × 2   |
+| 2 (last)   | 0            | 0x00080000      | hash_outer × 2 |
 
 The `0x00080000` value at body[2][4:8] is the same "last-slot marker" seen in
-standard null mesh slots at mesh[8:12]. The two instances of this blob type
-have identical post-prefix data, differing only in outer blob metadata.
+standard null mesh slots at mesh[8:12].
+
+Inner sub-struct (body[104..356], mirrors prefix[92..344], body[X+104] ≅ prefix[X+92]):
+
+| body offset | value       | prefix equiv    |
+|-------------|-------------|-----------------|
+| 104..108    | f32 = 1.0   | prefix[92..96]  |
+| 108..116    | f32 = 0.0×2 | prefix[96..104] |
+| 116..120    | f32 = 1.0   | prefix[104..108]|
+| 120..124    | f32 = 1.0   | prefix[108..112]|
+| 124..128    | f32 = −1.0  | prefix[112..116]|
+| 128..132    | f32 = 0.0   | prefix[116..120]|
+| 132..136    | f32 = 1.0   | prefix[120..124]|
+| 136..140    | f32 = 1.0   | prefix[124..128]|
+| 140..144    | f32 = 0.0   | prefix[128..132]|
+| 144..148    | f32 = 1.0   | prefix[132..136]|
+| 148..152    | f32 = 1.0   | prefix[136..140]|
+| 152..154    | `0a 05`     | prefix[140..142]|
+
+All three bodies have identical [104:356] content (the inner sub-struct is the same
+for all body indices). The two instances of this blob type have identical post-prefix
+data, differing only in outer blob metadata.
 
 ---
 
@@ -517,16 +544,16 @@ have identical post-prefix data, differing only in outer blob metadata.
 4. **Type B irregular blobs (373-byte)** — 50 bytes of unknown structure at
    blob[323:373] for `Inspect_SocketMarker`.
 
-5. **MeshEffectData mesh[20:108]** — fields beyond the mesh[16:20]=M discovery
-   need mapping; especially mesh[20:56] (hashes, IDs) and mesh[56:108] (mostly zero).
+5. **MeshEffectData mesh[28:80]** — variable-content region (hashes/IDs for ~60%
+   of active entries); map which hash fields are stored here and their roles. The
+   one RGB-colour entry (4.0f at [28:32], RGB at [44:56]) may indicate a colour/bounds
+   sub-region used by certain effect subtypes. 70 samples scanned; still undeciphered.
 
 6. **NamedItemStruct struct[0:36]** — colour-like triplets at struct[0:12] and
    struct[12:24]; co-vary with prefix color1/color2.
 
 7. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
 
-8. **Type C split-reference body format (1787, 2151)** — map the 356-byte body
-   layout; confirm relationship to standard 364-byte mesh format.
-
-9. **Type E blob (1407-byte)** — `cdfx_mc_onguard_shield_fxpreset_01`; map
-   structure from blob[315:] (starts with u32=3, then hash).
+8. **Type C/E body remainder (body[152:356])** — inner sub-struct bytes after
+   the `0a 05` marker at body[148]/body[152] contain TRS and ID fields mirroring
+   prefix[140:299]; not yet scanned for Type C/E specifically.
