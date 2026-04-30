@@ -16,10 +16,14 @@
 //!   7. CArray<MissionExecuteStage> execute_stage_list
 //!      (inline CArray of 16-byte items via sub_1410ED7D0; per element:
 //!      u32 lookup + u32 lookup + 2× u32 raw + 2× u8 — 18 wire bytes)
+//!   8. CArray<u32> start_player_list  (sub_1410FF890 → qword_145F0DA08)
+//!   9. CArray<u32> field_revive_list  (sub_1411069E0 → qword_145F1A890)
+//!  10. CArray<u32> give_up_field_revive_list (sub_1411069E0)
 //!      ← TAIL STARTS HERE
-//!   8. (body) _startPlayerList, _fieldReviveList, _giveUpFieldReviveList,
-//!      _triggerVolumeData, _rewardList, _resultDataList,
-//!      _rewardInventoryKey, _uiDesc, … 30+ more wire reads.
+//!  11. _triggerVolumeData (sub_141106AE0 — polymorphic Optional<88-byte
+//!      via sub_141D7FE40>; hard blocker without decoding sub_141D7FE40)
+//!  12. (body) _rewardList, _resultDataList, _rewardInventoryKey, _uiDesc,
+//!      … 25+ more wire reads.
 //!
 //! Steps 1-7 are typed. Body has many helpers; reopens cleanly when each
 //! is decoded.
@@ -62,6 +66,9 @@ pabgh_typed_blob_table! {
         pub sub_mission_list: CArray<u32>,
         pub branch_mission_list: CArray<MissionBranchData>,
         pub execute_stage_list: CArray<MissionExecuteStage>,
+        pub start_player_list: CArray<u32>,
+        pub field_revive_list: CArray<u32>,
+        pub give_up_field_revive_list: CArray<u32>,
     }
     tail: tail_blob;
 }
