@@ -1,9 +1,22 @@
 # ConditionInfo wiring roadmap
 
+> **Status note (2026-04-30)** — most of the actions below are DONE.
+> ConditionInfo is **Tier 1** (typed `game_condition: GameCondition<'a>`,
+> 100% byte-perfect round-trip on 8,934 entries; 99.8% Decoded into a
+> field-addressable tree, 0.2% Raw fallback for anti-disassembly tags).
+> The optional subcond block is wired in `ConditionData::read_from`
+> (see `condition_data.rs` `variant_skips_option_block` for class A/B/C
+> classification). The active per-tag recipe verification work has
+> moved upstream — see `docs/STATUS.md` "Stream-mode GameCondition"
+> section for live state and the `interaction_info::diag_raw_entries`
+> failure histogram. Keeping this file as a historical artifact of
+> how the rollout was scoped; do not action steps from below without
+> first confirming against current code.
+
 The GameCondition expression tree is fully mapped via IDA + Rust infrastructure.
-ConditionInfo currently remains blob-tail to preserve the 121/121 round-trip
-baseline. To finish wiring it as fully field-decoded, fix the per-variant byte
-recipes for the 53 VARIABLE-size ConditionData tags.
+Historical baseline: ConditionInfo originally remained blob-tail to preserve
+the 121/121 round-trip; that constraint is now resolved by the typed
+GameCondition wrapper.
 
 ## What's done
 
@@ -30,9 +43,14 @@ recipes for the 53 VARIABLE-size ConditionData tags.
 
 `binary::variants::game_condition::GameConditionNode<'a>` ties everything together with a recursive `read_from`/`write_to` matching the case table above.
 
-### Optional subcond on ConditionData
+### Optional subcond on ConditionData (DONE)
 
-`ConditionData` struct has fields `option_present: u8` and `option_data: Option<ConditionDataOptionData<'a>>`. Currently `read_from` does NOT consume these bytes (defaults to 0/None) because empirical testing showed the recipe's claim that slot 19 always reads them is wrong for at least some variants. Needs investigation.
+`ConditionData::option_block: Option<ConditionDataOptionBlock<'a>>` is
+now wired in `read_from`. Tags whose vtable[19] is the no-op
+`0x1402D3A80` (Class A) or anti-disassembly thunk `sub_14F0D...`
+(Class B) or empirical `0x1413B89E0` (Class C) skip the block via
+`variant_skips_option_block(disc)`; everything else reads
+`[u8 option_present][optional ConditionDataOptionData]`.
 
 ## What's blocking full wiring
 
@@ -65,7 +83,9 @@ The recipe `conditiondata_recipes.json` claims tag 206 has `tail_bytes: 0` — w
 
 3. **Verify the optional_subcond conditions**: Re-enable in `ConditionData::read_from`, identify breaks, determine if slot 19 is unconditional or has a guard.
 
-4. **Switch `ConditionInfo` to use `GameConditionNode`**: Replace `game_condition: Vec<u8>` with the typed enum. Run round-trip until 8934/8934 pass.
+4. **Switch `ConditionInfo` to use `GameConditionNode`** (DONE — see
+   `condition_info::info::ConditionInfo.game_condition: GameCondition<'a>`).
+   Round-trip is byte-perfect on 8,934/8,934 entries.
 
 5. **Update v3 docs**: Move ConditionInfo from blob-tail to fully field-decoded in `mod-authors-guide.md` (65 → 66 typed, 56 → 55 blob-tail).
 
