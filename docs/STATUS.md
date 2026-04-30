@@ -33,8 +33,9 @@ This file is for collaborators picking up round-trip work. It's the
 | GlobalEffectConditionData | ✅ shipped | (used inside GameCondition tree) |
 | MiniGameData | ✅ shipped | MiniGameDataInfo |
 | GameExpression / IVariantItem | ✅ shipped (inside StageChart) | (used inside GameCondition tree) |
+| EffectData | ✅ shipped (per-element typed, 47-field core_block) | EffectInfo (Tier 1) |
+| **SequencerStageChartDesc** | 🟡 partial — 13-field typed prefix in `binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial`; tail (fields 14-26) opaque pending GameCondition stream-mode + SequencerStageTrackChangeData family decoder | FieldReviveInfo, ItemUseInfo PlaySequencerOnly (single-instance use sites only) |
 | **GameEventHandler** | ❌ **next target** | GameEventHandlerInfo |
-| EffectData | ❌ pending | EffectInfo |
 | **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
 
 ### Tables by tier
