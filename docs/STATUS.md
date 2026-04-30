@@ -258,6 +258,10 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 | **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
 | **TriggerGamePlayEventHandlerData** (TGPEHD) | 🔵 researched (8/8 cases reverse-engineered, see "Reverse-engineering notes" section above), implementation pending | GimmickInfo `post_blob` (sub_1411125E0) — would unlock GimmickInfo internal-Tier-1.5 → Tier-1 |
 | **FilterCondition** family | ✅ FULLY SHIPPED — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). QuestInfo wired via `6cdc22c` (lane-c, 2026-04-30). | QuestInfo `_questDialogFilterDataList` — Tier 1 |
+| **ElementalMaterial** | ✅ shipped — `binary::variants::elemental_material` (sub_1410DC8F0 top + 4 sub-readers). | ElementalMaterialInfo (Tier 1) |
+| **StoreData** | ✅ shipped — `binary::variants::store_data` (sub_1410FC8F0 stockData + trailers; reuses `OptionalDropTarget`). | StoreInfo (Tier 1) |
+| **SpecialMode** | ✅ shipped — `binary::variants::special_mode` (sub_1410F60E0 top + 24× CArray sub_141128AF0 + 176-byte sub_1410F5A30 elements). | SpecialModeInfo (Tier 1) |
+| **InteractionData** | ✅ shipped — `binary::variants::interaction_data` (sub_1410DFBA0 top + InteractionPivot 168-byte items + 32-byte InteractionInner with 2× GameConditionOptional). | InteractionInfo (Tier 1) |
 
 ### Tables by tier
 - **Tier 1** (typed, all fields editable through JSON): all 92 on-disk
