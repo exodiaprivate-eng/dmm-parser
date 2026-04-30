@@ -1,4 +1,6 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed parser. All 174 wire fields editable; tail blob
+//! is empty for every vanilla entry (see `roundtrip` test which prints
+//! `0 nonempty tails`).
 //!
 //! Reader: `sub_1410D7480` in CrimsonDesert.exe (Win build). Massive
 //! 8616-byte function — largest pabgb reader in the binary. Reader
@@ -135,12 +137,12 @@
 //!                             (u32 + 2× u64 + [u32; 4] + u32 + 5
 //!                             nested CArrays).
 //!
-//! Remaining fields 173-174 (2× sub_141101AB0 CArray<u32> +
-//! sub_141101B80 CArray<{u32, u32}>) are decodable on paper but adding
-//! field_173 breaks the test — confirms a wire-shape mismatch in
-//! field_171's inner that's masked when subsequent counts are typically
-//! zero. Reverify CharacterField171Entry's inner CArrays (especially
-//! sub_1411001A0 and sub_1411002A0) before extending.
+//! Field 173 (sub_141101AB0 CArray<u32>) and field 174 (sub_141101B80
+//! CArray<{u32, u32}>) close out the wire layout. The earlier "field_173
+//! breaks the test" symptom was caused by a missing 3-iter raw u32 loop
+//! at mem +1008-+1019 (the loop that runs between raw_165 and lookup_166
+//! in sub_1410D7480). Adding raw_165a/b/c restored byte alignment and
+//! cleared the cascade.
 
 use crate::binary::*;
 use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
@@ -662,6 +664,9 @@ pabgh_typed_blob_table! {
         pub field_163_list: CArray<u32>,                  // sub_141101960 a2+976 (raw u32 elements)
         pub raw_164: u32,                                 // a2 + 992
         pub raw_165: u64,                                 // a2 + 1000
+        pub raw_165a: u32,                                // a2 + 1008 (3-iter raw u32 loop)
+        pub raw_165b: u32,                                // a2 + 1012
+        pub raw_165c: u32,                                // a2 + 1016
         pub lookup_166: u32,                              // sub_141101A40 a2+1020 (u32 wire / u16 mem)
         pub raw_167: u32,                                 // a2 + 1024
         pub flag_168: u8,                                 // a2 + 1028
@@ -673,6 +678,8 @@ pabgh_typed_blob_table! {
         pub lookup_170: u32,                              // inline u32 → qword_145F14D90 hash, a2+1112
         pub field_171_list: CArray<CharacterField171Entry>, // sub_141117EC0 a2+1120
         pub field_172_list: CArray<u32>,                    // sub_141101AB0 a2+1136
+        pub field_173_list: CArray<u32>,                    // sub_141101AB0 a2+1152
+        pub field_174_list: CArray<CharacterField174Entry>, // sub_141101B80 a2+1168
     }
     tail: tail_blob;
 }
@@ -691,12 +698,18 @@ mod tests {
         let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: {}", PABGH_PATH); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
+        let mut max_tail = 0usize;
+        let mut nonempty_tails = 0usize;
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
             let item = CharacterInfo::read_with_size(&data, &mut c, e - s).unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
             assert_eq!(c, *e);
+            let t = item.tail_blob.len();
+            if t > 0 { nonempty_tails += 1; max_tail = max_tail.max(t); }
             items.push(item);
         }
+        eprintln!("characterinfo: {} entries, {} nonempty tails (max={} bytes)",
+            ranges.len(), nonempty_tails, max_tail);
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "characterinfo roundtrip mismatch");
