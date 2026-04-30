@@ -799,6 +799,23 @@ pub enum GimmickTail<'a> {
         field_534_u32: Option<u32>,
         field_535_u32: Option<u32>,
         field_536_u32: Option<u32>,
+        /// Fields 537-600 — long-tail u32 sequence (64-field batch).
+        field_537_u32: Option<u32>, field_538_u32: Option<u32>, field_539_u32: Option<u32>, field_540_u32: Option<u32>,
+        field_541_u32: Option<u32>, field_542_u32: Option<u32>, field_543_u32: Option<u32>, field_544_u32: Option<u32>,
+        field_545_u32: Option<u32>, field_546_u32: Option<u32>, field_547_u32: Option<u32>, field_548_u32: Option<u32>,
+        field_549_u32: Option<u32>, field_550_u32: Option<u32>, field_551_u32: Option<u32>, field_552_u32: Option<u32>,
+        field_553_u32: Option<u32>, field_554_u32: Option<u32>, field_555_u32: Option<u32>, field_556_u32: Option<u32>,
+        field_557_u32: Option<u32>, field_558_u32: Option<u32>, field_559_u32: Option<u32>, field_560_u32: Option<u32>,
+        field_561_u32: Option<u32>, field_562_u32: Option<u32>, field_563_u32: Option<u32>, field_564_u32: Option<u32>,
+        field_565_u32: Option<u32>, field_566_u32: Option<u32>, field_567_u32: Option<u32>, field_568_u32: Option<u32>,
+        field_569_u32: Option<u32>, field_570_u32: Option<u32>, field_571_u32: Option<u32>, field_572_u32: Option<u32>,
+        field_573_u32: Option<u32>, field_574_u32: Option<u32>, field_575_u32: Option<u32>, field_576_u32: Option<u32>,
+        field_577_u32: Option<u32>, field_578_u32: Option<u32>, field_579_u32: Option<u32>, field_580_u32: Option<u32>,
+        field_581_u32: Option<u32>, field_582_u32: Option<u32>, field_583_u32: Option<u32>, field_584_u32: Option<u32>,
+        field_585_u32: Option<u32>, field_586_u32: Option<u32>, field_587_u32: Option<u32>, field_588_u32: Option<u32>,
+        field_589_u32: Option<u32>, field_590_u32: Option<u32>, field_591_u32: Option<u32>, field_592_u32: Option<u32>,
+        field_593_u32: Option<u32>, field_594_u32: Option<u32>, field_595_u32: Option<u32>, field_596_u32: Option<u32>,
+        field_597_u32: Option<u32>, field_598_u32: Option<u32>, field_599_u32: Option<u32>, field_600_u32: Option<u32>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -1954,6 +1971,70 @@ impl<'a> GimmickTail<'a> {
                 let field_534_u32 = read_u32_chained!(field_533_u32);
                 let field_535_u32 = read_u32_chained!(field_534_u32);
                 let field_536_u32 = read_u32_chained!(field_535_u32);
+                let field_537_u32 = read_u32_chained!(field_536_u32);
+                let field_538_u32 = read_u32_chained!(field_537_u32);
+                let field_539_u32 = read_u32_chained!(field_538_u32);
+                let field_540_u32 = read_u32_chained!(field_539_u32);
+                let field_541_u32 = read_u32_chained!(field_540_u32);
+                let field_542_u32 = read_u32_chained!(field_541_u32);
+                let field_543_u32 = read_u32_chained!(field_542_u32);
+                let field_544_u32 = read_u32_chained!(field_543_u32);
+                let field_545_u32 = read_u32_chained!(field_544_u32);
+                let field_546_u32 = read_u32_chained!(field_545_u32);
+                let field_547_u32 = read_u32_chained!(field_546_u32);
+                let field_548_u32 = read_u32_chained!(field_547_u32);
+                let field_549_u32 = read_u32_chained!(field_548_u32);
+                let field_550_u32 = read_u32_chained!(field_549_u32);
+                let field_551_u32 = read_u32_chained!(field_550_u32);
+                let field_552_u32 = read_u32_chained!(field_551_u32);
+                let field_553_u32 = read_u32_chained!(field_552_u32);
+                let field_554_u32 = read_u32_chained!(field_553_u32);
+                let field_555_u32 = read_u32_chained!(field_554_u32);
+                let field_556_u32 = read_u32_chained!(field_555_u32);
+                let field_557_u32 = read_u32_chained!(field_556_u32);
+                let field_558_u32 = read_u32_chained!(field_557_u32);
+                let field_559_u32 = read_u32_chained!(field_558_u32);
+                let field_560_u32 = read_u32_chained!(field_559_u32);
+                let field_561_u32 = read_u32_chained!(field_560_u32);
+                let field_562_u32 = read_u32_chained!(field_561_u32);
+                let field_563_u32 = read_u32_chained!(field_562_u32);
+                let field_564_u32 = read_u32_chained!(field_563_u32);
+                let field_565_u32 = read_u32_chained!(field_564_u32);
+                let field_566_u32 = read_u32_chained!(field_565_u32);
+                let field_567_u32 = read_u32_chained!(field_566_u32);
+                let field_568_u32 = read_u32_chained!(field_567_u32);
+                let field_569_u32 = read_u32_chained!(field_568_u32);
+                let field_570_u32 = read_u32_chained!(field_569_u32);
+                let field_571_u32 = read_u32_chained!(field_570_u32);
+                let field_572_u32 = read_u32_chained!(field_571_u32);
+                let field_573_u32 = read_u32_chained!(field_572_u32);
+                let field_574_u32 = read_u32_chained!(field_573_u32);
+                let field_575_u32 = read_u32_chained!(field_574_u32);
+                let field_576_u32 = read_u32_chained!(field_575_u32);
+                let field_577_u32 = read_u32_chained!(field_576_u32);
+                let field_578_u32 = read_u32_chained!(field_577_u32);
+                let field_579_u32 = read_u32_chained!(field_578_u32);
+                let field_580_u32 = read_u32_chained!(field_579_u32);
+                let field_581_u32 = read_u32_chained!(field_580_u32);
+                let field_582_u32 = read_u32_chained!(field_581_u32);
+                let field_583_u32 = read_u32_chained!(field_582_u32);
+                let field_584_u32 = read_u32_chained!(field_583_u32);
+                let field_585_u32 = read_u32_chained!(field_584_u32);
+                let field_586_u32 = read_u32_chained!(field_585_u32);
+                let field_587_u32 = read_u32_chained!(field_586_u32);
+                let field_588_u32 = read_u32_chained!(field_587_u32);
+                let field_589_u32 = read_u32_chained!(field_588_u32);
+                let field_590_u32 = read_u32_chained!(field_589_u32);
+                let field_591_u32 = read_u32_chained!(field_590_u32);
+                let field_592_u32 = read_u32_chained!(field_591_u32);
+                let field_593_u32 = read_u32_chained!(field_592_u32);
+                let field_594_u32 = read_u32_chained!(field_593_u32);
+                let field_595_u32 = read_u32_chained!(field_594_u32);
+                let field_596_u32 = read_u32_chained!(field_595_u32);
+                let field_597_u32 = read_u32_chained!(field_596_u32);
+                let field_598_u32 = read_u32_chained!(field_597_u32);
+                let field_599_u32 = read_u32_chained!(field_598_u32);
+                let field_600_u32 = read_u32_chained!(field_599_u32);
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -2487,6 +2568,22 @@ impl<'a> GimmickTail<'a> {
                     field_534_u32,
                     field_535_u32,
                     field_536_u32,
+                    field_537_u32, field_538_u32, field_539_u32, field_540_u32,
+                    field_541_u32, field_542_u32, field_543_u32, field_544_u32,
+                    field_545_u32, field_546_u32, field_547_u32, field_548_u32,
+                    field_549_u32, field_550_u32, field_551_u32, field_552_u32,
+                    field_553_u32, field_554_u32, field_555_u32, field_556_u32,
+                    field_557_u32, field_558_u32, field_559_u32, field_560_u32,
+                    field_561_u32, field_562_u32, field_563_u32, field_564_u32,
+                    field_565_u32, field_566_u32, field_567_u32, field_568_u32,
+                    field_569_u32, field_570_u32, field_571_u32, field_572_u32,
+                    field_573_u32, field_574_u32, field_575_u32, field_576_u32,
+                    field_577_u32, field_578_u32, field_579_u32, field_580_u32,
+                    field_581_u32, field_582_u32, field_583_u32, field_584_u32,
+                    field_585_u32, field_586_u32, field_587_u32, field_588_u32,
+                    field_589_u32, field_590_u32, field_591_u32, field_592_u32,
+                    field_593_u32, field_594_u32, field_595_u32, field_596_u32,
+                    field_597_u32, field_598_u32, field_599_u32, field_600_u32,
                     post_blob,
                 })
             }
@@ -2638,7 +2735,23 @@ impl<'a> GimmickTail<'a> {
                 field_521_u32, field_522_u32, field_523_u32, field_524_u32,
                 field_525_u32, field_526_u32, field_527_u32, field_528_u32,
                 field_529_u32, field_530_u32, field_531_u32, field_532_u32,
-                field_533_u32, field_534_u32, field_535_u32, field_536_u32, post_blob } => {
+                field_533_u32, field_534_u32, field_535_u32, field_536_u32,
+                field_537_u32, field_538_u32, field_539_u32, field_540_u32,
+                field_541_u32, field_542_u32, field_543_u32, field_544_u32,
+                field_545_u32, field_546_u32, field_547_u32, field_548_u32,
+                field_549_u32, field_550_u32, field_551_u32, field_552_u32,
+                field_553_u32, field_554_u32, field_555_u32, field_556_u32,
+                field_557_u32, field_558_u32, field_559_u32, field_560_u32,
+                field_561_u32, field_562_u32, field_563_u32, field_564_u32,
+                field_565_u32, field_566_u32, field_567_u32, field_568_u32,
+                field_569_u32, field_570_u32, field_571_u32, field_572_u32,
+                field_573_u32, field_574_u32, field_575_u32, field_576_u32,
+                field_577_u32, field_578_u32, field_579_u32, field_580_u32,
+                field_581_u32, field_582_u32, field_583_u32, field_584_u32,
+                field_585_u32, field_586_u32, field_587_u32, field_588_u32,
+                field_589_u32, field_590_u32, field_591_u32, field_592_u32,
+                field_593_u32, field_594_u32, field_595_u32, field_596_u32,
+                field_597_u32, field_598_u32, field_599_u32, field_600_u32, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -3193,6 +3306,70 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_534_u32 { v.write_to(w)?; }
                 if let Some(v) = field_535_u32 { v.write_to(w)?; }
                 if let Some(v) = field_536_u32 { v.write_to(w)?; }
+                if let Some(v) = field_537_u32 { v.write_to(w)?; }
+                if let Some(v) = field_538_u32 { v.write_to(w)?; }
+                if let Some(v) = field_539_u32 { v.write_to(w)?; }
+                if let Some(v) = field_540_u32 { v.write_to(w)?; }
+                if let Some(v) = field_541_u32 { v.write_to(w)?; }
+                if let Some(v) = field_542_u32 { v.write_to(w)?; }
+                if let Some(v) = field_543_u32 { v.write_to(w)?; }
+                if let Some(v) = field_544_u32 { v.write_to(w)?; }
+                if let Some(v) = field_545_u32 { v.write_to(w)?; }
+                if let Some(v) = field_546_u32 { v.write_to(w)?; }
+                if let Some(v) = field_547_u32 { v.write_to(w)?; }
+                if let Some(v) = field_548_u32 { v.write_to(w)?; }
+                if let Some(v) = field_549_u32 { v.write_to(w)?; }
+                if let Some(v) = field_550_u32 { v.write_to(w)?; }
+                if let Some(v) = field_551_u32 { v.write_to(w)?; }
+                if let Some(v) = field_552_u32 { v.write_to(w)?; }
+                if let Some(v) = field_553_u32 { v.write_to(w)?; }
+                if let Some(v) = field_554_u32 { v.write_to(w)?; }
+                if let Some(v) = field_555_u32 { v.write_to(w)?; }
+                if let Some(v) = field_556_u32 { v.write_to(w)?; }
+                if let Some(v) = field_557_u32 { v.write_to(w)?; }
+                if let Some(v) = field_558_u32 { v.write_to(w)?; }
+                if let Some(v) = field_559_u32 { v.write_to(w)?; }
+                if let Some(v) = field_560_u32 { v.write_to(w)?; }
+                if let Some(v) = field_561_u32 { v.write_to(w)?; }
+                if let Some(v) = field_562_u32 { v.write_to(w)?; }
+                if let Some(v) = field_563_u32 { v.write_to(w)?; }
+                if let Some(v) = field_564_u32 { v.write_to(w)?; }
+                if let Some(v) = field_565_u32 { v.write_to(w)?; }
+                if let Some(v) = field_566_u32 { v.write_to(w)?; }
+                if let Some(v) = field_567_u32 { v.write_to(w)?; }
+                if let Some(v) = field_568_u32 { v.write_to(w)?; }
+                if let Some(v) = field_569_u32 { v.write_to(w)?; }
+                if let Some(v) = field_570_u32 { v.write_to(w)?; }
+                if let Some(v) = field_571_u32 { v.write_to(w)?; }
+                if let Some(v) = field_572_u32 { v.write_to(w)?; }
+                if let Some(v) = field_573_u32 { v.write_to(w)?; }
+                if let Some(v) = field_574_u32 { v.write_to(w)?; }
+                if let Some(v) = field_575_u32 { v.write_to(w)?; }
+                if let Some(v) = field_576_u32 { v.write_to(w)?; }
+                if let Some(v) = field_577_u32 { v.write_to(w)?; }
+                if let Some(v) = field_578_u32 { v.write_to(w)?; }
+                if let Some(v) = field_579_u32 { v.write_to(w)?; }
+                if let Some(v) = field_580_u32 { v.write_to(w)?; }
+                if let Some(v) = field_581_u32 { v.write_to(w)?; }
+                if let Some(v) = field_582_u32 { v.write_to(w)?; }
+                if let Some(v) = field_583_u32 { v.write_to(w)?; }
+                if let Some(v) = field_584_u32 { v.write_to(w)?; }
+                if let Some(v) = field_585_u32 { v.write_to(w)?; }
+                if let Some(v) = field_586_u32 { v.write_to(w)?; }
+                if let Some(v) = field_587_u32 { v.write_to(w)?; }
+                if let Some(v) = field_588_u32 { v.write_to(w)?; }
+                if let Some(v) = field_589_u32 { v.write_to(w)?; }
+                if let Some(v) = field_590_u32 { v.write_to(w)?; }
+                if let Some(v) = field_591_u32 { v.write_to(w)?; }
+                if let Some(v) = field_592_u32 { v.write_to(w)?; }
+                if let Some(v) = field_593_u32 { v.write_to(w)?; }
+                if let Some(v) = field_594_u32 { v.write_to(w)?; }
+                if let Some(v) = field_595_u32 { v.write_to(w)?; }
+                if let Some(v) = field_596_u32 { v.write_to(w)?; }
+                if let Some(v) = field_597_u32 { v.write_to(w)?; }
+                if let Some(v) = field_598_u32 { v.write_to(w)?; }
+                if let Some(v) = field_599_u32 { v.write_to(w)?; }
+                if let Some(v) = field_600_u32 { v.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -3339,7 +3516,23 @@ impl<'a> GimmickTail<'a> {
                 field_521_u32, field_522_u32, field_523_u32, field_524_u32,
                 field_525_u32, field_526_u32, field_527_u32, field_528_u32,
                 field_529_u32, field_530_u32, field_531_u32, field_532_u32,
-                field_533_u32, field_534_u32, field_535_u32, field_536_u32, post_blob } => {
+                field_533_u32, field_534_u32, field_535_u32, field_536_u32,
+                field_537_u32, field_538_u32, field_539_u32, field_540_u32,
+                field_541_u32, field_542_u32, field_543_u32, field_544_u32,
+                field_545_u32, field_546_u32, field_547_u32, field_548_u32,
+                field_549_u32, field_550_u32, field_551_u32, field_552_u32,
+                field_553_u32, field_554_u32, field_555_u32, field_556_u32,
+                field_557_u32, field_558_u32, field_559_u32, field_560_u32,
+                field_561_u32, field_562_u32, field_563_u32, field_564_u32,
+                field_565_u32, field_566_u32, field_567_u32, field_568_u32,
+                field_569_u32, field_570_u32, field_571_u32, field_572_u32,
+                field_573_u32, field_574_u32, field_575_u32, field_576_u32,
+                field_577_u32, field_578_u32, field_579_u32, field_580_u32,
+                field_581_u32, field_582_u32, field_583_u32, field_584_u32,
+                field_585_u32, field_586_u32, field_587_u32, field_588_u32,
+                field_589_u32, field_590_u32, field_591_u32, field_592_u32,
+                field_593_u32, field_594_u32, field_595_u32, field_596_u32,
+                field_597_u32, field_598_u32, field_599_u32, field_600_u32, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -4008,7 +4201,39 @@ impl<'a> GimmickTail<'a> {
                                ("field_533_u32", field_533_u32),
                                ("field_534_u32", field_534_u32),
                                ("field_535_u32", field_535_u32),
-                               ("field_536_u32", field_536_u32)] {
+                               ("field_536_u32", field_536_u32),
+                               ("field_537_u32", field_537_u32), ("field_538_u32", field_538_u32),
+                               ("field_539_u32", field_539_u32), ("field_540_u32", field_540_u32),
+                               ("field_541_u32", field_541_u32), ("field_542_u32", field_542_u32),
+                               ("field_543_u32", field_543_u32), ("field_544_u32", field_544_u32),
+                               ("field_545_u32", field_545_u32), ("field_546_u32", field_546_u32),
+                               ("field_547_u32", field_547_u32), ("field_548_u32", field_548_u32),
+                               ("field_549_u32", field_549_u32), ("field_550_u32", field_550_u32),
+                               ("field_551_u32", field_551_u32), ("field_552_u32", field_552_u32),
+                               ("field_553_u32", field_553_u32), ("field_554_u32", field_554_u32),
+                               ("field_555_u32", field_555_u32), ("field_556_u32", field_556_u32),
+                               ("field_557_u32", field_557_u32), ("field_558_u32", field_558_u32),
+                               ("field_559_u32", field_559_u32), ("field_560_u32", field_560_u32),
+                               ("field_561_u32", field_561_u32), ("field_562_u32", field_562_u32),
+                               ("field_563_u32", field_563_u32), ("field_564_u32", field_564_u32),
+                               ("field_565_u32", field_565_u32), ("field_566_u32", field_566_u32),
+                               ("field_567_u32", field_567_u32), ("field_568_u32", field_568_u32),
+                               ("field_569_u32", field_569_u32), ("field_570_u32", field_570_u32),
+                               ("field_571_u32", field_571_u32), ("field_572_u32", field_572_u32),
+                               ("field_573_u32", field_573_u32), ("field_574_u32", field_574_u32),
+                               ("field_575_u32", field_575_u32), ("field_576_u32", field_576_u32),
+                               ("field_577_u32", field_577_u32), ("field_578_u32", field_578_u32),
+                               ("field_579_u32", field_579_u32), ("field_580_u32", field_580_u32),
+                               ("field_581_u32", field_581_u32), ("field_582_u32", field_582_u32),
+                               ("field_583_u32", field_583_u32), ("field_584_u32", field_584_u32),
+                               ("field_585_u32", field_585_u32), ("field_586_u32", field_586_u32),
+                               ("field_587_u32", field_587_u32), ("field_588_u32", field_588_u32),
+                               ("field_589_u32", field_589_u32), ("field_590_u32", field_590_u32),
+                               ("field_591_u32", field_591_u32), ("field_592_u32", field_592_u32),
+                               ("field_593_u32", field_593_u32), ("field_594_u32", field_594_u32),
+                               ("field_595_u32", field_595_u32), ("field_596_u32", field_596_u32),
+                               ("field_597_u32", field_597_u32), ("field_598_u32", field_598_u32),
+                               ("field_599_u32", field_599_u32), ("field_600_u32", field_600_u32)] {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
                 }
@@ -4354,7 +4579,23 @@ impl<'a> GimmickTail<'a> {
                            "field_527_u32", "field_528_u32", "field_529_u32",
                            "field_530_u32", "field_531_u32", "field_532_u32",
                            "field_533_u32", "field_534_u32", "field_535_u32",
-                           "field_536_u32"] {
+                           "field_536_u32",
+                           "field_537_u32", "field_538_u32", "field_539_u32", "field_540_u32",
+                           "field_541_u32", "field_542_u32", "field_543_u32", "field_544_u32",
+                           "field_545_u32", "field_546_u32", "field_547_u32", "field_548_u32",
+                           "field_549_u32", "field_550_u32", "field_551_u32", "field_552_u32",
+                           "field_553_u32", "field_554_u32", "field_555_u32", "field_556_u32",
+                           "field_557_u32", "field_558_u32", "field_559_u32", "field_560_u32",
+                           "field_561_u32", "field_562_u32", "field_563_u32", "field_564_u32",
+                           "field_565_u32", "field_566_u32", "field_567_u32", "field_568_u32",
+                           "field_569_u32", "field_570_u32", "field_571_u32", "field_572_u32",
+                           "field_573_u32", "field_574_u32", "field_575_u32", "field_576_u32",
+                           "field_577_u32", "field_578_u32", "field_579_u32", "field_580_u32",
+                           "field_581_u32", "field_582_u32", "field_583_u32", "field_584_u32",
+                           "field_585_u32", "field_586_u32", "field_587_u32", "field_588_u32",
+                           "field_589_u32", "field_590_u32", "field_591_u32", "field_592_u32",
+                           "field_593_u32", "field_594_u32", "field_595_u32", "field_596_u32",
+                           "field_597_u32", "field_598_u32", "field_599_u32", "field_600_u32"] {
                     let v = json_get_field(obj, k)?;
                     if !v.is_null() {
                         <u32 as WriteJsonValue>::write_from_json(w, v)?;
