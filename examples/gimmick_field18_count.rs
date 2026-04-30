@@ -64,6 +64,14 @@ fn main() {
     let mut field_64_typed = 0usize;
     let mut field_65_typed = 0usize;
     let mut field_66_typed = 0usize;
+    let mut field_67_typed = 0usize;
+    let mut field_68_typed = 0usize;
+    let mut field_69_typed = 0usize;
+    let mut field_70_typed = 0usize;
+    let mut field_71_typed = 0usize;
+    let mut field_72_typed = 0usize;
+    let mut field_73_typed = 0usize;
+    let mut field_74_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -124,6 +132,14 @@ fn main() {
                 field_64_u32,
                 field_65_u32,
                 field_66_u32,
+                field_67_u32,
+                field_68_u32,
+                field_69_u32,
+                field_70_u32,
+                field_71_u32,
+                field_72_u32,
+                field_73_u32,
+                field_74_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -177,6 +193,14 @@ fn main() {
                 if field_64_u32.is_some() { field_64_typed += 1; }
                 if field_65_u32.is_some() { field_65_typed += 1; }
                 if field_66_u32.is_some() { field_66_typed += 1; }
+                if field_67_u32.is_some() { field_67_typed += 1; }
+                if field_68_u32.is_some() { field_68_typed += 1; }
+                if field_69_u32.is_some() { field_69_typed += 1; }
+                if field_70_u32.is_some() { field_70_typed += 1; }
+                if field_71_u32.is_some() { field_71_typed += 1; }
+                if field_72_u32.is_some() { field_72_typed += 1; }
+                if field_73_u32.is_some() { field_73_typed += 1; }
+                if field_74_u32.is_some() { field_74_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -236,6 +260,11 @@ fn main() {
     println!("Field 64 (field_64_u32 = 0)           typed:     {} / {}", field_64_typed, decoded);
     println!("Field 65 (field_65_u32 = f32 5.0)     typed:     {} / {}", field_65_typed, decoded);
     println!("Field 66 (field_66_u32 = f32 1.0)     typed:     {} / {}", field_66_typed, decoded);
+    for (i, count) in [(67usize, field_67_typed), (68, field_68_typed), (69, field_69_typed),
+                       (70, field_70_typed), (71, field_71_typed), (72, field_72_typed),
+                       (73, field_73_typed), (74, field_74_typed)] {
+        println!("Field {} (field_{}_u32)                  typed:     {} / {}", i, i, count, decoded);
+    }
 
     post_blob_sizes.sort();
     if !post_blob_sizes.is_empty() {
