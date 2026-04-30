@@ -1,6 +1,8 @@
 //! Tier 1 — fully typed parser. All 174 wire fields editable; tail blob
 //! is empty for every vanilla entry (see `roundtrip` test which prints
-//! `0 nonempty tails`).
+//! `0 nonempty tails`). The `pabgh_typed_blob_table!` macro now omits
+//! `_tail_b64` from JSON output when the tail Vec is empty, and the
+//! `json_roundtrip` test asserts the field never leaks.
 //!
 //! Reader: `sub_1410D7480` in CrimsonDesert.exe (Win build). Massive
 //! 8616-byte function — largest pabgb reader in the binary. Reader
