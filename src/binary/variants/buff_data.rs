@@ -294,14 +294,16 @@ py_binary_struct! {
         pub game_condition_opt: GameConditionOptional<'a>,
         pub u32_24: u32,
         pub u16_28: u16,
-        pub bytes_32: [u8; 12],
+        pub u32_32: u32,
+        pub u32_36: u32,
+        pub u32_40: u32,
         pub u32_44: u32,
         pub u8_48: u8,
         pub cstring_56: CString<'a>,
         pub u8_64: u8,
         pub u8_65: u8,
         pub u8_66: u8,
-        pub bytes_72: [u8; 8],
+        pub u64_72: u64,
         pub four_lookups_80: [u32; 4],
         pub u8_96: u8,
         pub u8_97: u8,
@@ -314,7 +316,7 @@ py_binary_struct! {
         pub u32_136: u32,
         pub graph_144: SummonGraphData,
         pub cstring_168: CString<'a>,
-        pub bytes_176: [u8; 8],
+        pub u64_176: u64,
         pub u8_184: u8,
         pub u32_188: u32,
         pub u32_192: u32,
@@ -323,10 +325,10 @@ py_binary_struct! {
         pub u8_198: u8,
         pub u8_199: u8,
         pub u8_200: u8,
-        pub bytes_204: [u8; 8],
+        pub u64_204: u64,
         pub lookup_212: u32,
-        pub bytes_216: [u8; 4],
-        pub bytes_220: [u8; 2],
+        pub u32_216: u32,
+        pub u16_220: u16,
         pub u8_222: u8,
         pub u8_223: u8,
         pub u8_224: u8,
@@ -361,7 +363,9 @@ pub struct GameConditionOptional<'a> {
 #[derive(Debug)]
 pub struct GameConditionInner<'a> {
     pub tree: super::game_condition::GameConditionNode<'a>,
-    pub trailer: [u8; 3],
+    pub trailer_0: u8,
+    pub trailer_1: u8,
+    pub trailer_2: u8,
 }
 
 impl<'a> GameConditionOptional<'a> {
@@ -371,10 +375,12 @@ impl<'a> GameConditionOptional<'a> {
             return Ok(Self { presence, inner: None });
         }
         let tree = super::game_condition::GameConditionNode::read_from(data, offset)?;
-        let trailer = <[u8; 3]>::read_from(data, offset)?;
+        let trailer_0 = u8::read_from(data, offset)?;
+        let trailer_1 = u8::read_from(data, offset)?;
+        let trailer_2 = u8::read_from(data, offset)?;
         Ok(Self {
             presence,
-            inner: Some(GameConditionInner { tree, trailer }),
+            inner: Some(GameConditionInner { tree, trailer_0, trailer_1, trailer_2 }),
         })
     }
 
@@ -382,7 +388,9 @@ impl<'a> GameConditionOptional<'a> {
         self.presence.write_to(w)?;
         if let Some(inner) = &self.inner {
             inner.tree.write_to(w)?;
-            inner.trailer.write_to(w)?;
+            inner.trailer_0.write_to(w)?;
+            inner.trailer_1.write_to(w)?;
+            inner.trailer_2.write_to(w)?;
         }
         Ok(())
     }
@@ -396,7 +404,9 @@ impl<'a> GameConditionOptional<'a> {
                 Some(i) => {
                     let mut im = Map::new();
                     im.insert("tree".into(), i.tree.to_json_value());
-                    im.insert("trailer".into(), i.trailer.to_json_value());
+                    im.insert("trailer_0".into(), i.trailer_0.to_json_value());
+                    im.insert("trailer_1".into(), i.trailer_1.to_json_value());
+                    im.insert("trailer_2".into(), i.trailer_2.to_json_value());
                     Value::Object(im)
                 }
                 None => Value::Null,
@@ -429,7 +439,9 @@ impl<'a> GameConditionOptional<'a> {
         super::game_condition::GameConditionNode::write_from_json(
             w, json_get_field(inner_obj, "tree")?,
         )?;
-        <[u8; 3] as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_0")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_1")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_2")?)?;
         Ok(())
     }
 }
@@ -541,12 +553,16 @@ py_binary_struct! {
     pub struct ElementalAreaBuffDataPayload {
         pub f00: u32,
         pub f01: u64,
-        pub f02: [u8; 12],
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
         pub f03: u32,
         pub f04: u32,
         pub f05: u32,
         pub f06: u32,
-        pub f07: [u8; 12],
+        pub f07_a: u32,
+        pub f07_b: u32,
+        pub f07_c: u32,
         pub f08: u32,
         pub f09: u8,
         pub f0a: u8,
@@ -767,7 +783,9 @@ py_binary_struct! {
     pub struct ApplyPhysicsImpulseBuffDataPayload {
         pub f00: u32,
         pub f01: u32,
-        pub f02: [u8; 12],
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
     }
 }
 
@@ -795,8 +813,13 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct SummonGimmickBuffDataPayload<'a> {
         pub f00: CString<'a>,
-        pub f01: [u8; 12],
-        pub f02: [u8; 16],
+        pub f01_a: u32,
+        pub f01_b: u32,
+        pub f01_c: u32,
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
+        pub f02_d: u32,
         pub f03: u8,
         pub f04: u8,
     }
@@ -1105,7 +1128,7 @@ py_binary_struct! {
     /// corrected from earlier mis-typing).
     pub struct VaryMaxExpandInventorySlotBuffDataPayload {
         pub f00_lookup: u16,
-        pub f01: [u8; 2],
+        pub f01: u16,
     }
 }
 
@@ -1125,7 +1148,9 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct ConsumeSpawnerMercenaryBuffDataPayload {
         pub f00: u32,
-        pub f01: [u8; 12],
+        pub f01_a: u32,
+        pub f01_b: u32,
+        pub f01_c: u32,
         pub f02: u8,
     }
 }
