@@ -147,7 +147,7 @@
 //! cleared the cascade.
 
 use crate::binary::*;
-use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
+use crate::binary::variants::gimmick_interaction_override::GimmickInteractionOverrideCArray;
 use crate::json_traits::{ToJsonValue, WriteJsonValue};
 use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;

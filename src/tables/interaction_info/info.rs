@@ -44,8 +44,8 @@
 //! obfuscated reader called out in `game_condition.rs::Raw` comment).
 
 use crate::binary::*;
-use crate::binary::condition_pair::ConditionPairCArray;
-use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
+use crate::binary::variants::condition_pair::ConditionPairCArray;
+use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use crate::tables::faction_node_info::info::FactionAdjacencyMobItem;

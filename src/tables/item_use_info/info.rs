@@ -60,7 +60,7 @@
 //! it via the "Hand-corrected" header marker on line 1.
 
 use crate::binary::*;
-use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
+use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use serde_json::{Map, Value};
@@ -183,7 +183,7 @@ py_binary_struct! {
 // AND the inner sub_141D03AA0 presence — two distinct bytes —
 // whereas DropSetInfo._list calls sub_141D03AA0 directly so it only
 // has the single inner presence. The inner DropTarget is fully
-// field-addressable via `crate::binary::drop_target`.
+// field-addressable via `crate::binary::variants::drop_target`.
 #[derive(Debug)]
 pub struct RandomBoxPayload {
     pub lookup_a: Option<u32>,
@@ -191,7 +191,7 @@ pub struct RandomBoxPayload {
     /// outer presence flag is 0; otherwise carries the inner
     /// `OptionalDropTarget` (which itself may be empty when its inner
     /// presence is 0).
-    pub inner: Option<crate::binary::drop_target::OptionalDropTarget>,
+    pub inner: Option<crate::binary::variants::drop_target::OptionalDropTarget>,
     pub final_lookup: u32,
 }
 
@@ -202,7 +202,7 @@ impl RandomBoxPayload {
         let lookup_a = if flag_a != 0 { Some(u32::read_from(data, offset)?) } else { None };
         let outer = u8::read_from(data, offset)?;
         let inner = if outer != 0 {
-            Some(crate::binary::drop_target::OptionalDropTarget::read_from(data, offset)?)
+            Some(crate::binary::variants::drop_target::OptionalDropTarget::read_from(data, offset)?)
         } else {
             None
         };
@@ -246,7 +246,7 @@ impl RandomBoxPayload {
             w.push(0);
         } else {
             w.push(1);
-            <crate::binary::drop_target::OptionalDropTarget as WriteJsonValue>::write_from_json(
+            <crate::binary::variants::drop_target::OptionalDropTarget as WriteJsonValue>::write_from_json(
                 w, inner,
             )?;
         }

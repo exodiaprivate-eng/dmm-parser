@@ -89,7 +89,7 @@
 //! the desc has a complete decoder, it joins the typed prefix.
 
 use crate::binary::*;
-use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
+use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use crate::tables::faction_node_info::info::FactionAdjacencyMobItem;

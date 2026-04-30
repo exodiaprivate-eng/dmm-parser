@@ -20,6 +20,11 @@ pub mod ivariant_item;
 pub mod mini_game_data;
 pub mod schedule_complete_condition_data;
 pub mod filter_condition;
+pub mod auto_spawn_entry;
+pub mod condition_pair;
+pub mod drop_target;
+pub mod gimmick_interaction_override;
+pub mod sequencer_stage_chart_desc;
 
 #[cfg(test)]
 mod validate_buffdata;

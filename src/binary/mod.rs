@@ -10,11 +10,6 @@ pub mod paloc;
 pub mod variant;
 pub mod variants;
 pub mod optional_game_condition;
-pub mod condition_pair;
-pub mod sequencer_stage_chart_desc;
-pub mod gimmick_interaction_override;
-pub mod auto_spawn_entry;
-pub mod drop_target;
 
 pub use types::*;
 

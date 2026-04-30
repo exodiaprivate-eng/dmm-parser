@@ -29,7 +29,7 @@
 //!                                          stride per element)
 
 use crate::binary::*;
-use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
+use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
 use std::io::{self, Write};

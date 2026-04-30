@@ -78,7 +78,7 @@
 //! sub_1410DF770.
 
 use crate::binary::*;
-use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
+use crate::binary::variants::gimmick_interaction_override::GimmickInteractionOverrideCArray;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};

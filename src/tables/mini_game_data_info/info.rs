@@ -16,7 +16,7 @@
 //!   6. CArray<u32> (a2+24/+32 — list of u32 keys)
 
 use crate::binary::*;
-use crate::binary::sequencer_stage_chart_desc::SequencerStageSpawnData;
+use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageSpawnData;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};

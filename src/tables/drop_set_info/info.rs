@@ -4,11 +4,11 @@
 //! `CArray<OptionalDropTarget>` via sub_141102760 + sub_141D03AA0 +
 //! sub_141600210. Per-element wire shape (when present) is 63 fixed
 //! bytes + variant tail dispatched on `dispatch_tag` at mem +112; full
-//! decoder lives in `crate::binary::drop_target`. Same payload shape
+//! decoder lives in `crate::binary::variants::drop_target`. Same payload shape
 //! powers `ItemUseInfo` RandomBox `inner_data`.
 
 use crate::binary::*;
-use crate::binary::drop_target::OptionalDropTarget;
+use crate::binary::variants::drop_target::OptionalDropTarget;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
 use std::io::{self, Write};

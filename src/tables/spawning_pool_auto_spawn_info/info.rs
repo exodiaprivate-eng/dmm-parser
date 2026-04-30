@@ -3,10 +3,10 @@
 //! Per IDA sub_1410F9B80: 16 fields. `_spawnList` is `CArray<AutoSpawnEntry>`
 //! via sub_1411092E0 + sub_1410FA2A0 (shared with
 //! TerrainRegionAutoSpawnInfo; element layout in
-//! `crate::binary::auto_spawn_entry`).
+//! `crate::binary::variants::auto_spawn_entry`).
 
 use crate::binary::*;
-use crate::binary::auto_spawn_entry::AutoSpawnEntry;
+use crate::binary::variants::auto_spawn_entry::AutoSpawnEntry;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
 use std::io::{self, Write};

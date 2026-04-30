@@ -3,11 +3,11 @@
 //! Per IDA sub_1410FA5B0: 24 fields. `_spawnList` is
 //! `CArray<AutoSpawnEntry>` via sub_1411092E0 + sub_1410FA2A0 (shared with
 //! SpawningPoolAutoSpawnInfo). Per-element wire layout reverse-engineered
-//! and lives in `crate::binary::auto_spawn_entry`. Despite the original
+//! and lives in `crate::binary::variants::auto_spawn_entry`. Despite the original
 //! "polymorphic" docstring, sub_1410FA2A0 is fixed-shape.
 
 use crate::binary::*;
-use crate::binary::auto_spawn_entry::AutoSpawnEntry;
+use crate::binary::variants::auto_spawn_entry::AutoSpawnEntry;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
