@@ -18,8 +18,14 @@ py_binary_struct! {
     pub struct AIMoveSpeedData {
         pub target_move_speed: f32,
         pub min_move_speed: f32,
-        pub move_acc: [u8; 32],
-        pub move_dcc: [u8; 32],
+        // 8-slot acceleration ramp (f32 each). Empirical sweep across 10
+        // present vanilla slots × 16 f32 values found 0 NaN — safe to
+        // expose as f32. acc_count above tells how many slots are valid.
+        pub move_acc_0: f32, pub move_acc_1: f32, pub move_acc_2: f32, pub move_acc_3: f32,
+        pub move_acc_4: f32, pub move_acc_5: f32, pub move_acc_6: f32, pub move_acc_7: f32,
+        // 8-slot deceleration ramp.
+        pub move_dcc_0: f32, pub move_dcc_1: f32, pub move_dcc_2: f32, pub move_dcc_3: f32,
+        pub move_dcc_4: f32, pub move_dcc_5: f32, pub move_dcc_6: f32, pub move_dcc_7: f32,
         pub look_forward_sec: f32,
         pub look_forward_turn_sec: f32,
         pub min_degree_diff: f32,
