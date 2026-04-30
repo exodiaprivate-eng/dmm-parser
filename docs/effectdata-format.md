@@ -9,6 +9,16 @@ uses a different (non-empirical) analysis layer.
 Field names are inferred from context; true names are unknown without IDA
 symbol access.
 
+> **Research artifact — not a spec of the current implementation.**
+> The empirical blob layout below (fixed\_prefix, sub\_elements, 364-byte
+> mesh\_elements) was derived before the IDA analysis in `effect_data.rs` /
+> `effect_info/info.rs` was available. The code implements a different wire
+> structure: `CArray<EffectDataElement>` (variable-size) followed by
+> `CArray<MeshEffectData>` at 50 bytes/element. The two views are not yet
+> reconciled. Use the IDA-derived code as ground truth for parsing; use
+> this doc for pattern observations and offset landmarks within a single
+> element's bytes.
+
 ---
 
 ## Version History
@@ -20,7 +30,7 @@ Three inner sizes changed across patch versions:
 | `fixed_prefix`   | 299      | 286   | 299         |
 | `sub_element`    | 316      | 303   | 316         |
 | `mesh_element`   | 364      | 351   | 364         |
-| baseline blob    | 322      | 310   | 323         |
+| baseline blob    | 323      | 310   | 323         |
 
 The 4-11 patch shrank all three constants; the 4-23 patch reverted them.
 The outer container layout is unchanged across all versions.
@@ -175,7 +185,11 @@ All string pairs for an entry are stored consecutively (no structs between them)
 
 Immediately follows the struct_section count u32 (which equals named_item_count).
 One struct per named item, same order as the string pairs. The struct_section
-header is always: `u32=N  u32=0  u32=0  u32=0` (16 bytes: count + 12 zeros).
+header is a single `u32=N` count (4 bytes only). The 12 zero bytes that appear
+to follow the count in most entries are the first struct's colour field
+(struct[0..12] = f32[3] default (0,0,0)) — not extra header padding. Blob size
+examples confirm the 4-byte interpretation: a 1-named-item 475-byte blob gives
+4+299+4+(4+4)+( **4** +144)+0+4+0+8 = 475, whereas a 16-byte header gives 487.
 
 Internal layout from systematic byte scan across all 27 named item structs
 (27 entries across 4-24 475–933 blobs):
@@ -303,10 +317,21 @@ zeros at [0:4] (inactive), hash at [4:8], zeros elsewhere in [0:80].
 
 **Shared inner sub-struct (mesh[108..364]):**
 
-Mirrors fixed_prefix[92..299] with a +16 byte shift (mesh[108+X] ≅ prefix[92+X]).
-All the same landmarks appear: float cluster at mesh[108], `0a 05` at mesh[156],
-−π/2 at mesh[196], TRS at mesh[216:252], constant 0x01 at mesh[252],
-flags/IDs region at mesh[260..284], `0xe173eac5` sentinel at mesh[284..300].
+The first 207 bytes (mesh[108..315]) mirror fixed_prefix[92..299] with a +16
+byte shift (mesh[108+X] ≅ prefix[92+X]). Confirmed landmarks:
+
+| mesh offset | prefix equiv | landmark |
+|-------------|--------------|----------|
+| 108         | prefix[92]   | float cluster start |
+| 156         | prefix[140]  | `0a 05` type marker |
+| 196         | prefix[180]  | −π/2 constant |
+| 216..252    | prefix[200..236] | TRS (position, scale, rotation) |
+| 252         | prefix[236]  | constant `0x01` |
+| 260..284    | prefix[244..268] | flags/IDs region |
+| 280..296    | prefix[264..280] | `0xe173eac5` hash region |
+
+The remaining mesh[315..364] (49 bytes) extends beyond the fixed_prefix and
+is not yet mapped.
 
 ---
 
@@ -596,3 +621,8 @@ data, differing only in outer blob metadata.
 6. **Type C/E body remainder (body[152:356])** — inner sub-struct bytes after
    the `0a 05` marker at body[148]/body[152] contain TRS and ID fields mirroring
    prefix[140:299]; not yet scanned for Type C/E specifically.
+
+7. **MeshEffectData mesh[315..364] (49 bytes)** — the inner sub-struct mirrors
+   prefix[92..299] (207 bytes) at mesh[108..315], but the element is 364 bytes,
+   leaving 49 bytes at the end unmapped. Likely contains the flags/IDs region
+   and trailing zeros analogous to prefix[284..299].
