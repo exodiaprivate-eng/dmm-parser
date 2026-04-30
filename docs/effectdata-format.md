@@ -554,10 +554,23 @@ deduplication marker). Body layout (each 356 bytes):
 | 4..8        | 4    | hash — equals ref[i].hash for the corresponding reference entry |
 | 8..12       | 4    | same hash repeated |
 | 12..100     | 88   | zeros |
-| 100..356    | 256  | **inner sub-struct** — mirrors prefix[92..348] with body[100+X] ≅ prefix[92+X]; confirmed by body[100:104]=f32=1.0 (≅ prefix[92]=1.0) and body[148:150]=`0a 05` (≅ prefix[140:142]) |
+| 100..308    | 208  | **inner sub-struct** (≅ prefix[92..300]) — same layout as InnerMapElement[108..316]; `body[100+X] ≅ prefix[92+X]`; all landmarks confirmed |
+| 308..356    | 48   | tail — all zeros (confirmed across all 9 bodies: 4×pafx_Swim + 5×fx_smokeshell_out) |
 
-The body's inner sub-struct is identical in structure to standard InnerMapElement[108..364],
-but positioned 8 bytes earlier in the body's own coordinate space.
+Key landmarks within the inner sub-struct (all confirmed):
+
+| body offset | prefix equiv    | landmark |
+|-------------|-----------------|----------|
+| 100         | prefix[92]      | float cluster start (f32 = 1.0) |
+| 148:150     | prefix[140:142] | `0a 05` type marker |
+| 188:192     | prefix[180:184] | −π/2 constant |
+| 208:244     | prefix[200:236] | TRS — per-body position/scale/rotation (e.g. pafx_Swim body 0: pos=(−0.36, 0.7, −0.4), scale=(1.8, 1.8, 1.8)) |
+| 244:248     | prefix[236:240] | constant `0x00000001` |
+| 260:264     | prefix[252:256] | constant `0x01000005` |
+| 266:290     | prefix[258:282] | lookups_c (6×u32, null sentinel `0xeac5e173`) |
+
+The body's inner sub-struct uses the same layout as InnerMapElement[108..316], with
+the base offset 8 bytes earlier in the body's own coordinate space.
 
 ### Type D — Extended sub-element blob (2536-byte blob)
 
@@ -624,10 +637,19 @@ baseline(324) + 3×364(inner_map). Standard layout; no special handling required
    the other way around); float-cluster alignment note corrected to `struct[X] ≡
    prefix[X+4]`.
 
-5. **Type C body remainder (body[152:356])** — inner sub-struct bytes after the
-   `0a 05` marker at body[148] contain TRS and ID fields mirroring prefix[140:300];
-   not yet scanned for Type C specifically.
+5. ~~**Type C body remainder (body[152:356])**~~ **Resolved**: full mapping confirmed.
+   body[100..308] = inner sub-struct ≅ prefix[92..300] (same structure as
+   InnerMapElement[108..316]); body[308..356] = 48-byte tail, all zeros (verified
+   across all 9 bodies: 4×pafx_Swim_Foot_Warmachine + 5×fx_smokeshell_out). All key
+   landmarks confirmed: body[148:150]=`0a 05`, body[188:192]=−π/2, body[208:244]=TRS
+   with per-body real values, body[244:248]=`0x01`, body[260:264]=`0x01000005`,
+   body[266:290]=lookups_c with null sentinels. The 48-byte tail is entirely zeros —
+   no hidden fields beyond the prefix-equivalent range.
 
 6. **InnerMapElement inner sub-struct tail (mesh[316..364], 48 bytes)** — the inner
    sub-struct mirrors prefix[92..300] (208 bytes) at mesh[108..316]; the remaining
-   48 bytes likely contain the flags/IDs region analogous to prefix[284..300].
+   48 bytes extend beyond the fixed_prefix. The analogous tail in Type C bodies
+   (body[308..356]) is all zeros across all 9 bodies, making it likely that
+   mesh[316..364] is also all zeros. Direct verification from standard inner_map
+   blob entries is pending; the earlier "flags/IDs region" hypothesis is now
+   unlikely.
