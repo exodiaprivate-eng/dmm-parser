@@ -46,6 +46,13 @@ This file is for collaborators picking up round-trip work. It's the
 - `GimmickInfo.post_blob` — within Decoded; blocked by sub_1411125E0
   (CArray<COptional<sub_141D7FF30>>)
 
+### JSON exposure upgrades (lane-c)
+- `SkillInfo.buff_level_list` (CArray<CArray<BuffDataOptional>>) — was
+  base64; now fully typed nested JSON via BuffData ToJsonValue +
+  BuffDataOptional impls. Each per-level per-buff variant body is
+  individually editable.
+- Added `json_roundtrip` test for SkillInfo (306 total tests).
+
 ### Polymorphic family decoders
 | Family | Status | Tables that consume it |
 |---|---|---|
