@@ -23,6 +23,14 @@ fn matches_target(file_name: &str, dir_path: &str) -> bool {
     let lower = file_name.to_ascii_lowercase();
     let dlower = dir_path.to_ascii_lowercase();
 
+    // ALL .paatt files in 1_pc (player attack info — small set, extract all)
+    if lower.ends_with(".paatt") && (dlower.contains("1_pc") || dlower.contains("/pc/")) {
+        return true;
+    }
+    // ALL .paac files in 1_pc (chart files — larger set)
+    if lower.ends_with(".paac") && (dlower.contains("1_pc") || dlower.contains("/pc/")) {
+        return true;
+    }
     // Pull EVERYTHING under any actionchart-like dir path (XML/json/txt/paacdesc)
     if dlower.contains("actionchart")
         || dlower.contains("actionpackage")
