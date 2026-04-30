@@ -275,19 +275,17 @@ py_binary_struct! {
     }
 }
 
-/// SummonBuffData (tag 10): full variant tail per IDA sub_1419DD000 + sub_1410F7440.
-/// vftable @ 0x144C72038. 392-byte allocation. Variant tail layout:
-///   sub_1410F7440 reads ~35 stream items into struct at offset +144 of object.
-///   Then outer reader sub_1419DD000 appends u8 + u32 + u32 (this+376/380/384).
-///
-/// The GameCondition optional inside sub_141103B30 is fully typed —
-/// `GameConditionOptional` holds a `GameConditionNode` tree and 3-byte
-/// trailer when present, with tree-navigable JSON exposure.
 py_binary_struct! {
-    /// SummonBuffData payload — 41 typed fields. paired_lookups is a
-    /// CArray<u32> of paired u16 lookups (sub_1411003E0 +
-    /// sub_1410FF220). game_condition_opt is sub_141103B30:
-    /// u8 presence + (if !0: GameConditionNode tree + 3 trailer u8s).
+    /// SummonBuffData (tag 10): full variant tail per IDA sub_1419DD000
+    /// + sub_1410F7440. vftable @ 0x144C72038. 392-byte allocation.
+    /// Variant tail: sub_1410F7440 reads ~35 stream items into struct
+    /// at offset +144 of object. Then outer reader sub_1419DD000
+    /// appends u8 + u32 + u32 (this+376/380/384).
+    ///
+    /// 41 typed fields. paired_lookups is a CArray<u32> of paired u16
+    /// lookups (sub_1411003E0 + sub_1410FF220). game_condition_opt is
+    /// sub_141103B30: u8 presence + (if !0: GameConditionNode tree +
+    /// 3 trailer u8s) — fully typed via `GameConditionOptional`.
     /// u8_outer_376 / u32_outer_380 / u32_outer_384 are the outer
     /// wrapper bytes appended by sub_1419DD000 after sub_1410F7440
     /// returns.

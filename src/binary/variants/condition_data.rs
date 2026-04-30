@@ -11,7 +11,6 @@
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -113,17 +112,17 @@ py_binary_struct! {
     }
 }
 
-/// Tag 206 (ConditionData_Weather). Body = u8 weather state (1 byte).
-/// Per IDA sub_14F18E780 (vtable[16] for ConditionData_Weather at
-/// 0x144CD5A98) — single stream read of 1 byte stored at +24.
 py_binary_struct! {
+    /// Tag 206 (ConditionData_Weather). Body = u8 weather state (1 byte).
+    /// Per IDA sub_14F18E780 (vtable[16] for ConditionData_Weather at
+    /// 0x144CD5A98) — single stream read of 1 byte stored at +24.
     pub struct ConditionData_WeatherPayload {
         pub weather_state: u8,
     }
 }
 
-/// Tag 9 (ConditionData_CheckTime). Body = u64 time value (8 bytes).
 py_binary_struct! {
+    /// Tag 9 (ConditionData_CheckTime). Body = u64 time value (8 bytes).
     pub struct ConditionData_CheckTimePayload {
         pub time_value: u64,
     }
@@ -149,8 +148,8 @@ py_binary_struct! {
     }
 }
 
-/// Tag 15 (CheckTribe). Body = u32 tribe_key + u8 flag = 5 bytes.
 py_binary_struct! {
+    /// Tag 15 (CheckTribe). Body = u32 tribe_key + u8 flag = 5 bytes.
     pub struct ConditionData_CheckTribePayload {
         pub tribe_key: u32,
         pub flag: u8,
@@ -164,9 +163,9 @@ py_binary_struct! {
     }
 }
 
-/// Tag 23 (GetDataDefinedStaticStat). Body = u32 entity_key + u8 stat_index
-/// + u64 stat_value = 13 bytes per vanilla observation.
 py_binary_struct! {
+    /// Tag 23 (GetDataDefinedStaticStat). Body = u32 entity_key + u8
+    /// stat_index + u64 stat_value = 13 bytes per vanilla observation.
     pub struct ConditionData_GetDataDefinedStaticStatPayload {
         pub entity_key: u32,
         pub stat_index: u8,
@@ -174,9 +173,10 @@ py_binary_struct! {
     }
 }
 
-/// Tag 24 (GetDataDefinedRegenerateStat). Body = u32 entity_key + u8 stat_index
-/// + u64 regen_value = 13 bytes per vanilla observation (same shape as tag 23).
 py_binary_struct! {
+    /// Tag 24 (GetDataDefinedRegenerateStat). Body = u32 entity_key +
+    /// u8 stat_index + u64 regen_value = 13 bytes per vanilla
+    /// observation (same shape as tag 23).
     pub struct ConditionData_GetDataDefinedRegenerateStatPayload {
         pub entity_key: u32,
         pub stat_index: u8,
@@ -210,14 +210,14 @@ py_binary_struct! {
     }
 }
 
-/// Tag 39 (ConditionData_CheckHaveItem). Per IDA sub_14F1ACCA0
-/// (vtable[16] for ConditionData_CheckHaveItem at 0x144CDA468):
-///   1. u32 item_key (sub_1410FF5C0 hashmap → u16 at +34)
-///   2. u64 count (8 bytes) at +24
-///   3. u16 slot_index (2 bytes) at +36
-///   4. u16 secondary_key (sub_141103F00 hashmap → u16 at +32)
-/// Wire body = 4 + 8 + 2 + 2 = 16 bytes.
 py_binary_struct! {
+    /// Tag 39 (ConditionData_CheckHaveItem). Per IDA sub_14F1ACCA0
+    /// (vtable[16] for ConditionData_CheckHaveItem at 0x144CDA468):
+    ///   1. u32 item_key (sub_1410FF5C0 hashmap → u16 at +34)
+    ///   2. u64 count (8 bytes) at +24
+    ///   3. u16 slot_index (2 bytes) at +36
+    ///   4. u16 secondary_key (sub_141103F00 hashmap → u16 at +32)
+    /// Wire body = 4 + 8 + 2 + 2 = 16 bytes.
     pub struct ConditionData_CheckHaveItemPayload {
         pub item_key: u32,
         pub count: u64,
@@ -542,13 +542,14 @@ impl ConditionData_GameEventParamPayload {
     }
 }
 
-/// ConditionData_QuestGaugePercent (tag 81). Per IDA sub_141CA6F20 (vtable[16]
-/// for ConditionData_QuestGaugePercent::vftable at 0x144CE3038):
-///   1. read u32 quest_key (4 bytes) — hashmap-converted to u16 stored at +16
-///   2. read u64 percent_value (8 bytes) — stored at +24
-///   3. read u8 final_byte (1 byte) — stored at +32
-/// Total slot-16 reads = 13 bytes (full body, no separate tail).
 py_binary_struct! {
+    /// ConditionData_QuestGaugePercent (tag 81). Per IDA sub_141CA6F20
+    /// (vtable[16] for ConditionData_QuestGaugePercent::vftable at
+    /// 0x144CE3038):
+    ///   1. read u32 quest_key (4 bytes) — hashmap → u16 at +16
+    ///   2. read u64 percent_value (8 bytes) — stored at +24
+    ///   3. read u8 final_byte (1 byte) — stored at +32
+    /// Total slot-16 reads = 13 bytes (full body, no separate tail).
     pub struct ConditionData_QuestGaugePercentPayload {
         pub quest_key: u32,
         pub percent_value: u64,
@@ -1185,8 +1186,8 @@ impl<'a> crate::python_traits::WritePyValue for GimmickConditionalSlot<'a> {
     }
 }
 
-/// Tag 212: outer-COptional + u8 + CString + u16 (sub_141CBED20).
 py_binary_struct! {
+    /// Tag 212: outer-COptional + u8 + CString + u16 (sub_141CBED20).
     pub struct ConditionData_CheckGimmickTargetCountPayload<'a> {
         pub conditional_slot: GimmickConditionalSlot<'a>,
         pub field_a: u8,
@@ -1195,8 +1196,8 @@ py_binary_struct! {
     }
 }
 
-/// Tag 213: outer-COptional + u8 + u16 (sub_141CBF460).
 py_binary_struct! {
+    /// Tag 213: outer-COptional + u8 + u16 (sub_141CBF460).
     pub struct ConditionData_CheckGimmickNonBreakTargetCountPayload<'a> {
         pub conditional_slot: GimmickConditionalSlot<'a>,
         pub field_a: u8,
@@ -1497,9 +1498,9 @@ py_binary_struct! {
     }
 }
 
-/// Tag 302: outer-COptional + u8 + u32 (sub_141CD7100). Wire reads u8
-/// before u32 (runtime memory offsets are reversed).
 py_binary_struct! {
+    /// Tag 302: outer-COptional + u8 + u32 (sub_141CD7100). Wire reads
+    /// u8 before u32 (runtime memory offsets are reversed).
     pub struct ConditionData_CheckGimmickAngleToTargetPayload<'a> {
         pub conditional_slot: GimmickConditionalSlot<'a>,
         pub field_a: u8,
@@ -1615,8 +1616,8 @@ py_binary_struct! {
     }
 }
 
-/// Tag 347: outer-COptional + u64 + u8 (sub_141CDE9B0).
 py_binary_struct! {
+    /// Tag 347: outer-COptional + u64 + u8 (sub_141CDE9B0).
     pub struct ConditionData_GetFertilizerAmountPercentPayload<'a> {
         pub conditional_slot: GimmickConditionalSlot<'a>,
         pub field_a: u64,
@@ -4753,9 +4754,9 @@ fn variant_skips_option_block(tag: u16) -> bool {
     )
 }
 
-/// Generic CString-only payload — used by variants whose vtable[16]
-/// reads a single CString (length-prefixed UTF-8 string).
 py_binary_struct! {
+    /// Generic CString-only payload — used by variants whose vtable[16]
+    /// reads a single CString (length-prefixed UTF-8 string).
     pub struct OneCStringBodyPayload<'a> {
         pub value: CString<'a>,
     }
@@ -4795,11 +4796,11 @@ py_binary_struct! {
     }
 }
 
-/// Tag 31 — ConditionData_CheckActionAttribute body.
-/// vtable[16] = sub_14F1A1B20: reads a 16-byte buffer (loop 1-byte-at-a-time)
-/// stored at struct +0x18, then 1 byte at struct +0x28.
-/// Body is therefore 16 bytes + 1 byte = 17 bytes wire size.
 py_binary_struct! {
+    /// Tag 31 — ConditionData_CheckActionAttribute body.
+    /// vtable[16] = sub_14F1A1B20: reads a 16-byte buffer (loop
+    /// 1-byte-at-a-time) stored at struct +0x18, then 1 byte at struct
+    /// +0x28. Body is therefore 16 bytes + 1 byte = 17 bytes wire size.
     #[allow(non_camel_case_types)]
     pub struct ConditionData_CheckActionAttributePayload {
         pub field_at_24_a: u32,
