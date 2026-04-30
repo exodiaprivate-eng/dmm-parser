@@ -38,8 +38,60 @@ py_binary_struct! {
     }
 }
 
+/// Per-element of `entrance_fee_list`. Empirical structure across 5
+/// vanilla samples: u32 count_or_flag + 3 × u64 values where high u32
+/// of each u64 is always 0 (so payload fits comfortably in u32 range
+/// at runtime). Promoted from [u8;28] for field-level JSON access.
 #[derive(Debug)]
-pub struct EntranceFee(pub [u8; 28]);
+pub struct EntranceFee {
+    pub count_or_flag: u32,
+    pub value_a: u64,
+    pub value_b: u64,
+    pub value_c: u64,
+}
+
+impl<'a> BinaryRead<'a> for EntranceFee {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let count_or_flag = u32::read_from(data, offset)?;
+        let value_a = u64::read_from(data, offset)?;
+        let value_b = u64::read_from(data, offset)?;
+        let value_c = u64::read_from(data, offset)?;
+        Ok(Self { count_or_flag, value_a, value_b, value_c })
+    }
+}
+
+impl BinaryWrite for EntranceFee {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.count_or_flag.write_to(w)?;
+        self.value_a.write_to(w)?;
+        self.value_b.write_to(w)?;
+        self.value_c.write_to(w)?;
+        Ok(())
+    }
+}
+
+impl ToJsonValue for EntranceFee {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("count_or_flag".into(), self.count_or_flag.to_json_value());
+        m.insert("value_a".into(), self.value_a.to_json_value());
+        m.insert("value_b".into(), self.value_b.to_json_value());
+        m.insert("value_c".into(), self.value_c.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl WriteJsonValue for EntranceFee {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "EntranceFee: expected object"))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "count_or_flag")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "value_a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "value_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "value_c")?)?;
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct MiniGameDataInfo<'a> {
@@ -94,17 +146,11 @@ impl<'a> MiniGameDataInfo<'a> {
         let use_deactive_result = u8::read_from(data, offset)?;
         let need_change_character_scale = u8::read_from(data, offset)?;
 
-        // Read entrance_fee_list as count + N×28-byte entries.
+        // Read entrance_fee_list as count + N×typed EntranceFee entries.
         let entrance_count = u32::read_from(data, offset)? as usize;
         let mut entrance_fee_list = Vec::with_capacity(entrance_count);
         for _ in 0..entrance_count {
-            if *offset + 28 > data.len() {
-                return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "entrance fee truncated"));
-            }
-            let mut bytes = [0u8; 28];
-            bytes.copy_from_slice(&data[*offset..*offset + 28]);
-            *offset += 28;
-            entrance_fee_list.push(EntranceFee(bytes));
+            entrance_fee_list.push(EntranceFee::read_from(data, offset)?);
         }
 
         let default_reward_drop_set_info = u32::read_from(data, offset)?;
@@ -145,7 +191,7 @@ impl<'a> MiniGameDataInfo<'a> {
         self.need_change_character_scale.write_to(w)?;
         (self.entrance_fee_list.len() as u32).write_to(w)?;
         for fee in &self.entrance_fee_list {
-            w.write_all(&fee.0)?;
+            fee.write_to(w)?;
         }
         self.default_reward_drop_set_info.write_to(w)?;
         self.player_data_list.write_to(w)?;
@@ -168,7 +214,7 @@ impl<'a> MiniGameDataInfo<'a> {
         m.insert("use_deactive_result".to_string(), self.use_deactive_result.to_json_value());
         m.insert("need_change_character_scale".to_string(), self.need_change_character_scale.to_json_value());
         m.insert("entrance_fee_list".to_string(),
-            Value::Array(self.entrance_fee_list.iter().map(|f| f.0.to_json_value()).collect()));
+            Value::Array(self.entrance_fee_list.iter().map(|f| f.to_json_value()).collect()));
         m.insert("default_reward_drop_set_info".to_string(), self.default_reward_drop_set_info.to_json_value());
         m.insert("player_data_list".to_string(), self.player_data_list.to_json_value());
         m.insert("npc_data_list".to_string(), self.npc_data_list.to_json_value());
@@ -197,7 +243,7 @@ impl<'a> MiniGameDataInfo<'a> {
                 "MiniGameDataInfo: entrance_fee_list must be a JSON array"))?;
         (fees.len() as u32).write_to(w)?;
         for f in fees {
-            <[u8; 28] as WriteJsonValue>::write_from_json(w, f)?;
+            EntranceFee::write_from_json(w, f)?;
         }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "default_reward_drop_set_info")?)?;
         <CArray<MiniGameParticipantData> as WriteJsonValue>::write_from_json(
