@@ -38,13 +38,20 @@ This file is for collaborators picking up round-trip work. It's the
   dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded
 
 ### Remaining Tier 1.5 (blocked by family decoders)
-- `DropSetInfo._list` — sub_141102760 / sub_141D03AA0 (ReflectObject reflection)
 - `EquipSlotInfo.header_blob` + `.footer` — opaque sub_1410830B0 prefix
 - `MiniGameDataInfo.spawn_data_list_blob` — sub_14110E010 nested polymorphic
   with anti-disassembly territory
 - `QuestInfo.quest_dialog_filter_data_list_blob` — FilterCondition variant family
 - `GimmickInfo.post_blob` — within Decoded; blocked by sub_1411125E0
-  (CArray<COptional<sub_141D7FF30>>)
+  (CArray<COptional<sub_141D7FF30 → sub_141D80A90 dispatcher>>)
+
+### Recently cracked (was previously labeled DEFERRED ReflectObject)
+- `DropSetInfo._list` — sub_141600210 turned out fixed-shape with a
+  tag-dispatched 14-case variant tail (63 fixed bytes + variant payload).
+  Decoder lives in `binary::drop_target::DropTargetData`.
+- `ItemUseInfo` RandomBox `inner` — same payload via shared decoder,
+  modeled as `Option<OptionalDropTarget>` to capture RandomBox's outer
+  wrapper presence plus sub_141D03AA0's own inner presence.
 
 ### JSON exposure upgrades (lane-c)
 - `SkillInfo.buff_level_list` (CArray<CArray<BuffDataOptional>>) — was
