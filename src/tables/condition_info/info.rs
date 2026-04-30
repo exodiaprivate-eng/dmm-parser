@@ -20,9 +20,8 @@
 //!
 //! All six fields are field-addressable. `game_condition` ships as a
 //! tree-navigable object: `kind: "decoded"` exposes the recursive node
-//! tree (BinaryOpA/B, UnaryOp, and per-family leaf cases with typed
-//! body fields where the variant has a typed body, or `wire_b64` while
-//! a per-family typed rollout is still pending), plus `tail_a`/`b`/`c`
+//! tree (BinaryOpA/B, UnaryOp, and per-family leaf cases with fully
+//! typed `data` objects via `to_json_dict()`), plus `tail_a`/`b`/`c`
 //! u8s. `kind: "raw"` exposes `raw_b64` for the 0.2% of entries that
 //! hit anti-disassembly variants.
 //!
@@ -100,11 +99,10 @@ impl<'a> ConditionInfo<'a> {
     ///   field-addressable.
     /// - `game_condition`: tree-navigable JSON. For `kind: "decoded"` it
     ///   exposes the recursive `tree` (BinaryOpA/B, UnaryOp, leaf cases
-    ///   with their family name + base64 wire bytes) plus `tail_a`/`b`/`c`
-    ///   u8s. For `kind: "raw"` it exposes `raw_b64`. Per-leaf field-level
-    ///   JSON (e.g. ConditionData per-variant fields) is a future
-    ///   per-family rollout — leaves expose `wire_b64` until then so
-    ///   round-trip is byte-perfect.
+    ///   with their family name + typed `data` dict via `to_json_dict()`)
+    ///   plus `tail_a`/`b`/`c` u8s. For `kind: "raw"` it exposes
+    ///   `raw_b64` for the 0.2% of entries hitting anti-disassembly
+    ///   variants.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
