@@ -56,6 +56,14 @@ fn main() {
     let mut field_56_typed = 0usize;
     let mut field_57_typed = 0usize;
     let mut field_58_typed = 0usize;
+    let mut field_59_typed = 0usize;
+    let mut field_60_typed = 0usize;
+    let mut field_61_typed = 0usize;
+    let mut field_62_typed = 0usize;
+    let mut field_63_typed = 0usize;
+    let mut field_64_typed = 0usize;
+    let mut field_65_typed = 0usize;
+    let mut field_66_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -108,6 +116,14 @@ fn main() {
                 field_56_u32_list,
                 field_57_u32_list,
                 field_58_u32_list,
+                field_59_u32,
+                field_60_u32,
+                field_61_u32,
+                field_62_u32,
+                field_63_u32,
+                field_64_u32,
+                field_65_u32,
+                field_66_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -153,6 +169,14 @@ fn main() {
                 if field_56_u32_list.is_some() { field_56_typed += 1; }
                 if field_57_u32_list.is_some() { field_57_typed += 1; }
                 if field_58_u32_list.is_some() { field_58_typed += 1; }
+                if field_59_u32.is_some() { field_59_typed += 1; }
+                if field_60_u32.is_some() { field_60_typed += 1; }
+                if field_61_u32.is_some() { field_61_typed += 1; }
+                if field_62_u32.is_some() { field_62_typed += 1; }
+                if field_63_u32.is_some() { field_63_typed += 1; }
+                if field_64_u32.is_some() { field_64_typed += 1; }
+                if field_65_u32.is_some() { field_65_typed += 1; }
+                if field_66_u32.is_some() { field_66_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -204,6 +228,14 @@ fn main() {
     println!("Field 56 (field_56_u32_list)          typed:     {} / {}", field_56_typed, decoded);
     println!("Field 57 (field_57_u32_list)          typed:     {} / {}", field_57_typed, decoded);
     println!("Field 58 (field_58_u32_list)          typed:     {} / {}", field_58_typed, decoded);
+    println!("Field 59 (field_59_u32 = f32 0.5)     typed:     {} / {}", field_59_typed, decoded);
+    println!("Field 60 (field_60_u32 = f32 0.1)     typed:     {} / {}", field_60_typed, decoded);
+    println!("Field 61 (field_61_u32 = f32 0.1)     typed:     {} / {}", field_61_typed, decoded);
+    println!("Field 62 (field_62_u32 = 257 flag)    typed:     {} / {}", field_62_typed, decoded);
+    println!("Field 63 (field_63_u32 = 0)           typed:     {} / {}", field_63_typed, decoded);
+    println!("Field 64 (field_64_u32 = 0)           typed:     {} / {}", field_64_typed, decoded);
+    println!("Field 65 (field_65_u32 = f32 5.0)     typed:     {} / {}", field_65_typed, decoded);
+    println!("Field 66 (field_66_u32 = f32 1.0)     typed:     {} / {}", field_66_typed, decoded);
 
     post_blob_sizes.sort();
     if !post_blob_sizes.is_empty() {
