@@ -21,6 +21,7 @@ out/
 # Tools / game files
 tools/
 node_modules/
+package.json
 package-lock.json
 
 # Claude Code local settings
