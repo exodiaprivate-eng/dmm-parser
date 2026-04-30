@@ -76,8 +76,8 @@ py_binary_struct! {
         pub lookup_a: u32,
         pub lookup_b: u32,
         pub lookup_c: u32,
-        pub raw_a: [u8; 8],
-        pub raw_b: [u8; 8],
+        pub raw_a: u64,
+        pub raw_b: u64,
         pub raw_c: u16,
     }
 }
@@ -85,7 +85,7 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct RecipeItemGroupData {
         pub lookup: u16,
-        pub raw_a: [u8; 8],
+        pub raw_a: u64,
         pub raw_b: u16,
     }
 }
