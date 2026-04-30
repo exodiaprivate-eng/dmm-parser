@@ -15,7 +15,7 @@ behind local `main` as a result.
 
 | Instance | Cwd | Branch | Active | Status |
 |---|---|---|---|---|
-| **A** (this) | `dmm-parser/` | `main` | Now (loop active, cron `415b6872` every minute, no-push mode) | ConditionData per-tag Win-IDA recipe verification → unblocks `interaction_info` Raw entries (currently 50 / 363 = 14%, was 115). Top remaining: tag 135 (18, downstream issue — not a recipe bug), tag 246/249 (4 each), tag 360/393 (3 each). |
+| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | ConditionData per-tag Win-IDA recipe verification → `interaction_info` Raw down 115 → **44** (12.1%). Tags fixed this session: 19, 27, 174, 360, 393. Top remaining: tag 135 (18, downstream not recipe), tag 246/249 (4 each), tag 280/116/214/145/90 (2 each). Singletons: 7, 30, 31, 54, 99, 343, 358, 387. |
 | **B** | `dmm-parser-b/` | `lane-b` | (not actively working in this session) | Last known: 1147 lines uncommitted WIP (sequencer_stage_chart_desc, special_mode_info, etc.). Should rebase onto local `main` when resuming. |
 | **C** | `dmm-parser-c/` | `lane-c` | (not actively working in this session) | Last known: lane-c flushed; major Tier-1 promotions landed (CharacterInfo 174 fields, MiniGameDataInfo, StoreInfo, DropSetInfo). |
 
