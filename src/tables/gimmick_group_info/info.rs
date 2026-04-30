@@ -104,6 +104,18 @@ py_binary_struct! {
     }
 }
 
+// GimmickAttackByCollisionData — sub_141C79D00 flat struct.
+// Wire: CString + CString + u32 + u32 + u32 = variable + 12 bytes.
+py_binary_struct! {
+    pub struct GimmickAttackByCollisionData<'a> {
+        pub name: CString<'a>,
+        pub material: CString<'a>,
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub raw_c: u32,
+    }
+}
+
 // GimmickAliasData — sub_1410E41E0 inner, 40 mem bytes.
 // Wire: 2× u32 raw + 2× u32 lookup + u32 raw + u16 region lookup +
 // CArray<GimmickAliasInnerEntry>.
@@ -187,6 +199,24 @@ pabgh_typed_blob_table! {
         pub flag_30_4: u8,
         pub flag_30_5: u8,
         pub flag_30_6: u8,
+        pub attack_by_collision: GimmickAttackByCollisionData<'a>,
+        pub flag_336: u8,
+        pub raw_340: u32,
+        pub flag_344: u8,
+        pub flag_345: u8,
+        pub flag_346: u8,
+        pub flag_347: u8,
+        pub flag_348: u8,
+        pub flag_349: u8,
+        pub flag_350: u8,
+        pub flag_351: u8,
+        pub flag_352: u8,
+        pub flag_353: u8,
+        pub flag_354: u8,
+        pub flag_355: u8,
+        pub flag_356: u8,
+        pub allow_event_keys: CArray<CString<'a>>,
+        pub block_event_keys: CArray<CString<'a>>,
     }
     tail: tail_blob;
 }
