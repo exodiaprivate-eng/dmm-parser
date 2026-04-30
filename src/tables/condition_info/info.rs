@@ -148,6 +148,8 @@ mod tests {
         let ranges = entry_ranges(&entries, data.len());
 
         let mut items = Vec::with_capacity(ranges.len());
+        let mut decoded = 0usize;
+        let mut raw = 0usize;
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
             let item = ConditionInfo::read_with_size(&data, &mut cursor, end - start)
@@ -169,8 +171,13 @@ mod tests {
                 cursor - start,
                 end - start
             );
+            match &item.game_condition {
+                crate::binary::variants::game_condition::GameCondition::Decoded { .. } => decoded += 1,
+                crate::binary::variants::game_condition::GameCondition::Raw(_) => raw += 1,
+            }
             items.push(item);
         }
+        eprintln!("conditioninfo: decoded={} raw={} (total={})", decoded, raw, ranges.len());
 
         let mut out = Vec::with_capacity(data.len());
         for item in &items {
