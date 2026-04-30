@@ -4710,6 +4710,25 @@ impl<'a> ConditionDataOptionData<'a> {
 /// Returns `true` if the given tag's variant skips reading the
 /// `[u8 option_present][optional ConditionDataOptionData]` block.
 ///
+/// ## Failure histogram (from `interaction_info::diag_raw_entries`,
+/// captured 2026-04-30 after tag 27 + 99 fixes):
+///
+/// Top tags currently driving InteractionInfo Raw fallbacks:
+///   tag 174 (CheckRider):       23 entries  ← biggest blocker
+///   tag 135 (?):                18 entries
+///   tag 256 (Macro):            11 entries  ← in skip-list but body recipe likely missing CString
+///   tag  19 (?):                 7 entries
+///   tag 246:                     6 entries
+///   tag 360:                     3 entries
+///   tag 393:                     3 entries
+///   plus 19 more tags with 1-2 entries each
+///
+/// Per Win-IDA RTTI: tag 174 = `pa::ConditionData_CheckRider`, error
+/// strings include `"checkRider(SeatIndex)"` — strongly suggests body
+/// is a single seat-index field (likely u8 or u32) rather than the
+/// current unit variant. Next: decompile the dispatch entry for tag 174
+/// to confirm body size, then promote to typed payload.
+///
 /// Three classes of skip variant exist:
 ///   A. **vtable[19] = `0x1402D3A80` (literal `return 1;` no-op)**.
 ///      Win-IDA verified: read the qword at `<vtable>+0x98` from each
