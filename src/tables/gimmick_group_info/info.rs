@@ -80,6 +80,18 @@ py_binary_struct! {
     }
 }
 
+// UnlockableData — sub_1411135E0 outer per element. The reader uses
+// hash-table sizing (prime numbers) at runtime, but wire shape per
+// element is just: u32 hash key + 2 nested CArrays + u8 trailing.
+py_binary_struct! {
+    pub struct UnlockableData {
+        pub key: u32,
+        pub item_info_list: CArray<u32>,    // sub_1410FFF10 → qword_145F0DA00
+        pub mission_info_list: CArray<u32>, // sub_1411049D0 → qword_145F0EF00
+        pub flag: u8,
+    }
+}
+
 // GimmickConstraintData — sub_1410E3E90 inner, 64 mem bytes.
 // Wire: CString (sub_1410A9D40) + 5 u8 + u32 + 2× Vec3 +
 // CString (sub_1410A9D40) + CArray<CString> (sub_141102990).
@@ -121,6 +133,11 @@ pabgh_typed_blob_table! {
         pub gimmick_constraint_data_list: CArray<GimmickConstraintData<'a>>,
         pub gimmick_info_list: CArray<u32>,
         pub game_event_handler_list: CArray<GameEventHandler>,
+        pub unlockable_data_list: CArray<UnlockableData>,
+        pub default_spawn_reason_hash: u32,
+        pub initial_body_motion_type: u8,
+        pub sequencer_level_allow_gimmick_event_key_list: CArray<u32>,
+        pub sequencer_level_connect_alias_name_list: CArray<CString<'a>>,
     }
     tail: tail_blob;
 }
