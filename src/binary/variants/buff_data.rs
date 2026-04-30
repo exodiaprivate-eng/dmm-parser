@@ -280,10 +280,9 @@ py_binary_struct! {
 ///   sub_1410F7440 reads ~35 stream items into struct at offset +144 of object.
 ///   Then outer reader sub_1419DD000 appends u8 + u32 + u32 (this+376/380/384).
 ///
-/// The GameCondition optional inside sub_141103B30 is captured as opaque bytes
-/// (parsed via GameConditionNode to determine length, then stored verbatim from
-/// the input buffer for byte-perfect round-trip independent of GameCondition
-/// parser bugs).
+/// The GameCondition optional inside sub_141103B30 is fully typed —
+/// `GameConditionOptional` holds a `GameConditionNode` tree and 3-byte
+/// trailer when present, with tree-navigable JSON exposure.
 py_binary_struct! {
     /// SummonBuffData payload — 41 typed fields. paired_lookups is a
     /// CArray<u32> of paired u16 lookups (sub_1411003E0 +
