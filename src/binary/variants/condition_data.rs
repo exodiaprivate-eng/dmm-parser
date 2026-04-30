@@ -187,6 +187,7 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct ConditionData_CheckActionPayload {
         pub field_at_28: u32,
+        pub field_at_32: u32,
     }
 }
 
