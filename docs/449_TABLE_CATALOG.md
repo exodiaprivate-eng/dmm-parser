@@ -12,8 +12,8 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 | Status | Count |
 |---|---|
-| **On-disk + Tier 1 (fully field-decoded)** | 91 |
-| **On-disk + Tier 2 (blob-tail, partial decode)** | 1 |
+| **On-disk + Tier 1 (fully field-decoded)** | 92 |
+| **On-disk + Tier 2 (blob-tail, partial decode)** | 0 |
 | **Parser exists but not in current dump** | 28 |
 | **In-memory only (C++ struct, no pabgb file)** | 328 |
 | **TOTAL** | 449 |
