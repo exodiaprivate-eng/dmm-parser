@@ -360,6 +360,20 @@ skip-list addition (Class A or Class C). DO NOT speculatively change
 recipes without IDA evidence — every speculative pass has cost the
 team a churn cycle.
 
+**2026-04-30 final progression**: Methodical Win-IDA-driven recipe
+verification took interaction_info from n=69 → n=3 (98.7% Decoded).
+Successful fixes (each verified per the `8f01078` template):
+tag 7 trailing u16 (`08b7afc`), tag 19/27 unit variant (kept after
+final reapply), tag 99 skip-list removal (`5922251`), tag 116
+OneCStringBodyPayload (`4469883`), tag 135 1-byte body KEPT in
+skip-list (`93cc34d`, +18), tag 174 recovery (`8f01078`), tag 358
+1-byte body (`147fd7f`), tag 360 1-byte body remove-from-skip
+(`2102303`), tag 370 1-byte body KEEP in skip-list (`41bc97f`),
+tag 393 1-byte body (`d91d961`), tag 29 unit variant (`584f79c`).
+Remaining 3 Raw entries (tag 54 ×1, tag 214 ×2) are all in the
+anti-disassembly family that wraps `sub_14F0xxxxx` obfuscated
+readers — preserved byte-perfect via the GameCondition::Raw fallback.
+
 **Important caveat (verified this session via Win-IDA)**: Of the 16
 tags currently in the skip list, only the original 11 are confirmed
 "true" vtable[19] no-ops. The 5 empirical adds (26, 135, 370, 99,
