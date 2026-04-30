@@ -4900,6 +4900,13 @@ thread_local! {
     /// variant's recipe is wrong.
     pub static LAST_ATTEMPTED_TAG: std::cell::Cell<Option<u16>> =
         const { std::cell::Cell::new(None) };
+
+    /// Tracks the chain of (tag, byte_offset_after_body) pairs for the
+    /// most recent ConditionData decodes (last 8). When the GameCondition
+    /// tree desyncs after a sequence of nested ConditionData reads, this
+    /// chain pinpoints which tag's recipe over/under-consumed.
+    pub static TAG_TRAIL: std::cell::RefCell<Vec<(u16, usize)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
 }
 
 impl<'a> ConditionData<'a> {
@@ -4913,6 +4920,12 @@ impl<'a> ConditionData<'a> {
         } else {
             Some(ConditionDataOptionBlock::read_from(data, offset)?)
         };
+        let post_offset = *offset;
+        TAG_TRAIL.with(|t| {
+            let mut t = t.borrow_mut();
+            if t.len() >= 8 { t.remove(0); }
+            t.push((disc, post_offset));
+        });
         Ok(Self { base, variant, option_block })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {

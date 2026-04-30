@@ -422,7 +422,15 @@ mod tests {
         let mut raw = 0usize;
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            let item = InteractionInfo::read_with_size(&data, &mut c, e - s).unwrap_or_else(|er| panic!("entry {} k=0x{:x}: {}", i, k, er));
+            let item = match InteractionInfo::read_with_size(&data, &mut c, e - s) {
+                Ok(it) => it,
+                Err(er) => {
+                    let tag = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.get());
+                    let trail = crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow().clone());
+                    let trail_strs: Vec<String> = trail.iter().map(|(t, off)| format!("tag={} after_body_abs={}", t, off)).collect();
+                    panic!("entry {} k=0x{:x}: {} (LAST_ATTEMPTED_TAG = {:?}, TRAIL = [{}])", i, k, er, tag, trail_strs.join(" | "));
+                }
+            };
             assert_eq!(c, *e);
             match &item.tail {
                 InteractionTail::Decoded(_) => decoded += 1,
