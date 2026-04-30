@@ -15,17 +15,22 @@
 //! modify. Field-level v3 mod intents address `entries[i].etl_hashes` to
 //! grant new equip permissions without rebuilding the full overlay.
 //!
-//! ## Wire format
+//! ## Wire format (post lane-c 2026-04-30 Tier 1.5 → Tier 1 promotion)
 //!
 //! Record (per pabgh key, length = pabgh-derived `entry_size`):
 //! ```text
-//!   key          u32
-//!   header_blob  u32 size + bytes      (sub_1410830B0 prefix opaque blob)
-//!   flag_u8      u8
-//!   flag_u16     u16
-//!   list_count   u32
-//!   entries      EquipInfoData[list_count]
-//!   footer       remaining bytes (entry_size - bytes consumed above)
+//!   key            u32
+//!   header         CArray<u8>            (sub_1410830B0 prefix; always
+//!                                          empty in vanilla but typed
+//!                                          for JSON addressability)
+//!   flag_u8        u8
+//!   flag_u16       u16
+//!   list_count     u32
+//!   entries        EquipInfoData[list_count]
+//!   extra_entries  CArray<EquipExtraEntry>   (5× u32 per entry; empty
+//!                                              in 12/13 vanilla records,
+//!                                              5 entries in k=0x2bd)
+//!   tail_magic     u32                    (always 0xb954d87c)
 //! ```
 //!
 //! `EquipInfoData` (sub_141048B40), 56 bytes plus variable etl_hashes + complex_blob:
@@ -41,15 +46,16 @@
 //!   complex_u8   u8
 //!   complex_u64  u64
 //!   complex_blob CArray<u8>            (u32 size + bytes)
-//!   tail_bytes   [u8; 11]
+//!   tail_byte_0..1 + tail_pad_u32 + tail_byte_6..10  (8 named tail fields)
 //! ```
 //!
 //! ## Self-delimitation
-//! Records are NOT self-delimiting — the trailing `footer` length is
-//! determined by the per-record entry boundary in the pabgh index. Always
-//! call `parse_equip_slot_info_to_json_with_pabgh` (or `read_with_size`
-//! directly with a known `entry_size`). The non-pabgh `parse_equip_slot_info_to_json`
-//! returns an explanatory error rather than guessing.
+//! Records are NOT self-delimiting — even with the `tail_magic` sentinel
+//! the record length must come from the pabgh index because
+//! `extra_entries` has variable size. Always call
+//! `parse_equip_slot_info_to_json_with_pabgh` or `read_with_size` with
+//! a known `entry_size`. The new typed `tail_magic` field is
+//! sanity-checked against `0xb954d87c` after the read.
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
