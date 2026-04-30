@@ -318,18 +318,18 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
    serialized tables at once.
 
 ### Smaller wins
-5. **Wire JSON tree exposure for GameCondition's Decoded variant** —
-   the typed wrapper is in place but JSON still ships as base64.
-   Implementing per-variant `ToJsonValue`/`WriteJsonValue` for
-   `GameConditionNode` (9 cases) + `ConditionData` (405 variants) lets
-   users edit the recursive tree directly through JSON. Mechanical work
-   — generate from the existing variant struct definitions.
-6. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — needs a check
+4. ~~**Wire JSON tree exposure for GameCondition's Decoded variant**~~
+   — ✅ SHIPPED. `GameConditionNode::to_json_value` (9 cases) plus
+   `ConditionData::to_json_dict` (per-variant typed body dict) emit the
+   tree directly; only the `Raw` fallback ships as `raw_b64`.
+5. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — needs a check
    in DMM-BETA's mod-loader to route conditioninfo edits through the
    new typed parser. Small CLAUDE.md change in the consuming repo.
-7. **Promote remaining Tier 1.5 tables to Tier 1** — list in
-   `docs/449_TABLE_CATALOG.md`. Each is mechanical when its family
-   decoder is ready.
+6. **Promote remaining internal-Tier-1.5 sub-fields to fully typed** —
+   see "Remaining Tier 1.5" section above (EquipSlotInfo header/footer,
+   QuestInfo FilterCondition, GimmickInfo post_blob). Catalog-level T2
+   count is already 0; these are sub-field opacities inside otherwise-T1
+   tables, blocked on family decoder reverse engineering.
 
 ### Deferred (need runtime debugger or are non-blocking)
 - ConditionData tags 54/286 — anti-disassembly obfuscated readers
