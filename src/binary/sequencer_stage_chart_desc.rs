@@ -15,8 +15,11 @@
 //!  14. u32 lookup_a (sub_141106210, qword_145F113B8 hash)
 //!  15. OptionalGameCondition cond_a (sub_141103B30 — u8 presence +
 //!      optional GameCondition tree + 3 footer bytes)
+//!  16. CString cstring_a
+//!  17. CString cstring_b
+//!  18. CArray<(CString, CString)> string_pair_list
 //!
-//! `SequencerStageChartDescPartial` reads those 15 fields explicitly
+//! `SequencerStageChartDescPartial` reads those 18 fields explicitly
 //! and stores everything after as `opaque_tail: Vec<u8>`. For consumers
 //! that own a SequencerStageChartDesc bounded by entry-size arithmetic
 //! (e.g. `field_revive_info`'s single-instance case), this gives users
@@ -26,9 +29,19 @@
 use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// Inner element of `string_pair_list` — wire is 2× CString,
+    /// 16-byte mem stride per element (sub_141D8C6D0's loop body).
+    pub struct StringPair<'a> {
+        pub key: CString<'a>,
+        pub value: CString<'a>,
+    }
+}
 
 #[derive(Debug)]
 pub struct SequencerStageChartDescPartial<'a> {
@@ -53,9 +66,11 @@ pub struct SequencerStageChartDescPartial<'a> {
     /// fall back to opaque-tail mode in that case via
     /// `read_with_size`'s outer error path.
     pub cond_a: OptionalGameCondition<'a>,
-    /// Bytes 16-26 of the wire layout (2 CStrings + 2 polymorphic
-    /// CArrays + 4 helper structs). Stays opaque until the
-    /// GameCondition stream-mode fix lands AND the
+    pub cstring_a: CString<'a>,
+    pub cstring_b: CString<'a>,
+    pub string_pair_list: CArray<StringPair<'a>>,
+    /// Bytes 19-26 of the wire layout (2 polymorphic CArrays + 4
+    /// helper structs). Stays opaque until the
     /// SequencerStageTrackChangeData family decoder is shipped.
     pub opaque_tail: Vec<u8>,
 }
@@ -102,6 +117,9 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         let flag_h = u8::read_from(data, offset)?;
         let lookup_a = u32::read_from(data, offset)?;
         let cond_a = OptionalGameCondition::read_from(data, offset)?;
+        let cstring_a = CString::read_from(data, offset)?;
+        let cstring_b = CString::read_from(data, offset)?;
+        let string_pair_list = CArray::<StringPair>::read_from(data, offset)?;
 
         if *offset > blob_end {
             return Err(io::Error::new(
@@ -118,7 +136,8 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         Ok(Self {
             name, raw_a, prefab_path, position, raw_b,
             flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h,
-            lookup_a, cond_a, opaque_tail,
+            lookup_a, cond_a, cstring_a, cstring_b, string_pair_list,
+            opaque_tail,
         })
     }
 
@@ -138,6 +157,9 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         self.flag_h.write_to(w)?;
         self.lookup_a.write_to(w)?;
         self.cond_a.write_to(w)?;
+        self.cstring_a.write_to(w)?;
+        self.cstring_b.write_to(w)?;
+        self.string_pair_list.write_to(w)?;
         w.write_all(&self.opaque_tail)?;
         Ok(())
     }
@@ -159,6 +181,9 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         m.insert("flag_h".to_string(), self.flag_h.to_json_value());
         m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
         m.insert("cond_a".to_string(), self.cond_a.to_json_value());
+        m.insert("cstring_a".to_string(), self.cstring_a.to_json_value());
+        m.insert("cstring_b".to_string(), self.cstring_b.to_json_value());
+        m.insert("string_pair_list".to_string(), self.string_pair_list.to_json_value());
         m.insert("_opaque_tail_b64".to_string(), Value::String(B64.encode(&self.opaque_tail)));
         Value::Object(m)
     }
@@ -183,6 +208,9 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_h")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
         OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond_a")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_a")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_b")?)?;
+        <CArray<StringPair> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_pair_list")?)?;
         let b64 = json_get_field(obj, "_opaque_tail_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(

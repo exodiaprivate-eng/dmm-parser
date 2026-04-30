@@ -223,6 +223,7 @@ mod tests {
             "name", "raw_a", "prefab_path", "position", "raw_b",
             "flag_a", "flag_b", "flag_c", "flag_d", "flag_e",
             "flag_f", "flag_g", "flag_h", "lookup_a", "cond_a",
+            "cstring_a", "cstring_b", "string_pair_list",
             "_opaque_tail_b64",
         ] {
             assert!(desc.contains_key(f),
