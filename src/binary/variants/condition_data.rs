@@ -950,7 +950,11 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Tag 198 — Mac vfn[17] = `0x100FED800`. Reads a u32 (resolved
+    /// via StatusKey lookup at runtime, stored as u16 at +24 in mem)
+    /// then a u8 at +26. Wire = u32 + u8 = 5 bytes.
     pub struct ConditionData_CheckElementalMaterialStateSuccessPayload {
+        pub status_key: u32,
         pub field_at_26: u8,
     }
 }

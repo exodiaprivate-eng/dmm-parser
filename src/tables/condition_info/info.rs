@@ -187,6 +187,53 @@ mod tests {
         assert_eq!(out, data, "conditioninfo roundtrip bytes mismatch");
     }
 
+    /// Diagnostic: for each `GameCondition::Raw` fallback, re-run the
+    /// typed decode and capture the failing ConditionData tag. Prints
+    /// a histogram so each remaining Raw entry can be traced back to
+    /// the variant family that under/over-read.
+    #[test]
+    #[ignore]
+    fn diag_raw_entries() {
+        use std::collections::BTreeMap;
+        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
+        let mut count = 0usize;
+        for (i, (k, s, e)) in ranges.iter().enumerate() {
+            let mut cursor = *s;
+            let item = ConditionInfo::read_with_size(&data, &mut cursor, e - s).unwrap();
+            if let crate::binary::variants::game_condition::GameCondition::Raw(blob) = &item.game_condition {
+                let mut probe = 0usize;
+                let end = blob.len();
+                crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.set(None));
+                crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow_mut().clear());
+                let _ = (|| -> io::Result<()> {
+                    let _tree = crate::binary::variants::game_condition::GameConditionNode::read_from(blob, &mut probe)?;
+                    let _ta = u8::read_from(blob, &mut probe)?;
+                    let _tb = u8::read_from(blob, &mut probe)?;
+                    let _tc = u8::read_from(blob, &mut probe)?;
+                    if probe != end { return Err(io::Error::new(io::ErrorKind::InvalidData, "under-consume")); }
+                    Ok(())
+                })();
+                let tag = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.get());
+                if let Some(t) = tag { *hist.entry(t).or_insert(0) += 1; }
+                count += 1;
+                if count <= 16 {
+                    let trail = crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow().clone());
+                    let trail_str: Vec<String> = trail.iter().map(|(t, off)| format!("{}@{}", t, off)).collect();
+                    let last_off = trail.last().map(|(_, o)| *o).unwrap_or(0);
+                    let next_bytes: Vec<String> = blob[last_off..(last_off + 12).min(blob.len())].iter().map(|b| format!("{:02x}", b)).collect();
+                    let head_bytes: Vec<String> = blob[..16.min(blob.len())].iter().map(|b| format!("{:02x}", b)).collect();
+                    eprintln!("entry {} k=0x{:x} blob_len={} LAST={:?}: TRAIL=[{}], head=[{}], next_bytes=[{}]",
+                        i, k, blob.len(), tag, trail_str.join(", "), head_bytes.join(" "), next_bytes.join(" "));
+                }
+            }
+        }
+        eprintln!("\n=== Failure tag histogram (n={}) ===", count);
+        for (tag, c) in &hist { eprintln!("  tag {:>4}: {} entries", tag, c); }
+    }
+
     /// JSON dict round-trip — typed write_to bytes must match
     /// write_from_json_dict bytes for every entry. Validates the
     /// tree-navigable GameCondition JSON shape preserves bytes.
