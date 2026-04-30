@@ -21,6 +21,16 @@
 //!     because the inner `sub_141D8C6D0` is not self-delimiting at the
 //!     boundary needed for partial typing; full typing requires
 //!     reverse-engineering each of its nested composite sub-readers.
+//!     Per Win-IDA decompile, `sub_141D8C6D0` is the
+//!     `SequencerStageChartDesc` per-element reader (232 mem bytes / 26
+//!     wire fields). See `tables::stage_info::info` module docstring
+//!     for the full wire layout. Fields 1-13 are trivially typeable
+//!     (CString + u32 + CString + Vec3 + u32 + 8× u8); field 15
+//!     onward depends on the GameCondition stream-mode anti-disassembly
+//!     fix (same root blocker as the 5 remaining Tier 1.5 tables) and
+//!     field 19 introduces a second polymorphic family
+//!     (SequencerStageTrackChangeData via sub_14110C270) that needs
+//!     its own family-decoder pass.
 //!
 //! The pabgh sister file is consulted to know each entry's total size on
 //! disk, which is the only way to bound the variant payload reliably for
