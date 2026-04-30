@@ -74,18 +74,177 @@
 //! sub_1410DF770.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
+use std::io::{self, Write};
 
-pabgh_typed_blob_table! {
-    pub struct GimmickInfo<'a> {
-        pub key: u32,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub prefab_path: CString<'a>,
-        pub gimmick_group_info: u32,
-        pub breakable_object_info: u16,
+/// Tail of GimmickInfo. When the field-7 CArray decode succeeds it
+/// joins the typed prefix; the rest of the body (~95 fields) still
+/// rides as `post_blob`. On decode failure the entire post-prefix
+/// region is captured as `Raw`.
+#[derive(Debug)]
+pub enum GimmickTail<'a> {
+    Decoded {
+        gimmick_interaction_override_list: GimmickInteractionOverrideCArray<'a>,
+        post_blob: Vec<u8>,
+    },
+    Raw(Vec<u8>),
+}
+
+impl<'a> GimmickTail<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize) -> io::Result<Self> {
+        let tail_start = *offset;
+        let mut probe = tail_start;
+        match GimmickInteractionOverrideCArray::read_from(data, &mut probe) {
+            Ok(list) if probe <= entry_end => {
+                let post_blob = data[probe..entry_end].to_vec();
+                *offset = entry_end;
+                Ok(GimmickTail::Decoded {
+                    gimmick_interaction_override_list: list,
+                    post_blob,
+                })
+            }
+            _ => {
+                let blob = data[tail_start..entry_end].to_vec();
+                *offset = entry_end;
+                Ok(GimmickTail::Raw(blob))
+            }
+        }
     }
-    tail: tail_blob;
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match self {
+            GimmickTail::Decoded { gimmick_interaction_override_list, post_blob } => {
+                gimmick_interaction_override_list.write_to(w)?;
+                w.write_all(post_blob)
+            }
+            GimmickTail::Raw(b) => w.write_all(b),
+        }
+    }
+
+    pub fn to_json_value(&self) -> Value {
+        match self {
+            GimmickTail::Decoded { gimmick_interaction_override_list, post_blob } => {
+                let mut m = Map::new();
+                m.insert("kind".to_string(), Value::String("Decoded".to_string()));
+                m.insert("gimmick_interaction_override_list".to_string(),
+                         gimmick_interaction_override_list.to_json_value());
+                m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
+                Value::Object(m)
+            }
+            GimmickTail::Raw(b) => {
+                let mut m = Map::new();
+                m.insert("kind".to_string(), Value::String("Raw".to_string()));
+                m.insert("_b64".to_string(), Value::String(B64.encode(b)));
+                Value::Object(m)
+            }
+        }
+    }
+
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GimmickTail: expected object",
+        ))?;
+        let kind = json_get_field(obj, "kind")?.as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "GimmickTail.kind: expected string"))?;
+        match kind {
+            "Decoded" => {
+                <GimmickInteractionOverrideCArray as WriteJsonValue>::write_from_json(
+                    w, json_get_field(obj, "gimmick_interaction_override_list")?,
+                )?;
+                let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                        "GimmickTail.Decoded._post_blob_b64: expected string"))?;
+                let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("GimmickTail.Decoded._post_blob_b64: invalid base64: {}", e)))?;
+                w.extend_from_slice(&bytes);
+                Ok(())
+            }
+            "Raw" => {
+                let b64 = json_get_field(obj, "_b64")?.as_str()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                        "GimmickTail.Raw._b64: expected string"))?;
+                let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("GimmickTail.Raw._b64: invalid base64: {}", e)))?;
+                w.extend_from_slice(&bytes);
+                Ok(())
+            }
+            other => Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("GimmickTail.kind: unknown variant {:?}", other))),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GimmickInfo<'a> {
+    pub key: u32,
+    pub string_key: CString<'a>,
+    pub is_blocked: u8,
+    pub prefab_path: CString<'a>,
+    pub gimmick_group_info: u32,
+    pub breakable_object_info: u16,
+    pub tail: GimmickTail<'a>,
+}
+
+impl<'a> GimmickInfo<'a> {
+    pub fn read_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = u32::read_from(data, offset)?;
+        let string_key = CString::read_from(data, offset)?;
+        let is_blocked = u8::read_from(data, offset)?;
+        let prefab_path = CString::read_from(data, offset)?;
+        let gimmick_group_info = u32::read_from(data, offset)?;
+        let breakable_object_info = u16::read_from(data, offset)?;
+        let tail = GimmickTail::read_with_size(data, offset, entry_end)?;
+
+        Ok(Self {
+            key, string_key, is_blocked, prefab_path,
+            gimmick_group_info, breakable_object_info, tail,
+        })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.string_key.write_to(w)?;
+        self.is_blocked.write_to(w)?;
+        self.prefab_path.write_to(w)?;
+        self.gimmick_group_info.write_to(w)?;
+        self.breakable_object_info.write_to(w)?;
+        self.tail.write_to(w)
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("prefab_path".to_string(), self.prefab_path.to_json_value());
+        m.insert("gimmick_group_info".to_string(), self.gimmick_group_info.to_json_value());
+        m.insert("breakable_object_info".to_string(), self.breakable_object_info.to_json_value());
+        m.insert("tail".to_string(), self.tail.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "prefab_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_group_info")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "breakable_object_info")?)?;
+        GimmickTail::write_from_json(w, json_get_field(obj, "tail")?)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -101,14 +260,20 @@ mod tests {
         let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
+        let mut decoded = 0usize;
+        let mut raw = 0usize;
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            items.push(
-                GimmickInfo::read_with_size(&data, &mut c, e - s)
-                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
-            );
+            let item = GimmickInfo::read_with_size(&data, &mut c, e - s)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
             assert_eq!(c, *e);
+            match &item.tail {
+                GimmickTail::Decoded { .. } => decoded += 1,
+                GimmickTail::Raw(_) => raw += 1,
+            }
+            items.push(item);
         }
+        eprintln!("gimmickinfo: decoded={} raw={} (total={})", decoded, raw, ranges.len());
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "gimmickinfo roundtrip mismatch");
