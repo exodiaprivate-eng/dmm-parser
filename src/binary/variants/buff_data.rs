@@ -541,69 +541,26 @@ py_binary_struct! {
     }
 }
 
-#[derive(Debug)]
-pub struct ElementalAreaBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: [u8; 12],
-    pub f03: u32,
-    pub f04: u32,
-    pub f05: u32,
-    pub f06: u32,
-    pub f07: [u8; 12],
-    pub f08: u32,
-    pub f09: u8,
-    pub f0a: u8,
-    pub f0b: u8,
-    pub f0c: u32,
-    pub f0d: u32,
-    pub f0e: u32,
-    pub f0f: u64,
-    pub f10: u64,
-    pub f11: u8,
-}
-impl ElementalAreaBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f03 = u32::read_from(data, offset)?;
-        let f04 = u32::read_from(data, offset)?;
-        let f05 = u32::read_from(data, offset)?;
-        let f06 = u32::read_from(data, offset)?;
-        let f07 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f08 = u32::read_from(data, offset)?;
-        let f09 = u8::read_from(data, offset)?;
-        let f0a = u8::read_from(data, offset)?;
-        let f0b = u8::read_from(data, offset)?;
-        let f0c = u32::read_from(data, offset)?;
-        let f0d = u32::read_from(data, offset)?;
-        let f0e = u32::read_from(data, offset)?;
-        let f0f = u64::read_from(data, offset)?;
-        let f10 = u64::read_from(data, offset)?;
-        let f11 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04, f05, f06, f07, f08, f09, f0a, f0b, f0c, f0d, f0e, f0f, f10, f11 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        w.write_all(&self.f02)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        self.f05.write_to(w)?;
-        self.f06.write_to(w)?;
-        w.write_all(&self.f07)?;
-        self.f08.write_to(w)?;
-        self.f09.write_to(w)?;
-        self.f0a.write_to(w)?;
-        self.f0b.write_to(w)?;
-        self.f0c.write_to(w)?;
-        self.f0d.write_to(w)?;
-        self.f0e.write_to(w)?;
-        self.f0f.write_to(w)?;
-        self.f10.write_to(w)?;
-        self.f11.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ElementalAreaBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02: [u8; 12],
+        pub f03: u32,
+        pub f04: u32,
+        pub f05: u32,
+        pub f06: u32,
+        pub f07: [u8; 12],
+        pub f08: u32,
+        pub f09: u8,
+        pub f0a: u8,
+        pub f0b: u8,
+        pub f0c: u32,
+        pub f0d: u32,
+        pub f0e: u32,
+        pub f0f: u64,
+        pub f10: u64,
+        pub f11: u8,
     }
 }
 
@@ -722,6 +679,8 @@ py_binary_struct! {
     }
 }
 
+/// Immune payload — entries body width depends on header_tag:
+/// 0=>1, 1/2/3=>4, 4=>0, 5=>8 bytes per entry.
 #[derive(Debug)]
 pub struct ImmuneBuffDataPayload {
     pub header_tag: u8,
@@ -742,6 +701,38 @@ impl ImmuneBuffDataPayload {
         self.flag.write_to(w)?;
         { self.entries.0.write_to(w)?; w.write_all(&self.entries.1)?; }
         self.trailing.write_to(w)?;
+        Ok(())
+    }
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("header_tag".into(), self.header_tag.to_json_value());
+        m.insert("flag".into(), self.flag.to_json_value());
+        let mut em = Map::new();
+        em.insert("count".into(), self.entries.0.to_json_value());
+        em.insert("body_b64".into(), Value::String(B64.encode(&self.entries.1)));
+        m.insert("entries".into(), Value::Object(em));
+        m.insert("trailing".into(), self.trailing.to_json_value());
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_tag")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)?;
+        let entries_v = json_get_field(obj, "entries")?;
+        let entries_obj = entries_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "ImmuneBuffData.entries: expected object",
+        ))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(entries_obj, "count")?)?;
+        let body_str = json_get_field(entries_obj, "body_b64")?.as_str().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData,
+                "ImmuneBuffData.entries.body_b64: expected base64 string")
+        })?;
+        let body_bytes = B64.decode(body_str).map_err(|e| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("ImmuneBuffData.entries.body_b64: {}", e),
+        ))?;
+        w.extend_from_slice(&body_bytes);
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing")?)?;
         Ok(())
     }
 }
@@ -1239,6 +1230,8 @@ py_binary_struct! {
     }
 }
 
+/// AdditionalUseResourceStat — f01 is a length-prefixed Vec of
+/// 22-byte fixed-size records.
 #[derive(Debug)]
 pub struct AdditionalUseResourceStatBuffDataPayload {
     pub f00: CArray<u32>,
@@ -1253,6 +1246,39 @@ impl AdditionalUseResourceStatBuffDataPayload {
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.f00.write_to(w)?;
         { (self.f01.len() as u32).write_to(w)?; for it in &self.f01 { w.write_all(it)?; } }
+        Ok(())
+    }
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("f00".into(), self.f00.to_json_value());
+        let entries: Vec<Value> = self.f01.iter()
+            .map(|b| Value::String(B64.encode(b)))
+            .collect();
+        m.insert("f01_entries_b64".into(), Value::Array(entries));
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "f00")?)?;
+        let arr = json_get_field(obj, "f01_entries_b64")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "AdditionalUseResourceStat.f01_entries_b64: expected array"))?;
+        (arr.len() as u32).write_to(w)?;
+        for (i, item) in arr.iter().enumerate() {
+            let s = item.as_str().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("AdditionalUseResourceStat.f01_entries_b64[{}]: expected base64 string", i),
+            ))?;
+            let bytes = B64.decode(s).map_err(|e| io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("AdditionalUseResourceStat.f01_entries_b64[{}]: {}", i, e),
+            ))?;
+            if bytes.len() != 22 {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("AdditionalUseResourceStat.f01_entries_b64[{}]: expected 22 bytes, got {}", i, bytes.len())));
+            }
+            w.extend_from_slice(&bytes);
+        }
         Ok(())
     }
 }
@@ -1658,6 +1684,274 @@ impl<'a> BuffDataVariant<'a> {
         }
     }
 
+    /// Per-variant JSON: emits {"type": variant_name, "body": typed
+    /// dict} for payload variants, {"type": variant_name} for no-payload.
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("type".into(), Value::String(self.variant_name().to_string()));
+        match self {
+            Self::DamageBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryRegenerateValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryCollectDropRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStaticStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStaticStatLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStaticStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::StatusExpBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SummonBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::LootBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatNeedUnapplyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedRegenerateValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RemoveAggroBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VoidActiveBuffData => {}
+            Self::VoidPassiveBuffData => {}
+            Self::VaryDataDefinedStatMinValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ElementalAreaBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryElementalStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetElementalStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AdditionalGoalElementalStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeElementalStatSpeedBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DisableElementalMaterialStateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeMaterialKeyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ClothGravityBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::WeatherEffectBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDefenceValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DefenceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AggroBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DamagedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BuffedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BuffedActionRestrictionPassiveBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ReleaseBuffedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlaySequencerBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ImmuneBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ApplyPhysicsImpulseBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeAllyGroupBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlayerAllyBuffData => {}
+            Self::DisableObstacleBuffData => {}
+            Self::RideLimitBuffData => {}
+            Self::ChangeFactionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetGimmickComponentParameterBoolBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SummonGimmickBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SendGimmickEventBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetachEquipItemBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DisableThrowEquipItemBuffData => {}
+            Self::VaryEquipItemEnduranceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::InstantDeathBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DeadReasonBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatOtherDataDefineStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VarySkillDamagePercentStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatOverMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatOverMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DecreaseEquipItemEnduranceByPercentBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetStatMinRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeWeatherBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlaySoundBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeCombinationBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterConditionSkillBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetectPenaltyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::StealthBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SwitchSpecialModeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddExperienceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RelationConvertBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::WarningSensorBuffData => {}
+            Self::DampMovementBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeDetectReactionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeBattleOrderTypeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryForceFieldStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlayerSensibleBuffData => {}
+            Self::AddSubLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeElementalMaterialBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DisableDetectingBuffData => {}
+            Self::ChangeDetectDistanceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ViewerDetectPenaltyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeBuffLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SkinnedDecalBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeAnimationSpeedBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ActivateUpdateFuelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::LimitBuffLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockCrimeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockCrimeNPCBuffData => {}
+            Self::GameAudioEffectBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::MeditationKnowledgeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ClimbSlipBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetectBrightnessBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeEquipItemEnduranceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::HackingBuffData => {}
+            Self::VaryMaxExpandInventorySlotBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockRegenerateStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ProjectileBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConsumeSpawnerMercenaryBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterQuickSlotSkillBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatMaxValueRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::TriggerVolumeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterItemSellPriceRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterCrimePriceRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterFactionOperationRewardRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::LogoutTimeDropSetKeyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddPercentInGameContentsBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryCustomIntInGameContentsBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::TribeAdditionalDamageRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AdditionalBreakingImpulseDamageBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::UpdateShareValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddDamageBonusFromComboBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConvertOtherStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::IgnoreUseResourceStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockAbilityBuffData => {}
+            Self::DisableMinimapIconBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::UseGroggyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AdditionalUseResourceStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddCritiacalRateByMaterialKeyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockDeadBodyGarbageCollectionBuffData => {}
+            Self::DecreaseMercenaryCooltimeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetectReactionOverrideBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+        }
+        Value::Object(m)
+    }
+
+    /// Inverse of to_json_value. `disc` selects the variant.
+    pub fn write_from_json(
+        disc: u8,
+        w: &mut Vec<u8>,
+        v: &Value,
+    ) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "BuffDataVariant: expected object",
+        ))?;
+        match disc {
+            0 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DamageBuffData: missing body object"))?; DamageBuffDataPayload::write_from_json_dict(w, body)?; }
+            1 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryRegenerateValueBuffData: missing body object"))?; VaryRegenerateValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            2 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryCollectDropRateBuffData: missing body object"))?; VaryCollectDropRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            3 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStaticStatBuffData: missing body object"))?; VaryStaticStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            4 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStaticStatLevelBuffData: missing body object"))?; VaryStaticStatLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            5 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatBuffData: missing body object"))?; VaryStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            6 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatMaxValueBuffData: missing body object"))?; VaryStatMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            7 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStaticStatRateBuffData: missing body object"))?; VaryStaticStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            8 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatRateBuffData: missing body object"))?; VaryStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            9 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "StatusExpBuffData: missing body object"))?; StatusExpBuffDataPayload::write_from_json_dict(w, body)?; }
+            10 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SummonBuffData: missing body object"))?; SummonBuffDataPayload::write_from_json_dict(w, body)?; }
+            11 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LootBuffData: missing body object"))?; LootBuffDataPayload::write_from_json_dict(w, body)?; }
+            12 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatBuffData: missing body object"))?; VaryDataDefinedStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            13 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatNeedUnapplyBuffData: missing body object"))?; VaryDataDefinedStatNeedUnapplyBuffDataPayload::write_from_json_dict(w, body)?; }
+            14 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedRegenerateValueBuffData: missing body object"))?; VaryDataDefinedRegenerateValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            15 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RemoveAggroBuffData: missing body object"))?; RemoveAggroBuffDataPayload::write_from_json_dict(w, body)?; }
+            16 => {}
+            17 => {}
+            18 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatMinValueBuffData: missing body object"))?; VaryDataDefinedStatMinValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            19 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatMaxValueBuffData: missing body object"))?; VaryDataDefinedStatMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            20 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ElementalAreaBuffData: missing body object"))?; ElementalAreaBuffDataPayload::write_from_json_dict(w, body)?; }
+            21 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryElementalStatBuffData: missing body object"))?; VaryElementalStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            22 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetElementalStatBuffData: missing body object"))?; SetElementalStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            23 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalGoalElementalStatBuffData: missing body object"))?; AdditionalGoalElementalStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            24 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeElementalStatSpeedBuffData: missing body object"))?; ChangeElementalStatSpeedBuffDataPayload::write_from_json_dict(w, body)?; }
+            25 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DisableElementalMaterialStateBuffData: missing body object"))?; DisableElementalMaterialStateBuffDataPayload::write_from_json_dict(w, body)?; }
+            26 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeMaterialKeyBuffData: missing body object"))?; ChangeMaterialKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            27 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ClothGravityBuffData: missing body object"))?; ClothGravityBuffDataPayload::write_from_json_dict(w, body)?; }
+            28 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "WeatherEffectBuffData: missing body object"))?; WeatherEffectBuffDataPayload::write_from_json_dict(w, body)?; }
+            29 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDefenceValueBuffData: missing body object"))?; VaryDefenceValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            30 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DefenceBuffData: missing body object"))?; DefenceBuffDataPayload::write_from_json_dict(w, body)?; }
+            31 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AggroBuffData: missing body object"))?; AggroBuffDataPayload::write_from_json_dict(w, body)?; }
+            32 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DamagedActionRestrictionBuffData: missing body object"))?; DamagedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
+            33 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BuffedActionRestrictionBuffData: missing body object"))?; BuffedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
+            34 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BuffedActionRestrictionPassiveBuffData: missing body object"))?; BuffedActionRestrictionPassiveBuffDataPayload::write_from_json_dict(w, body)?; }
+            35 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ReleaseBuffedActionRestrictionBuffData: missing body object"))?; ReleaseBuffedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
+            36 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "PlaySequencerBuffData: missing body object"))?; PlaySequencerBuffDataPayload::write_from_json_dict(w, body)?; }
+            37 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ImmuneBuffData: missing body object"))?; ImmuneBuffDataPayload::write_from_json_dict(w, body)?; }
+            38 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ApplyPhysicsImpulseBuffData: missing body object"))?; ApplyPhysicsImpulseBuffDataPayload::write_from_json_dict(w, body)?; }
+            39 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAllyGroupBuffData: missing body object"))?; ChangeAllyGroupBuffDataPayload::write_from_json_dict(w, body)?; }
+            40 => {}
+            41 => {}
+            42 => {}
+            43 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeFactionBuffData: missing body object"))?; ChangeFactionBuffDataPayload::write_from_json_dict(w, body)?; }
+            44 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetGimmickComponentParameterBoolBuffData: missing body object"))?; SetGimmickComponentParameterBoolBuffDataPayload::write_from_json_dict(w, body)?; }
+            45 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SummonGimmickBuffData: missing body object"))?; SummonGimmickBuffDataPayload::write_from_json_dict(w, body)?; }
+            46 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SendGimmickEventBuffData: missing body object"))?; SendGimmickEventBuffDataPayload::write_from_json_dict(w, body)?; }
+            47 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetachEquipItemBuffData: missing body object"))?; DetachEquipItemBuffDataPayload::write_from_json_dict(w, body)?; }
+            48 => {}
+            49 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryEquipItemEnduranceBuffData: missing body object"))?; VaryEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
+            50 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatRateBuffData: missing body object"))?; VaryDataDefinedStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            51 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "InstantDeathBuffData: missing body object"))?; InstantDeathBuffDataPayload::write_from_json_dict(w, body)?; }
+            52 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DeadReasonBuffData: missing body object"))?; DeadReasonBuffDataPayload::write_from_json_dict(w, body)?; }
+            53 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOtherDataDefineStatBuffData: missing body object"))?; VaryDataDefinedStatOtherDataDefineStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            54 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VarySkillDamagePercentStatBuffData: missing body object"))?; VarySkillDamagePercentStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            55 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatOverMaxValueBuffData: missing body object"))?; VaryStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            56 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOverMaxValueBuffData: missing body object"))?; VaryDataDefinedStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            57 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseEquipItemEnduranceByPercentBuffData: missing body object"))?; DecreaseEquipItemEnduranceByPercentBuffDataPayload::write_from_json_dict(w, body)?; }
+            58 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatRateBuffData: missing body object"))?; SetStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            59 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatMinRateBuffData: missing body object"))?; SetStatMinRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            60 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeWeatherBuffData: missing body object"))?; ChangeWeatherBuffDataPayload::write_from_json_dict(w, body)?; }
+            61 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "PlaySoundBuffData: missing body object"))?; PlaySoundBuffDataPayload::write_from_json_dict(w, body)?; }
+            62 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeCombinationBuffData: missing body object"))?; ChangeCombinationBuffDataPayload::write_from_json_dict(w, body)?; }
+            63 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterConditionSkillBuffData: missing body object"))?; RegisterConditionSkillBuffDataPayload::write_from_json_dict(w, body)?; }
+            64 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectPenaltyBuffData: missing body object"))?; DetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
+            65 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "StealthBuffData: missing body object"))?; StealthBuffDataPayload::write_from_json_dict(w, body)?; }
+            66 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SwitchSpecialModeBuffData: missing body object"))?; SwitchSpecialModeBuffDataPayload::write_from_json_dict(w, body)?; }
+            67 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddExperienceBuffData: missing body object"))?; AddExperienceBuffDataPayload::write_from_json_dict(w, body)?; }
+            68 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RelationConvertBuffData: missing body object"))?; RelationConvertBuffDataPayload::write_from_json_dict(w, body)?; }
+            69 => {}
+            70 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DampMovementBuffData: missing body object"))?; DampMovementBuffDataPayload::write_from_json_dict(w, body)?; }
+            71 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectReactionBuffData: missing body object"))?; ChangeDetectReactionBuffDataPayload::write_from_json_dict(w, body)?; }
+            72 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBattleOrderTypeBuffData: missing body object"))?; ChangeBattleOrderTypeBuffDataPayload::write_from_json_dict(w, body)?; }
+            73 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryForceFieldStatBuffData: missing body object"))?; VaryForceFieldStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            74 => {}
+            75 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddSubLevelBuffData: missing body object"))?; AddSubLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            76 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeElementalMaterialBuffData: missing body object"))?; ChangeElementalMaterialBuffDataPayload::write_from_json_dict(w, body)?; }
+            77 => {}
+            78 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectDistanceBuffData: missing body object"))?; ChangeDetectDistanceBuffDataPayload::write_from_json_dict(w, body)?; }
+            79 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ViewerDetectPenaltyBuffData: missing body object"))?; ViewerDetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
+            80 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBuffLevelBuffData: missing body object"))?; ChangeBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            81 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SkinnedDecalBuffData: missing body object"))?; SkinnedDecalBuffDataPayload::write_from_json_dict(w, body)?; }
+            82 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAnimationSpeedBuffData: missing body object"))?; ChangeAnimationSpeedBuffDataPayload::write_from_json_dict(w, body)?; }
+            83 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ActivateUpdateFuelBuffData: missing body object"))?; ActivateUpdateFuelBuffDataPayload::write_from_json_dict(w, body)?; }
+            84 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LimitBuffLevelBuffData: missing body object"))?; LimitBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            85 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockCrimeBuffData: missing body object"))?; BlockCrimeBuffDataPayload::write_from_json_dict(w, body)?; }
+            86 => {}
+            87 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "GameAudioEffectBuffData: missing body object"))?; GameAudioEffectBuffDataPayload::write_from_json_dict(w, body)?; }
+            88 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "MeditationKnowledgeBuffData: missing body object"))?; MeditationKnowledgeBuffDataPayload::write_from_json_dict(w, body)?; }
+            89 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ClimbSlipBuffData: missing body object"))?; ClimbSlipBuffDataPayload::write_from_json_dict(w, body)?; }
+            90 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectBrightnessBuffData: missing body object"))?; DetectBrightnessBuffDataPayload::write_from_json_dict(w, body)?; }
+            91 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeEquipItemEnduranceBuffData: missing body object"))?; ChangeEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
+            92 => {}
+            93 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryMaxExpandInventorySlotBuffData: missing body object"))?; VaryMaxExpandInventorySlotBuffDataPayload::write_from_json_dict(w, body)?; }
+            94 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockRegenerateStatBuffData: missing body object"))?; BlockRegenerateStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            95 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ProjectileBuffData: missing body object"))?; ProjectileBuffDataPayload::write_from_json_dict(w, body)?; }
+            96 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConsumeSpawnerMercenaryBuffData: missing body object"))?; ConsumeSpawnerMercenaryBuffDataPayload::write_from_json_dict(w, body)?; }
+            97 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterQuickSlotSkillBuffData: missing body object"))?; RegisterQuickSlotSkillBuffDataPayload::write_from_json_dict(w, body)?; }
+            98 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatMaxValueRateBuffData: missing body object"))?; VaryStatMaxValueRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            99 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TriggerVolumeBuffData: missing body object"))?; TriggerVolumeBuffDataPayload::write_from_json_dict(w, body)?; }
+            100 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterItemSellPriceRateBuffData: missing body object"))?; RegisterItemSellPriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            101 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterCrimePriceRateBuffData: missing body object"))?; RegisterCrimePriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            102 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterFactionOperationRewardRateBuffData: missing body object"))?; RegisterFactionOperationRewardRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            103 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LogoutTimeDropSetKeyBuffData: missing body object"))?; LogoutTimeDropSetKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            104 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddPercentInGameContentsBuffData: missing body object"))?; AddPercentInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
+            105 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryCustomIntInGameContentsBuffData: missing body object"))?; VaryCustomIntInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
+            106 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TribeAdditionalDamageRateBuffData: missing body object"))?; TribeAdditionalDamageRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            107 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalBreakingImpulseDamageBuffData: missing body object"))?; AdditionalBreakingImpulseDamageBuffDataPayload::write_from_json_dict(w, body)?; }
+            108 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UpdateShareValueBuffData: missing body object"))?; UpdateShareValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            109 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddDamageBonusFromComboBuffData: missing body object"))?; AddDamageBonusFromComboBuffDataPayload::write_from_json_dict(w, body)?; }
+            110 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConvertOtherStatBuffData: missing body object"))?; ConvertOtherStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            111 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "IgnoreUseResourceStatBuffData: missing body object"))?; IgnoreUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            112 => {}
+            113 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DisableMinimapIconBuffData: missing body object"))?; DisableMinimapIconBuffDataPayload::write_from_json_dict(w, body)?; }
+            114 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UseGroggyBuffData: missing body object"))?; UseGroggyBuffDataPayload::write_from_json_dict(w, body)?; }
+            115 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalUseResourceStatBuffData: missing body object"))?; AdditionalUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            116 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddCritiacalRateByMaterialKeyBuffData: missing body object"))?; AddCritiacalRateByMaterialKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            117 => {}
+            118 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseMercenaryCooltimeBuffData: missing body object"))?; DecreaseMercenaryCooltimeBuffDataPayload::write_from_json_dict(w, body)?; }
+            119 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectReactionOverrideBuffData: missing body object"))?; DetectReactionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("BuffDataVariant: unknown disc {}", other))),
+        }
+        Ok(())
+    }
+
+
 
     pub fn read_from(disc: u8, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match disc {
@@ -1933,25 +2227,16 @@ impl<'a> BuffData<'a> {
     }
 
     /// JSON shape:
-    /// - `base`: nested object with all 28 typed BuffDataBase fields
-    ///   (tag, id, name_id, flags, qwords, asset_path, lookups, etc.).
-    /// - `variant_type`: human-readable variant name, e.g.
-    ///   "DamageBuffData" (informational; round-trip uses `base.tag`
-    ///   as the discriminator on the way back).
-    /// - `variant_payload_b64`: base64 of just the variant body bytes
-    ///   (everything after the BuffDataBase). Per-variant field-level
-    ///   JSON for the 120-variant family is a future rollout — body
-    ///   stays as base64 until then so round-trip is byte-perfect.
+    /// JSON shape:
+    /// - `base`: nested object with all 28 typed BuffDataBase fields.
+    /// - `variant`: { type: variant_name, body?: typed dict } —
+    ///   per-variant typed JSON via BuffDataVariant::to_json_value.
+    ///   `body` is present for payload-bearing variants; pure-
+    ///   discriminator variants emit just `{type}`.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("base".into(), Value::Object(self.base.to_json_dict()));
-        m.insert(
-            "variant_type".into(),
-            Value::String(self.variant.variant_name().to_string()),
-        );
-        let mut variant_buf = Vec::new();
-        self.variant.write_to(&mut variant_buf).expect("write_to Vec");
-        m.insert("variant_payload_b64".into(), Value::String(B64.encode(&variant_buf)));
+        m.insert("variant".into(), self.variant.to_json_value());
         m
     }
 
@@ -1960,21 +2245,17 @@ impl<'a> BuffData<'a> {
         let base_obj = base_v.as_object().ok_or_else(|| {
             io::Error::new(io::ErrorKind::InvalidData, "BuffData.base: expected object")
         })?;
+        let tag = json_get_field(base_obj, "tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "BuffData.base.tag: expected u8"))?;
+        if tag > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("BuffData.base.tag: {} out of u8 range", tag)));
+        }
         BuffDataBase::write_from_json_dict(w, base_obj)?;
-        let payload_v = json_get_field(obj, "variant_payload_b64")?;
-        let payload_str = payload_v.as_str().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "BuffData.variant_payload_b64: expected base64 string",
-            )
-        })?;
-        let payload_bytes = B64.decode(payload_str).map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("BuffData.variant_payload_b64: invalid base64: {}", e),
-            )
-        })?;
-        w.extend_from_slice(&payload_bytes);
+        let variant_v = json_get_field(obj, "variant")?;
+        BuffDataVariant::write_from_json(tag as u8, w, variant_v)?;
         Ok(())
     }
 }
