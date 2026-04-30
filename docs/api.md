@@ -383,6 +383,84 @@ Serialize and write to a file.
 
 ---
 
+## Generic Table API
+
+Three functions provide uniform read/write access to all 122 game data tables without needing
+table-specific helpers. Each function takes the table name as a lowercase snake_case string
+matching the `.pabgb` filename (without extension).
+
+### `parse_table(table_name: str, pabgb: bytes, pabgh: bytes | None = None) -> list[dict]`
+
+Parse all records from a table body. For pabgh-bounded tables `pabgh` is required; for
+sequential tables it is ignored.
+
+```python
+# pabgh-bounded table (pabgh required)
+items = dmm_parser.parse_table("drop_set_info", pabgb_bytes, pabgh_bytes)
+
+# sequential table (no pabgh needed)
+items = dmm_parser.parse_table("vehicle_info", pabgb_bytes)
+```
+
+Raises `ValueError` if `table_name` is unknown or a pabgh-bounded table is called without `pabgh`.
+
+### `serialize_table(table_name: str, items: list[dict]) -> bytes`
+
+Serialize a list of record dicts back to raw pabgb bytes.
+
+```python
+raw = dmm_parser.serialize_table("drop_set_info", items)
+```
+
+### `write_table_to_file(table_name: str, items: list[dict], path: str) -> None`
+
+Serialize and write directly to a file.
+
+```python
+dmm_parser.write_table_to_file("vehicle_info", items, "vehicle_info.pabgb")
+```
+
+### Supported tables
+
+**pabgh-bounded** (pabgh file required for parsing):
+
+`ai_dialog_string_info`, `bitmap_position_info`, `buff_info`, `character_change_info`,
+`character_info`, `condition_info`, `drop_set_info`, `effect_info`, `elemental_material_info`,
+`equip_info`, `equip_slot_info`, `faction_info`, `faction_node_info`, `faction_node_spawn_info`,
+`faction_spawn_data_info`, `field_revive_info`, `frame_event_attr_group_info`,
+`game_event_handler_info`, `game_global_effect_info`, `game_level_info`, `game_play_trigger_info`,
+`gimmick_group_info`, `gimmick_info`, `global_game_event_info`, `global_stage_sequencer_info`,
+`interaction_info`, `inventory_info`, `item_use_info`, `knowledge_info`,
+`level_gimmick_scene_object_info`, `mini_game_data_info`, `mission_info`, `multi_change_info`,
+`npc_info`, `platform_entitlement_info`, `quest_info`, `region_info`, `royal_supply_info`,
+`sequencer_spawn_info`, `skill_info`, `spawning_pool_auto_spawn_info`, `special_mode_info`,
+`stage_info`, `store_info`, `sub_level_info`, `terrain_region_auto_spawn_info`
+
+**sequential** (no pabgh needed):
+
+`action_point_info`, `action_restriction_order_info`, `aiaction_attribute_info`,
+`aidialog_type_info`, `aievent_table_info`, `aimemory_info`, `aimove_speed_info`,
+`ally_group_info`, `auto_spawn_filter_info`, `board_info`, `breakable_object_info`,
+`category_group_info`, `category_info`, `character_appearance_index_info`, `character_group_info`,
+`craft_tool_group_info`, `craft_tool_info`, `detect_detail_info`, `detect_info`,
+`detect_reaction_info`, `dialog_voice_info`, `dye_color_group_info`, `equip_type_info`,
+`faction_group_info`, `faction_relation_group_info`, `faction_waypoint_info`, `fail_message_info`,
+`field_info`, `field_level_name_table_info`, `formation_info`, `game_advice_group_info`,
+`game_advice_info`, `game_play_variable_info`, `gimmick_event_table_info`,
+`gimmick_gate_connection_info`, `gimmick_gate_info`, `global_game_event_group_info`, `house_info`,
+`item_group_info`, `job_info`, `key_map_setting_list_info`, `knowledge_group_info`,
+`level_action_point_info`, `local_string_info`, `material_blood_decal_info`, `material_match_info`,
+`material_relation_info`, `mercenary_group_info`, `mercenary_info`, `part_prefab_dye_slot_info`,
+`part_prefab_dye_texture_pallete_info`, `pattern_description_info`, `platform_achievement_info`,
+`quest_gauge_info`, `quest_group_info`, `quick_time_event_info`, `relation_info`,
+`reserve_slot_info`, `skill_group_info`, `skill_tree_group_info`, `skill_tree_info`,
+`socket_group_info`, `socket_info`, `status_group_info`, `status_info`, `string_info`,
+`terrain_region_navi_info`, `tribe_info`, `trigger_region_info`, `ui_social_action_info`,
+`uifilter_group_info`, `uimap_texture_info`, `valid_schedule_action_info`, `vehicle_info`,
+`vibrate_pattern_info`, `wanted_info`
+
+---
+
 ## Data Types
 
 All data is returned as plain Python dicts, lists, and primitives. No custom classes are used.
