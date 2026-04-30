@@ -111,13 +111,101 @@
 //!      (u32 lookup + u64 raw + u32 raw + u32 lookup = 20 wire bytes)
 //!      at +632 and +648
 //!
-//! Steps 1-103 typed (103 of ~150 wire fields). Field 104+ all helpers
-//! decoded — only blocker is the conditional read pattern at field 104
-//! (requires manual impl rather than pabgh_typed_blob_table macro).
+//! Steps 1-117 typed (117 of ~180 wire fields). The flag_91 conditional
+//! at field 104 is now expressed via the `Conditional92` newtype which
+//! peeks at `data[offset - 1]` to dispatch — sidesteps needing manual
+//! impl conversion. Remaining tail covers fields 118+ (sub_141100D80
+//! 64-byte CharacterMobEntry CArray, sub_141118620 24-byte
+//! CharacterTagEntry CArrays, plus ~40 fields with deeper helpers
+//! sub_141101010, sub_141101110, sub_141101210, sub_1411181F0, etc.).
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue};
 use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
+use serde_json::Value;
+use std::io::{self, Write};
+
+/// Conditional u32 wire field that's only present when the IMMEDIATELY
+/// PRECEDING byte (flag_91) is 0. Reverse-engineered from sub_1410D7480
+/// where:
+/// ```c
+/// if ( !*(_BYTE *)(a2 + 440) && !sub_141105AC0(a1, a2 + 442) )
+/// ```
+/// Vanilla distribution (6966 entries): flag_91 == 0 (2035 entries, has
+/// the conditional u32) vs flag_91 == 2 (4931 entries, no conditional).
+///
+/// Implemented as a wire-trait wrapper around `Option<u32>` so the
+/// `pabgh_typed_blob_table!` macro can keep generating CharacterInfo's
+/// 100+ fields straightline. read_from peeks at `data[offset - 1]` to
+/// dispatch — relies on the macro reading flag_91 immediately before.
+#[derive(Debug)]
+pub struct Conditional92(pub Option<u32>);
+
+impl<'a> BinaryRead<'a> for Conditional92 {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        // Peek at the byte just consumed by flag_91 (the previous field).
+        if *offset == 0 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                "Conditional92: cannot read at offset 0 (no preceding flag_91 byte)"));
+        }
+        let flag_91 = data[*offset - 1];
+        if flag_91 == 0 {
+            Ok(Self(Some(u32::read_from(data, offset)?)))
+        } else {
+            Ok(Self(None))
+        }
+    }
+}
+
+impl BinaryWrite for Conditional92 {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        if let Some(v) = &self.0 {
+            v.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for Conditional92 {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        if item.0.is_some() {
+            ranges.push(FieldRange {
+                path: path.clone(),
+                start,
+                end: *offset,
+                ty: "Conditional92",
+            });
+        }
+        Ok(item)
+    }
+}
+
+impl ToJsonValue for Conditional92 {
+    fn to_json_value(&self) -> Value {
+        match &self.0 {
+            Some(v) => v.to_json_value(),
+            None => Value::Null,
+        }
+    }
+}
+
+impl WriteJsonValue for Conditional92 {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() {
+            // No bytes written — the wire skips the conditional read.
+            return Ok(());
+        }
+        <u32 as WriteJsonValue>::write_from_json(w, v)
+    }
+}
 
 // 2-iter loop body in sub_1410D7480: u32 lookup + u16 lookup per entry.
 py_binary_struct! {
@@ -269,6 +357,24 @@ pabgh_typed_blob_table! {
         pub mercenary_list: CArray<CharacterMercenaryEntry<'a>>,
         pub list_g: CArray<u16>,
         pub flag_91: u8,
+        pub conditional_92: Conditional92,
+        pub lookup_93: u16,
+        pub raw_94: u16,
+        pub flag_95: u8,
+        pub flag_96: u8,
+        pub list_h: CArray<u16>,
+        pub flag_97: u8,
+        pub name_path: CString<'a>,
+        pub lookup_98: u16,
+        pub lookup_99: u16,
+        pub lookup_100: u32,
+        pub lookup_101: u32,
+        pub raw_102: u32,
+        pub flag_103: u8,
+        pub list_i: CArray<u32>,
+        pub list_j: CArray<u32>,
+        pub list_k: CArray<u32>,
+        pub raw_104: u32,
     }
     tail: tail_blob;
 }
