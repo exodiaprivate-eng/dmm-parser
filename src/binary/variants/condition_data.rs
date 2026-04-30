@@ -2125,7 +2125,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckMercenaryOccupationState,
     ConditionData_CheckMercenaryType,
     ConditionData_IsPassableState,
-    ConditionData_CheckTargetDropListToPushInventory,
+    ConditionData_CheckTargetDropListToPushInventory(OneByteBodyPayload),
     ConditionData_IsMiniGameBanned,
     ConditionData_IsInGrassField,
     ConditionData_IsCoveredBySnow,
@@ -2535,7 +2535,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckMercenaryOccupationState => 357,
             Self::ConditionData_CheckMercenaryType => 358,
             Self::ConditionData_IsPassableState => 359,
-            Self::ConditionData_CheckTargetDropListToPushInventory => 360,
+            Self::ConditionData_CheckTargetDropListToPushInventory(_) => 360,
             Self::ConditionData_IsMiniGameBanned => 361,
             Self::ConditionData_IsInGrassField => 362,
             Self::ConditionData_IsCoveredBySnow => 363,
@@ -2948,7 +2948,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckMercenaryOccupationState => "ConditionData_CheckMercenaryOccupationState",
             Self::ConditionData_CheckMercenaryType => "ConditionData_CheckMercenaryType",
             Self::ConditionData_IsPassableState => "ConditionData_IsPassableState",
-            Self::ConditionData_CheckTargetDropListToPushInventory => "ConditionData_CheckTargetDropListToPushInventory",
+            Self::ConditionData_CheckTargetDropListToPushInventory(_) => "ConditionData_CheckTargetDropListToPushInventory",
             Self::ConditionData_IsMiniGameBanned => "ConditionData_IsMiniGameBanned",
             Self::ConditionData_IsInGrassField => "ConditionData_IsInGrassField",
             Self::ConditionData_IsCoveredBySnow => "ConditionData_IsCoveredBySnow",
@@ -3362,7 +3362,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckMercenaryOccupationState => {}
             Self::ConditionData_CheckMercenaryType => {}
             Self::ConditionData_IsPassableState => {}
-            Self::ConditionData_CheckTargetDropListToPushInventory => {}
+            Self::ConditionData_CheckTargetDropListToPushInventory(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsMiniGameBanned => {}
             Self::ConditionData_IsInGrassField => {}
             Self::ConditionData_IsCoveredBySnow => {}
@@ -3783,7 +3783,7 @@ impl<'a> ConditionDataVariant<'a> {
             357 => {}
             358 => {}
             359 => {}
-            360 => {}
+            360 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTargetDropListToPushInventory: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             361 => {}
             362 => {}
             363 => {}
@@ -4198,7 +4198,7 @@ impl<'a> ConditionDataVariant<'a> {
             357 => Self::ConditionData_CheckMercenaryOccupationState,
             358 => Self::ConditionData_CheckMercenaryType,
             359 => Self::ConditionData_IsPassableState,
-            360 => Self::ConditionData_CheckTargetDropListToPushInventory,
+            360 => Self::ConditionData_CheckTargetDropListToPushInventory(OneByteBodyPayload::read_from(data, offset)?),
             361 => Self::ConditionData_IsMiniGameBanned,
             362 => Self::ConditionData_IsInGrassField,
             363 => Self::ConditionData_IsCoveredBySnow,
@@ -4609,7 +4609,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckMercenaryOccupationState => Ok(()),
             Self::ConditionData_CheckMercenaryType => Ok(()),
             Self::ConditionData_IsPassableState => Ok(()),
-            Self::ConditionData_CheckTargetDropListToPushInventory => Ok(()),
+            Self::ConditionData_CheckTargetDropListToPushInventory(p) => p.write_to(w),
             Self::ConditionData_IsMiniGameBanned => Ok(()),
             Self::ConditionData_IsInGrassField => Ok(()),
             Self::ConditionData_IsCoveredBySnow => Ok(()),
@@ -4770,7 +4770,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // GetLevel has the same thunk and reads option_block normally).
         // These adds may be masking real bugs elsewhere — see
         // docs/STATUS.md "Stream-mode GameCondition" section.
-        26 | 99 | 135 | 360 | 370
+        26 | 99 | 135 | 370
     )
 }
 
