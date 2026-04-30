@@ -8,20 +8,50 @@
 //!   3. u8 is_blocked                    (_isBlocked)
 //!   4. u32 parent_quest                 (_parentQuest, sub_141102CB0
 //!      → qword_145F0EF20 lookup)
-//!   5. _subMissionList (sub_1411049D0 → struct +24, unknown 16-byte
-//!      slot helper) ← TAIL STARTS HERE
-//!   6. (body) _executeStageList, _branchMissionList, _startPlayerList,
-//!      _fieldReviveList, _giveUpFieldReviveList, _triggerVolumeData,
-//!      _rewardList, _resultDataList, _rewardInventoryKey, _uiDesc, …
-//!      50+ wire reads in body.
+//!   5. CArray<u32> sub_mission_list     (_subMissionList, sub_1411049D0
+//!      → qword_145F0EF00)
+//!   6. CArray<MissionBranchData> branch_mission_list
+//!      (sub_1411068C0 → sub_1410F3380; per element: u32 lookup +
+//!      u32 lookup + 2× u32 raw + 3× u8 — 19 wire bytes / 20 mem)
+//!   7. CArray<MissionExecuteStage> execute_stage_list
+//!      (inline CArray of 16-byte items via sub_1410ED7D0; per element:
+//!      u32 lookup + u32 lookup + 2× u32 raw + 2× u8 — 18 wire bytes)
+//!      ← TAIL STARTS HERE
+//!   8. (body) _startPlayerList, _fieldReviveList, _giveUpFieldReviveList,
+//!      _triggerVolumeData, _rewardList, _resultDataList,
+//!      _rewardInventoryKey, _uiDesc, … 30+ more wire reads.
 //!
-//! Steps 1-4 are typed. The mission body has many helpers; reopens
-//! cleanly when each is decoded.
-//!
-//! Helper: `sub_141102CB0` = u32 lookup at qword_145F0EF20.
+//! Steps 1-7 are typed. Body has many helpers; reopens cleanly when each
+//! is decoded.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
+
+// sub_1410F3380 inner — 20 mem bytes / 7 wire fields.
+py_binary_struct! {
+    pub struct MissionBranchData {
+        pub lookup_a: u32,    // sub_141102D20
+        pub lookup_b: u32,    // sub_1410FF430
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+    }
+}
+
+// sub_1410ED7D0 inner — 16 mem bytes / 6 wire fields.
+py_binary_struct! {
+    pub struct MissionExecuteStage {
+        pub lookup_a: u32,    // sub_141102D90
+        pub lookup_b: u32,    // sub_1410FF430
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub flag_a: u8,
+        pub flag_b: u8,
+    }
+}
 
 pabgh_typed_blob_table! {
     pub struct MissionInfo<'a> {
@@ -29,6 +59,9 @@ pabgh_typed_blob_table! {
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub parent_quest: u32,
+        pub sub_mission_list: CArray<u32>,
+        pub branch_mission_list: CArray<MissionBranchData>,
+        pub execute_stage_list: CArray<MissionExecuteStage>,
     }
     tail: tail_blob;
 }
