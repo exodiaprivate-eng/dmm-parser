@@ -15,7 +15,7 @@ behind local `main` as a result.
 
 | Instance | Cwd | Branch | Active | Status |
 |---|---|---|---|---|
-| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | `interaction_info` **97.5% typed** (Decoded 354/363, Raw **9**, down from baseline 115). Tags fixed: 7, 19, 27, 99, 116, 135 (retried after upstream fixes), 174, 358, 360, 393. **Catalog**: 92 T1 / 0 T2. **`[u8; N]` audit**: complete (one remaining is genuinely opaque per IDA single 16-byte xmmword read). Cumulative this session: +106 typed entries on interaction_info. Remaining 9 Raw entries cluster around tags 246/249 (verified correct recipes; downstream tree issues likely tied to tags 54/286 anti-disasm). |
+| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | `interaction_info` **99.2% typed** (Decoded 360/363, Raw **3**, down from baseline 115). Tags fixed this session: 7, 19, 27, 29, 99, 116, 135, 174, 358, 360, 370, 393. **Catalog**: 92 T1 / 0 T2. **`[u8; N]` audit complete**. Cumulative this session: +112 typed entries on interaction_info. Remaining 3 Raw entries: tag 54 (1, anti-disasm — vtable not found in IDA), tag 214 (2, anti-disasm — vtable not found). Genuine anti-disassembly territory; further unlock requires cracking the obfuscated readers. |
 | **B** | `dmm-parser-b/` | `lane-b` | (not actively working in this session) | Last known: 1147 lines uncommitted WIP (sequencer_stage_chart_desc, special_mode_info, etc.). Should rebase onto local `main` when resuming. |
 | **C** | `dmm-parser-c/` | `lane-c` | (not actively working in this session) | Last known: lane-c flushed; major Tier-1 promotions landed (CharacterInfo 174 fields, MiniGameDataInfo, StoreInfo, DropSetInfo). |
 
