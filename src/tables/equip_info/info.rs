@@ -1,50 +1,95 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410DB040` in CrimsonDesert.exe (Win build), discovered
 //! via xref to "EquipInfo" string at 0x144ae7ee0. Mac equivalent
-//! `sub_10186D874` at 0x10186D874. No on-disk pabgb dump — table is
-//! runtime/conditional, so the roundtrip test SKIPs. Typed prefix is
-//! documentation + tooling support only.
-//!
-//! Win wire shape (from sub_1410DB040):
-//!   1. u32 key (a2+0)
-//!   2. CString string_key (a2+8)
-//!   3. u8 is_blocked (a2+16)
-//!   4. u16 attacked_material_slot_no (a2+18, 2 raw wire bytes)
-//!   5. CArray<EquipListItem> _list (sub_141117600 → sub_1410DACB0;
-//!      112 mem bytes/element — DEEP, blocked)
-//!   6. CArray<RagdollEquipTableGroupData> _radgollEquipTableGroupDataList
-//!      (sub_1411173F0 — composite, blocked)
-//!   7. u32 ui_component_name (read_u32_lookup_DA30)
+//! `sub_10186D874` at 0x10186D874. **No on-disk pabgb dump** — the
+//! table is runtime/conditional, so the roundtrip test SKIPs and the
+//! typed schema is documentation + tooling support only.
 //!
 //! Wire reads, in order:
-//!   1. u32 key                       (sub_100EFBC60, width 4)
-//!   2. CString string_key            (sub_1006B3F50, struct +8)
-//!   3. u8 is_blocked                 (sub_1006B3CC0, struct +16)
-//!   4. u16 attacked_material_slot_no (sub_1006B3D20, struct +18)
-//!      ← TAIL STARTS HERE
-//!   5. (tail) _list                  (sub_10189F34C, struct +24,
-//!      stride 16) — CArray, likely polymorphic equipment item
-//!      descriptors
-//!   6. (tail) _radgollEquipTableGroupDataList (sub_10189F718,
-//!      struct +40, stride 16) — CArray
-//!   7. (tail) _uiComponentName       (sub_100C93428, struct +56)
-//!
-//! Stop at field 4 because helpers sub_10189F34C/sub_10189F718 are
-//! unknown CArray readers (not in the cheat-sheet) and likely
-//! polymorphic.
+//!   1. u32 key                          (a2+0)
+//!   2. CString string_key               (a2+8)
+//!   3. u8 is_blocked                    (a2+16)
+//!   4. u16 attacked_material_slot_no    (a2+18)
+//!   5. CArray<EquipListItem> list       (sub_141117600 → sub_1410DACB0;
+//!      112 mem bytes / 20 wire fields per element)
+//!   6. CArray<RagdollEquipTableGroupData> ragdoll_list
+//!      (sub_1411173F0 → sub_141117790 inner per element; 24 mem bytes
+//!      with inline CArray of 12-wire-byte triples)
+//!   7. u32 ui_component_name            (read_u32_lookup_DA30 wire u32)
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
 
-pabgh_typed_blob_table! {
+// sub_141117790 inner — 12-wire-byte triple per element.
+py_binary_struct! {
+    pub struct RagdollGroupTriple {
+        pub lookup: u32,    // sub_1410FF430 wire u32
+        pub raw_a: u32,
+        pub raw_b: u32,
+    }
+}
+
+// sub_1411173F0 inner — 24 mem bytes per element. Wire: u32 raw + CArray
+// of 3-element groups.
+py_binary_struct! {
+    pub struct RagdollEquipTableGroupData {
+        pub raw_a: u32,
+        pub triples: CArray<RagdollGroupTriple>,
+    }
+}
+
+// sub_1410DACB0 inner — 112 mem bytes / 20 wire fields per element.
+py_binary_struct! {
+    pub struct EquipListItem<'a> {
+        pub list_u32: CArray<u32>,           // sub_141102570 wire u32 / u16 mem
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub lookup_a: u32,                   // read_u32_lookup_DA30 wire u32
+        pub raw_c: u16,
+        pub raw_d: u64,
+        pub lookup_b: u32,                   // read_u32_lookup_DA30 wire u32
+        pub raw_e: u32,
+        pub raw_f: u32,
+        pub raw_g: u32,
+        pub raw_h: u32,
+        pub label: LocalizableString<'a>,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub lookup_c: u32,                   // sub_141102680 wire u32 / u16 mem
+        pub flag_c: u8,
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub flag_f: u8,
+        pub flag_g: u8,
+    }
+}
+
+py_binary_struct! {
     pub struct EquipInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub attacked_material_slot_no: u16,
+        pub list: CArray<EquipListItem<'a>>,
+        pub ragdoll_list: CArray<RagdollEquipTableGroupData>,
+        pub ui_component_name: u32,
     }
-    tail: tail_blob;
+}
+
+impl<'a> EquipInfo<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("EquipInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
 }
 
 #[cfg(test)]
