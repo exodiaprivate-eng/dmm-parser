@@ -429,11 +429,13 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 ### Stream-mode GameCondition (mostly unblocked, 99.2% interaction_info)
 **Root cause identified**: The `variant_skips_option_block` list in
 `condition_data.rs` was incomplete and some per-tag body recipes were
-wrong. The list originally had 11 variants (Class A: 2, 81, 126, 256,
-272, 300, 306, 401; Class B: 79, 195); empirical adds bumped it via
-the LAST_ATTEMPTED_TAG diagnostic loop, then individual tags were
-either restored to body+option_block (174, 393, 360) or kept in
-skip-list with an added body byte (135, 370, 26).
+wrong. The list originally had 10 verified-no-op tags (Class A: 2,
+81, 126, 256, 272, 300, 306, 401 = 8 tags; Class B: 79, 195 = 2 tags).
+Empirical adds via the LAST_ATTEMPTED_TAG diagnostic added 6 more
+(99, 135, 174, 360, 370, 26 = Class C), then individual tags were
+verified one by one — 5 of those 6 (99, 135, 174, 360, 370) ended
+up promoted to body+option_block recipes during the verification
+cycle. Only tag 26 remains in Class C.
 
 **Current state**: 360 of 363 interaction_info entries (99.2%)
 successfully decode after methodical Win-IDA-driven recipe verification
