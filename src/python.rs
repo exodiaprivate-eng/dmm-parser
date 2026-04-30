@@ -58,10 +58,10 @@ fn py_to_json(v: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
     if v.is_none() {
         return Ok(serde_json::Value::Null);
     }
-    if let Ok(b) = v.downcast::<PyBool>() {
+    if let Ok(b) = v.cast::<PyBool>() {
         return Ok(serde_json::Value::Bool(b.is_true()));
     }
-    if let Ok(i) = v.downcast::<PyInt>() {
+    if let Ok(i) = v.cast::<PyInt>() {
         if let Ok(n) = i.extract::<i64>() {
             return Ok(serde_json::json!(n));
         }
@@ -69,17 +69,17 @@ fn py_to_json(v: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
             return Ok(serde_json::json!(n));
         }
     }
-    if let Ok(f) = v.downcast::<PyFloat>() {
+    if let Ok(f) = v.cast::<PyFloat>() {
         return Ok(serde_json::json!(f.value()));
     }
     if let Ok(s) = v.extract::<String>() {
         return Ok(serde_json::Value::String(s));
     }
-    if let Ok(list) = v.downcast::<PyList>() {
+    if let Ok(list) = v.cast::<PyList>() {
         let arr: Vec<serde_json::Value> = list.iter().map(|i| py_to_json(&i)).collect::<PyResult<_>>()?;
         return Ok(serde_json::Value::Array(arr));
     }
-    if let Ok(dict) = v.downcast::<PyDict>() {
+    if let Ok(dict) = v.cast::<PyDict>() {
         let mut map = serde_json::Map::new();
         for (k, val) in dict.iter() {
             let key = k.extract::<String>()?;
