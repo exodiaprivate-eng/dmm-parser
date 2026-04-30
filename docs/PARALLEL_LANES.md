@@ -15,7 +15,7 @@ behind local `main` as a result.
 
 | Instance | Cwd | Branch | Active | Status |
 |---|---|---|---|---|
-| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | `interaction_info` 99.2%, `condition_info` 99.78%, `gimmick_info` 99.95%. 12 ConditionData tag fixes. Anti-disasm plateau reached on per-tag work. **TriggerGamePlayEventHandlerData**: decoded 6 of 8 vtable[85] body readers (5 are no-op = unit variants); tags 3+5 still need extraction. Outer wrapper `sub_1411125E0` = `CArray<COptional<TGPEHD>>` — once typed, unblocks `gimmick_info::post_blob` field 17. See STATUS.md "TriggerGamePlayEventHandlerData" section for the per-case table. |
+| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | `interaction_info` 99.2%, `condition_info` 99.78%, `gimmick_info` 99.95%. 12 ConditionData tag fixes. Anti-disasm plateau reached. **TriggerGamePlayEventHandlerData fully reverse-engineered**: all 8 vtable[85] body readers decoded (5 unit, 3 with bodies including a nested polymorphic ForceField with sub-cases 0-3/4/5/7/8). Implementation plan documented in STATUS.md. Once implemented, unblocks `gimmick_info::post_blob` field 17 — the next big T1.5→T1 lift. |
 | **B** | `dmm-parser-b/` | `lane-b` | (not actively working in this session) | Last known: 1147 lines uncommitted WIP (sequencer_stage_chart_desc, special_mode_info, etc.). Should rebase onto local `main` when resuming. |
 | **C** | `dmm-parser-c/` | `lane-c` | (not actively working in this session) | Last known: lane-c flushed; major Tier-1 promotions landed (CharacterInfo 174 fields, MiniGameDataInfo, StoreInfo, DropSetInfo). |
 
