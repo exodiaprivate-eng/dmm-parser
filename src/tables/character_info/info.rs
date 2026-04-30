@@ -111,25 +111,36 @@
 //!      (u32 lookup + u64 raw + u32 raw + u32 lookup = 20 wire bytes)
 //!      at +632 and +648
 //!
-//! Steps 1-133 typed (133 of ~180 wire fields). The flag_91 conditional
-//! at field 104 is expressed via the `Conditional92` newtype which peeks
-//! at `data[offset - 1]` to dispatch. Field 133 (sub_141118470 — CArray
-//! of GimmickInteractionOverrideData with embedded GameCondition) joins
-//! the typed prefix as of this commit: a probe across all 6966 vanilla
-//! characterinfo entries showed 100% decode through
-//! `GimmickInteractionOverrideCArray` (the same shape gimmick_info
-//! uses at 99.95%, here at 100%).
+//! Steps 1-172 typed via incremental walk through sub_1410D7480
+//! (8616-byte function decompiled to a tool-results file then
+//! grep-traversed). Reusable per-element substructs:
 //!
-//! Remaining ~40 fields after field 133 are mechanical IDA work —
-//! sub_1411181F0, sub_141101380, sub_1410FFF10, sub_141118000,
-//! sub_1411014B0, sub_1410D7370, sub_141101710, sub_1411018B0,
-//! sub_141101960. NOTE: an iteration attempt to add sub_1411181F0
-//! directly after field 133 panicked with a bogus CArray count
-//! (1595939328 = 0x5F22EE40), confirming sub_1411181F0 is NOT the
-//! next reader — there's at least one undocumented field between
-//! field 133 and sub_1411181F0. Decompiling sub_1410D7480
-//! around the field-133 call site (currently buried in an 8616-byte
-//! function) is needed before extending.
+//!   CharacterField136Entry  — 32-byte stride (CArray<u32> + 3 lookups
+//!                             + u64), used by sub_1411181F0 at +760.
+//!   CharacterField137Entry  — 8-byte stride (2× u32 lookup), used by
+//!                             sub_141101380 at +784.
+//!   CharacterField141Entry  — 24-byte stride (2× u32 lookup +
+//!                             CArray<u32>), used by sub_141118000.
+//!   CharacterField144Entry  — 12-byte stride (2× u32 + u8 + u32),
+//!                             used by sub_1411014B0 at +864.
+//!   CharacterInline147       — 14 wire bytes (3× u32 + 2× u8) inline
+//!                             via sub_1410D7370 at +896 (NOT a CArray).
+//!   CharacterField150Entry  — 32-byte stride (u32 + CString-hash +
+//!                             2× Vec3), used by sub_141101710.
+//!   CharacterField169Entry  — 16-byte stride (u32 lookup + u64), one
+//!                             entry of the 5-iter loop at +1032.
+//!   CharacterFiveU64        — 5× u64 (40 wire bytes), used by
+//!                             sub_1411001A0 inner.
+//!   CharacterField171Entry  — 128-byte stride for sub_141117EC0
+//!                             (u32 + 2× u64 + [u32; 4] + u32 + 5
+//!                             nested CArrays).
+//!
+//! Remaining fields 173-174 (2× sub_141101AB0 CArray<u32> +
+//! sub_141101B80 CArray<{u32, u32}>) are decodable on paper but adding
+//! field_173 breaks the test — confirms a wire-shape mismatch in
+//! field_171's inner that's masked when subsequent counts are typically
+//! zero. Reverify CharacterField171Entry's inner CArrays (especially
+//! sub_1411001A0 and sub_1411002A0) before extending.
 
 use crate::binary::*;
 use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
