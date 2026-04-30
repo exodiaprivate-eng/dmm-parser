@@ -67,9 +67,8 @@ impl<'a> ConditionDataStageChart<'a> {
 
     /// JSON shape: discriminated union.
     /// - BranchA: {branch: "A", outer_presence, label, byte_b, qword_c,
-    ///   expression_b64} — GameExpression body still rides as base64
-    ///   pending its own per-variant JSON rollout.
-    /// - BranchB: {branch: "B", ivariant_selector, item_b64}
+    ///   expression: <GameExpression dict>}
+    /// - BranchB: {branch: "B", ivariant_selector, item: <IVariantItem dict>}
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         match self {
