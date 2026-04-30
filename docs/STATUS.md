@@ -159,18 +159,26 @@ actual wire reads happen in `vtable[85]` per case.
 | 0 | 112 | TriggerGamePlayEventHandlerData_Gimmick | sub_141D836E0 | sub_1410AA1B0 + 7× u32 + 1 u8 |
 | 1 | 40 | …_IgnoreFallingDamageToTarget | 0x1402D3A80 (no-op) | 0 bytes |
 | 2 | 48 | …_ApplyPassiveSkillToTarget | sub_141D84010 | 1× u64 (8 bytes) |
-| 3 | 144 | (Gimmick variant via sub_141D84340) | sub_141D84xxx | TBD |
+| 3 | 144 | …_ForceField | sub_141D85660 | nested poly: u32+u32+u32+u8(sub-dispatch)+sub_141D84040; sub-cases 0-3/4/5/7/8 each have their own body |
 | 4 | 40 | …_MoveSyncGimmickWithPlatform | 0x1402D3A80 (no-op) | 0 bytes |
-| 5 | 48 | (variant via sub_141D867F0) | TBD | TBD |
+| 5 | 48 | …_DetectTriggerExpansion | sub_141D86960 | 1× CString |
 | 6 | 40 | …_TriggerRegionInfo | 0x1402D3A80 (no-op) | 0 bytes |
 | 7 | 40 | …_ElementalArea | 0x1402D3A80 (no-op) | 0 bytes |
 
-5 of 8 variants are unit (no body bytes). Tag 0 has the most complex
-body (1 helper + 7 u32 + 1 u8). Tags 3 & 5 still need their vtable[85]
-extracted. Cracking enough to ship would make `gimmick_info::post_blob`
-field 17 typeable as a `Decoded|Raw` enum following the same pattern
-as `ConditionData` / `SpawnDataList`. Outer wrapper sub_1411125E0 is
-`CArray<COptional<TriggerGamePlayEventHandlerData>>`.
+**Tag 3 (ForceField) sub-dispatch detail** (sub_141D85660):
+- Header: 4×u32 (a1+40..52) + 1 u8 sub-dispatch (a1+52) + sub_141D84040(a1+56)
+- Sub-case 0/1/2/3: 12 bytes (a1+88) + 7× u32 (a1+100..124) + 1 byte (a1+128) = 41 wire bytes
+- Sub-case 4: sub_141D84190(a2, a1+88) — variable
+- Sub-case 5: 4 + 1 = 5 wire bytes (a1+88, a1+92)
+- Sub-case 7: 4 + 4 + 4 = 12 wire bytes (a1+88, a1+92, a1+96)
+- Sub-case 8: 12 + 7× 4 + 1 = 41 wire bytes (similar to 0-3 but trailing u8 instead of u8 at +128)
+
+**5 of 8 are unit** (cases 1, 4, 6, 7 = no-op vtable[85]; tag 1 also no-op).
+Cases 0, 3, 5 have content. Outer wrapper sub_1411125E0 is
+`CArray<COptional<TriggerGamePlayEventHandlerData>>`. Implementation
+plan: define `TriggerGamePlayEventHandlerData` enum in
+`src/binary/variants/` with 8 variants, dispatch_tag u8 + per-tag body
+struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 
 ### JSON exposure upgrades (lane-c)
 - `SkillInfo.buff_level_list` (CArray<CArray<BuffDataOptional>>) — was
