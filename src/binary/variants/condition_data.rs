@@ -4711,23 +4711,30 @@ impl<'a> ConditionDataOptionData<'a> {
 /// `[u8 option_present][optional ConditionDataOptionData]` block.
 ///
 /// ## Failure histogram (from `interaction_info::diag_raw_entries`,
-/// captured 2026-04-30 after tag 27 + 99 fixes):
+/// captured 2026-04-30 after tag 19/27/174/393 recipe fixes):
 ///
-/// Top tags currently driving InteractionInfo Raw fallbacks:
-///   tag 174 (CheckRider):       23 entries  ← biggest blocker
-///   tag 135 (?):                18 entries
-///   tag 256 (Macro):            11 entries  ← in skip-list but body recipe likely missing CString
-///   tag  19 (?):                 7 entries
-///   tag 246:                     6 entries
+/// Current state — `n=47` Raw entries (down from 57 baseline; -10 net):
+///   tag 135:                    18 entries  ← skip-list, IDA-suggested
+///                                              body+remove regressed
+///                                              (313→294 decoded), held
+///   tag 246 (IsCrimeTarget):     4 entries
+///   tag 249:                     4 entries
 ///   tag 360:                     3 entries
-///   tag 393:                     3 entries
-///   plus 19 more tags with 1-2 entries each
+///   tag 116, 90, 145, 214, 280:  2 entries each
+///   tag 7,30,31,54,99,343,358,387,393: 1 entry each
 ///
-/// Per Win-IDA RTTI: tag 174 = `pa::ConditionData_CheckRider`, error
-/// strings include `"checkRider(SeatIndex)"` — strongly suggests body
-/// is a single seat-index field (likely u8 or u32) rather than the
-/// current unit variant. Next: decompile the dispatch entry for tag 174
-/// to confirm body size, then promote to typed payload.
+/// Already-fixed (Win-IDA verified) since the n=101 regression peak:
+///   tag 174 (CheckRider) — restored 1-byte body via `8f01078`
+///   tag 393 (CheckAccompanyType) — added 1-byte body via `d91d961`
+///   tag 19 (CheckGroggy), tag 27 (IsFocusActor) — kept unit variant
+///   tag 99 (CheckAllyType) — empirical skip-list class C
+///
+/// Verification template for any next promote: read vtable[16] and
+/// vtable[19] from the matching `??_7ConditionData_<Name>@pa@@6B@`
+/// RTTI symbol. `vtable[16] = 0x141C9A550` reads 1 byte ⇒
+/// OneByteBodyPayload. `vtable[19] = 0x141C8D560` is the standard
+/// option_block reader (NOT skip). `vtable[19] = 0x1402D3A80` is the
+/// no-op (Class A skip).
 ///
 /// Three classes of skip variant exist:
 ///   A. **vtable[19] = `0x1402D3A80` (literal `return 1;` no-op)**.
