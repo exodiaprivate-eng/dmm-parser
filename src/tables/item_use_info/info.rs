@@ -17,20 +17,14 @@
 //!     `inner_data_bytes`.
 //!   - Disc 13 (CustomizeCharacter) is fully typed: dye_lookup +
 //!     CArray<u16> color_data + CArray<u16> texture_data.
-//!   - Disc 14 (PlaySequencerOnly) still rides as `DeepVariantPayload`
-//!     because the inner `sub_141D8C6D0` is not self-delimiting at the
-//!     boundary needed for partial typing; full typing requires
-//!     reverse-engineering each of its nested composite sub-readers.
-//!     Per Win-IDA decompile, `sub_141D8C6D0` is the
-//!     `SequencerStageChartDesc` per-element reader (232 mem bytes / 26
-//!     wire fields). See `tables::stage_info::info` module docstring
-//!     for the full wire layout. Fields 1-13 are trivially typeable
-//!     (CString + u32 + CString + Vec3 + u32 + 8× u8); field 15
-//!     onward depends on the GameCondition stream-mode anti-disassembly
-//!     fix (same root blocker as the 5 remaining Tier 1.5 tables) and
-//!     field 19 introduces a second polymorphic family
-//!     (SequencerStageTrackChangeData via sub_14110C270) that needs
-//!     its own family-decoder pass.
+//!   - Disc 14 (PlaySequencerOnly) is partially typed via
+//!     `SequencerStageChartDescPartial` (sub_141D8C6D0). 13 wire
+//!     fields are field-level addressable (name, raw_a, prefab_path,
+//!     position, raw_b, 8× flag_*); fields 14-26 carry as
+//!     `_opaque_tail_b64` until GameCondition stream-mode and the
+//!     SequencerStageTrackChangeData family decoder land. See
+//!     `binary::sequencer_stage_chart_desc` for the wrapper and
+//!     `tables::stage_info::info` for the full extracted wire layout.
 //!
 //! The pabgh sister file is consulted to know each entry's total size on
 //! disk, which is the only way to bound the variant payload reliably for
@@ -69,6 +63,7 @@
 //! it via the "Hand-corrected" header marker on line 1.
 
 use crate::binary::*;
+use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -287,13 +282,6 @@ py_binary_struct! {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Deep variants — payload kept as opaque bytes (round-trip safe).
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Debug)]
-pub struct DeepVariantPayload(pub Vec<u8>);
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Top-level variant enum
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -313,7 +301,7 @@ pub enum ItemUseDataVariant<'a> {
     Projectile { base: BaseUseData<'a>, payload: ProjectilePayload },
     ExpandFarmSlot { base: BaseUseData<'a>, payload: ConvertCharacterPayload },
     CustomizeCharacter { base: BaseUseData<'a>, payload: CustomizeCharacterPayload },
-    PlaySequencerOnly { base: BaseUseData<'a>, payload: DeepVariantPayload },
+    PlaySequencerOnly { base: BaseUseData<'a>, payload: SequencerStageChartDescPartial<'a> },
     RegisterReserveSlot { base: BaseUseData<'a>, payload: RegisterReserveSlotPayload },
     OpenUI { base: BaseUseData<'a>, payload: OpenUIPayload<'a> },
     Inspect { base: BaseUseData<'a> },
@@ -401,7 +389,7 @@ impl<'a> ItemUseDataVariant<'a> {
             },
             14 => Self::PlaySequencerOnly {
                 base,
-                payload: read_deep_payload(data, offset, extra_size)?,
+                payload: SequencerStageChartDescPartial::read_with_size(data, offset, extra_size)?,
             },
             15 => Self::RegisterReserveSlot {
                 base,
@@ -453,7 +441,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::Projectile { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::ExpandFarmSlot { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::CustomizeCharacter { base, payload } => { base.write_to(w)?; payload.write_to(w) }
-            Self::PlaySequencerOnly { base, payload } => { base.write_to(w)?; w.write_all(&payload.0) }
+            Self::PlaySequencerOnly { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::RegisterReserveSlot { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::OpenUI { base, payload } => { base.write_to(w)?; payload.write_to(w) }
             Self::Inspect { base } => base.write_to(w),
@@ -495,7 +483,7 @@ impl<'a> ItemUseDataVariant<'a> {
             Self::Projectile { base, payload } => ("Projectile", base, Value::Object(payload.to_json_dict())),
             Self::ExpandFarmSlot { base, payload } => ("ExpandFarmSlot", base, Value::Object(payload.to_json_dict())),
             Self::CustomizeCharacter { base, payload } => ("CustomizeCharacter", base, Value::Object(payload.to_json_dict())),
-            Self::PlaySequencerOnly { base, payload } => ("PlaySequencerOnly", base, deep_to_json(&payload.0)),
+            Self::PlaySequencerOnly { base, payload } => ("PlaySequencerOnly", base, payload.to_json_value()),
             Self::RegisterReserveSlot { base, payload } => ("RegisterReserveSlot", base, Value::Object(payload.to_json_dict())),
             Self::OpenUI { base, payload } => ("OpenUI", base, Value::Object(payload.to_json_dict())),
             Self::Inspect { base } => ("Inspect", base, Value::Null),
@@ -544,7 +532,7 @@ impl<'a> ItemUseDataVariant<'a> {
             11 => ProjectilePayload::write_from_json_dict(w, payload_obj(payload, "Projectile")?)?,
             12 => ConvertCharacterPayload::write_from_json_dict(w, payload_obj(payload, "ExpandFarmSlot")?)?,
             13 => CustomizeCharacterPayload::write_from_json_dict(w, payload_obj(payload, "CustomizeCharacter")?)?,
-            14 => write_deep_from_json(w, payload, "PlaySequencerOnly")?,
+            14 => SequencerStageChartDescPartial::write_from_json(w, payload)?,
             15 => RegisterReserveSlotPayload::write_from_json_dict(w, payload_obj(payload, "RegisterReserveSlot")?)?,
             16 => OpenUIPayload::write_from_json_dict(w, payload_obj(payload, "OpenUI")?)?,
             17 | 18 | 19 | 20 => {} // base only
@@ -557,43 +545,9 @@ impl<'a> ItemUseDataVariant<'a> {
     }
 }
 
-fn deep_to_json(bytes: &[u8]) -> Value {
-    let mut m = Map::new();
-    m.insert("_b64".to_string(), Value::String(B64.encode(bytes)));
-    Value::Object(m)
-}
-
 fn payload_obj<'v>(v: &'v Value, kind: &str) -> io::Result<&'v Map<String, Value>> {
     v.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
         format!("ItemUseDataVariant::{}: payload must be an object", kind)))
-}
-
-fn write_deep_from_json(w: &mut Vec<u8>, v: &Value, kind: &str) -> io::Result<()> {
-    let obj = payload_obj(v, kind)?;
-    let s = json_get_field(obj, "_b64")?
-        .as_str()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-            format!("ItemUseDataVariant::{}: _b64 must be a string", kind)))?;
-    let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-        format!("ItemUseDataVariant::{}: _b64 invalid base64: {}", kind, e)))?;
-    w.extend_from_slice(&bytes);
-    Ok(())
-}
-
-fn read_deep_payload<'a>(
-    data: &'a [u8],
-    offset: &mut usize,
-    size: usize,
-) -> io::Result<DeepVariantPayload> {
-    if *offset + size > data.len() {
-        return Err(io::Error::new(
-            io::ErrorKind::UnexpectedEof,
-            format!("deep payload size {} runs past end of data", size),
-        ));
-    }
-    let bytes = data[*offset..*offset + size].to_vec();
-    *offset += size;
-    Ok(DeepVariantPayload(bytes))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
