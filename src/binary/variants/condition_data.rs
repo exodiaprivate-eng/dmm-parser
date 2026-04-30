@@ -1901,7 +1901,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckTargetable(ConditionData_CheckTargetablePayload),
     ConditionData_CheckRetreat,
     ConditionData_CheckContactableState,
-    ConditionData_CheckTargetToPushInventory,
+    ConditionData_CheckTargetToPushInventory(OneByteBodyPayload),
     ConditionData_CheckInventorySlotFreeCount(ConditionData_CheckInventorySlotFreeCountPayload),
     ConditionData_CheckCharacterHeightType,
     ConditionData_CheckUnlockDoorCharacter,
@@ -2311,7 +2311,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTargetable(_) => 132,
             Self::ConditionData_CheckRetreat => 133,
             Self::ConditionData_CheckContactableState => 134,
-            Self::ConditionData_CheckTargetToPushInventory => 135,
+            Self::ConditionData_CheckTargetToPushInventory(_) => 135,
             Self::ConditionData_CheckInventorySlotFreeCount(_) => 136,
             Self::ConditionData_CheckCharacterHeightType => 137,
             Self::ConditionData_CheckUnlockDoorCharacter => 138,
@@ -2724,7 +2724,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTargetable(_) => "ConditionData_CheckTargetable",
             Self::ConditionData_CheckRetreat => "ConditionData_CheckRetreat",
             Self::ConditionData_CheckContactableState => "ConditionData_CheckContactableState",
-            Self::ConditionData_CheckTargetToPushInventory => "ConditionData_CheckTargetToPushInventory",
+            Self::ConditionData_CheckTargetToPushInventory(_) => "ConditionData_CheckTargetToPushInventory",
             Self::ConditionData_CheckInventorySlotFreeCount(_) => "ConditionData_CheckInventorySlotFreeCount",
             Self::ConditionData_CheckCharacterHeightType => "ConditionData_CheckCharacterHeightType",
             Self::ConditionData_CheckUnlockDoorCharacter => "ConditionData_CheckUnlockDoorCharacter",
@@ -3138,7 +3138,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTargetable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckRetreat => {}
             Self::ConditionData_CheckContactableState => {}
-            Self::ConditionData_CheckTargetToPushInventory => {}
+            Self::ConditionData_CheckTargetToPushInventory(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckInventorySlotFreeCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckCharacterHeightType => {}
             Self::ConditionData_CheckUnlockDoorCharacter => {}
@@ -3559,7 +3559,7 @@ impl<'a> ConditionDataVariant<'a> {
             132 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTargetable: missing body object"))?; ConditionData_CheckTargetablePayload::write_from_json_dict(w, body)?; }
             133 => {}
             134 => {}
-            135 => {}
+            135 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTargetToPushInventory: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             136 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckInventorySlotFreeCount: missing body object"))?; ConditionData_CheckInventorySlotFreeCountPayload::write_from_json_dict(w, body)?; }
             137 => {}
             138 => {}
@@ -3974,7 +3974,7 @@ impl<'a> ConditionDataVariant<'a> {
             132 => Self::ConditionData_CheckTargetable(ConditionData_CheckTargetablePayload::read_from(data, offset)?),
             133 => Self::ConditionData_CheckRetreat,
             134 => Self::ConditionData_CheckContactableState,
-            135 => Self::ConditionData_CheckTargetToPushInventory,
+            135 => Self::ConditionData_CheckTargetToPushInventory(OneByteBodyPayload::read_from(data, offset)?),
             136 => Self::ConditionData_CheckInventorySlotFreeCount(ConditionData_CheckInventorySlotFreeCountPayload::read_from(data, offset)?),
             137 => Self::ConditionData_CheckCharacterHeightType,
             138 => Self::ConditionData_CheckUnlockDoorCharacter,
@@ -4385,7 +4385,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTargetable(p) => p.write_to(w),
             Self::ConditionData_CheckRetreat => Ok(()),
             Self::ConditionData_CheckContactableState => Ok(()),
-            Self::ConditionData_CheckTargetToPushInventory => Ok(()),
+            Self::ConditionData_CheckTargetToPushInventory(p) => p.write_to(w),
             Self::ConditionData_CheckInventorySlotFreeCount(p) => p.write_to(w),
             Self::ConditionData_CheckCharacterHeightType => Ok(()),
             Self::ConditionData_CheckUnlockDoorCharacter => Ok(()),
@@ -4781,7 +4781,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // GetLevel has the same thunk and reads option_block normally).
         // These adds may be masking real bugs elsewhere — see
         // docs/STATUS.md "Stream-mode GameCondition" section.
-        26 | 135 | 370
+        26 | 370
     )
 }
 
