@@ -28,9 +28,16 @@
 //!  17. u32 lookup_c                      (sub_141102CB0, qword_145F0EF20)
 //!  18. u32 lookup_d                      (sub_141102D20, qword_145F0EF38)
 //!  19. u32 lookup_e                      (sub_141102D90)
+//!  20. CArray<u32> close_filter_a        (sub_141101610, qword_145F0EF38)
+//!  21. CArray<u32> close_filter_b        (sub_1411049D0, qword_145F0EF00)
+//!  22. CArray<u32> close_filter_c        (sub_141101610, qword_145F0EF38)
+//!  23. CArray<StageFilterEntry> filter_entry_list
+//!                                        (sub_1411068C0 → sub_1410F3380)
+//!  24. u32 lookup_f                      (sub_1410FF430, qword_145F0E9C0)
+//!  25. u32 lookup_g                      (sub_1410FF430)
 //!      ← TAIL STARTS HERE
-//!  20+. ~60 trailing fields. All decodable from sub_1410FA990 lines
-//!       150-501 — just mechanical work to add.
+//!  26+. ~55 trailing fields. All decodable from sub_1410FA990 lines
+//!       180-501 — just mechanical work to add.
 //!
 //! Promotion note: the previous Tier 1.5 cut stopped at field 6 because
 //! field 7 was an opaque polymorphic SequencerStageChartDesc. Now that
@@ -39,9 +46,24 @@
 use crate::binary::*;
 use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// `sub_1410F3380` per-element of stage_info field 23's outer
+    /// CArray (sub_1411068C0). 19 wire bytes / 20 mem bytes.
+    pub struct StageFilterEntry {
+        pub lookup_a: u32,    // sub_141102D20 → qword_145F0EF38
+        pub lookup_b: u32,    // sub_1410FF430 → qword_145F0E9C0
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+    }
+}
 
 #[derive(Debug)]
 pub struct StageInfo<'a> {
@@ -64,6 +86,12 @@ pub struct StageInfo<'a> {
     pub lookup_c: u32,
     pub lookup_d: u32,
     pub lookup_e: u32,
+    pub close_filter_a: CArray<u32>,
+    pub close_filter_b: CArray<u32>,
+    pub close_filter_c: CArray<u32>,
+    pub filter_entry_list: CArray<StageFilterEntry>,
+    pub lookup_f: u32,
+    pub lookup_g: u32,
     pub tail_blob: Vec<u8>,
 }
 
@@ -95,6 +123,12 @@ impl<'a> StageInfo<'a> {
         let lookup_c = u32::read_from(data, offset)?;
         let lookup_d = u32::read_from(data, offset)?;
         let lookup_e = u32::read_from(data, offset)?;
+        let close_filter_a = CArray::<u32>::read_from(data, offset)?;
+        let close_filter_b = CArray::<u32>::read_from(data, offset)?;
+        let close_filter_c = CArray::<u32>::read_from(data, offset)?;
+        let filter_entry_list = CArray::<StageFilterEntry>::read_from(data, offset)?;
+        let lookup_f = u32::read_from(data, offset)?;
+        let lookup_g = u32::read_from(data, offset)?;
 
         if *offset > entry_end {
             return Err(io::Error::new(
@@ -113,6 +147,8 @@ impl<'a> StageInfo<'a> {
             sequencer_desc, spawn_faction_spawn_data_info, spawn_faction_node_info,
             disable_faction_spawn_party_name_hash_list, raw_a, raw_b, raw_c,
             list_a, flag_a, flag_b, lookup_c, lookup_d, lookup_e,
+            close_filter_a, close_filter_b, close_filter_c, filter_entry_list,
+            lookup_f, lookup_g,
             tail_blob,
         })
     }
@@ -137,6 +173,12 @@ impl<'a> StageInfo<'a> {
         self.lookup_c.write_to(w)?;
         self.lookup_d.write_to(w)?;
         self.lookup_e.write_to(w)?;
+        self.close_filter_a.write_to(w)?;
+        self.close_filter_b.write_to(w)?;
+        self.close_filter_c.write_to(w)?;
+        self.filter_entry_list.write_to(w)?;
+        self.lookup_f.write_to(w)?;
+        self.lookup_g.write_to(w)?;
         w.write_all(&self.tail_blob)?;
         Ok(())
     }
@@ -162,6 +204,12 @@ impl<'a> StageInfo<'a> {
         m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
         m.insert("lookup_d".to_string(), self.lookup_d.to_json_value());
         m.insert("lookup_e".to_string(), self.lookup_e.to_json_value());
+        m.insert("close_filter_a".to_string(), self.close_filter_a.to_json_value());
+        m.insert("close_filter_b".to_string(), self.close_filter_b.to_json_value());
+        m.insert("close_filter_c".to_string(), self.close_filter_c.to_json_value());
+        m.insert("filter_entry_list".to_string(), self.filter_entry_list.to_json_value());
+        m.insert("lookup_f".to_string(), self.lookup_f.to_json_value());
+        m.insert("lookup_g".to_string(), self.lookup_g.to_json_value());
         m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
         m
     }
@@ -186,6 +234,12 @@ impl<'a> StageInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_d")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_e")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_a")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_b")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_c")?)?;
+        <CArray<StageFilterEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "filter_entry_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_f")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_g")?)?;
         let b64 = json_get_field(obj, "_tail_blob_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
