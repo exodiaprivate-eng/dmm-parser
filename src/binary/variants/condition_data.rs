@@ -1863,7 +1863,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsInWantedBoundary,
     ConditionData_CheckInteractionByInteractionKey(ConditionData_CheckInteractionByInteractionKeyPayload),
     ConditionData_CheckAllyGroup(ConditionData_CheckAllyGroupPayload),
-    ConditionData_CheckAllyType,
+    ConditionData_CheckAllyType(OneByteBodyPayload),
     ConditionData_CheckGimmickState(ConditionData_CheckGimmickStatePayload),
     ConditionData_DockingGimmickState(ConditionData_DockingGimmickStatePayload),
     ConditionData_OtherDockingGimmickState(ConditionData_OtherDockingGimmickStatePayload),
@@ -2273,7 +2273,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInWantedBoundary => 96,
             Self::ConditionData_CheckInteractionByInteractionKey(_) => 97,
             Self::ConditionData_CheckAllyGroup(_) => 98,
-            Self::ConditionData_CheckAllyType => 99,
+            Self::ConditionData_CheckAllyType(_) => 99,
             Self::ConditionData_CheckGimmickState(_) => 100,
             Self::ConditionData_DockingGimmickState(_) => 101,
             Self::ConditionData_OtherDockingGimmickState(_) => 102,
@@ -2686,7 +2686,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInWantedBoundary => "ConditionData_IsInWantedBoundary",
             Self::ConditionData_CheckInteractionByInteractionKey(_) => "ConditionData_CheckInteractionByInteractionKey",
             Self::ConditionData_CheckAllyGroup(_) => "ConditionData_CheckAllyGroup",
-            Self::ConditionData_CheckAllyType => "ConditionData_CheckAllyType",
+            Self::ConditionData_CheckAllyType(_) => "ConditionData_CheckAllyType",
             Self::ConditionData_CheckGimmickState(_) => "ConditionData_CheckGimmickState",
             Self::ConditionData_DockingGimmickState(_) => "ConditionData_DockingGimmickState",
             Self::ConditionData_OtherDockingGimmickState(_) => "ConditionData_OtherDockingGimmickState",
@@ -3100,7 +3100,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInWantedBoundary => {}
             Self::ConditionData_CheckInteractionByInteractionKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckAllyGroup(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_CheckAllyType => {}
+            Self::ConditionData_CheckAllyType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGimmickState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_DockingGimmickState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_OtherDockingGimmickState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3521,7 +3521,7 @@ impl<'a> ConditionDataVariant<'a> {
             96 => {}
             97 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckInteractionByInteractionKey: missing body object"))?; ConditionData_CheckInteractionByInteractionKeyPayload::write_from_json_dict(w, body)?; }
             98 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAllyGroup: missing body object"))?; ConditionData_CheckAllyGroupPayload::write_from_json_dict(w, body)?; }
-            99 => {}
+            99 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAllyType: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             100 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickState: missing body object"))?; ConditionData_CheckGimmickStatePayload::write_from_json_dict(w, body)?; }
             101 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_DockingGimmickState: missing body object"))?; ConditionData_DockingGimmickStatePayload::write_from_json_dict(w, body)?; }
             102 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_OtherDockingGimmickState: missing body object"))?; ConditionData_OtherDockingGimmickStatePayload::write_from_json_dict(w, body)?; }
@@ -3936,7 +3936,7 @@ impl<'a> ConditionDataVariant<'a> {
             96 => Self::ConditionData_IsInWantedBoundary,
             97 => Self::ConditionData_CheckInteractionByInteractionKey(ConditionData_CheckInteractionByInteractionKeyPayload::read_from(data, offset)?),
             98 => Self::ConditionData_CheckAllyGroup(ConditionData_CheckAllyGroupPayload::read_from(data, offset)?),
-            99 => Self::ConditionData_CheckAllyType,
+            99 => Self::ConditionData_CheckAllyType(OneByteBodyPayload::read_from(data, offset)?),
             100 => Self::ConditionData_CheckGimmickState(ConditionData_CheckGimmickStatePayload::read_from(data, offset)?),
             101 => Self::ConditionData_DockingGimmickState(ConditionData_DockingGimmickStatePayload::read_from(data, offset)?),
             102 => Self::ConditionData_OtherDockingGimmickState(ConditionData_OtherDockingGimmickStatePayload::read_from(data, offset)?),
@@ -4347,7 +4347,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInWantedBoundary => Ok(()),
             Self::ConditionData_CheckInteractionByInteractionKey(p) => p.write_to(w),
             Self::ConditionData_CheckAllyGroup(p) => p.write_to(w),
-            Self::ConditionData_CheckAllyType => Ok(()),
+            Self::ConditionData_CheckAllyType(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickState(p) => p.write_to(w),
             Self::ConditionData_DockingGimmickState(p) => p.write_to(w),
             Self::ConditionData_OtherDockingGimmickState(p) => p.write_to(w),
