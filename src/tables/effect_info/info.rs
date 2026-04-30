@@ -6,9 +6,8 @@
 //!   3. u8 is_blocked
 //!   4. effect_data: CArray<EffectDataElement> via sub_141116A70 — each
 //!      element exposes 10 named fields plus a typed `core_block` (47
-//!      named sub-fields). The recursive `inner_map` portion of each
-//!      element is bounded but still rides as opaque bytes pending
-//!      reverse of its anti-disassembly tail.
+//!      named sub-fields) and a fully typed `inner_map`
+//!      (CArray<{u32 key, EffectDataInner}>).
 //!   5. mesh_effect_data: u32 count + N × 50-byte MeshEffectData (read
 //!      by sub_1410DBD90). Fully typed below.
 //!   6. u8 has_equip_type
@@ -349,8 +348,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\effectinfo.pabgb";
-    const PABGH_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\effectinfo.pabgh";
+    const PABGB_PATH: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/effectinfo.pabgb";
+    const PABGH_PATH: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/effectinfo.pabgh";
 
     #[test]
     fn roundtrip() {
