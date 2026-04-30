@@ -188,7 +188,7 @@ Internal layout from systematic byte scan across all 27 named item structs
 | 36..72                 | 36   | zeros |
 | 72..76                 | 4    | f32: 0.0 or 0.3 |
 | 76..80                 | 4    | f32: 0.0, 0.3, or 1.0 |
-| 80..84                 | 4    | u32: 0, 2, or 30 (integer flag — not a float) |
+| 80..84                 | 4    | u32: 0, 2, or 30 — nonzero **only** for `par1` components (2 of 27 structs); possibly particle emitter parameter |
 | 84..88                 | 4    | zeros |
 | 88..92                 | 4    | f32 = 1.0 (constant) |
 | 92..96                 | 4    | f32 = 1.0 (constant) |
@@ -263,8 +263,10 @@ Only active slots carry meaningful body data.
 | 0..4        | 4    | activity flag: u32=1 (active) or 0 (null) |
 | 4..8        | 4    | mesh asset hash/ID; 0x00000000 for null slots |
 | 8..12       | 4    | mirrors activity flag: u32=1 (active) or 0 (null) |
-| 12..16      | 4    | hash field B — equals mesh[4:8] when M=1; references next-mesh hash when M>1 |
-| 16..20      | 4    | M (total mesh count) in mesh[0]; hash field B in null/trailing slots |
+| 12..16      | 4    | hash field B — equals mesh[4:8] when M=1; references next mesh's hash_A when M>1; null slots use their own hash |
+| 16..20      | 4    | **M** (total mesh count) stored in mesh[0] only; null/trailing slots store their own hash here |
+| 20..24      | 4    | hash field A repeated (= mesh[4:8]) for mesh[0]; 0 for null/trailing slots |
+| 24..28      | 4    | hash field A repeated again for mesh[0]; null/trailing slot stores its own hash |
 | 20..32      | 12   | f32[3]: 0.0 or 4.0 per component (dimension/bounds?) |
 | 32..44      | 12   | zeros (3 entries sampled) |
 | 44..56      | 12   | f32[3]: RGB colour (0 or normalised colour values) |
