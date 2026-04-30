@@ -707,15 +707,35 @@ impl ImmuneBuffDataPayload {
         let mut m = Map::new();
         m.insert("header_tag".into(), self.header_tag.to_json_value());
         m.insert("flag".into(), self.flag.to_json_value());
+        // entries.body is decoded into a typed JSON array of integers
+        // sized by header_tag's element width. tag 4 emits an empty
+        // array (zero-byte stride).
+        let body = &self.entries.1;
+        let body_arr: Vec<Value> = match self.header_tag {
+            0 => body.iter().map(|&b| Value::from(b as u64)).collect(),
+            1 | 2 | 3 => body.chunks_exact(4)
+                .map(|c| Value::from(u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u64))
+                .collect(),
+            4 => Vec::new(),
+            5 => body.chunks_exact(8)
+                .map(|c| Value::from(u64::from_le_bytes(
+                    [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]])))
+                .collect(),
+            _ => Vec::new(),
+        };
         let mut em = Map::new();
         em.insert("count".into(), self.entries.0.to_json_value());
-        em.insert("body_b64".into(), Value::String(B64.encode(&self.entries.1)));
+        em.insert("body".into(), Value::Array(body_arr));
         m.insert("entries".into(), Value::Object(em));
         m.insert("trailing".into(), self.trailing.to_json_value());
         m
     }
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_tag")?)?;
+        let header_tag = json_get_field(obj, "header_tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ImmuneBuffData.header_tag: expected u8"))? as u8;
+        header_tag.write_to(w)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)?;
         let entries_v = json_get_field(obj, "entries")?;
         let entries_obj = entries_v.as_object().ok_or_else(|| io::Error::new(
@@ -723,15 +743,25 @@ impl ImmuneBuffDataPayload {
             "ImmuneBuffData.entries: expected object",
         ))?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(entries_obj, "count")?)?;
-        let body_str = json_get_field(entries_obj, "body_b64")?.as_str().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::InvalidData,
-                "ImmuneBuffData.entries.body_b64: expected base64 string")
-        })?;
-        let body_bytes = B64.decode(body_str).map_err(|e| io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("ImmuneBuffData.entries.body_b64: {}", e),
-        ))?;
-        w.extend_from_slice(&body_bytes);
+        let body_arr = json_get_field(entries_obj, "body")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ImmuneBuffData.entries.body: expected array"))?;
+        for v in body_arr {
+            let n = v.as_u64().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ImmuneBuffData.entries.body: element must be u64",
+            ))?;
+            match header_tag {
+                0 => w.push(n as u8),
+                1 | 2 | 3 => w.extend_from_slice(&(n as u32).to_le_bytes()),
+                4 => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    "ImmuneBuffData header_tag=4 must have empty body")),
+                5 => w.extend_from_slice(&n.to_le_bytes()),
+                _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("unknown header_tag {}", header_tag))),
+            }
+        }
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing")?)?;
         Ok(())
     }
