@@ -99,5 +99,5 @@ ConditionInfo is the highest-mod-author-value Tier 2 table — defines every que
 
 - `dmm-pabgb-aio/mac_extract/game_condition_tree_recipe.json` — full meta-dispatcher map
 - `dmm-pabgb-aio/mac_extract/conditiondata_empirical_observations.json` — per-tag byte counts from real data
-- `dmm-pabgb-aio/mac_extract/conditiondata_recipes.json` — auto-extracted recipe (has bugs in 53 VARIABLE tags)
-- Memory: `project_game_condition_tree.md`
+- `dmm-pabgb-aio/mac_extract/conditiondata_recipes.json` — auto-extracted recipe (had bugs in many VARIABLE tags; superseded by per-tag Win-IDA verification this session)
+- `docs/STATUS.md` — current state, per-tag fix log, regression-cycle history
