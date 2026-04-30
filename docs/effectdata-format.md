@@ -1,7 +1,7 @@
 # EffectData Binary Format — effectinfo.pabgb
 
 Empirically derived from effectinfo.pabgb dumps via Python hex analysis
-(`tools/analyze_effectinfo[1-13].py`). Documents the **outer blob structure**
+(`tools/analyze_effectinfo[1-22].py`). Documents the **outer blob structure**
 as seen from the wire; the IDA-derived field-level decoder for the inner
 EffectDataElement record lives in `src/binary/variants/effect_data.rs` and
 uses a different (non-empirical) analysis layer.
@@ -151,6 +151,12 @@ General formula: `blob_size = 323 + named_items_extra + K×316 + m×364`
 | 2507      | 0               | 0        | 6        | |
 | 2871      | 0               | 0        | 7        | 19 entries |
 | 6147      | 0               | 0        | 16       | max observed |
+| 831       | 0               | 0        | 1†       | irregular — bone-name mesh (+144 bytes) |
+| 2535      | 0               | 7        | 0        | confirmed: 311 + 7×316 + 12 = 2535 (`Weapon_Fire_ing`) |
+| 373       | 0               | 0        | 0†       | irregular — `Inspect_SocketMarker`, +50 unknown bytes |
+| 1407      | 0               | 0†       | —        | irregular — `cdfx_mc_onguard_shield_fxpreset_01`, unknown format |
+| 1787      | 0               | —        | —        | irregular — split-reference mesh (K=5, see Type C below) |
+| 2151      | 0               | —        | —        | irregular — split-reference mesh (K=6, see Type C below) |
 
 ---
 
@@ -180,8 +186,10 @@ Internal layout from systematic byte scan across all 27 named item structs
 | 12..24                 | 12   | zeros |
 | 24..36                 | 12   | f32[3]: 0.0 or all three = 0.05f (`cd cc 4c 3d`) |
 | 36..72                 | 36   | zeros |
-| 72..84                 | 12   | f32[3]: small values — 0.0, 0.3, or 1.0 per component |
-| 84..88                 | 4    | u32: 0 or 2 (small integer) |
+| 72..76                 | 4    | f32: 0.0 or 0.3 |
+| 76..80                 | 4    | f32: 0.0, 0.3, or 1.0 |
+| 80..84                 | 4    | u32: 0, 2, or 30 (integer flag — not a float) |
+| 84..88                 | 4    | zeros |
 | 88..92                 | 4    | f32 = 1.0 (constant) |
 | 92..96                 | 4    | f32 = 1.0 (constant) |
 | 96..100                | 4    | f32 = **−1.0** (constant sentinel) |
@@ -254,8 +262,9 @@ Only active slots carry meaningful body data.
 |-------------|------|-------------|
 | 0..4        | 4    | activity flag: u32=1 (active) or 0 (null) |
 | 4..8        | 4    | mesh asset hash/ID; 0x00000000 for null slots |
-| 8..12       | 4    | mirrors activity flag: u32=1 or 0 |
-| 12..20      | 8    | mesh IDs — same value as mesh[4:8] for active; stale for null |
+| 8..12       | 4    | mirrors activity flag: u32=1 (active) or 0 (null) |
+| 12..16      | 4    | hash field B — equals mesh[4:8] when M=1; references next-mesh hash when M>1 |
+| 16..20      | 4    | M (total mesh count) in mesh[0]; hash field B in null/trailing slots |
 | 20..32      | 12   | f32[3]: 0.0 or 4.0 per component (dimension/bounds?) |
 | 32..44      | 12   | zeros (3 entries sampled) |
 | 44..56      | 12   | f32[3]: RGB colour (0 or normalised colour values) |
@@ -369,29 +378,29 @@ constant `0xeac5` values. The two fully-variable fields are effectively:
 | dump      | entries | parsed | failures | failure sizes |
 |-----------|---------|--------|----------|---------------|
 | 2026-4-11 | 2039    | ~2032  | 7        | 360×2, 805×1, 1355×2, 1722×1, 2073×1 |
-| 2026-4-24 | 2057    | 2050   | 7        | 373×2, 831×1, 1407×2, 1787×1, 2151×1 |
+| 2026-4-24 | 2057    | 2050   | 7        | 373×2 (TypeB), 831×1 (TypeA), 1407×2 (TypeE), 1787×1 (TypeC), 2151×1 (TypeC) |
 
-Each failure size is exactly 13 more than the 4-11 counterpart, confirming
-the 13-byte per-entry growth. All failures fail the mc_off divisibility check:
-no K exists such that `(mc_off − Y) % SUB == 0`. These are the variable-length
-bone-name sub-element variant.
+Each failure size is exactly 13 more than the 4-11 counterpart, confirming the
+13-byte per-entry growth. The 2535-byte blob (K=7 sub-elements) is NOT a
+failure — it fits the general formula and was simply missing from the size table.
+The failures are types A–E as documented in the Irregular Blobs section.
 
 ---
 
 ## Irregular Blobs
 
-The 7 irregular entries fail the mc_off divisibility check and fall into two
-sub-types:
+The 7 irregular entries in 4-24 fail the mc_off divisibility check. There are
+four distinct sub-types:
 
-### Type A — Bone-name mesh (831, 1407, 1787, 2151-byte blobs)
+### Type A — Bone-name mesh (831-byte blob)
 
-These have M=1 mesh element that is **variable-length** because it embeds a
-bone name list and bone weight array. The outer layout is identical to a
-standard mesh blob (8 zero bytes + u32 M + mesh_data + 8 trailing zeros),
-but the mesh data itself is larger than the standard MESH constant.
+One entry (`pafx_mc_rotationbash_lightning_gain_001a_switch_01`) has M=1 mesh
+that is variable-length because it embeds a bone name list and bone weight
+array. The outer layout is identical to a standard mesh blob
+(blob[303:311]=8 zeros, blob[311:315]=M=1, mesh data, 8 trailing zeros),
+but the mesh body is 508 bytes instead of the standard 364.
 
-The 4-24 831-blob (entry `pafx_mc_rotationbash_lightning_gain_001a_switch_01`)
-contains M=1 mesh with the bone name list at mesh offset 298:
+The bone name list begins at **mesh offset 298**:
 
 ```
                                         ... (298 bytes standard mesh data)
@@ -408,43 +417,92 @@ contains M=1 mesh with the bone name list at mesh offset 298:
 [58 trailing zeros]
 ```
 
-Total mesh size for this entry: 508 bytes (= 298 fixed + 4 count + 120 names + 4 count + 24 weights + 58 zeros).
+Total mesh size: 508 bytes (298 standard + 4 count + 120 names + 4 count + 24 weights + 58 zeros).
 
 ### Type B — Unknown variant (373-byte blobs)
 
-Two entries (entry name `Inspect_SocketMarker`) have size 373 = 323 + 50. The
-standard mc_off region (blob[311:323]) is all zeros, indicating K=0 and M=0.
-The 50 extra bytes at blob[323:373] contain unknown data — partially a pattern
-of (1.0, 0.0, 1.0, 0.0) float-like values followed by bytes that resemble hash
-values. Not yet decoded. Possibly socket/attachment marker geometry.
+Two entries (`Inspect_SocketMarker`) have size 373 = 323 + 50. The standard
+mc_off region (blob[311:323]) is all zeros (K=0, M=0). The 50 extra bytes at
+blob[323:373] contain unknown data — partially (1.0, 0.0, 1.0, 0.0) float-like
+values followed by hash-like bytes. Not yet decoded. Possibly socket/attachment
+marker geometry.
+
+### Type C — Split-reference mesh (1787, 2151-byte blobs)
+
+Two entries use a "split header" format where K mesh headers are stored
+separately from K−1 mesh bodies:
+
+```
+blob[303:311]         8 zeros (standard)
+blob[311:315]         K  (u32 reference count — NOT the mesh count)
+blob[315:315+K×8]     K reference entries, each = (u32=1, u32=hash)
+blob[315+K×8:end-8]   M = K−1  mesh bodies, each 356 bytes
+blob[end-8:end]       8 trailing zeros
+```
+
+Size formula: `315 + K×8 + (K−1)×356 + 8 = 364×K − 33`
+
+| blob size | K | M=K-1 | entry name |
+|-----------|---|-------|------------|
+| 1787      | 5 | 4     | `pafx_Swim_Foot_Warmachine` |
+| 2151      | 6 | 5     | `fx_smokeshell_out` |
+
+The last two reference entries always share the same hash (a back-reference or
+deduplication marker). Body[0][0:4] = M (total body count); body[i>0][0:4] = 0.
+Body[i][4:8] = hash matching reference entry i's hash field. The 356-byte body
+format is not yet mapped to the standard 364-byte mesh layout.
+
+### Type D — Extended sub-element blob (2535-byte blob)
+
+One entry (`Weapon_Fire_ing`) has K=7 sub-elements, fitting the standard
+sub-element formula `311 + K×316 + 12`:
+
+```
+311 + 7×316 + 12 = 2535  ✓
+```
+
+Each sub-element starts at blob[311 + i×316] with the standard header
+`00 00 00 00 00 00 00 00 01` (8 zeros + 0x01). The trailing 12 zeros are
+also standard. This blob fits the general formula — it was previously
+miscounted in the coverage table because K=7 is larger than the K≤2 samples
+used to set the formula range.
+
+### Type E — Unknown variant (1407-byte blobs)
+
+Two entries (`cdfx_mc_onguard_shield_fxpreset_01` and
+`cdfx_mc_onguard_shield_fxpreset_01_applyAnimationSpeed`) have blob[311:315]=1
+and blob[315:319]=u32=3. Size 1407 does not fit any of: standard
+mesh formula (315+M×364+8), sub-element formula (311+K×316+12), or split-reference
+formula (315+K×8+(K-1)×356+8). Structure not yet mapped.
 
 ---
 
 ## Next Steps
 
-1. **Map prefix[16..92] precisely** — color1 and color2 RGB triplets are
-   identified; the 3 floats at prefix[40..52] (0 or 0.05) and the float at
-   prefix[88..92] remain unnamed. Scan co-variation with other fields.
+1. **Map prefix[40:52] and prefix[88:92]** — 3 floats at prefix[40:52] (0 or
+   0.05, only 2 of 1952 entries) and the rarely-nonzero float at prefix[88:92]
+   remain unnamed. Scan co-variation with other fields.
 
 2. **Map sub-element[9:13]** — the 4-byte header packet (e.g. `57 04 06 24`)
-   varies per-instance; cross-reference against 955-blob (K=2) where two
-   sub-elements in the same parent differ at this field.
+   varies per-instance; cross-reference against 955-blob (K=2).
 
-3. **Identify prefix[256..264] IDs** — two per-entry u16 identifiers at
-   prefix[258..262]; likely reference external tables (texture IDs, material
+3. **Identify prefix[256:264] IDs** — two per-entry u16 identifiers at
+   prefix[258:262]; likely reference external tables (texture IDs, material
    hashes?).
 
 4. **Type B irregular blobs (373-byte)** — 50 bytes of unknown structure at
-   blob[323:373] for `Inspect_SocketMarker` entries. Possibly socket/attachment
-   marker geometry; compare against any IDA type info for socket marker data.
+   blob[323:373] for `Inspect_SocketMarker`.
 
-5. **MeshEffectData mesh[56..108]** — 48 bytes mostly zero; expand beyond
-   3-entry sample to characterize the f32 at mesh[104].
+5. **MeshEffectData mesh[20:108]** — fields beyond the mesh[16:20]=M discovery
+   need mapping; especially mesh[20:56] (hashes, IDs) and mesh[56:108] (mostly zero).
 
-6. **NamedItemStruct struct[0..36]** — only 3 instances available; the
-   colour-like values at struct[12..24] need cross-referencing with prefix
-   color1/color2 fields.
+6. **NamedItemStruct struct[0:36]** — colour-like triplets at struct[0:12] and
+   struct[12:24]; co-vary with prefix color1/color2.
 
-7. **Type A irregular blobs (1407+)** — larger bone-name meshes; determine
-   if bone_count and weight_count are always equal, and whether the 58-zero
-   trailer is a fixed-size pad or variable.
+7. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
+
+8. **Type C split-reference body format (1787, 2151)** — map the 356-byte body
+   layout; confirm relationship to standard 364-byte mesh format.
+
+9. **Type E blob (1407-byte)** — `cdfx_mc_onguard_shield_fxpreset_01`; map
+   structure from blob[315:] (starts with u32=3, then hash).
