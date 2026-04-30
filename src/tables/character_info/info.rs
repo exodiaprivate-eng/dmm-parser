@@ -225,6 +225,51 @@ py_binary_struct! {
     }
 }
 
+// sub_1411187E0 inner — 12-wire-byte items.
+py_binary_struct! {
+    pub struct CharacterPropEntry {
+        pub lookup: u32,    // sub_141100370 wire u32 / u16 mem
+        pub raw_a: u32,
+        pub raw_b: u32,
+    }
+}
+
+// sub_1410D7170 inner — 64-wire-byte items.
+py_binary_struct! {
+    pub struct CharacterMobEntry {
+        pub lookup_a: u32,    // sub_1410FF5C0 wire u32
+        pub lookup_b: u32,    // sub_141100370 wire u32
+        pub raw_a: u64,
+        pub raw_b: u64,
+        pub raw_c: u64,
+        pub raw_d: u64,
+        pub raw_e: u64,
+        pub raw_f: u64,
+        pub raw_g: u64,
+    }
+}
+
+// sub_141118620 inner — 20-wire-byte items.
+py_binary_struct! {
+    pub struct CharacterTagEntry {
+        pub lookup_a: u32,    // sub_1410FF5C0 wire u32
+        pub raw_a: u64,
+        pub raw_b: u32,
+        pub lookup_b: u32,    // sub_1410FF5C0 wire u32
+    }
+}
+
+// sub_141100E90 inner — 32 mem bytes / 28 wire bytes (f32 + 3× 8 bytes).
+// Same shape as faction_node_info::FactionAdjacencyMobItem.
+py_binary_struct! {
+    pub struct CharacterAdjacencyMobItem {
+        pub raw_a: u32,
+        pub raw_b: u64,
+        pub raw_c: u64,
+        pub raw_d: u64,
+    }
+}
+
 // sub_1410D9880 inner — 96 mem bytes / 20 wire fields, CArray element of
 // sub_141118980 (CharacterInfo's _hireableMercenaryList).
 py_binary_struct! {
@@ -375,6 +420,13 @@ pabgh_typed_blob_table! {
         pub list_j: CArray<u32>,
         pub list_k: CArray<u32>,
         pub raw_104: u32,
+        pub prop_list: CArray<CharacterPropEntry>,
+        pub flag_105: u8,
+        pub list_l: CArray<u32>,
+        pub mob_list: CArray<CharacterMobEntry>,
+        pub adj_list: CArray<CharacterAdjacencyMobItem>,
+        pub tag_list_a: CArray<CharacterTagEntry>,
+        pub tag_list_b: CArray<CharacterTagEntry>,
     }
     tail: tail_blob;
 }
