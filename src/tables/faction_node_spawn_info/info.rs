@@ -25,25 +25,38 @@ py_binary_struct! {
     }
 }
 
-/// `sub_141115890` per-element. Wire: 16 raw bytes (header — semantics
-/// opaque, kept as `[u8; 16]`) followed by a `COptional<PatrolSplineGroup>`.
+/// `sub_141115890` per-element. Wire: 16 raw header bytes (single
+/// 16-byte block per IDA — read as one __int128 memcpy, no internal
+/// substructure visible to the game-side reader) followed by a
+/// `COptional<PatrolSplineGroup>`. Header bytes split into 4× u32
+/// for JSON field addressability (semantics not yet recovered; lane-c
+/// 2026-04-30 promotion from [u8;16] for field-level access).
 #[derive(Debug)]
 pub struct PatrolSplineEntry {
-    pub header: [u8; 16],
+    pub header_dword_0: u32,
+    pub header_dword_1: u32,
+    pub header_dword_2: u32,
+    pub header_dword_3: u32,
     pub group: OptionalPatrolSplineGroup,
 }
 
 impl<'a> BinaryRead<'a> for PatrolSplineEntry {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let header = <[u8; 16]>::read_from(data, offset)?;
+        let header_dword_0 = u32::read_from(data, offset)?;
+        let header_dword_1 = u32::read_from(data, offset)?;
+        let header_dword_2 = u32::read_from(data, offset)?;
+        let header_dword_3 = u32::read_from(data, offset)?;
         let group = OptionalPatrolSplineGroup::read_from(data, offset)?;
-        Ok(Self { header, group })
+        Ok(Self { header_dword_0, header_dword_1, header_dword_2, header_dword_3, group })
     }
 }
 
 impl BinaryWrite for PatrolSplineEntry {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.header.write_to(w)?;
+        self.header_dword_0.write_to(w)?;
+        self.header_dword_1.write_to(w)?;
+        self.header_dword_2.write_to(w)?;
+        self.header_dword_3.write_to(w)?;
         self.group.write_to(w)
     }
 }
@@ -51,7 +64,10 @@ impl BinaryWrite for PatrolSplineEntry {
 impl ToJsonValue for PatrolSplineEntry {
     fn to_json_value(&self) -> Value {
         let mut m = Map::new();
-        m.insert("header".to_string(), self.header.to_json_value());
+        m.insert("header_dword_0".to_string(), self.header_dword_0.to_json_value());
+        m.insert("header_dword_1".to_string(), self.header_dword_1.to_json_value());
+        m.insert("header_dword_2".to_string(), self.header_dword_2.to_json_value());
+        m.insert("header_dword_3".to_string(), self.header_dword_3.to_json_value());
         m.insert("group".to_string(), self.group.to_json_value());
         Value::Object(m)
     }
@@ -62,7 +78,10 @@ impl WriteJsonValue for PatrolSplineEntry {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "PatrolSplineEntry: expected object",
         ))?;
-        <[u8; 16] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_dword_0")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_dword_1")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_dword_2")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_dword_3")?)?;
         OptionalPatrolSplineGroup::write_from_json(w, json_get_field(obj, "group")?)
     }
 }

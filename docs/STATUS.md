@@ -64,6 +64,16 @@ This file is for collaborators picking up round-trip work. It's the
   entries (typed decode for 99.8%, raw-bytes fallback for 0.2%)
 
 ### Recent Tier 1 promotions (lane-c)
+- `EquipSlotInfo` — full Tier 1.5 → 1 promotion. `header_blob: Vec<u8>`
+  → `header: CArray<u8>` (typed wire-equivalent, always empty in vanilla
+  but JSON-addressable). `footer_extra/footer_terminator_a/b: Vec<u8>+u32+u32`
+  → `extra_entries: CArray<EquipExtraEntry(20-byte/5×u32)> + tail_magic: u32 = 0xb954d87c`.
+  Empirical 13-record probe: 12 records have count=0, k=0x2bd has 5
+  entries fully field-typed as field_a..field_e. (lane-c, 2026-04-30)
+- `FactionNodeSpawnInfo.PatrolSplineEntry.header` — `[u8; 16]` →
+  `header_dword_{0..3}: u32` (4× u32 split for JSON addressability;
+  semantics opaque per IDA single 16-byte memcpy in sub_141115890).
+  (lane-c, 2026-04-30)
 - `CharacterInfo` — all 174 wire fields typed, 0 nonempty tails on 6966 entries
 - `FactionNodeSpawnInfo` — patrol_ai_spline_data_list typed
   (sub_141115890 + sub_1413F8A20 + sub_1413F9BD0 reverse-engineered)
@@ -82,7 +92,6 @@ This file is for collaborators picking up round-trip work. It's the
   dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded
 
 ### Remaining Tier 1.5 (blocked by family decoders)
-- `EquipSlotInfo.header_blob` + `.footer` — opaque sub_1410830B0 prefix
 - `QuestInfo.quest_dialog_filter_data_list_blob` — FilterCondition variant family
 - `GimmickInfo.post_blob` — within Decoded; blocked by sub_1411125E0
   (CArray<COptional<sub_141D7FF30 → sub_141D80A90 dispatcher>>)
