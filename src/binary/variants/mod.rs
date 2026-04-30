@@ -25,10 +25,6 @@ pub mod condition_pair;
 pub mod drop_target;
 pub mod gimmick_interaction_override;
 pub mod sequencer_stage_chart_desc;
-pub mod elemental_material;
-pub mod special_mode;
-pub mod store_data;
-pub mod interaction_data;
 pub mod trigger_gameplay_event_handler_data;
 
 #[cfg(test)]
