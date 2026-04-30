@@ -135,7 +135,13 @@ pub struct SubLevelInfo<'a> {
     pub is_blocked: u8,
     pub min_level: u32,
     pub max_level: u32,
-    pub exp: [u8; 28],
+    /// 28-byte exp composite: 3× u64 + u32. Empirical sweep shows
+    /// values like (100000, 10000000, 100000, 100) — looks like
+    /// experience thresholds + count.
+    pub exp_a: u64,
+    pub exp_b: u64,
+    pub exp_c: u64,
+    pub exp_d: u32,
     pub condition_info: u32,
     pub alert_component_name: u32,
     pub alert_component_name_for_vary_exp: u32,
@@ -175,7 +181,10 @@ impl<'a> SubLevelInfo<'a> {
         let is_blocked = u8::read_from(data, offset)?;
         let min_level = u32::read_from(data, offset)?;
         let max_level = u32::read_from(data, offset)?;
-        let exp = <[u8; 28]>::read_from(data, offset)?;
+        let exp_a = u64::read_from(data, offset)?;
+        let exp_b = u64::read_from(data, offset)?;
+        let exp_c = u64::read_from(data, offset)?;
+        let exp_d = u32::read_from(data, offset)?;
         let condition_info = u32::read_from(data, offset)?;
         let alert_component_name = u32::read_from(data, offset)?;
         let alert_component_name_for_vary_exp = u32::read_from(data, offset)?;
@@ -194,7 +203,7 @@ impl<'a> SubLevelInfo<'a> {
         let exp_icon_path = u32::read_from(data, offset)?;
         let is_relative_with_camp = u8::read_from(data, offset)?;
         Ok(Self {
-            key, string_key, is_blocked, min_level, max_level, exp,
+            key, string_key, is_blocked, min_level, max_level, exp_a, exp_b, exp_c, exp_d,
             condition_info, alert_component_name, alert_component_name_for_vary_exp,
             knowledge_info, buff_info, money_info, reward_drop_set_info,
             sub_level_exp_data_list, additional_reward_list, vary_experience_list,
@@ -210,7 +219,10 @@ impl<'a> SubLevelInfo<'a> {
         self.is_blocked.write_to(w)?;
         self.min_level.write_to(w)?;
         self.max_level.write_to(w)?;
-        self.exp.write_to(w)?;
+        self.exp_a.write_to(w)?;
+        self.exp_b.write_to(w)?;
+        self.exp_c.write_to(w)?;
+        self.exp_d.write_to(w)?;
         self.condition_info.write_to(w)?;
         self.alert_component_name.write_to(w)?;
         self.alert_component_name_for_vary_exp.write_to(w)?;
@@ -238,7 +250,10 @@ impl<'a> SubLevelInfo<'a> {
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("min_level".to_string(), self.min_level.to_json_value());
         m.insert("max_level".to_string(), self.max_level.to_json_value());
-        m.insert("exp".to_string(), self.exp.to_json_value());
+        m.insert("exp_a".to_string(), self.exp_a.to_json_value());
+        m.insert("exp_b".to_string(), self.exp_b.to_json_value());
+        m.insert("exp_c".to_string(), self.exp_c.to_json_value());
+        m.insert("exp_d".to_string(), self.exp_d.to_json_value());
         m.insert("condition_info".to_string(), self.condition_info.to_json_value());
         m.insert("alert_component_name".to_string(), self.alert_component_name.to_json_value());
         m.insert("alert_component_name_for_vary_exp".to_string(), self.alert_component_name_for_vary_exp.to_json_value());
@@ -265,7 +280,10 @@ impl<'a> SubLevelInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "min_level")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
-        <[u8; 28] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_d")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "alert_component_name")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "alert_component_name_for_vary_exp")?)?;
@@ -344,7 +362,8 @@ mod tests {
         let item = SubLevelInfo::read_from(&data, &mut c).unwrap();
         let dict = item.to_json_dict();
         for f in [
-            "key", "string_key", "is_blocked", "min_level", "max_level", "exp",
+            "key", "string_key", "is_blocked", "min_level", "max_level",
+            "exp_a", "exp_b", "exp_c", "exp_d",
             "condition_info", "alert_component_name",
             "alert_component_name_for_vary_exp", "knowledge_info", "buff_info",
             "money_info", "reward_drop_set_info", "sub_level_exp_data_list",
