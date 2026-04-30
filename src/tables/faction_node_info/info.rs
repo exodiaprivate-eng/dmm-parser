@@ -37,22 +37,33 @@
 //!      u16 + u16 + CArray<[f32; 3]> — 24 mem bytes)
 //!  18. CArray<FactionSchedule> faction_schedule_list (sub_1410DDE60
 //!      via inline CArray; per element 280 mem bytes / 31 wire fields)
+//!  19. u8 unknown_a                                (mem a2+168)
+//!  20. CString key_str_after                       (sub_1410A9D40 wire
+//!      CString — mem a2+172 stores u32 hash)
+//!  21. u8 unknown_b                                (mem a2+176)
+//!  22. u32 lookup_after                            (sub_1410FF430 wire
+//!      u32 — mem a2+178)
+//!  23. u8 unknown_c                                (mem a2+180)
+//!  24. u8 unknown_d                                (mem a2+181)
+//!  25. CArray<FactionAdjacencyEntry> adjacency_list (sub_141115A30 →
+//!      sub_1410DE350; per element 144 mem bytes / 10+ wire fields:
+//!      u32 raw_a + FactionAdjacencyData inner with 2 LocalizableStrings,
+//!      3 u32 lookups, FactionScheduleU64Triple list, u32 lookup+raw
+//!      pair list, FactionAdjacencyMobItem list, trailing u32)
 //!      ← TAIL STARTS HERE
-//!  19. (tail) u8 + sub_1410A9D40 (CString hash) + u8 + u32 lookup
-//!      (sub_1410FF430) + u8 + u8 + sub_141115A30 (CArray of 144-byte
-//!      items via sub_1410DE350 — 128-byte composite, blocked)
-//!  20. (tail) 13× sub_141128990 — CArray of 288-byte items via
-//!      sub_1410DD2A0 + sub_1410DD420 (HARD BLOCKER)
-//!  21. (tail) u8 + sub_1410DE690 (28-byte target) + u32 raw +
-//!      sub_141100510 (CArray<u32>) + sub_1410FFAC0 (CArray<u16>) +
-//!      sub_141103770 (u16 lookup)
+//!  26. (tail) 13× sub_141128990 — CArray of 288-byte items via
+//!      sub_1410DD2A0 + sub_1410DD420 (HARD BLOCKER — sub_1410DD420 is
+//!      a 296-byte composite with 35+ wire fields including unknown
+//!      sub_141102410, sub_1410DD140, sub_141102EF0, sub_1410FFC20)
+//!  27. (tail) u8 + sub_1410DE690 (28-byte target: Vec3 + 4× u32) +
+//!      u32 raw + sub_141100510 (CArray<u32>) + sub_1410FFAC0
+//!      (CArray<u16>) + sub_141103770 (u16 lookup)
 //!
-//! Steps 1-18 typed (18 of 32 catalog fields surfaced). FactionSchedule
-//! depends on 4 inner sub-structs (FactionScheduleEntry48,
-//! FactionScheduleU128Pair, FactionScheduleSlotInner,
-//! FactionScheduleU64Triple, FactionScheduleU32Triple) plus the shared
-//! FactionNodeRawDataExt. Reopens cleanly when sub_141115A30,
-//! sub_141128990, sub_1410DE690 are decoded.
+//! Steps 1-25 typed (25 of 32 catalog fields surfaced). FactionAdjacencyData
+//! depends on FactionScheduleU64Triple (already typed) + reuses
+//! sub_141100E90's 28-byte FactionAdjacencyMobItem. Reopens cleanly when
+//! sub_1410DD420's deeper helpers (sub_141102410, sub_1410DD140,
+//! sub_141102EF0, sub_1410FFC20) are decoded.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
@@ -153,6 +164,47 @@ py_binary_struct! {
     }
 }
 
+// sub_141100E90 inner — 32 mem bytes / 4 wire fields = 28 wire bytes.
+// Wire: f32 + 8 raw bytes + 8 raw bytes + 8 raw bytes (assembled into
+// 32-byte mem with 4-byte gap after the f32). Used by FactionAdjacencyData
+// at slot +112 (and similarly elsewhere — gimmick_info field 7,
+// interaction_info field 21).
+py_binary_struct! {
+    pub struct FactionAdjacencyMobItem {
+        pub raw_a: u32,
+        pub raw_b: u64,
+        pub raw_c: u64,
+        pub raw_d: u64,
+    }
+}
+
+// sub_1410DE350 — FactionAdjacencyData inner, 128 mem bytes / 10 wire fields.
+// Inner CArray<u64> at +96: per element u32 lookup (sub_1410FF430) + u32 raw
+// = 8 wire bytes packed LE.
+py_binary_struct! {
+    pub struct FactionAdjacencyData<'a> {
+        pub raw_a: u32,
+        pub label_a: LocalizableString<'a>,
+        pub label_b: LocalizableString<'a>,
+        pub lookup_a: u32,                     // read_u32_lookup_DA30 wire u32
+        pub lookup_b: u32,                     // sub_141100370 wire u32
+        pub lookup_c: u32,                     // sub_141101D50 wire u32
+        pub triple_u64_list: CArray<FactionScheduleU64Triple>,
+        pub lookup_raw_pair_list: CArray<u64>, // u32 lookup + u32 raw per element
+        pub mob_item_list: CArray<FactionAdjacencyMobItem>,
+        pub trailing_raw: u32,
+    }
+}
+
+// sub_141115A30 inner — FactionAdjacencyEntry, 144 mem bytes.
+// Wire: u32 raw_a (4 wire) + FactionAdjacencyData (variable wire).
+py_binary_struct! {
+    pub struct FactionAdjacencyEntry<'a> {
+        pub raw_a: u32,
+        pub data: FactionAdjacencyData<'a>,
+    }
+}
+
 // sub_1410DDE60 — FactionSchedule, 280 mem bytes / 31 wire fields.
 py_binary_struct! {
     pub struct FactionSchedule<'a> {
@@ -210,6 +262,13 @@ pabgh_typed_blob_table! {
         pub revival_stage_info_list: CArray<u32>,
         pub way_point_data_list_deprecated: CArray<WayPointDeprData>,
         pub faction_schedule_list: CArray<FactionSchedule<'a>>,
+        pub unknown_a: u8,
+        pub key_str_after: CString<'a>,
+        pub unknown_b: u8,
+        pub lookup_after: u32,
+        pub unknown_c: u8,
+        pub unknown_d: u8,
+        pub adjacency_list: CArray<FactionAdjacencyEntry<'a>>,
     }
     tail: tail_blob;
 }
