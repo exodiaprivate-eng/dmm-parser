@@ -15,7 +15,7 @@ behind local `main` as a result.
 
 | Instance | Cwd | Branch | Active | Status |
 |---|---|---|---|---|
-| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | `interaction_info` 92.6% typed (Raw 27/363, all downstream-tree). Tags fixed: 7, 19, 27, 99, 116, 174, 358, 360, 393. **Catalog**: 92 T1 / 0 T2 (3 stale T2 promoted). **`[u8; N]` audit**: SpecialModeOption.trailing_16 split into 16 named u8s (IDA: 16 individual 1-byte reads in loop). `faction_node_spawn_info::PatrolSplineEntry::header [u8; 16]` is the only remaining array — IDA sub_141115890 confirms single 16-byte xmmword read, legitimately opaque per rule. Field-level coverage now structurally complete. |
+| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | `interaction_info` **97.5% typed** (Decoded 354/363, Raw **9**, down from baseline 115). Tags fixed: 7, 19, 27, 99, 116, 135 (retried after upstream fixes), 174, 358, 360, 393. **Catalog**: 92 T1 / 0 T2. **`[u8; N]` audit**: complete (one remaining is genuinely opaque per IDA single 16-byte xmmword read). Cumulative this session: +106 typed entries on interaction_info. Remaining 9 Raw entries cluster around tags 246/249 (verified correct recipes; downstream tree issues likely tied to tags 54/286 anti-disasm). |
 | **B** | `dmm-parser-b/` | `lane-b` | (not actively working in this session) | Last known: 1147 lines uncommitted WIP (sequencer_stage_chart_desc, special_mode_info, etc.). Should rebase onto local `main` when resuming. |
 | **C** | `dmm-parser-c/` | `lane-c` | (not actively working in this session) | Last known: lane-c flushed; major Tier-1 promotions landed (CharacterInfo 174 fields, MiniGameDataInfo, StoreInfo, DropSetInfo). |
 
