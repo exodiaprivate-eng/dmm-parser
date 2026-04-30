@@ -206,7 +206,8 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 - `StageInfo` — vestigial empty `tail_blob` removed (was always-empty
   Vec<u8> + `_tail_blob_b64` JSON field). Reader now strict-asserts
   full consumption.
-- Added `json_roundtrip` test for SkillInfo (now part of 305 tests).
+- Added `json_roundtrip` test for SkillInfo (now part of 304 tests
+  passing on local main, plus 1 ignored — `interaction_info::tests::diag_raw_entries`).
 
 ### Polymorphic family decoders
 | Family | Status | Tables that consume it |
