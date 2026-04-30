@@ -1,5 +1,4 @@
-//! Tier 1.5 — typed prefix (now including the full SequencerStageChartDesc)
-//! plus tail blob for the remaining ~70 trailing fields.
+//! Tier 1 — fully typed.
 //!
 //! Reader: `sub_1410FA990` in CrimsonDesert.exe (Win build) — confirmed via
 //! Win-IDA decompile this session. 25 MB pabgb / largest table in the set.
@@ -63,10 +62,27 @@
 //!      flagged { Optional<StagePlatformEntry> + u16 + u32 + u32 }.
 //!      The inner StagePlatformEntry decodes through sub_141D7FE40 +
 //!      sub_1410AA1B0 and exposes 9 named fields.)
-//!      ← TAIL STARTS HERE
-//!  53+. ~30 trailing fields. sub_141107B30 (field 67), sub_141103530
-//!       (field 70), and the 21 trailing scalars/lookups still need
-//!       IDA verification before they can join the typed prefix.
+//!  53. u32 lookup_k                      (read_u32_lookup_DA30)
+//!  54. u32 lookup_l                      (qword_145F1A890)
+//!  55-58. 4× u32 lookup_m..p             (read_u32_lookup_DA30)
+//!  59-60. 2× u32 lookup_q, lookup_r      (sub_1410FF340)
+//!  61. LocalizableString label_b
+//!  62. u32 lookup_s                      (read_u32_lookup_DA30)
+//!  63. u8 flag_e
+//!  64. u8 flag_f
+//!  65. u32 lookup_t                      (sub_1411006D0 — qword_145F0DA28)
+//!  66. CArray<StageBehaviorEntry> behavior_entry_list
+//!                                        (sub_141107B30 — per element
+//!                                         u32 + PlayerBehaviorOptional)
+//!  67. u32 raw_j
+//!  68. u16 lookup_u                      (sub_141107C70 — qword_145F0E9D8)
+//!  69. u32 lookup_v                      (sub_141103530 — qword_145F0EEF8)
+//!  70. u32 lookup_w                      (read_u32_lookup_DA30)
+//!  71-76. 6× u32 raw_k..p
+//!  77-91. 15× u8 flag_g..u (trailing booleans)
+//!
+//! All 91 wire fields fully decoded. opaque_tail kept for graceful
+//! future-format degradation; always empty on vanilla data.
 //!
 //! Promotion note: the previous Tier 1.5 cut stopped at field 6 because
 //! field 7 was an opaque polymorphic SequencerStageChartDesc. Now that
@@ -77,6 +93,7 @@ use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use crate::tables::faction_node_info::info::FactionAdjacencyMobItem;
+use crate::tables::global_stage_sequencer_info::info::PlayerBehaviorOptional;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
@@ -112,6 +129,52 @@ py_binary_struct! {
     pub struct StageU32StringEntry<'a> {
         pub raw: u32,
         pub label: CString<'a>,
+    }
+}
+
+/// Inner of stage_info field 66 (sub_141107B30).
+/// Per element: u32 + Option<{u8 + 3× u32 lookup}>.
+#[derive(Debug)]
+pub struct StageBehaviorEntry {
+    pub raw: u32,
+    pub behavior: PlayerBehaviorOptional,
+}
+
+impl<'a> BinaryRead<'a> for StageBehaviorEntry {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Self {
+            raw: u32::read_from(data, offset)?,
+            behavior: PlayerBehaviorOptional::read_from(data, offset)?,
+        })
+    }
+}
+
+impl BinaryWrite for StageBehaviorEntry {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.raw.write_to(w)?;
+        self.behavior.write_to(w)?;
+        Ok(())
+    }
+}
+
+impl ToJsonValue for StageBehaviorEntry {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("raw".to_string(), self.raw.to_json_value());
+        m.insert("behavior".to_string(), self.behavior.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl WriteJsonValue for StageBehaviorEntry {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "StageBehaviorEntry: expected object",
+        ))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw")?)?;
+        PlayerBehaviorOptional::write_from_json(w, json_get_field(obj, "behavior")?)?;
+        Ok(())
     }
 }
 
@@ -327,6 +390,45 @@ pub struct StageInfo<'a> {
     pub close_filter_d_d: CArray<u32>,
     pub list_d: CArray<u32>,
     pub platform_entry: OptStageOpt52<'a>,
+    pub lookup_k: u32,
+    pub lookup_l: u32,
+    pub lookup_m: u32,
+    pub lookup_n: u32,
+    pub lookup_o: u32,
+    pub lookup_p: u32,
+    pub lookup_q: u32,
+    pub lookup_r: u32,
+    pub label_b: LocalizableString<'a>,
+    pub lookup_s: u32,
+    pub flag_e: u8,
+    pub flag_f: u8,
+    pub lookup_t: u32,
+    pub behavior_entry_list: CArray<StageBehaviorEntry>,
+    pub raw_j: u32,
+    pub lookup_u: u16,
+    pub lookup_v: u32,
+    pub lookup_w: u32,
+    pub raw_k: u32,
+    pub raw_l: u32,
+    pub raw_m: u32,
+    pub raw_n: u32,
+    pub raw_o: u32,
+    pub raw_p: u32,
+    pub flag_g: u8,
+    pub flag_h: u8,
+    pub flag_i: u8,
+    pub flag_j: u8,
+    pub flag_k: u8,
+    pub flag_l: u8,
+    pub flag_m: u8,
+    pub flag_n: u8,
+    pub flag_o: u8,
+    pub flag_p: u8,
+    pub flag_q: u8,
+    pub flag_r: u8,
+    pub flag_s: u8,
+    pub flag_t: u8,
+    pub flag_u: u8,
     pub tail_blob: Vec<u8>,
 }
 
@@ -392,6 +494,45 @@ impl<'a> StageInfo<'a> {
         let close_filter_d_d = CArray::<u32>::read_from(data, offset)?;
         let list_d = CArray::<u32>::read_from(data, offset)?;
         let platform_entry = OptStageOpt52::read_from(data, offset)?;
+        let lookup_k = u32::read_from(data, offset)?;
+        let lookup_l = u32::read_from(data, offset)?;
+        let lookup_m = u32::read_from(data, offset)?;
+        let lookup_n = u32::read_from(data, offset)?;
+        let lookup_o = u32::read_from(data, offset)?;
+        let lookup_p = u32::read_from(data, offset)?;
+        let lookup_q = u32::read_from(data, offset)?;
+        let lookup_r = u32::read_from(data, offset)?;
+        let label_b = LocalizableString::read_from(data, offset)?;
+        let lookup_s = u32::read_from(data, offset)?;
+        let flag_e = u8::read_from(data, offset)?;
+        let flag_f = u8::read_from(data, offset)?;
+        let lookup_t = u32::read_from(data, offset)?;
+        let behavior_entry_list = CArray::<StageBehaviorEntry>::read_from(data, offset)?;
+        let raw_j = u32::read_from(data, offset)?;
+        let lookup_u = u16::read_from(data, offset)?;
+        let lookup_v = u32::read_from(data, offset)?;
+        let lookup_w = u32::read_from(data, offset)?;
+        let raw_k = u32::read_from(data, offset)?;
+        let raw_l = u32::read_from(data, offset)?;
+        let raw_m = u32::read_from(data, offset)?;
+        let raw_n = u32::read_from(data, offset)?;
+        let raw_o = u32::read_from(data, offset)?;
+        let raw_p = u32::read_from(data, offset)?;
+        let flag_g = u8::read_from(data, offset)?;
+        let flag_h = u8::read_from(data, offset)?;
+        let flag_i = u8::read_from(data, offset)?;
+        let flag_j = u8::read_from(data, offset)?;
+        let flag_k = u8::read_from(data, offset)?;
+        let flag_l = u8::read_from(data, offset)?;
+        let flag_m = u8::read_from(data, offset)?;
+        let flag_n = u8::read_from(data, offset)?;
+        let flag_o = u8::read_from(data, offset)?;
+        let flag_p = u8::read_from(data, offset)?;
+        let flag_q = u8::read_from(data, offset)?;
+        let flag_r = u8::read_from(data, offset)?;
+        let flag_s = u8::read_from(data, offset)?;
+        let flag_t = u8::read_from(data, offset)?;
+        let flag_u = u8::read_from(data, offset)?;
 
         if *offset > entry_end {
             return Err(io::Error::new(
@@ -420,6 +561,12 @@ impl<'a> StageInfo<'a> {
             close_filter_d_a, close_filter_d_b,
             close_filter_d_c, close_filter_d_d,
             list_d, platform_entry,
+            lookup_k, lookup_l, lookup_m, lookup_n, lookup_o, lookup_p,
+            lookup_q, lookup_r, label_b, lookup_s, flag_e, flag_f, lookup_t,
+            behavior_entry_list, raw_j, lookup_u, lookup_v, lookup_w,
+            raw_k, raw_l, raw_m, raw_n, raw_o, raw_p,
+            flag_g, flag_h, flag_i, flag_j, flag_k, flag_l, flag_m, flag_n,
+            flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u,
             tail_blob,
         })
     }
@@ -478,6 +625,45 @@ impl<'a> StageInfo<'a> {
         self.close_filter_d_d.write_to(w)?;
         self.list_d.write_to(w)?;
         self.platform_entry.write_to(w)?;
+        self.lookup_k.write_to(w)?;
+        self.lookup_l.write_to(w)?;
+        self.lookup_m.write_to(w)?;
+        self.lookup_n.write_to(w)?;
+        self.lookup_o.write_to(w)?;
+        self.lookup_p.write_to(w)?;
+        self.lookup_q.write_to(w)?;
+        self.lookup_r.write_to(w)?;
+        self.label_b.write_to(w)?;
+        self.lookup_s.write_to(w)?;
+        self.flag_e.write_to(w)?;
+        self.flag_f.write_to(w)?;
+        self.lookup_t.write_to(w)?;
+        self.behavior_entry_list.write_to(w)?;
+        self.raw_j.write_to(w)?;
+        self.lookup_u.write_to(w)?;
+        self.lookup_v.write_to(w)?;
+        self.lookup_w.write_to(w)?;
+        self.raw_k.write_to(w)?;
+        self.raw_l.write_to(w)?;
+        self.raw_m.write_to(w)?;
+        self.raw_n.write_to(w)?;
+        self.raw_o.write_to(w)?;
+        self.raw_p.write_to(w)?;
+        self.flag_g.write_to(w)?;
+        self.flag_h.write_to(w)?;
+        self.flag_i.write_to(w)?;
+        self.flag_j.write_to(w)?;
+        self.flag_k.write_to(w)?;
+        self.flag_l.write_to(w)?;
+        self.flag_m.write_to(w)?;
+        self.flag_n.write_to(w)?;
+        self.flag_o.write_to(w)?;
+        self.flag_p.write_to(w)?;
+        self.flag_q.write_to(w)?;
+        self.flag_r.write_to(w)?;
+        self.flag_s.write_to(w)?;
+        self.flag_t.write_to(w)?;
+        self.flag_u.write_to(w)?;
         w.write_all(&self.tail_blob)?;
         Ok(())
     }
@@ -537,6 +723,45 @@ impl<'a> StageInfo<'a> {
         m.insert("close_filter_d_d".to_string(), self.close_filter_d_d.to_json_value());
         m.insert("list_d".to_string(), self.list_d.to_json_value());
         m.insert("platform_entry".to_string(), self.platform_entry.to_json_value());
+        m.insert("lookup_k".to_string(), self.lookup_k.to_json_value());
+        m.insert("lookup_l".to_string(), self.lookup_l.to_json_value());
+        m.insert("lookup_m".to_string(), self.lookup_m.to_json_value());
+        m.insert("lookup_n".to_string(), self.lookup_n.to_json_value());
+        m.insert("lookup_o".to_string(), self.lookup_o.to_json_value());
+        m.insert("lookup_p".to_string(), self.lookup_p.to_json_value());
+        m.insert("lookup_q".to_string(), self.lookup_q.to_json_value());
+        m.insert("lookup_r".to_string(), self.lookup_r.to_json_value());
+        m.insert("label_b".to_string(), self.label_b.to_json_value());
+        m.insert("lookup_s".to_string(), self.lookup_s.to_json_value());
+        m.insert("flag_e".to_string(), self.flag_e.to_json_value());
+        m.insert("flag_f".to_string(), self.flag_f.to_json_value());
+        m.insert("lookup_t".to_string(), self.lookup_t.to_json_value());
+        m.insert("behavior_entry_list".to_string(), self.behavior_entry_list.to_json_value());
+        m.insert("raw_j".to_string(), self.raw_j.to_json_value());
+        m.insert("lookup_u".to_string(), self.lookup_u.to_json_value());
+        m.insert("lookup_v".to_string(), self.lookup_v.to_json_value());
+        m.insert("lookup_w".to_string(), self.lookup_w.to_json_value());
+        m.insert("raw_k".to_string(), self.raw_k.to_json_value());
+        m.insert("raw_l".to_string(), self.raw_l.to_json_value());
+        m.insert("raw_m".to_string(), self.raw_m.to_json_value());
+        m.insert("raw_n".to_string(), self.raw_n.to_json_value());
+        m.insert("raw_o".to_string(), self.raw_o.to_json_value());
+        m.insert("raw_p".to_string(), self.raw_p.to_json_value());
+        m.insert("flag_g".to_string(), self.flag_g.to_json_value());
+        m.insert("flag_h".to_string(), self.flag_h.to_json_value());
+        m.insert("flag_i".to_string(), self.flag_i.to_json_value());
+        m.insert("flag_j".to_string(), self.flag_j.to_json_value());
+        m.insert("flag_k".to_string(), self.flag_k.to_json_value());
+        m.insert("flag_l".to_string(), self.flag_l.to_json_value());
+        m.insert("flag_m".to_string(), self.flag_m.to_json_value());
+        m.insert("flag_n".to_string(), self.flag_n.to_json_value());
+        m.insert("flag_o".to_string(), self.flag_o.to_json_value());
+        m.insert("flag_p".to_string(), self.flag_p.to_json_value());
+        m.insert("flag_q".to_string(), self.flag_q.to_json_value());
+        m.insert("flag_r".to_string(), self.flag_r.to_json_value());
+        m.insert("flag_s".to_string(), self.flag_s.to_json_value());
+        m.insert("flag_t".to_string(), self.flag_t.to_json_value());
+        m.insert("flag_u".to_string(), self.flag_u.to_json_value());
         m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
         m
     }
@@ -595,6 +820,45 @@ impl<'a> StageInfo<'a> {
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_d_d")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_d")?)?;
         OptStageOpt52::write_from_json(w, json_get_field(obj, "platform_entry")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_k")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_l")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_m")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_n")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_o")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_p")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_q")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_r")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "label_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_s")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_e")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_f")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_t")?)?;
+        <CArray<StageBehaviorEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "behavior_entry_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_j")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_u")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_v")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_w")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_k")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_l")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_m")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_n")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_o")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_p")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_g")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_h")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_i")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_j")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_k")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_l")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_m")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_n")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_o")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_p")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_q")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_r")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_s")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_t")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u")?)?;
         let b64 = json_get_field(obj, "_tail_blob_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -630,6 +894,21 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "stageinfo roundtrip mismatch");
+    }
+
+    #[test]
+    fn empty_tail_on_vanilla() {
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (k, s, e)) in ranges.iter().enumerate() {
+            let mut c = *s;
+            let item = StageInfo::read_with_size(&data, &mut c, e - s)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            assert!(item.tail_blob.is_empty(),
+                "entry {} key=0x{:x} has {} unconsumed tail bytes — typed reader is missing fields",
+                i, k, item.tail_blob.len());
+        }
     }
 
     #[test]
