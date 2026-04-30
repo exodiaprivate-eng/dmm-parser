@@ -1820,7 +1820,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickSatisfiedStatus,
     ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload),
     ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload),
-    ConditionData_CheckCurrentEquipType_OrTag54(OneU32BodyPayload),
+    ConditionData_CheckCurrentEquipType_OrTag54(TwoU32BodyPayload),
     ConditionData_CheckEquipType(ThreeU32BodyPayload),
     ConditionData_WeaponOut,
     ConditionData_IsSequencerPhaseChange,
@@ -1980,7 +1980,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickAttachmentType,
     ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload<'a>),
     ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload<'a>),
-    ConditionData_CheckExistStealItem(U32U16BodyPayload),
+    ConditionData_CheckExistStealItem(ConditionData_CheckExistStealItemPayload),
     ConditionData_CheckElementalMaterialType,
     ConditionData_IsGimmickSealComplete,
     ConditionData_IsAcquiredItem,
@@ -3478,7 +3478,7 @@ impl<'a> ConditionDataVariant<'a> {
             51 => {}
             52 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipSlotName: missing body object"))?; ConditionData_CheckEquipSlotNamePayload::write_from_json_dict(w, body)?; }
             53 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipSlotName: missing body object"))?; ConditionData_CheckCurrentEquipSlotNamePayload::write_from_json_dict(w, body)?; }
-            54 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipType_OrTag54: missing body object"))?; OneU32BodyPayload::write_from_json_dict(w, body)?; }
+            54 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipType_OrTag54: missing body object"))?; TwoU32BodyPayload::write_from_json_dict(w, body)?; }
             55 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckEquipType: missing body object"))?; ThreeU32BodyPayload::write_from_json_dict(w, body)?; }
             56 => {}
             57 => {}
@@ -3638,7 +3638,7 @@ impl<'a> ConditionDataVariant<'a> {
             211 => {}
             212 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTargetCount: missing body object"))?; ConditionData_CheckGimmickTargetCountPayload::write_from_json_dict(w, body)?; }
             213 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickNonBreakTargetCount: missing body object"))?; ConditionData_CheckGimmickNonBreakTargetCountPayload::write_from_json_dict(w, body)?; }
-            214 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckExistStealItem: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            214 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckExistStealItem: missing body object"))?; ConditionData_CheckExistStealItemPayload::write_from_json_dict(w, body)?; }
             215 => {}
             216 => {}
             217 => {}
@@ -3893,7 +3893,7 @@ impl<'a> ConditionDataVariant<'a> {
             51 => Self::ConditionData_CheckGimmickSatisfiedStatus,
             52 => Self::ConditionData_CheckEquipSlotName(ConditionData_CheckEquipSlotNamePayload::read_from(data, offset)?),
             53 => Self::ConditionData_CheckCurrentEquipSlotName(ConditionData_CheckCurrentEquipSlotNamePayload::read_from(data, offset)?),
-            54 => Self::ConditionData_CheckCurrentEquipType_OrTag54(OneU32BodyPayload::read_from(data, offset)?),
+            54 => Self::ConditionData_CheckCurrentEquipType_OrTag54(TwoU32BodyPayload::read_from(data, offset)?),
             55 => Self::ConditionData_CheckEquipType(ThreeU32BodyPayload::read_from(data, offset)?),
             56 => Self::ConditionData_WeaponOut,
             57 => Self::ConditionData_IsSequencerPhaseChange,
@@ -4053,7 +4053,7 @@ impl<'a> ConditionDataVariant<'a> {
             211 => Self::ConditionData_CheckGimmickAttachmentType,
             212 => Self::ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload::read_from(data, offset)?),
             213 => Self::ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload::read_from(data, offset)?),
-            214 => Self::ConditionData_CheckExistStealItem(U32U16BodyPayload::read_from(data, offset)?),
+            214 => Self::ConditionData_CheckExistStealItem(ConditionData_CheckExistStealItemPayload::read_from(data, offset)?),
             215 => Self::ConditionData_CheckElementalMaterialType,
             216 => Self::ConditionData_IsGimmickSealComplete,
             217 => Self::ConditionData_IsAcquiredItem,
@@ -4819,6 +4819,17 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Two-u32 payload (8 bytes total) — used by variants whose body
+    /// reader is two consecutive u32 reads (e.g. tag 54
+    /// CheckCurrentEquipType: `sub_100FBEB78` on Mac reads u32→+24,
+    /// u32→+28). Auto-emits JSON via the macro.
+    pub struct TwoU32BodyPayload {
+        pub a: u32,
+        pub b: u32,
+    }
+}
+
+py_binary_struct! {
     /// Three-u32 payload (12 bytes total) — used by variants like
     /// CheckEquipType that read three consecutive u32 fields.
     /// Auto-emits JSON via the macro.
@@ -4834,6 +4845,16 @@ py_binary_struct! {
     pub struct U32U16BodyPayload {
         pub a: u32,
         pub b: u16,
+    }
+}
+
+py_binary_struct! {
+    /// Tag 214 — ConditionData_CheckExistStealItem body.
+    /// Mac vfn[17] = `sub_100FF106C` → `sub_10101FB50` reads a u32
+    /// count, then count × u16 (each is a `pa::ItemGroupKey`). Wire
+    /// shape matches the existing `CArray<u16>` reader used elsewhere.
+    pub struct ConditionData_CheckExistStealItemPayload {
+        pub item_group_keys: CArray<u16>,
     }
 }
 
