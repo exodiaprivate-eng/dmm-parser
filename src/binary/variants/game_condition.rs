@@ -220,10 +220,24 @@ impl<'a> GameConditionNode<'a> {
             6 => Ok(Self::ConditionGimmickData(ConditionGimmickData::read_from(data, offset)?)),
             7 => Ok(Self::StageChart(ConditionDataStageChart::read_from(data, offset)?)),
             8 => Ok(Self::GlobalEffectConditionData(GlobalEffectConditionData::read_from(data, offset)?)),
-            other => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("unknown GameCondition case_tag: {}", other),
-            )),
+            other => {
+                // Capture surrounding wire bytes to help debug whether
+                // this is a real unhandled tag or a misalignment surfacing
+                // garbage. case_tag was at offset (*offset - 1).
+                let tag_off = offset.saturating_sub(1);
+                let ctx_start = tag_off.saturating_sub(8);
+                let ctx_end = (tag_off + 16).min(data.len());
+                let ctx = &data[ctx_start..ctx_end];
+                let ctx_hex: String = ctx.iter().map(|b| format!("{:02x}", b)).collect();
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "unknown GameCondition case_tag: {} at offset {} \
+                         (8 bytes before+16 after = {})",
+                        other, tag_off, ctx_hex,
+                    ),
+                ))
+            }
         }
     }
 
