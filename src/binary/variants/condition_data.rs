@@ -1939,7 +1939,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckRemoteCatched,
     ConditionData_CheckCatched,
     ConditionData_CheckStageChartDialogEnd(ConditionData_CheckStageChartDialogEndPayload),
-    ConditionData_CheckRider,
+    ConditionData_CheckRider(OneByteBodyPayload),
     ConditionData_CheckGimmickTarget(ConditionData_CheckGimmickTargetPayload),
     ConditionData_GetGimmickVariable(ConditionData_GetGimmickVariablePayload),
     ConditionData_GetRandomPercentBySpawnPositionSeed(ConditionData_GetRandomPercentBySpawnPositionSeedPayload),
@@ -2349,7 +2349,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRemoteCatched => 171,
             Self::ConditionData_CheckCatched => 172,
             Self::ConditionData_CheckStageChartDialogEnd(_) => 173,
-            Self::ConditionData_CheckRider => 174,
+            Self::ConditionData_CheckRider(_) => 174,
             Self::ConditionData_CheckGimmickTarget(_) => 175,
             Self::ConditionData_GetGimmickVariable(_) => 176,
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(_) => 177,
@@ -2762,7 +2762,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRemoteCatched => "ConditionData_CheckRemoteCatched",
             Self::ConditionData_CheckCatched => "ConditionData_CheckCatched",
             Self::ConditionData_CheckStageChartDialogEnd(_) => "ConditionData_CheckStageChartDialogEnd",
-            Self::ConditionData_CheckRider => "ConditionData_CheckRider",
+            Self::ConditionData_CheckRider(_) => "ConditionData_CheckRider",
             Self::ConditionData_CheckGimmickTarget(_) => "ConditionData_CheckGimmickTarget",
             Self::ConditionData_GetGimmickVariable(_) => "ConditionData_GetGimmickVariable",
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(_) => "ConditionData_GetRandomPercentBySpawnPositionSeed",
@@ -3176,7 +3176,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRemoteCatched => {}
             Self::ConditionData_CheckCatched => {}
             Self::ConditionData_CheckStageChartDialogEnd(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_CheckRider => {}
+            Self::ConditionData_CheckRider(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGimmickTarget(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_GetGimmickVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3597,7 +3597,7 @@ impl<'a> ConditionDataVariant<'a> {
             171 => {}
             172 => {}
             173 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckStageChartDialogEnd: missing body object"))?; ConditionData_CheckStageChartDialogEndPayload::write_from_json_dict(w, body)?; }
-            174 => {}
+            174 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckRider: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             175 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTarget: missing body object"))?; ConditionData_CheckGimmickTargetPayload::write_from_json_dict(w, body)?; }
             176 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetGimmickVariable: missing body object"))?; ConditionData_GetGimmickVariablePayload::write_from_json_dict(w, body)?; }
             177 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetRandomPercentBySpawnPositionSeed: missing body object"))?; ConditionData_GetRandomPercentBySpawnPositionSeedPayload::write_from_json_dict(w, body)?; }
@@ -4012,7 +4012,7 @@ impl<'a> ConditionDataVariant<'a> {
             171 => Self::ConditionData_CheckRemoteCatched,
             172 => Self::ConditionData_CheckCatched,
             173 => Self::ConditionData_CheckStageChartDialogEnd(ConditionData_CheckStageChartDialogEndPayload::read_from(data, offset)?),
-            174 => Self::ConditionData_CheckRider,
+            174 => Self::ConditionData_CheckRider(OneByteBodyPayload::read_from(data, offset)?),
             175 => Self::ConditionData_CheckGimmickTarget(ConditionData_CheckGimmickTargetPayload::read_from(data, offset)?),
             176 => Self::ConditionData_GetGimmickVariable(ConditionData_GetGimmickVariablePayload::read_from(data, offset)?),
             177 => Self::ConditionData_GetRandomPercentBySpawnPositionSeed(ConditionData_GetRandomPercentBySpawnPositionSeedPayload::read_from(data, offset)?),
@@ -4423,7 +4423,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRemoteCatched => Ok(()),
             Self::ConditionData_CheckCatched => Ok(()),
             Self::ConditionData_CheckStageChartDialogEnd(p) => p.write_to(w),
-            Self::ConditionData_CheckRider => Ok(()),
+            Self::ConditionData_CheckRider(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickTarget(p) => p.write_to(w),
             Self::ConditionData_GetGimmickVariable(p) => p.write_to(w),
             Self::ConditionData_GetRandomPercentBySpawnPositionSeed(p) => p.write_to(w),
@@ -4770,7 +4770,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // GetLevel has the same thunk and reads option_block normally).
         // These adds may be masking real bugs elsewhere — see
         // docs/STATUS.md "Stream-mode GameCondition" section.
-        26 | 99 | 135 | 174 | 360 | 370
+        26 | 99 | 135 | 360 | 370
     )
 }
 
