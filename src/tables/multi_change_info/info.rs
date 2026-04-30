@@ -71,14 +71,16 @@ py_binary_struct! {
     }
 }
 
+// FixedMaterialData per canonical Mac names (catalog section
+// FixedMaterialData, 6 fields). 30 wire bytes.
 py_binary_struct! {
     pub struct FixedMaterialData {
-        pub lookup_a: u32,
-        pub lookup_b: u32,
-        pub lookup_c: u32,
-        pub raw_a: u64,
-        pub raw_b: u64,
-        pub raw_c: u16,
+        pub item_info: u32,
+        pub gimmick_info: u32,
+        pub character_info: u32,
+        pub count: u64,
+        pub coupon_count: u64,
+        pub enchant_level: u16,
     }
 }
 
