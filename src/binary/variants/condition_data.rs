@@ -1795,7 +1795,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckHasImportantItem(OneByteBodyPayload),
     ConditionData_IsFocusActor,
     ConditionData_IsLootable,
-    ConditionData_CheckMoneyForBuyingStock(OneByteBodyPayload),
+    ConditionData_CheckMoneyForBuyingStock,
     ConditionData_CheckAction(ConditionData_CheckActionPayload),
     ConditionData_CheckActionAttribute(ConditionData_CheckActionAttributePayload),
     ConditionData_CheckActionSkillKey(ConditionData_CheckActionSkillKeyPayload),
@@ -2205,7 +2205,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckHasImportantItem(_) => 26,
             Self::ConditionData_IsFocusActor => 27,
             Self::ConditionData_IsLootable => 28,
-            Self::ConditionData_CheckMoneyForBuyingStock(_) => 29,
+            Self::ConditionData_CheckMoneyForBuyingStock => 29,
             Self::ConditionData_CheckAction(_) => 30,
             Self::ConditionData_CheckActionAttribute(_) => 31,
             Self::ConditionData_CheckActionSkillKey(_) => 32,
@@ -2618,7 +2618,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckHasImportantItem(_) => "ConditionData_CheckHasImportantItem",
             Self::ConditionData_IsFocusActor => "ConditionData_IsFocusActor",
             Self::ConditionData_IsLootable => "ConditionData_IsLootable",
-            Self::ConditionData_CheckMoneyForBuyingStock(_) => "ConditionData_CheckMoneyForBuyingStock",
+            Self::ConditionData_CheckMoneyForBuyingStock => "ConditionData_CheckMoneyForBuyingStock",
             Self::ConditionData_CheckAction(_) => "ConditionData_CheckAction",
             Self::ConditionData_CheckActionAttribute(_) => "ConditionData_CheckActionAttribute",
             Self::ConditionData_CheckActionSkillKey(_) => "ConditionData_CheckActionSkillKey",
@@ -3032,7 +3032,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckHasImportantItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsFocusActor => {}
             Self::ConditionData_IsLootable => {}
-            Self::ConditionData_CheckMoneyForBuyingStock(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckMoneyForBuyingStock => {}
             Self::ConditionData_CheckAction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckActionAttribute(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckActionSkillKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3453,7 +3453,7 @@ impl<'a> ConditionDataVariant<'a> {
             26 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHasImportantItem: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             27 => {}
             28 => {}
-            29 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMoneyForBuyingStock: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            29 => {}
             30 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAction: missing body object"))?; ConditionData_CheckActionPayload::write_from_json_dict(w, body)?; }
             31 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActionAttribute: missing body object"))?; ConditionData_CheckActionAttributePayload::write_from_json_dict(w, body)?; }
             32 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActionSkillKey: missing body object"))?; ConditionData_CheckActionSkillKeyPayload::write_from_json_dict(w, body)?; }
@@ -3868,7 +3868,7 @@ impl<'a> ConditionDataVariant<'a> {
             26 => Self::ConditionData_CheckHasImportantItem(OneByteBodyPayload::read_from(data, offset)?),
             27 => Self::ConditionData_IsFocusActor,
             28 => Self::ConditionData_IsLootable,
-            29 => Self::ConditionData_CheckMoneyForBuyingStock(OneByteBodyPayload::read_from(data, offset)?),
+            29 => Self::ConditionData_CheckMoneyForBuyingStock,
             30 => Self::ConditionData_CheckAction(ConditionData_CheckActionPayload::read_from(data, offset)?),
             31 => Self::ConditionData_CheckActionAttribute(ConditionData_CheckActionAttributePayload::read_from(data, offset)?),
             32 => Self::ConditionData_CheckActionSkillKey(ConditionData_CheckActionSkillKeyPayload::read_from(data, offset)?),
@@ -4279,7 +4279,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckHasImportantItem(p) => p.write_to(w),
             Self::ConditionData_IsFocusActor => Ok(()),
             Self::ConditionData_IsLootable => Ok(()),
-            Self::ConditionData_CheckMoneyForBuyingStock(p) => p.write_to(w),
+            Self::ConditionData_CheckMoneyForBuyingStock => Ok(()),
             Self::ConditionData_CheckAction(p) => p.write_to(w),
             Self::ConditionData_CheckActionAttribute(p) => p.write_to(w),
             Self::ConditionData_CheckActionSkillKey(p) => p.write_to(w),
