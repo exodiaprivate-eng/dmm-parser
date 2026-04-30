@@ -19,9 +19,12 @@ py_binary_struct! {
         // block_a [u8;24] split via empirical per-slot probe across all
         // 25988 entries: slots 0-3 (bytes 0-15) are always non-NaN f32
         // (zero in vanilla); slots 4-5 (bytes 16-23) are always NaN bit
-        // patterns and must stay opaque to preserve round-trip.
+        // patterns. Tail exposed as 2× u32 raw bit fields so JSON
+        // consumers can edit each lane while preserving exact bit
+        // pattern (u32 doesn't normalize through serde_json like f32).
         pub block_a_floats: [f32; 4],
-        pub block_a_nan_tail: [u8; 8],
+        pub block_a_nan_tail_lo: u32,
+        pub block_a_nan_tail_hi: u32,
         pub field_b: u32,
         pub block_b: [f32; 4],
         pub field_c: u32,
