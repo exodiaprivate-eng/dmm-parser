@@ -15,7 +15,7 @@ behind local `main` as a result.
 
 | Instance | Cwd | Branch | Active | Status |
 |---|---|---|---|---|
-| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | ConditionData per-tag Win-IDA recipe verification → `interaction_info` Raw down 115 → **28** (7.7%). Tags fixed this session: 19, 27, 99 (skip-list removal), 116, 174, 358, 360, 393. Top remaining: tag 135 (18, downstream not recipe), tag 246/249 (4 each — recipes verified, downstream issue), tag 280/90/145/214 (2 each — recipes correct), singletons. ~28 of remaining 28 are downstream-tree issues, not recipe bugs. |
+| **A** (this) | `dmm-parser/` | `main` | Now (loop active, no-push mode) | ConditionData per-tag Win-IDA recipe verification → `interaction_info` Raw down 115 → **27** (7.4%, 92.6% decoded). Tags fixed this session: 7, 19, 27, 99, 116, 174, 358, 360, 393. Top remaining: tag 135 (18, downstream not recipe — IDA-suggested fix regresses), tag 246/249 (4 each verified correct), 90/145/214 singletons + tag 54 anti-disasm. Remaining 27 are likely all downstream-tree issues, NOT recipe bugs. Tag 26 skip-list status is empirically correct despite IDA hint. |
 | **B** | `dmm-parser-b/` | `lane-b` | (not actively working in this session) | Last known: 1147 lines uncommitted WIP (sequencer_stage_chart_desc, special_mode_info, etc.). Should rebase onto local `main` when resuming. |
 | **C** | `dmm-parser-c/` | `lane-c` | (not actively working in this session) | Last known: lane-c flushed; major Tier-1 promotions landed (CharacterInfo 174 fields, MiniGameDataInfo, StoreInfo, DropSetInfo). |
 
