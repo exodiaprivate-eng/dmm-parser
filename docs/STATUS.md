@@ -216,6 +216,7 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 | **SequencerStageSpawnData** | ✅ shipped (inside SequencerStageChartDesc field 20) | (used inside SequencerStageChartDesc) |
 | **GameEventHandler** | ✅ shipped — per-sub_tag typed bodies (sub_tag 2 = 12-byte SetUIPlayGuideParameter, sub_tag 3 = 6-byte SetUIFullscreenGuideParameter, sub_tags 0/1/4 in-place or Raw fallback). | GameEventHandlerInfo (Tier 1) |
 | **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
+| **TriggerGamePlayEventHandlerData** (TGPEHD) | 🔵 researched (8/8 cases reverse-engineered, see "Reverse-engineering notes" section above), implementation pending | GimmickInfo `post_blob` (sub_1411125E0) — would unlock GimmickInfo internal-Tier-1.5 → Tier-1 |
 
 ### Tables by tier
 - **Tier 1** (typed, all fields editable through JSON): the bulk of the
