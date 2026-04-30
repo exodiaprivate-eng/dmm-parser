@@ -444,7 +444,7 @@ Sample non-trivial entries:
 - `pos=(0,0,0.035) scale=(2.5,2.5,2.5)` — vertical offset, uniform upscale
 - `scale=(0.05,0.05,0.01)` — tiny uniform scale
 
-### Region 5 — Flags and IDs (prefix[236..284])
+### Region 5 — Flags and IDs (prefix[236..299])
 
 | prefix offset | size | type | description |
 |---------------|------|------|-------------|
@@ -453,20 +453,21 @@ Sample non-trivial entries:
 | 244..248      | 4    | u8[4]| `{0x00, 0x01, 0x00, 0x00}` for most entries (byte 245 = 1) |
 | 248..252      | 4    | u8[4]| `{0x01, 0x00, 0x00, X}` where X ∈ {0,1,2,3,5} — byte 251 is an enum |
 | 252..256      | 4    | u32  | constant `0x01000005` (bytes: `05 00 00 01`) |
-| 256..260      | 4    | u32  | low 16 bits always 0x0000; high 16 bits = unique per-entry ID (1521 unique) |
-| 260..264      | 4    | u32  | fully variable — 1741 unique values; both halves non-zero |
-| 264..280      | 16   | —    | mostly constant `c5 ea 73 e1` repeated × 4 (LE u32 = `0xe173eac5`); 941/1952 entries are exactly this; others have same pattern in bytes [2:4] of each u32 with variable low bytes |
-| 280..284      | 4    | u32  | constant `0x0000eac5` |
-| 284..299      | 15   | zero | trailing zeros |
-| 299..300      | 1    | u8   | `byte_e` — always 0 in vanilla; IDA reads as a named field (`EffectDataElement.byte_e`), making FP=300 not 299 |
+| 256..258      | 2    | u8[2] | `0x00 0x00` — EffectDataCoreBlock byte_252/byte_253 (last two bytes of CoreBlock, always zero) |
+| 258..282      | 24   | u32[6]| **`lookups_c[0..6]`** (Rust: `EffectDataElement.lookups_c`; IDA: `read_u32_lookup_DA30`): 6 × u32 effect hash. Null sentinel = `0xeac5e173` (bytes `73 e1 c5 ea`). See table below. |
+| 282..298      | 16   | u32[4]| **`fields_d[0..4]`** (Rust: `EffectDataElement.fields_d`): all zero in vanilla |
+| 298..299      | 1    | u8    | **`byte_e`** — always 0 in vanilla; IDA reads as named field (`EffectDataElement.byte_e`), making FP=300 not 299 |
 
-**Hash region note:** The 28-byte block prefix[256..284] as 14 × u16 shows
-a structured alternating pattern: u16s at positions [3,5,7,9,11] (from start
-of block) are always `0xe173`; the remaining positions hold variable or
-constant `0xeac5` values. The two fully-variable fields are effectively:
-- `u16` at prefix[258:260] — unique per-entry identifier A (1521 unique)
-- `u16` at prefix[260:262] — unique per-entry identifier B (in combination
-  with the following constant `0xe173` half)
+**lookups_c detail (prefix[258..282], 6 × u32, null sentinel `0xeac5e173`):**
+
+| slot  | prefix offset | unique values | null %  | notes |
+|-------|---------------|---------------|---------|-------|
+| lc[0] | 258..262      | ~250 groups   | 0%      | **effect group hash** — groups L/R mirror pairs, same-character body-part variants, and same-weapon-type variants; 1521 unique low-u16 / 1741 unique high-u16 across 2057 entries |
+| lc[1] | 262..266      | 118 distinct  | ~50%    | secondary hash; role unknown |
+| lc[2] | 266..270      | 2 distinct    | ~99%    | nearly always null |
+| lc[3] | 270..274      | 3 distinct    | ~99%    | nearly always null |
+| lc[4] | 274..278      | 22 distinct   | ~96%    | null except ~4%; non-null correlates with sub-element effects |
+| lc[5] | 278..282      | 1 (null only) | 100%    | always null |
 
 ---
 
@@ -589,8 +590,13 @@ baseline(324) + 3×364(inner_map). Standard layout; no special handling required
    0.3→0.5→1.0 (_01/_02/_03). IDA types field as u32; actual wire values are clean f32.
    prefix[40:52] confirmed to mirror NamedItemStruct struct[24:36] (0.05f triplet).
 
-2. **Identify prefix[256:264] IDs** — two per-entry u16 identifiers at
-   prefix[258:262]; likely reference external tables (texture IDs, material hashes?).
+2. ~~**Identify prefix[256:264] IDs**~~ **Resolved**: prefix[256:258] = CoreBlock byte_252/byte_253
+   (always zero); prefix[258:282] = `lookups_c[0..6]` — 6 × u32 effect hashes.
+   lc[0] is an **effect group hash** grouping visual variants (L/R mirrors, body parts,
+   weapon-type variants); ~250 groups across 2057 entries. lc[1..5] are secondary hashes
+   with decreasing cardinality; lc[5] is always null. Null sentinel = `0xeac5e173`. Earlier
+   "unique per-entry ID" interpretation was an artefact of reading lc[0] as two u16s in
+   isolation.
 
 3. **inner_map slot directory hashes** — the slot_k hashes in InnerMapElement[0] are
    external asset IDs: confirmed NOT blob keys within effectinfo.pabgb (0 hits out of
