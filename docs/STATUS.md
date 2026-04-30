@@ -66,11 +66,14 @@ This file is for collaborators picking up round-trip work. It's the
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 - `EquipSlotInfo.header_blob` + `.footer` — opaque sub_1410830B0 prefix
-- `MiniGameDataInfo.spawn_data_list_blob` — sub_14110E010 nested polymorphic
-  with anti-disassembly territory
 - `QuestInfo.quest_dialog_filter_data_list_blob` — FilterCondition variant family
 - `GimmickInfo.post_blob` — within Decoded; blocked by sub_1411125E0
   (CArray<COptional<sub_141D7FF30 → sub_141D80A90 dispatcher>>)
+
+(MiniGameDataInfo previously listed here was promoted via `38ff7c3` —
+spawn_data_list is now a `Decoded|Raw` enum (`SpawnDataList`) with
+`CArray<CArray<SequencerStageSpawnData>>` Decoded shape, same T1
+pattern as ConditionInfo's GameCondition wrapper.)
 
 ### Recently cracked (was previously labeled DEFERRED ReflectObject)
 - `DropSetInfo._list` — sub_141600210 turned out fixed-shape with a
