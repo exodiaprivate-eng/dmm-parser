@@ -2136,7 +2136,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsFarmAnimal,
     ConditionData_CheckCanTimeWrap,
     ConditionData_IsInGlobalGameEventArea(ConditionData_IsInGlobalGameEventAreaPayload),
-    ConditionData_CheckOwnershipState,
+    ConditionData_CheckOwnershipState(OneByteBodyPayload),
     ConditionData_IsDokcingParentHiredMercenary,
     ConditionData_CheckCurrentGlobalGameEvent(ConditionData_CheckCurrentGlobalGameEventPayload),
     ConditionData_CheckGamePlayVariable(ConditionData_CheckGamePlayVariablePayload),
@@ -2546,7 +2546,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsFarmAnimal => 367,
             Self::ConditionData_CheckCanTimeWrap => 368,
             Self::ConditionData_IsInGlobalGameEventArea(_) => 369,
-            Self::ConditionData_CheckOwnershipState => 370,
+            Self::ConditionData_CheckOwnershipState(_) => 370,
             Self::ConditionData_IsDokcingParentHiredMercenary => 371,
             Self::ConditionData_CheckCurrentGlobalGameEvent(_) => 372,
             Self::ConditionData_CheckGamePlayVariable(_) => 373,
@@ -2959,7 +2959,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsFarmAnimal => "ConditionData_IsFarmAnimal",
             Self::ConditionData_CheckCanTimeWrap => "ConditionData_CheckCanTimeWrap",
             Self::ConditionData_IsInGlobalGameEventArea(_) => "ConditionData_IsInGlobalGameEventArea",
-            Self::ConditionData_CheckOwnershipState => "ConditionData_CheckOwnershipState",
+            Self::ConditionData_CheckOwnershipState(_) => "ConditionData_CheckOwnershipState",
             Self::ConditionData_IsDokcingParentHiredMercenary => "ConditionData_IsDokcingParentHiredMercenary",
             Self::ConditionData_CheckCurrentGlobalGameEvent(_) => "ConditionData_CheckCurrentGlobalGameEvent",
             Self::ConditionData_CheckGamePlayVariable(_) => "ConditionData_CheckGamePlayVariable",
@@ -3373,7 +3373,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsFarmAnimal => {}
             Self::ConditionData_CheckCanTimeWrap => {}
             Self::ConditionData_IsInGlobalGameEventArea(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_CheckOwnershipState => {}
+            Self::ConditionData_CheckOwnershipState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsDokcingParentHiredMercenary => {}
             Self::ConditionData_CheckCurrentGlobalGameEvent(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGamePlayVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3794,7 +3794,7 @@ impl<'a> ConditionDataVariant<'a> {
             367 => {}
             368 => {}
             369 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInGlobalGameEventArea: missing body object"))?; ConditionData_IsInGlobalGameEventAreaPayload::write_from_json_dict(w, body)?; }
-            370 => {}
+            370 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckOwnershipState: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             371 => {}
             372 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentGlobalGameEvent: missing body object"))?; ConditionData_CheckCurrentGlobalGameEventPayload::write_from_json_dict(w, body)?; }
             373 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGamePlayVariable: missing body object"))?; ConditionData_CheckGamePlayVariablePayload::write_from_json_dict(w, body)?; }
@@ -4209,7 +4209,7 @@ impl<'a> ConditionDataVariant<'a> {
             367 => Self::ConditionData_IsFarmAnimal,
             368 => Self::ConditionData_CheckCanTimeWrap,
             369 => Self::ConditionData_IsInGlobalGameEventArea(ConditionData_IsInGlobalGameEventAreaPayload::read_from(data, offset)?),
-            370 => Self::ConditionData_CheckOwnershipState,
+            370 => Self::ConditionData_CheckOwnershipState(OneByteBodyPayload::read_from(data, offset)?),
             371 => Self::ConditionData_IsDokcingParentHiredMercenary,
             372 => Self::ConditionData_CheckCurrentGlobalGameEvent(ConditionData_CheckCurrentGlobalGameEventPayload::read_from(data, offset)?),
             373 => Self::ConditionData_CheckGamePlayVariable(ConditionData_CheckGamePlayVariablePayload::read_from(data, offset)?),
@@ -4620,7 +4620,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsFarmAnimal => Ok(()),
             Self::ConditionData_CheckCanTimeWrap => Ok(()),
             Self::ConditionData_IsInGlobalGameEventArea(p) => p.write_to(w),
-            Self::ConditionData_CheckOwnershipState => Ok(()),
+            Self::ConditionData_CheckOwnershipState(p) => p.write_to(w),
             Self::ConditionData_IsDokcingParentHiredMercenary => Ok(()),
             Self::ConditionData_CheckCurrentGlobalGameEvent(p) => p.write_to(w),
             Self::ConditionData_CheckGamePlayVariable(p) => p.write_to(w),
@@ -4782,7 +4782,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // GetLevel has the same thunk and reads option_block normally).
         // These adds may be masking real bugs elsewhere — see
         // docs/STATUS.md "Stream-mode GameCondition" section.
-        26 | 370
+        26
     )
 }
 
