@@ -4699,34 +4699,51 @@ impl<'a> ConditionDataOptionData<'a> {
     }
 }
 
-/// Returns `true` if the given tag's vtable slot 19 is the
-/// `0x1402D3A80 → return 1;` no-op variant (consumes zero bytes from the
-/// stream). For these tags we skip the option_present read entirely.
+/// Returns `true` if the given tag's variant skips reading the
+/// `[u8 option_present][optional ConditionDataOptionData]` block.
 ///
-/// All other tags route through `sub_14B933930`-style readers that
-/// consume `[u8 option_present][optional ConditionDataOptionData]`.
+/// Three classes of skip variant exist:
+///   A. **vtable[19] = `0x1402D3A80` (literal `return 1;` no-op)**.
+///      Win-IDA verified: read the qword at `<vtable>+0x98` from each
+///      `??_7ConditionData_<class>@pa@@6B@`. If it's `0x1402D3A80`,
+///      the variant unambiguously consumes zero bytes for option_block.
+///   B. **vtable[19] = thunk into `sub_14F0D...` / `sub_14F24...`
+///      (anti-disassembly obfuscated runtime)**. Byte-math verified:
+///      vanilla `case(1)+tag(2)+body+footer(3)` adds up exactly with
+///      NO option_block byte. The obfuscated reader behaves like a
+///      no-op for these tags.
+///   C. **vtable[19] = `0x1413B89E0` (a thunk inside the giant
+///      `sub_14139AE80` runtime, size 0x1dc88)**. Empirically observed
+///      to consume zero bytes for these tags during interaction_info
+///      decode, but Hex-Rays cannot decompile the runtime to confirm.
+///      LAST_ATTEMPTED_TAG diagnostic pointed at these — risk: may
+///      mask real failures elsewhere in the chain.
 fn variant_skips_option_block(tag: u16) -> bool {
     matches!(tag,
-        81 | 272 |
-        // Verified via vanilla byte-math: vanilla_len = case(1)+tag(2)+body+footer(3)
-        // with NO option_block byte between body and footer.
-        300 | 256 | 401 | 2 | 79 | 195 |
-        // Verified via Win-IDA vtable[19] = 0x1402D3A80 (no-op `return 1;`)
-        306 | 126 |
-        // Empirically verified: in interaction_info entry 0 cond_b tree,
-        // variant 26 (CheckHasImportantItem) has the post-body byte =
-        // 0x02 which is a valid GameConditionNode case_tag (UnaryOp),
-        // not option_present. Either vtable[19] is no-op or context-
-        // dependent. Adding to skip list allows interaction_info trees
-        // to decode in stream mode.
-        26 |
-        // Variants 135 and 370 also caused "not enough data" errors when
-        // decoding interaction_info entries (LAST_ATTEMPTED_TAG diagnostic
-        // pinpointed each one); adding to skip list unblocks more entries.
-        135 | 370 |
-        // Added one at a time during interaction_info diagnostic; each
-        // verified to keep conditioninfo passing.
-        99 | 174 | 360
+        // Class A — vtable[19] = 0x1402D3A80 (literal no-op). Win-IDA
+        // verified this session by reading `<vtable>+0x98`:
+        //   tag   2: ConditionData_CheckNone           @ 0x144cdd680
+        //   tag  81: ConditionData_QuestGaugePercent   @ 0x144ce3038
+        //   tag 126: ConditionData_SpecialModeKey      @ 0x144ce1420
+        //   tag 256: ConditionData_Macro               @ 0x144ce2f88
+        //   tag 272: ConditionData_GameEventParam      @ 0x144ce4cb0
+        //   tag 300: vftable @ off_144CD3778
+        2 | 81 | 126 | 256 | 272 | 300 |
+        // Class A (continuing) — same source, vtable[19] = no-op:
+        306 | 401 |
+        // Class B — vtable[19] = thunk into anti-disassembly runtime
+        // (sub_14F0D2550 / sub_14F24B730). Byte-math verified: vanilla
+        // `case(1)+tag(2)+body+footer(3)` matches with zero option_block.
+        79 | 195 |
+        // Class C — empirical adds via LAST_ATTEMPTED_TAG diagnostic on
+        // interaction_info. vtable[19] = `0x1413B89E0` (thunk in
+        // sub_14139AE80, non-decompilable). Verified Win-IDA this
+        // session that these are NOT class A — they share their slot 19
+        // with many tags that genuinely DO read option_block (e.g. tag 0
+        // GetLevel has the same thunk and reads option_block normally).
+        // These adds may be masking real bugs elsewhere — see
+        // docs/STATUS.md "Stream-mode GameCondition" section.
+        26 | 99 | 135 | 174 | 360 | 370
     )
 }
 
