@@ -14,10 +14,23 @@
 //!   7. SequencerStageChartDescPartial sequencer_desc (sub_141D8C6D0,
 //!      INLINE single-instance — distinct from global_stage_sequencer_info
 //!      which has a CArray of these)
+//!   8. u32 spawn_faction_spawn_data_info (mem +352, qword_145F0EF08)
+//!   9. u32 spawn_faction_node_info       (sub_141101D50, qword_145F0EEE8)
+//!  10. CArray<u32> disable_faction_spawn_party_name_hash_list
+//!                                        (sub_141101AB0, mem +360)
+//!  11. u64 raw_a                         (mem +376)
+//!  12. u64 raw_b                         (mem +384)
+//!  13. u64 raw_c                         (mem +392)
+//!  14. CArray<u32> list_a                (sub_1410FF890, qword_145F0DA08
+//!                                         hash, mem +400)
+//!  15. u8 flag_a                         (mem +416)
+//!  16. u8 flag_b                         (mem +417)
+//!  17. u32 lookup_c                      (sub_141102CB0, qword_145F0EF20)
+//!  18. u32 lookup_d                      (sub_141102D20, qword_145F0EF38)
+//!  19. u32 lookup_e                      (sub_141102D90)
 //!      ← TAIL STARTS HERE
-//!   8+. ~70 trailing fields including u32 lookups, CArrays, u8 flags,
-//!       LocalizableString, CString-hash, etc. All fields are decodable
-//!       from sub_1410FA990 — just mechanical work.
+//!  20+. ~60 trailing fields. All decodable from sub_1410FA990 lines
+//!       150-501 — just mechanical work to add.
 //!
 //! Promotion note: the previous Tier 1.5 cut stopped at field 6 because
 //! field 7 was an opaque polymorphic SequencerStageChartDesc. Now that
@@ -39,6 +52,18 @@ pub struct StageInfo<'a> {
     pub stage_desc: LocalizableString<'a>,
     pub complete_log: LocalizableString<'a>,
     pub sequencer_desc: SequencerStageChartDescPartial<'a>,
+    pub spawn_faction_spawn_data_info: u32,
+    pub spawn_faction_node_info: u32,
+    pub disable_faction_spawn_party_name_hash_list: CArray<u32>,
+    pub raw_a: u64,
+    pub raw_b: u64,
+    pub raw_c: u64,
+    pub list_a: CArray<u32>,
+    pub flag_a: u8,
+    pub flag_b: u8,
+    pub lookup_c: u32,
+    pub lookup_d: u32,
+    pub lookup_e: u32,
     pub tail_blob: Vec<u8>,
 }
 
@@ -58,6 +83,18 @@ impl<'a> StageInfo<'a> {
         let stage_desc = LocalizableString::read_from(data, offset)?;
         let complete_log = LocalizableString::read_from(data, offset)?;
         let sequencer_desc = SequencerStageChartDescPartial::read_from(data, offset)?;
+        let spawn_faction_spawn_data_info = u32::read_from(data, offset)?;
+        let spawn_faction_node_info = u32::read_from(data, offset)?;
+        let disable_faction_spawn_party_name_hash_list = CArray::<u32>::read_from(data, offset)?;
+        let raw_a = u64::read_from(data, offset)?;
+        let raw_b = u64::read_from(data, offset)?;
+        let raw_c = u64::read_from(data, offset)?;
+        let list_a = CArray::<u32>::read_from(data, offset)?;
+        let flag_a = u8::read_from(data, offset)?;
+        let flag_b = u8::read_from(data, offset)?;
+        let lookup_c = u32::read_from(data, offset)?;
+        let lookup_d = u32::read_from(data, offset)?;
+        let lookup_e = u32::read_from(data, offset)?;
 
         if *offset > entry_end {
             return Err(io::Error::new(
@@ -73,7 +110,10 @@ impl<'a> StageInfo<'a> {
 
         Ok(Self {
             key, string_key, is_blocked, name, stage_desc, complete_log,
-            sequencer_desc, tail_blob,
+            sequencer_desc, spawn_faction_spawn_data_info, spawn_faction_node_info,
+            disable_faction_spawn_party_name_hash_list, raw_a, raw_b, raw_c,
+            list_a, flag_a, flag_b, lookup_c, lookup_d, lookup_e,
+            tail_blob,
         })
     }
 
@@ -85,6 +125,18 @@ impl<'a> StageInfo<'a> {
         self.stage_desc.write_to(w)?;
         self.complete_log.write_to(w)?;
         self.sequencer_desc.write_to(w)?;
+        self.spawn_faction_spawn_data_info.write_to(w)?;
+        self.spawn_faction_node_info.write_to(w)?;
+        self.disable_faction_spawn_party_name_hash_list.write_to(w)?;
+        self.raw_a.write_to(w)?;
+        self.raw_b.write_to(w)?;
+        self.raw_c.write_to(w)?;
+        self.list_a.write_to(w)?;
+        self.flag_a.write_to(w)?;
+        self.flag_b.write_to(w)?;
+        self.lookup_c.write_to(w)?;
+        self.lookup_d.write_to(w)?;
+        self.lookup_e.write_to(w)?;
         w.write_all(&self.tail_blob)?;
         Ok(())
     }
@@ -98,6 +150,18 @@ impl<'a> StageInfo<'a> {
         m.insert("stage_desc".to_string(), self.stage_desc.to_json_value());
         m.insert("complete_log".to_string(), self.complete_log.to_json_value());
         m.insert("sequencer_desc".to_string(), self.sequencer_desc.to_json_value());
+        m.insert("spawn_faction_spawn_data_info".to_string(), self.spawn_faction_spawn_data_info.to_json_value());
+        m.insert("spawn_faction_node_info".to_string(), self.spawn_faction_node_info.to_json_value());
+        m.insert("disable_faction_spawn_party_name_hash_list".to_string(), self.disable_faction_spawn_party_name_hash_list.to_json_value());
+        m.insert("raw_a".to_string(), self.raw_a.to_json_value());
+        m.insert("raw_b".to_string(), self.raw_b.to_json_value());
+        m.insert("raw_c".to_string(), self.raw_c.to_json_value());
+        m.insert("list_a".to_string(), self.list_a.to_json_value());
+        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
+        m.insert("flag_b".to_string(), self.flag_b.to_json_value());
+        m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
+        m.insert("lookup_d".to_string(), self.lookup_d.to_json_value());
+        m.insert("lookup_e".to_string(), self.lookup_e.to_json_value());
         m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
         m
     }
@@ -110,6 +174,18 @@ impl<'a> StageInfo<'a> {
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_desc")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complete_log")?)?;
         <SequencerStageChartDescPartial as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sequencer_desc")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_faction_spawn_data_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_faction_node_info")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "disable_faction_spawn_party_name_hash_list")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_c")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_d")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_e")?)?;
         let b64 = json_get_field(obj, "_tail_blob_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
