@@ -167,25 +167,40 @@ All string pairs for an entry are stored consecutively (no structs between them)
 
 ## NamedItemStruct (144 bytes)
 
-Immediately follows the struct_section count u32. One per named item, same
-order as the string pairs. Internal layout partially mapped from 475-blob
-(3 entries with `named_item_count=1`):
+Immediately follows the struct_section count u32 (which equals named_item_count).
+One struct per named item, same order as the string pairs. The struct_section
+header is always: `u32=N  u32=0  u32=0  u32=0` (16 bytes: count + 12 zeros).
+
+Internal layout from systematic byte scan across all 27 named item structs
+(27 entries across 4-24 475–933 blobs):
 
 | offset (within struct) | size | observation |
 |------------------------|------|-------------|
-| 0..12                  | 12   | f32[3]: 3 unique values each — 0 or 1.5 (2 entries vs 1) |
-| 12..24                 | 12   | f32[3]: small values — 0 or ~{0.784, 0.392, 0.078} (colour-like) |
-| 24..36                 | 12   | zeros |
-| 36..48                 | 12   | f32[3]: 0.0 or all three = 0.05f (`cd cc 4c 3d`) |
-| 48..88                 | 40   | zeros |
-| 88..136                | 48   | float cluster — mirrors fixed_prefix[92:140] (same field layout) |
-| 136..138               | 2    | `0a 05` (constant — same type marker as prefix[140:142]) |
-| 138..144               | 6    | trailing — `0x09 0x01` or `0x02 0x01` + zeros (3-entry variation) |
+| 0..12                  | 12   | f32[3]: 0.0 or ~{0.784, 0.392, 0.078} — colour-like RGB |
+| 12..24                 | 12   | zeros |
+| 24..36                 | 12   | f32[3]: 0.0 or all three = 0.05f (`cd cc 4c 3d`) |
+| 36..72                 | 36   | zeros |
+| 72..84                 | 12   | f32[3]: small values — 0.0, 0.3, or 1.0 per component |
+| 84..88                 | 4    | u32: 0 or 2 (small integer) |
+| 88..92                 | 4    | f32 = 1.0 (constant) |
+| 92..96                 | 4    | f32 = 1.0 (constant) |
+| 96..100                | 4    | f32 = **−1.0** (constant sentinel) |
+| 100..104               | 4    | f32 = 0.0 (constant) |
+| 104..108               | 4    | f32 = 1.0 (constant) |
+| 108..112               | 4    | f32 = 1.0 (constant) |
+| 112..116               | 4    | f32 = 0.0 (constant) |
+| 116..120               | 4    | f32 = 1.0 (constant) |
+| 120..124               | 4    | f32 = 1.0 (constant) |
+| 124..126               | 2    | `0a 05` (constant type marker — same as prefix[140:142]) |
+| 126..127               | 1    | u8 bitmask flags (same role as prefix[142]) — values: 0x00,0x01,0x02,0x04,0x09,0x10,0x20 |
+| 127..128               | 1    | u8 bool: 0 or 1 (same role as prefix[143]) |
+| 128..144               | 16   | zeros |
 
-Total size confirmed: 144 bytes (4-24 475-blob: mc_off 463 − struct_start 319 = 144).
-The float cluster at struct[88..136] aligns with prefix[92..140] with a −4 byte
-shift, confirming NamedItemStruct and the main prefix share the same inner
-sub-struct layout starting 4 bytes earlier.
+Total size confirmed: 144 bytes across all 27 entries.
+
+**Float cluster alignment:** struct[88:126] mirrors prefix[104:142] with a +16
+offset (struct[88+X] ≅ prefix[104+X]). The struct omits prefix[92:104] (the
+first 12 bytes of the prefix's inner sub-struct). No TRS or hash/ID region.
 
 ---
 
