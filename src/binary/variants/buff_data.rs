@@ -5,7 +5,6 @@
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -1281,33 +1280,41 @@ impl AdditionalUseResourceStatBuffDataPayload {
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("f00".into(), self.f00.to_json_value());
+        // Each entry is a 22-byte fixed-size opaque record exposed as an
+        // array of 22 u8 integers — fully byte-addressable through JSON.
         let entries: Vec<Value> = self.f01.iter()
-            .map(|b| Value::String(B64.encode(b)))
+            .map(|b| Value::Array(b.iter().map(|&x| Value::from(x as u64)).collect()))
             .collect();
-        m.insert("f01_entries_b64".into(), Value::Array(entries));
+        m.insert("f01_entries".into(), Value::Array(entries));
         m
     }
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "f00")?)?;
-        let arr = json_get_field(obj, "f01_entries_b64")?
+        let arr = json_get_field(obj, "f01_entries")?
             .as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "AdditionalUseResourceStat.f01_entries_b64: expected array"))?;
+                "AdditionalUseResourceStat.f01_entries: expected array"))?;
         (arr.len() as u32).write_to(w)?;
         for (i, item) in arr.iter().enumerate() {
-            let s = item.as_str().ok_or_else(|| io::Error::new(
+            let inner = item.as_array().ok_or_else(|| io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("AdditionalUseResourceStat.f01_entries_b64[{}]: expected base64 string", i),
+                format!("AdditionalUseResourceStat.f01_entries[{}]: expected array of 22 u8", i),
             ))?;
-            let bytes = B64.decode(s).map_err(|e| io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("AdditionalUseResourceStat.f01_entries_b64[{}]: {}", i, e),
-            ))?;
-            if bytes.len() != 22 {
+            if inner.len() != 22 {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("AdditionalUseResourceStat.f01_entries_b64[{}]: expected 22 bytes, got {}", i, bytes.len())));
+                    format!("AdditionalUseResourceStat.f01_entries[{}]: expected 22 elements, got {}", i, inner.len())));
             }
-            w.extend_from_slice(&bytes);
+            for (j, v) in inner.iter().enumerate() {
+                let n = v.as_u64().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("AdditionalUseResourceStat.f01_entries[{}][{}]: expected u8", i, j),
+                ))?;
+                if n > u8::MAX as u64 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("AdditionalUseResourceStat.f01_entries[{}][{}]: {} out of u8 range", i, j, n)));
+                }
+                w.push(n as u8);
+            }
         }
         Ok(())
     }
