@@ -30,8 +30,9 @@
 >   - `vtable[19] = 0x141C8D560` is standard option_block reader → NOT in skip-list
 >   - `vtable[19] = 0x1402D3A80` is no-op → IS in skip-list
 >
-> Empirical guard: each fix must keep `cargo test --lib` at 304 pass
-> AND not REDUCE `interaction_info::roundtrip` decoded count. Tag 135
+> Empirical guard: each fix must keep `cargo test --lib` at 308 pass
+> (was 304 before lane-b's diagnostic modules merged) AND not REDUCE
+> `interaction_info::roundtrip` decoded count. Tag 135
 > initially regressed in isolation (313 → 294 decoded); resolved by
 > retrying AFTER upstream tags (174, 99, 27, etc.) had cleaned up tree
 > alignment. **Final state: tag 135 with 1-byte body + standard option,
@@ -44,9 +45,15 @@
 > - `gimmick_info`: 12393 / 12399 Decoded (99.95%).
 > - 12 ConditionData tag recipes fixed: 7, 19, 27, 29, 99, 116, 135, 174, 358, 360, 370, 393.
 > - Catalog: **92 T1 / 0 T2** (3 stale T2s promoted).
+> - **QuestInfo Tier 1.5 → Tier 1** via `6cdc22c` (lane-c wired
+>   FilterCondition family decoder shipped by lane-b in `2e416b4`).
+> - **5 family decoders restructured** from `src/binary/` into
+>   `src/binary/variants/` for consistency (`12dd29e`).
 > - `[u8; N]` audit complete (1 remaining is genuinely opaque single 16-byte xmmword read per IDA).
 > - Remaining 3 interaction_info Raw entries are genuine anti-disasm
 >   (tags 54, 214 — RTTI present but vtables not findable in IDA).
+> - Remaining internal-Tier-1.5 sub-field: GimmickInfo `post_blob`
+>   (blocked on TGPEHD decoder, fully researched in `8233982`).
 
 This file is for collaborators picking up round-trip work. It's the
 "where are we, what's next" snapshot. For per-table specs see
