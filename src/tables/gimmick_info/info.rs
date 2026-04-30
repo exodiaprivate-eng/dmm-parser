@@ -209,6 +209,8 @@ pub enum GimmickTail<'a> {
         field_45_u32: Option<u32>,
         /// Field 46 — single u32 (5666 entries share `0x00ffffff` flag pattern).
         field_46_u32: Option<u32>,
+        /// Field 47 — single u32 (5746 entries share `0x00bf8000`).
+        field_47_u32: Option<u32>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -457,6 +459,13 @@ impl<'a> GimmickTail<'a> {
                         _ => { probe = pre_; None }
                     }
                 } else { None };
+                let field_47_u32 = if field_46_u32.is_some() && probe + 4 <= entry_end {
+                    let pre_ = probe;
+                    match u32::read_from(data, &mut probe) {
+                        Ok(v) => Some(v),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -500,6 +509,7 @@ impl<'a> GimmickTail<'a> {
                     field_44_u32,
                     field_45_u32,
                     field_46_u32,
+                    field_47_u32,
                     post_blob,
                 })
             }
@@ -529,7 +539,7 @@ impl<'a> GimmickTail<'a> {
                 field_35_u32_list, field_36_u32,
                 field_37_u32, field_38_u32,
                 field_39_u32_list, field_40_u32_list,
-                field_41_u32, field_42_u32, field_43_u32, field_44_u32, field_45_u32, field_46_u32, post_blob } => {
+                field_41_u32, field_42_u32, field_43_u32, field_44_u32, field_45_u32, field_46_u32, field_47_u32, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -594,6 +604,7 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_44_u32 { v.write_to(w)?; }
                 if let Some(v) = field_45_u32 { v.write_to(w)?; }
                 if let Some(v) = field_46_u32 { v.write_to(w)?; }
+                if let Some(v) = field_47_u32 { v.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -618,7 +629,7 @@ impl<'a> GimmickTail<'a> {
                 field_35_u32_list, field_36_u32,
                 field_37_u32, field_38_u32,
                 field_39_u32_list, field_40_u32_list,
-                field_41_u32, field_42_u32, field_43_u32, field_44_u32, field_45_u32, field_46_u32, post_blob } => {
+                field_41_u32, field_42_u32, field_43_u32, field_44_u32, field_45_u32, field_46_u32, field_47_u32, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -715,6 +726,8 @@ impl<'a> GimmickTail<'a> {
                 m.insert("field_45_u32".to_string(), match field_45_u32 {
                     Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("field_46_u32".to_string(), match field_46_u32 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("field_47_u32".to_string(), match field_47_u32 {
                     Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
@@ -858,6 +871,10 @@ impl<'a> GimmickTail<'a> {
                 let f46 = json_get_field(obj, "field_46_u32")?;
                 if !f46.is_null() {
                     <u32 as WriteJsonValue>::write_from_json(w, f46)?;
+                }
+                let f47 = json_get_field(obj, "field_47_u32")?;
+                if !f47.is_null() {
+                    <u32 as WriteJsonValue>::write_from_json(w, f47)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
