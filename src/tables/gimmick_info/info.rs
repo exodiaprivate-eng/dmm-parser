@@ -297,6 +297,10 @@ pub enum GimmickTail<'a> {
         field_89_u32: Option<u32>,
         /// Field 90 — u32.
         field_90_u32: Option<u32>,
+        /// Field 91 — u32 (4498 entries are 0; rest vary widely. Could be
+        /// length-prefix of a CString but many entries fail UTF-8 — keep
+        /// as u32 for byte-perfect roundtrip).
+        field_91_u32: Option<u32>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -821,6 +825,12 @@ impl<'a> GimmickTail<'a> {
                         Ok(v) => Some(v), _ => { probe = pre_; None }
                     }
                 } else { None };
+                let field_91_u32 = if field_90_u32.is_some() && probe + 4 <= entry_end {
+                    let pre_ = probe;
+                    match u32::read_from(data, &mut probe) {
+                        Ok(v) => Some(v), _ => { probe = pre_; None }
+                    }
+                } else { None };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -908,6 +918,7 @@ impl<'a> GimmickTail<'a> {
                     field_88_u32,
                     field_89_u32,
                     field_90_u32,
+                    field_91_u32,
                     post_blob,
                 })
             }
@@ -947,7 +958,8 @@ impl<'a> GimmickTail<'a> {
                 field_75_u32, field_76_u32, field_77_u32, field_78_u32,
                 field_79_u32, field_80_u32, field_81_u32, field_82_u32,
                 field_83_u32, field_84_u32, field_85_u32, field_86_u32,
-                field_87_u32, field_88_u32, field_89_u32, field_90_u32, post_blob } => {
+                field_87_u32, field_88_u32, field_89_u32, field_90_u32,
+                field_91_u32, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -1056,6 +1068,7 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_88_u32 { v.write_to(w)?; }
                 if let Some(v) = field_89_u32 { v.write_to(w)?; }
                 if let Some(v) = field_90_u32 { v.write_to(w)?; }
+                if let Some(v) = field_91_u32 { v.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -1090,7 +1103,8 @@ impl<'a> GimmickTail<'a> {
                 field_75_u32, field_76_u32, field_77_u32, field_78_u32,
                 field_79_u32, field_80_u32, field_81_u32, field_82_u32,
                 field_83_u32, field_84_u32, field_85_u32, field_86_u32,
-                field_87_u32, field_88_u32, field_89_u32, field_90_u32, post_blob } => {
+                field_87_u32, field_88_u32, field_89_u32, field_90_u32,
+                field_91_u32, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -1276,6 +1290,8 @@ impl<'a> GimmickTail<'a> {
                     Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("field_90_u32".to_string(), match field_90_u32 {
                     Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("field_91_u32".to_string(), match field_91_u32 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -1456,6 +1472,10 @@ impl<'a> GimmickTail<'a> {
                     if !v.is_null() {
                         <u32 as WriteJsonValue>::write_from_json(w, v)?;
                     }
+                }
+                let f91 = json_get_field(obj, "field_91_u32")?;
+                if !f91.is_null() {
+                    <u32 as WriteJsonValue>::write_from_json(w, f91)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,

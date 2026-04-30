@@ -88,6 +88,7 @@ fn main() {
     let mut field_88_typed = 0usize;
     let mut field_89_typed = 0usize;
     let mut field_90_typed = 0usize;
+    let mut field_91_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -172,6 +173,7 @@ fn main() {
                 field_88_u32,
                 field_89_u32,
                 field_90_u32,
+                field_91_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -249,6 +251,7 @@ fn main() {
                 if field_88_u32.is_some() { field_88_typed += 1; }
                 if field_89_u32.is_some() { field_89_typed += 1; }
                 if field_90_u32.is_some() { field_90_typed += 1; }
+                if field_91_u32.is_some() { field_91_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -316,7 +319,8 @@ fn main() {
                        (81, field_81_typed), (82, field_82_typed),
                        (83, field_83_typed), (84, field_84_typed), (85, field_85_typed),
                        (86, field_86_typed), (87, field_87_typed), (88, field_88_typed),
-                       (89, field_89_typed), (90, field_90_typed)] {
+                       (89, field_89_typed), (90, field_90_typed),
+                       (91, field_91_typed)] {
         println!("Field {} (field_{}_u32)                  typed:     {} / {}", i, i, count, decoded);
     }
 
