@@ -4723,7 +4723,10 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // Variants 135 and 370 also caused "not enough data" errors when
         // decoding interaction_info entries (LAST_ATTEMPTED_TAG diagnostic
         // pinpointed each one); adding to skip list unblocks more entries.
-        135 | 370
+        135 | 370 |
+        // Added one at a time during interaction_info diagnostic; each
+        // verified to keep conditioninfo passing.
+        99 | 174
     )
 }
 
