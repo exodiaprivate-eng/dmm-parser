@@ -51,7 +51,15 @@ This file is for collaborators picking up round-trip work. It's the
   base64; now fully typed nested JSON via BuffData ToJsonValue +
   BuffDataOptional impls. Each per-level per-buff variant body is
   individually editable.
-- Added `json_roundtrip` test for SkillInfo (306 total tests).
+- `ImmuneBuffData.entries.body` — was base64; now a typed JSON array of
+  integers sized by header_tag (u8 / u32 / u64 stride).
+- `AdditionalUseResourceStat.f01_entries` — was array of base64 strings;
+  now nested JSON arrays of u8 integers (each 22-byte record fully
+  byte-addressable through JSON).
+- `StageInfo` — vestigial empty `tail_blob` removed (was always-empty
+  Vec<u8> + `_tail_blob_b64` JSON field). Reader now strict-asserts
+  full consumption.
+- Added `json_roundtrip` test for SkillInfo (now part of 305 tests).
 
 ### Polymorphic family decoders
 | Family | Status | Tables that consume it |
