@@ -94,7 +94,6 @@ use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_fiel
 use crate::py_binary_struct;
 use crate::tables::faction_node_info::info::FactionAdjacencyMobItem;
 use crate::tables::global_stage_sequencer_info::info::PlayerBehaviorOptional;
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -429,7 +428,6 @@ pub struct StageInfo<'a> {
     pub flag_s: u8,
     pub flag_t: u8,
     pub flag_u: u8,
-    pub tail_blob: Vec<u8>,
 }
 
 impl<'a> StageInfo<'a> {
@@ -534,17 +532,15 @@ impl<'a> StageInfo<'a> {
         let flag_t = u8::read_from(data, offset)?;
         let flag_u = u8::read_from(data, offset)?;
 
-        if *offset > entry_end {
+        if *offset != entry_end {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "StageInfo: typed prefix overran entry ({} > {})",
+                    "StageInfo: typed prefix under/over-read ({} expected {})",
                     *offset, entry_end
                 ),
             ));
         }
-        let tail_blob = data[*offset..entry_end].to_vec();
-        *offset = entry_end;
 
         Ok(Self {
             key, string_key, is_blocked, name, stage_desc, complete_log,
@@ -567,7 +563,6 @@ impl<'a> StageInfo<'a> {
             raw_k, raw_l, raw_m, raw_n, raw_o, raw_p,
             flag_g, flag_h, flag_i, flag_j, flag_k, flag_l, flag_m, flag_n,
             flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u,
-            tail_blob,
         })
     }
 
@@ -664,7 +659,6 @@ impl<'a> StageInfo<'a> {
         self.flag_s.write_to(w)?;
         self.flag_t.write_to(w)?;
         self.flag_u.write_to(w)?;
-        w.write_all(&self.tail_blob)?;
         Ok(())
     }
 
@@ -762,7 +756,6 @@ impl<'a> StageInfo<'a> {
         m.insert("flag_s".to_string(), self.flag_s.to_json_value());
         m.insert("flag_t".to_string(), self.flag_t.to_json_value());
         m.insert("flag_u".to_string(), self.flag_u.to_json_value());
-        m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
         m
     }
 
@@ -859,13 +852,6 @@ impl<'a> StageInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_s")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_t")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u")?)?;
-        let b64 = json_get_field(obj, "_tail_blob_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "StageInfo: _tail_blob_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("StageInfo: _tail_blob_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
         Ok(())
     }
 }
@@ -896,20 +882,9 @@ mod tests {
         assert_eq!(out, data, "stageinfo roundtrip mismatch");
     }
 
-    #[test]
-    fn empty_tail_on_vanilla() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
-        let ranges = entry_ranges(&entries, data.len());
-        for (i, (k, s, e)) in ranges.iter().enumerate() {
-            let mut c = *s;
-            let item = StageInfo::read_with_size(&data, &mut c, e - s)
-                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
-            assert!(item.tail_blob.is_empty(),
-                "entry {} key=0x{:x} has {} unconsumed tail bytes — typed reader is missing fields",
-                i, k, item.tail_blob.len());
-        }
-    }
+    // The previous `empty_tail_on_vanilla` test asserted `tail_blob` was
+    // always empty; the field was now removed so the assertion has been
+    // folded into `read_with_size` itself (under/over-read returns Err).
 
     #[test]
     fn json_roundtrip() {
