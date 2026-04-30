@@ -594,6 +594,13 @@ pub enum GimmickTail<'a> {
         field_339_u32: Option<u32>,
         field_340_u32: Option<u32>,
         field_341_u32: Option<u32>,
+        /// Field 342 — u32 trigger count (for long-tail entries this starts a
+        /// CArray<TriggerEntry> with `u8 flag + CString name + body`).
+        field_342_u32_count: Option<u32>,
+        /// Field 343 — u8 flag (typically 0x01) for first trigger entry.
+        field_343_u8_flag: Option<u8>,
+        /// Field 344 — CString name of first trigger (e.g. "UnnamedTrigger_0").
+        field_344_cstr_name: Option<CString<'a>>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -1544,6 +1551,20 @@ impl<'a> GimmickTail<'a> {
                 let field_339_u32 = read_u32_chained!(field_338_u32);
                 let field_340_u32 = read_u32_chained!(field_339_u32);
                 let field_341_u32 = read_u32_chained!(field_340_u32);
+                let field_342_u32_count = read_u32_chained!(field_341_u32);
+                let field_343_u8_flag = if field_342_u32_count.is_some() && probe + 1 <= entry_end {
+                    let pre_ = probe;
+                    match u8::read_from(data, &mut probe) {
+                        Ok(v) => Some(v), _ => { probe = pre_; None }
+                    }
+                } else { None };
+                let field_344_cstr_name = if field_343_u8_flag.is_some() {
+                    let pre_ = probe;
+                    match CString::read_from(data, &mut probe) {
+                        Ok(s) if probe <= entry_end => Some(s),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -1882,6 +1903,9 @@ impl<'a> GimmickTail<'a> {
                     field_339_u32,
                     field_340_u32,
                     field_341_u32,
+                    field_342_u32_count,
+                    field_343_u8_flag,
+                    field_344_cstr_name,
                     post_blob,
                 })
             }
@@ -1984,7 +2008,8 @@ impl<'a> GimmickTail<'a> {
                 field_326_u32, field_327_u32, field_328_u32, field_329_u32,
                 field_330_u32, field_331_u32, field_332_u32, field_333_u32,
                 field_334_u32, field_335_u32, field_336_u32, field_337_u32,
-                field_338_u32, field_339_u32, field_340_u32, field_341_u32, post_blob } => {
+                field_338_u32, field_339_u32, field_340_u32, field_341_u32,
+                field_342_u32_count, field_343_u8_flag, field_344_cstr_name, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -2344,6 +2369,9 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_339_u32 { v.write_to(w)?; }
                 if let Some(v) = field_340_u32 { v.write_to(w)?; }
                 if let Some(v) = field_341_u32 { v.write_to(w)?; }
+                if let Some(v) = field_342_u32_count { v.write_to(w)?; }
+                if let Some(v) = field_343_u8_flag { v.write_to(w)?; }
+                if let Some(s) = field_344_cstr_name { s.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -2441,7 +2469,8 @@ impl<'a> GimmickTail<'a> {
                 field_326_u32, field_327_u32, field_328_u32, field_329_u32,
                 field_330_u32, field_331_u32, field_332_u32, field_333_u32,
                 field_334_u32, field_335_u32, field_336_u32, field_337_u32,
-                field_338_u32, field_339_u32, field_340_u32, field_341_u32, post_blob } => {
+                field_338_u32, field_339_u32, field_340_u32, field_341_u32,
+                field_342_u32_count, field_343_u8_flag, field_344_cstr_name, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -2910,10 +2939,15 @@ impl<'a> GimmickTail<'a> {
                                ("field_338_u32", field_338_u32),
                                ("field_339_u32", field_339_u32),
                                ("field_340_u32", field_340_u32),
-                               ("field_341_u32", field_341_u32)] {
+                               ("field_341_u32", field_341_u32),
+                               ("field_342_u32_count", field_342_u32_count)] {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
                 }
+                m.insert("field_343_u8_flag".to_string(), match field_343_u8_flag {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("field_344_cstr_name".to_string(), match field_344_cstr_name {
+                    Some(s) => s.to_json_value(), None => Value::Null });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -3178,11 +3212,19 @@ impl<'a> GimmickTail<'a> {
                            "field_331_u32", "field_332_u32", "field_333_u32",
                            "field_334_u32", "field_335_u32", "field_336_u32",
                            "field_337_u32", "field_338_u32", "field_339_u32",
-                           "field_340_u32", "field_341_u32"] {
+                           "field_340_u32", "field_341_u32", "field_342_u32_count"] {
                     let v = json_get_field(obj, k)?;
                     if !v.is_null() {
                         <u32 as WriteJsonValue>::write_from_json(w, v)?;
                     }
+                }
+                let f343 = json_get_field(obj, "field_343_u8_flag")?;
+                if !f343.is_null() {
+                    <u8 as WriteJsonValue>::write_from_json(w, f343)?;
+                }
+                let f344 = json_get_field(obj, "field_344_cstr_name")?;
+                if !f344.is_null() {
+                    <CString as WriteJsonValue>::write_from_json(w, f344)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
