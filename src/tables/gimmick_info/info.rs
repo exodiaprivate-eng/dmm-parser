@@ -1,7 +1,13 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1.5 — typed prefix + Decoded|Raw fallback tail.
 //!
 //! Reader: `sub_1410E6FC0` in CrimsonDesert.exe (Win build). Massive
-//! 7205-byte function, 100+ wire reads in the body.
+//! 7205-byte function, 100+ wire reads in the body. Fields 1-16 are
+//! typed (joined with the prefix when the tail decodes successfully);
+//! the 99.93% of vanilla entries that decode cleanly carry the rest as
+//! `post_blob`. Field 17 (sub_1411125E0 → sub_141D7FF30 →
+//! sub_141D80A90) is the next blocker: sub_141D80A90 is the
+//! TriggerGamePlayEventHandlerData polymorphic ReflectObject dispatcher
+//! (see STATUS.md "Deferred — ReflectObject reflection layer").
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u32 key                       (_key, mem a2+8)
@@ -33,10 +39,8 @@
 //!      sub_141C7F8B0; per element u32 + u8 + u32 + u8, mem a2+192)
 //!  19. … 80+ more wire reads.
 //!
-//! Steps 1-6 are typed (6 fields). Field 7 blocks promotion: the
-//! 144-byte GimmickInteractionOverrideData struct depends on at least 3
-//! unresolved helpers (sub_141114FC0, sub_141E2C900, sub_141101AB0).
-//! Body has 100+ wire reads.
+//! Steps 1-16 are typed (joined with the prefix when Decoded). Field
+//! 17 (sub_1411125E0) blocks further extension — see header note.
 //!
 //! ## GimmickInteractionOverrideData wire layout (sub_1410DF770)
 //!
