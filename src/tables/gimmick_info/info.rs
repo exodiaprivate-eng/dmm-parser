@@ -76,9 +76,26 @@
 use crate::binary::*;
 use crate::binary::gimmick_interaction_override::GimmickInteractionOverrideCArray;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// `sub_141104D20` per-element. 8-byte mem stride; wire = 2× CString
+    /// (each consumed via sub_1410A9D40 → u32 hash, packed into a qword).
+    pub struct GimmickHashPair<'a> {
+        pub hash_a: CString<'a>,
+        pub hash_b: CString<'a>,
+    }
+}
+
+py_binary_struct! {
+    /// `sub_1410A9D40` wrapper. 4-byte mem stride; wire = CString.
+    pub struct GimmickHashSingle<'a> {
+        pub hash: CString<'a>,
+    }
+}
 
 /// Tail of GimmickInfo. When the field-7 CArray decode succeeds (and
 /// the immediately-following stable scalar block parses cleanly) it
@@ -96,6 +113,8 @@ pub enum GimmickTail<'a> {
         gimmick_name: LocalizableString<'a>,
         emoji_texture_id: CString<'a>,
         dev_memo: CString<'a>,
+        hash_pair_list: CArray<GimmickHashPair<'a>>,    // sub_141104D20
+        hash_single_list: CArray<GimmickHashSingle<'a>>, // sub_141102990
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -115,12 +134,15 @@ impl<'a> GimmickTail<'a> {
             let gimmick_name = LocalizableString::read_from(data, &mut probe)?;
             let emoji_texture_id = CString::read_from(data, &mut probe)?;
             let dev_memo = CString::read_from(data, &mut probe)?;
+            let hash_pair_list = <CArray<GimmickHashPair>>::read_from(data, &mut probe)?;
+            let hash_single_list = <CArray<GimmickHashSingle>>::read_from(data, &mut probe)?;
             if probe > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "overrun")); }
             Ok((list, use_interaction_ui_socket, use_sub_part_for_interaction,
-                property_list, gimmick_name_hash, gimmick_name, emoji_texture_id, dev_memo))
+                property_list, gimmick_name_hash, gimmick_name, emoji_texture_id, dev_memo,
+                hash_pair_list, hash_single_list))
         })();
         match try_decode {
-            Ok((list, ui, sp, pl, gnh, gn, eti, dm)) => {
+            Ok((list, ui, sp, pl, gnh, gn, eti, dm, hpl, hsl)) => {
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -132,6 +154,8 @@ impl<'a> GimmickTail<'a> {
                     gimmick_name: gn,
                     emoji_texture_id: eti,
                     dev_memo: dm,
+                    hash_pair_list: hpl,
+                    hash_single_list: hsl,
                     post_blob,
                 })
             }
@@ -148,7 +172,8 @@ impl<'a> GimmickTail<'a> {
             GimmickTail::Decoded { gimmick_interaction_override_list,
                 use_interaction_ui_socket, use_sub_part_for_interaction,
                 property_list, gimmick_name_hash, gimmick_name,
-                emoji_texture_id, dev_memo, post_blob } => {
+                emoji_texture_id, dev_memo,
+                hash_pair_list, hash_single_list, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -157,6 +182,8 @@ impl<'a> GimmickTail<'a> {
                 gimmick_name.write_to(w)?;
                 emoji_texture_id.write_to(w)?;
                 dev_memo.write_to(w)?;
+                hash_pair_list.write_to(w)?;
+                hash_single_list.write_to(w)?;
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -168,7 +195,8 @@ impl<'a> GimmickTail<'a> {
             GimmickTail::Decoded { gimmick_interaction_override_list,
                 use_interaction_ui_socket, use_sub_part_for_interaction,
                 property_list, gimmick_name_hash, gimmick_name,
-                emoji_texture_id, dev_memo, post_blob } => {
+                emoji_texture_id, dev_memo,
+                hash_pair_list, hash_single_list, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -180,6 +208,8 @@ impl<'a> GimmickTail<'a> {
                 m.insert("gimmick_name".to_string(), gimmick_name.to_json_value());
                 m.insert("emoji_texture_id".to_string(), emoji_texture_id.to_json_value());
                 m.insert("dev_memo".to_string(), dev_memo.to_json_value());
+                m.insert("hash_pair_list".to_string(), hash_pair_list.to_json_value());
+                m.insert("hash_single_list".to_string(), hash_single_list.to_json_value());
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -212,6 +242,8 @@ impl<'a> GimmickTail<'a> {
                 <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_name")?)?;
                 <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "emoji_texture_id")?)?;
                 <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_memo")?)?;
+                <CArray<GimmickHashPair> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_pair_list")?)?;
+                <CArray<GimmickHashSingle> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_single_list")?)?;
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                         "GimmickTail.Decoded._post_blob_b64: expected string"))?;
