@@ -39,7 +39,7 @@ py_binary_struct! {
         pub u32_e: u32,
         pub byte_at_20: u8,
         pub u16_at_22: u16,
-        pub blob_8: [u8; 8],
+        pub blob_8: u64,
     }
 }
 
