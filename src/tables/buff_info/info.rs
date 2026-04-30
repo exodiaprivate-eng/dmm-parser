@@ -13,7 +13,6 @@
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -157,11 +156,9 @@ impl<'a> BuffInfo<'a> {
     }
 
     /// Convert this BuffInfo record to a JSON dict. `buff_data_list` is
-    /// a fully typed CArray of BuffDataEntry (each entry exposes
-    /// leading_lookup, absent_flag, and a typed BuffData base + variant
-    /// payload). Per-variant body fields stay as `variant_payload_b64`
-    /// inside each BuffData until the 120-variant per-family JSON
-    /// rollout completes — round-trip is byte-perfect either way.
+    /// a fully typed CArray of BuffDataEntry; each BuffData drills into
+    /// the typed BuffDataBase (28 fields) plus per-variant body via the
+    /// 120-variant BuffDataVariant ToJsonValue/WriteJsonValue pipeline.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
