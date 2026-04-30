@@ -76,18 +76,40 @@
 //! 102. CArray<u16> list_g                 (sub_1410FF0C0 wire u16)
 //! 103. u8 flag_91                         (at +440)
 //!      ← TAIL STARTS HERE
-//! 104. (tail, conditional) when flag_91 == 0: sub_141105AC0 read.
-//!      Then sub_141100C20 + 2 raw bytes + 2 u8 + sub_1410FFAC0
-//!      (CArray<u16>) + u8 + CString + sub_1410FEE90 + while loop +
-//!      sub_141100C90/D00 + 4 raw bytes + u8 + sub_141100510 (CArray<u32>)
-//!      + 2× sub_1410FF890 (CArray<u32>) + 4 raw + sub_1411187E0 + u8 +
-//!      sub_141100510 + sub_141100D80 + sub_141100E90 (CArray of 32-byte
-//!      items) + 2× sub_141118620.
+//! 104. (tail, conditional) when flag_91 == 0: sub_141105AC0 reads u32
+//!      wire / u16 mem at +442. When flag_91 != 0, this read is SKIPPED.
+//! 105. (tail) sub_141100C20 — u16 wire / u16 mem at +444
+//! 106. (tail) 2 raw bytes (u16) at +446
+//! 107. (tail) u8 at +448
+//! 108. (tail) u8 at +449
+//! 109. (tail) sub_1410FFAC0 — CArray<u16> at +456
+//! 110. (tail) u8 at +472
+//! 111. (tail) CString at +480
+//! 112. (tail) sub_1410FEE90 — u16 wire / u16 mem at +488
+//! 113. (tail) inline u16 wire / u16 mem at +490 (qword_145F290C0 lookup)
+//! 114. (tail) sub_141100C90 — u32 wire / u16 mem at +492
+//! 115. (tail) sub_141100D00 — u32 wire / u16 mem at +494 (post-process
+//!      via sub_141BF6720)
+//! 116. (tail) 4 raw bytes (u32) at +496
+//! 117. (tail) u8 at +500
+//! 118. (tail) sub_141100510 — CArray<u32> at +504
+//! 119. (tail) sub_1410FF890 — CArray<u32> at +520
+//! 120. (tail) sub_1410FF890 — CArray<u32> at +536
+//! 121. (tail) 4 raw bytes (u32) at +552
+//! 122. (tail) sub_1411187E0 — CArray of 12-wire-byte items (u16 lookup
+//!      sub_141100370 + u32 raw + u32 raw) at +560
+//! 123. (tail) u8 at +576
+//! 124. (tail) sub_141100510 — CArray<u32> at +584
+//! 125. (tail) sub_141100D80 — CArray of 64-byte items via sub_1410D7170
+//!      (per element: 2 u32 lookups + 7× u64 = 64 wire bytes) at +600
+//! 126. (tail) sub_141100E90 — CArray<FactionAdjacencyMobItem> at +616
+//! 127-128. (tail) 2× sub_141118620 — CArray of 24-byte items per element
+//!      (u32 lookup + u64 raw + u32 raw + u32 lookup = 20 wire bytes)
+//!      at +632 and +648
 //!
-//! Steps 1-103 are typed (103 of ~150 wire fields). Field 104+ blocked
-//! on conditional read pattern + several unknown helpers
-//! (sub_141105AC0, sub_141100C20, sub_1410FEE90, sub_141100C90,
-//! sub_141100D00, sub_1411187E0, sub_141100D80, sub_141118620).
+//! Steps 1-103 typed (103 of ~150 wire fields). Field 104+ all helpers
+//! decoded — only blocker is the conditional read pattern at field 104
+//! (requires manual impl rather than pabgh_typed_blob_table macro).
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
