@@ -189,35 +189,59 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 - ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated
   debug entries in the source data; not worth chasing.
 
-### Stream-mode GameCondition (partially unblocked, 82% interaction_info)
+### Stream-mode GameCondition (partially unblocked, 84% interaction_info)
 **Root cause identified**: The `variant_skips_option_block` list in
 `condition_data.rs` was incomplete. Variants whose vtable[19] is a
 no-op (return 1 with no read) need to be in the skip list. The list
 originally had 11 variants (81, 272, 300, 256, 401, 2, 79, 195, 306,
-126); after empirical verification using a LAST_ATTEMPTED_TAG diagnostic
-loop on stream-mode GameCondition decode against interaction_info
-entries, 3 more were added: 26 (CheckHasImportantItem), 135, 370.
+126); empirical adds via LAST_ATTEMPTED_TAG diagnostic loop bumped it
+to 16 (added 26, 135, 370, 99, 174, 360).
 
-**Current state**: With those 3 added, 297 of 363 interaction_info
-entries (82%) successfully decode their ConditionPair lists. The
-remaining 66 entries hit other variants whose option_block status is
-unclear — bulk-adding all candidate tags from the diagnostic
-REGRESSED the success rate (from 297 to 206), confirming that
-LAST_ATTEMPTED_TAG points to a variant in the chain BEFORE the actual
-problematic one (it's not always the failing variant). Each remaining
-candidate must be tested INDIVIDUALLY against conditioninfo's full
-roundtrip to confirm safety before adding.
+**Current state**: 306 of 363 interaction_info entries (84.3%)
+successfully decode. Bulk-adding remaining candidates regressed the
+success rate (297 → 206), so each candidate must be tested individually.
 
-**Path forward**: Continue the diagnostic loop on individual variants:
-1. Run interaction_info ConditionPairCArray test
-2. Identify first distinct failing tag
-3. Add ONE tag to skip list
-4. Verify conditioninfo still passes (304-test full suite)
-5. If conditioninfo passes, commit; otherwise revert and investigate why
-6. Repeat until interaction_info passes 100%
-7. Apply ConditionPairCArray to interaction_info field 10
-8. Repeat the same approach for gimmick_info field 7, character_info
-   field 133, stage_info field 7, global_stage_sequencer_info field 6
+**Important caveat (verified this session via Win-IDA)**: Of the 16
+tags currently in the skip list, only the original 11 are confirmed
+"true" vtable[19] no-ops. The 5 empirical adds (26, 135, 370, 99,
+174, 360) are NOT vtable[19] no-ops — their slot-19 entries each
+point into the giant `sub_14139AE80` thunk forest (size 0x1dc88,
+non-decompilable by Hex-Rays). Concrete check: tag 81's vtable
+(`ConditionData_QuestGaugePercent` at `0x144ce3038`) has slot 19 =
+`0x1402d3a80` (the `return 1;` no-op), while tag 99's vtable
+(`ConditionData_CheckAllyType` at `0x144cdc770`) has slot 19 =
+`0x1413b89e0` (a thunk inside `sub_14139AE80`). Yet tag 99 is in
+the skip list because it empirically unblocked entries.
+
+This means the empirical adds are likely **masking** real bugs where
+LAST_ATTEMPTED_TAG points to the wrong tag in the failure chain. The
+57-entry ceiling on interaction_info reflects this: pushing past it
+requires proper per-variant vtable[19] reverse engineering, not more
+empirical adds.
+
+**Path forward (revised)**:
+1. Walk all 405 ConditionData_* vtables, read slot 19 of each, and
+   build a definitive list of `slot_19 == 0x1402d3a80` (true no-ops).
+2. Replace the empirical adds (26, 135, 370, 99, 174, 360) with the
+   verified list — likely a strict subset.
+3. For the empirical adds that turn out NOT to be no-ops, investigate
+   why removing them STILL allows their entries to decode (likely
+   because the body recipe is wrong elsewhere — option_block probe is
+   misaligning a downstream byte).
+4. With the verified skip list, re-run the per-variant diagnostic on
+   interaction_info to find the actual remaining 57-entry blockers.
+5. Apply ConditionPairCArray to interaction_info field 10 once
+   100% decode.
+6. Repeat the same approach for gimmick_info field 7
+   (sub_141118470 → sub_1410DF770 → BareConditionPairCArray at
+   sub_141E2C900), character_info field 133, stage_info field 7
+   (SequencerStageChartDesc), global_stage_sequencer_info field 6.
+
+The vtable layouts and per-element wire layouts for sub_141D8C6D0
+(SequencerStageChartDesc, 26 wire fields / 232 mem bytes) and
+sub_1410DF770 (GimmickInteractionOverrideData, 15 wire fields / 144
+mem bytes) are documented in the consuming tables' module docstrings
+and ready to wire up the moment the skip-list is verified.
 
 ---
 
