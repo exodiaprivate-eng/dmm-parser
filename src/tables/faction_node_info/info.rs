@@ -1,4 +1,4 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410DE7A0` in CrimsonDesert.exe (Win build).
 //!
@@ -50,23 +50,24 @@
 //!      u32 raw_a + FactionAdjacencyData inner with 2 LocalizableStrings,
 //!      3 u32 lookups, FactionScheduleU64Triple list, u32 lookup+raw
 //!      pair list, FactionAdjacencyMobItem list, trailing u32)
-//!      ← TAIL STARTS HERE
-//!  26. (tail) 13× sub_141128990 — CArray of 288-byte items via
-//!      sub_1410DD2A0 + sub_1410DD420 (HARD BLOCKER — sub_1410DD420 is
-//!      a 296-byte composite with 35+ wire fields including unknown
-//!      sub_141102410, sub_1410DD140, sub_141102EF0, sub_1410FFC20)
-//!  27. (tail) u8 + sub_1410DE690 (28-byte target: Vec3 + 4× u32) +
-//!      u32 raw + sub_141100510 (CArray<u32>) + sub_1410FFAC0
-//!      (CArray<u16>) + sub_141103770 (u16 lookup)
+//!  26. FactionNodeBigCompositeSlots big_composite_slots (13 fixed
+//!      CArray<FactionNodeBigComposite> slots via sub_141128990 →
+//!      sub_1410DD2A0 (24-byte/10-field header) + sub_1410DD420
+//!      (296-byte/37-field body with FactionNodeDD140Inner inner)
+//!  27. u8 flag_after_slots                           (mem a2+408)
+//!  28. FactionNodeDE690 de690_data                   (sub_1410DE690 —
+//!      28-byte fixed: Vec3 + 4× u32, mem a2+412)
+//!  29. u32 raw_after_de690                           (mem a2+440)
+//!  30. CArray<u32> final_list_u32                    (sub_141100510 wire
+//!      u32 — mem a2+448)
+//!  31. CArray<u16> final_list_u16                    (sub_1410FFAC0 wire
+//!      u16 — mem a2+464)
+//!  32. u32 final_lookup                              (sub_141103770 wire
+//!      u32 — mem a2+480)
 //!
-//! Steps 1-25 typed (25 of 32 catalog fields surfaced). FactionAdjacencyData
-//! depends on FactionScheduleU64Triple (already typed) + reuses
-//! sub_141100E90's 28-byte FactionAdjacencyMobItem. Reopens cleanly when
-//! sub_1410DD420's deeper helpers (sub_141102410, sub_1410DD140,
-//! sub_141102EF0, sub_1410FFC20) are decoded.
+//! All 32 wire fields typed. JSON-addressable for full mod-editing.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -205,6 +206,119 @@ py_binary_struct! {
     }
 }
 
+// sub_1410DD2A0 — FactionNodeBigCompositeHeader, 24 mem / 31 wire bytes.
+py_binary_struct! {
+    pub struct FactionNodeBigCompositeHeader {
+        pub flag_a: u8,
+        pub lookup_a: u32,    // sub_1410FF430 wire u32
+        pub lookup_b: u32,    // sub_141102CB0 wire u32
+        pub lookup_c: u32,    // sub_141102D20 wire u32
+        pub lookup_d: u32,    // sub_141102D90 wire u32
+        pub lookup_e: u32,    // sub_141101D50 wire u32
+        pub lookup_f: u32,    // sub_141100860 wire u32
+        pub lookup_g: u32,    // sub_141102E00 wire u32
+        pub flag_b: u8,
+        pub flag_c: u8,
+    }
+}
+
+// sub_1410DD140 — FactionNodeDD140Inner, 32 mem / 8 wire fields = 23 wire.
+py_binary_struct! {
+    pub struct FactionNodeDD140Inner {
+        pub lookup_a: u32,             // sub_141100860 wire u32
+        pub lookup_b: u32,             // sub_141101D50 wire u32
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub list_lookup: CArray<u32>,  // sub_1410FFC20 wire u32 per element
+    }
+}
+
+// sub_1410DD420 — FactionNodeBigCompositeBody, 296 mem / 37 wire fields.
+py_binary_struct! {
+    pub struct FactionNodeBigCompositeBody<'a> {
+        pub flag_a: u8,
+        pub lookup_a: u32,                     // sub_141100860 wire u32
+        pub lookup_b: u32,                     // sub_141101D50 wire u32
+        pub lookup_c: u32,                     // sub_1410FF340 wire u32
+        pub lookup_d: u32,                     // sub_141101D50 wire u32
+        pub lookup_e: u32,                     // sub_141100860 wire u32
+        pub flag_b: u8,
+        pub raw_a: u32,
+        pub lookup_f: u16,                     // sub_141102410 wire u16
+        pub lookup_g: u32,                     // sub_141101D50 wire u32
+        pub flag_c: u8,
+        pub flag_d: u8,
+        pub dd140_inner: FactionNodeDD140Inner,
+        pub flag_e: u8,
+        pub lookup_h: u32,                     // sub_1410FF5C0 wire u32
+        pub raw_b: u64,
+        pub raw_c: u32,
+        pub raw_d: u64,
+        pub list_u32: CArray<u32>,             // sub_141102EF0 wire u32
+        pub lookup_i: u32,                     // sub_141102D20 wire u32
+        pub list_u32_b: CArray<u32>,           // sub_1410FFC20 wire u32
+        pub raw_e: u64,
+        pub list_u32_c: CArray<u32>,           // sub_141102FF0 wire u32
+        pub list_u16: CArray<u16>,             // sub_1410FFAC0 wire u16
+        pub vec3: [f32; 3],
+        pub flag_f: u8,
+        pub flag_g: u8,
+        pub flag_h: u8,
+        pub flag_i: u8,
+        pub flag_j: u8,
+        pub raw_f: u32,
+        pub flag_k: u8,
+        pub lookup_j: u32,                     // read_u32_lookup_DA30 wire u32
+        pub lookup_k: u32,                     // read_u32_lookup_DA30 wire u32
+        pub label: LocalizableString<'a>,
+        pub name: CString<'a>,
+        pub trailing_raw: u32,
+    }
+}
+
+// sub_141128990 inner — FactionNodeBigComposite, 288 mem bytes.
+// Wire: FactionNodeBigCompositeHeader + FactionNodeBigCompositeBody.
+py_binary_struct! {
+    pub struct FactionNodeBigComposite<'a> {
+        pub header: FactionNodeBigCompositeHeader,
+        pub body: FactionNodeBigCompositeBody<'a>,
+    }
+}
+
+// 13 fixed CArray slots used by faction_node_info field 26 (a2+200..408
+// stride 16 mem). Each is a CArray<FactionNodeBigComposite>.
+py_binary_struct! {
+    pub struct FactionNodeBigCompositeSlots<'a> {
+        pub slot_00: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_01: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_02: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_03: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_04: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_05: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_06: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_07: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_08: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_09: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_10: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_11: CArray<FactionNodeBigComposite<'a>>,
+        pub slot_12: CArray<FactionNodeBigComposite<'a>>,
+    }
+}
+
+// sub_1410DE690 — 28-byte fixed struct: Vec3 + 4× u32.
+py_binary_struct! {
+    pub struct FactionNodeDE690 {
+        pub vec3: [f32; 3],
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub raw_c: u32,
+        pub raw_d: u32,
+    }
+}
+
 // sub_1410DDE60 — FactionSchedule, 280 mem bytes / 31 wire fields.
 py_binary_struct! {
     pub struct FactionSchedule<'a> {
@@ -242,7 +356,7 @@ py_binary_struct! {
     }
 }
 
-pabgh_typed_blob_table! {
+py_binary_struct! {
     pub struct FactionNodeInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
@@ -269,8 +383,29 @@ pabgh_typed_blob_table! {
         pub unknown_c: u8,
         pub unknown_d: u8,
         pub adjacency_list: CArray<FactionAdjacencyEntry<'a>>,
+        pub big_composite_slots: FactionNodeBigCompositeSlots<'a>,
+        pub flag_after_slots: u8,
+        pub de690_data: FactionNodeDE690,
+        pub raw_after_de690: u32,
+        pub final_list_u32: CArray<u32>,    // sub_141100510 wire u32
+        pub final_list_u16: CArray<u16>,    // sub_1410FFAC0 wire u16
+        pub final_lookup: u32,              // sub_141103770 wire u32
     }
-    tail: tail_blob;
+}
+
+impl<'a> FactionNodeInfo<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("FactionNodeInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
 }
 
 #[cfg(test)]
