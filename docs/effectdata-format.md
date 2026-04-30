@@ -219,30 +219,32 @@ Internal layout from systematic byte scan across all 27 named item structs
 | 0..12                  | 12   | f32[3]: **named-item colour** — independent of prefix color1/color2; default (0,0,0); e.g. (0.784, 0.392, 0.078) for one `leaf` component |
 | 12..24                 | 12   | f32[3]: **named-item secondary colour** — default (0,0,0); not necessarily equal to prefix color2 |
 | 24..36                 | 12   | f32[3]: mirrors prefix[40:52] — all three = 0.0f or all three = 0.05f (`cd cc 4c 3d`); only set when prefix[40:52] is set |
-| 36..72                 | 36   | zeros |
-| 72..76                 | 4    | f32: 0.0 or 0.3 |
-| 76..80                 | 4    | f32: 0.0, 0.3, or 1.0 |
-| 80..84                 | 4    | u32: 0, 2, or 30 — nonzero **only** for `par1` components (2 of 27 structs); possibly particle emitter parameter |
-| 84..88                 | 4    | zeros |
-| 88..92                 | 4    | f32 = 1.0 (constant) |
-| 92..96                 | 4    | f32 = 1.0 (constant) |
-| 96..100                | 4    | f32 = **−1.0** (constant sentinel) |
-| 100..104               | 4    | f32 = 0.0 (constant) |
-| 104..108               | 4    | f32 = 1.0 (constant) |
-| 108..112               | 4    | f32 = 1.0 (constant) |
+| 36..84                 | 48   | zeros (`vec_d`–`vec_g` all zero in all 27 vanilla entries) |
+| 84..88                 | 4    | f32 `field_84`: per-stage intensity multiplier — same role as prefix[88:92]; 0.0 default, 0.3 for one `dist1` entry |
+| 88..92                 | 4    | f32 `field_88`: 0.0 (`smoke1`), 0.3 (`smoke1` variant), or 1.0 (most components) |
+| 92..96                 | 4    | u32 `field_92`: **{0, 2, 30}** — nonzero **only** for `par1` components (2 of 27 structs; values 2 and 30); likely particle emitter burst-count |
+| 96..100                | 4    | always 0 |
+| 100..104               | 4    | f32 = 1.0 (constant; 0.0 for `vector1`/`vector2` components) |
+| 104..108               | 4    | f32 = 1.0 (constant; 0.0 for `vector1`/`vector2` components) |
+| 108..112               | 4    | f32 = **−1.0** (constant sentinel — same role as prefix[112:116]) |
 | 112..116               | 4    | f32 = 0.0 (constant) |
 | 116..120               | 4    | f32 = 1.0 (constant) |
 | 120..124               | 4    | f32 = 1.0 (constant) |
-| 124..126               | 2    | `0a 05` (constant type marker — same as prefix[140:142]) |
-| 126..127               | 1    | u8 bitmask flags (same role as prefix[142]) — values: 0x00,0x01,0x02,0x04,0x09,0x10,0x20 |
-| 127..128               | 1    | u8 bool: 0 or 1 (same role as prefix[143]) |
-| 128..144               | 16   | zeros |
+| 124..128               | 4    | f32 = 0.0 (constant) |
+| 128..132               | 4    | f32 = 1.0 (constant) |
+| 132..136               | 4    | f32 = 1.0 (constant) |
+| 136..138               | 2    | `0a 05` (constant type marker — same as prefix[140:142]) |
+| 138..140               | 2    | u16 bitmask flags (same role as prefix[142]); values: 0x0000, 0x0001, 0x0004, 0x0009, 0x0010, 0x0020, 0x0100, 0x0102 |
+| 140..144               | 4    | zeros |
 
 Total size confirmed: 144 bytes across all 27 entries.
 
-**Float cluster alignment:** struct[88:126] mirrors prefix[104:142] with a +16
-offset (struct[88+X] ≅ prefix[104+X]). The struct omits prefix[92:104] (the
-first 12 bytes of the prefix's inner sub-struct). No TRS or hash/ID region.
+**Field alignment:** NamedItemStruct IS a standalone D3Block (144 bytes). Within
+EffectDataElement, the same D3Block sits at `core_block[0..144]`, which is at
+prefix offset 4 (after `lookup_b`). So `struct[X] ≡ prefix[X+4]` for every
+D3Block field. E.g. `field_92` at struct[92:96] ≡ prefix[96:100];
+`byte_136/byte_137` type-marker at struct[136:138] ≡ prefix[140:142]. No TRS
+or hash/ID region (the NamedItemStruct is a D3Block only, not a CoreBlock).
 
 **EffectDataD3Block semantic labels** (Rust field name ↔ semantic meaning from cross-analysis):
 
@@ -251,13 +253,16 @@ first 12 bytes of the prefix's inner sub-struct). No TRS or hash/ID region.
 | `vec_a`     | 0..12        | named-item colour (RGB f32[3])                            |
 | `vec_b`     | 12..24       | named-item secondary colour (RGB f32[3])                  |
 | `vec_c`     | 24..36       | 0.0 or 0.05f triplet (mirrors prefix[40:52])              |
-| `field_84`  | 84..88       | per-stage intensity multiplier — f32 (IDA types as u32); 0.0 default; non-zero only in `_switch_` and ribbon effects (see prefix[88:92]) |
-| `byte_136`  | 136..137     | bitmask flags (same role as prefix[142])                  |
-| `byte_137`  | 137..138     | named-item bool: 0 or 1 (same role as prefix[143])        |
-| `word_138`  | 138..140     | `0x0a 0x05` constant type marker (same as prefix[140:142])|
+| `vec_d`–`vec_g` | 36..84  | all zero in vanilla (D3Block color/scale fields)          |
+| `field_84`  | 84..88       | per-stage intensity multiplier — f32; 0.0 default; same role as prefix[88:92] |
+| `field_88`  | 88..92       | type-dependent scale: 0.0, 0.3, or 1.0 across component types |
+| `field_92`  | 92..96       | particle emitter parameter — u32 {0, 2, 30}; nonzero only for `par1` components |
+| `byte_136`  | 136..137     | type marker byte 1 = 0x0a (same as prefix[140])          |
+| `byte_137`  | 137..138     | type marker byte 2 = 0x05 (same as prefix[141])          |
+| `word_138`  | 138..140     | bitmask flags — u16 (same role as prefix[142:144])        |
 
-`vec_d`–`vec_g` and `field_88`–`field_140` are IDA-derived anonymous names;
-semantics not yet confirmed beyond the mirror relationship with prefix[92:144].
+`field_96`–`field_132`, `vec4_a`, and `field_140` are IDA-derived anonymous names;
+semantics follow the mirror relationship `struct[X] ≡ prefix[X+4]` (see above).
 
 ---
 
@@ -608,7 +613,16 @@ baseline(324) + 3×364(inner_map). Standard layout; no special handling required
    not present in `stringinfo`. Confirmed NOT blob keys within effectinfo.pabgb (0 hits);
    the "different archive" hypothesis was wrong — these are inline skeleton attachments.
 
-4. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
+4. ~~**NamedItemStruct struct[80:84]**~~ **Resolved**: the field was at the wrong offset
+   in the doc. Actual position is **struct[92:96]** (`field_92`); doc table rows 72:76
+   through 128:144 were all wrong (cascading offset error). Corrected in full. `field_92`
+   = u32 ∈ {0, 2, 30}, nonzero for exactly 2 of 27 par1 particle components
+   (`fx_Soul_spear_On_Lv3` → 2, `fx_ancient_aura_a_aura1_custom1` → 30); likely a
+   particle burst-count. Adjacent fixes: `field_84` = intensity multiplier (not zeros);
+   `field_88` = type-dependent scale (not constant 1.0); byte_136/137/word_138 roles
+   corrected (marker bytes are byte_136=0x0a, byte_137=0x05; word_138=bitmask, not
+   the other way around); float-cluster alignment note corrected to `struct[X] ≡
+   prefix[X+4]`.
 
 5. **Type C body remainder (body[152:356])** — inner sub-struct bytes after the
    `0a 05` marker at body[148] contain TRS and ID fields mirroring prefix[140:300];
