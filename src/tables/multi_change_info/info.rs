@@ -84,11 +84,12 @@ py_binary_struct! {
     }
 }
 
+// Catalog GroupMaterialData (3 fields). Wire 12 bytes = u16 + u64 + u16.
 py_binary_struct! {
     pub struct RecipeItemGroupData {
-        pub lookup: u16,
-        pub raw_a: u64,
-        pub raw_b: u16,
+        pub item_group_info: u16,
+        pub count: u64,
+        pub enchant_level: u16,
     }
 }
 
