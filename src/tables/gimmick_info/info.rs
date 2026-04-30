@@ -1,13 +1,10 @@
 //! Tier 1.5 — typed prefix + Decoded|Raw fallback tail.
 //!
 //! Reader: `sub_1410E6FC0` in CrimsonDesert.exe (Win build). Massive
-//! 7205-byte function, 100+ wire reads in the body. Fields 1-16 are
-//! typed (joined with the prefix when the tail decodes successfully);
-//! the 99.93% of vanilla entries that decode cleanly carry the rest as
-//! `post_blob`. Field 17 (sub_1411125E0 → sub_141D7FF30 →
-//! sub_141D80A90) is the next blocker: sub_141D80A90 is the
-//! TriggerGamePlayEventHandlerData polymorphic ReflectObject dispatcher
-//! (see STATUS.md "Deferred — ReflectObject reflection layer").
+//! 7205-byte function, 100+ wire reads in the body. Fields 1-18 are
+//! typed when the Decoded probe succeeds; the remaining 80+ reads sit in
+//! `post_blob`. All typed fields are Option<…> so a mid-sequence decode
+//! failure lands cleanly in post_blob without corrupting the roundtrip.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u32 key                       (_key, mem a2+8)
@@ -34,13 +31,21 @@
 //!  14. CString _devMemo              (mem a2+136)
 //!  15. sub_141104D20 (16 mem bytes)  (mem a2+144)
 //!  16. sub_141102990 (16 mem bytes)  (mem a2+160)
-//!  17. sub_1411125E0 (16 mem bytes)  (mem a2+176)
-//!  18. _gimmickChartParameterList    (CArray of 16-byte items via
-//!      sub_141C7F8B0; per element u32 + u8 + u32 + u8, mem a2+192)
-//!  19. … 80+ more wire reads.
+//!  17. sub_1411125E0 (16 mem bytes)  (mem a2+176) ← TGPEHD
+//!  18. _gimmickChartParameterList    (CArray of 16-mem-byte items via
+//!      sub_141C7F8B0; wire per element: u32 + u8 + u32 + u8 = 10 bytes,
+//!      mem a2+192). ✅ Typed — verified empirically: count=0 for 10119/
+//!      10121 Decoded entries; 2 entries where field 17 failed are Raw.
+//!  19. … 80+ more wire reads.  Empirical probe (CrimsonDesertUpdates
+//!      2026-03-29 dump): after field 18 the minimum tail is 640 bytes.
+//!      First 36 bytes are all-zero (fields 19-26 or so are CArray count=0
+//!      or bool=false). Byte 36 = 0x01 in the base case — likely
+//!      `_isTargetable` u8=1 (gimmicks are targetable by default).
+//!      Wire order for 19-162 requires sub_1410E6FC0 decompile (IDA).
 //!
-//! Steps 1-16 are typed (joined with the prefix when Decoded). Field
-//! 17 (sub_1411125E0) blocks further extension — see header note.
+//! Steps 1-18 are typed (joined with the prefix when Decoded). Each
+//! field beyond 16 uses the safe optional-probe pattern: if the read
+//! fails or overruns, probe resets and the remainder stays in post_blob.
 //!
 //! ## GimmickInteractionOverrideData wire layout (sub_1410DF770)
 //!
@@ -87,6 +92,16 @@ use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 py_binary_struct! {
+    /// `sub_141C7F8B0` per-element. 16-byte mem stride; wire = u32 + u8 + u32 + u8 (10 bytes).
+    pub struct GimmickChartParameter {
+        pub field_a: u32,
+        pub field_b: u8,
+        pub field_c: u32,
+        pub field_d: u8,
+    }
+}
+
+py_binary_struct! {
     /// `sub_141104D20` per-element. 8-byte mem stride; wire = 2× CString
     /// (each consumed via sub_1410A9D40 → u32 hash, packed into a qword).
     pub struct GimmickHashPair<'a> {
@@ -125,6 +140,9 @@ pub enum GimmickTail<'a> {
         /// back to leaving these bytes inside `post_blob` if any TGPEHD
         /// variant decode under/over-reads.
         trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData<'a>>>,
+        /// sub_141C7F8B0 — `CArray<GimmickChartParameter>`. Only Some when
+        /// field 17 (TGPEHD) also decoded. Wire: u32 count + count × 10 bytes.
+        gimmick_chart_parameter_list: Option<CArray<GimmickChartParameter>>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -153,12 +171,22 @@ impl<'a> GimmickTail<'a> {
         })();
         match try_decode {
             Ok((list, ui, sp, pl, gnh, gn, eti, dm, hpl, hsl)) => {
-                // Try to type field 17 (CArray<COptional<TGPEHD>>); fall back
-                // to leaving it in post_blob if any sub-decode misaligns.
+                // Field 17: CArray<COptional<TGPEHD>>; safe optional probe.
                 let pre_tgpehd = probe;
                 let trigger_event_handler_list = match <CArray<OptionalTriggerGamePlayEventHandlerData>>::read_from(data, &mut probe) {
                     Ok(arr) if probe <= entry_end => Some(arr),
                     _ => { probe = pre_tgpehd; None }
+                };
+                // Field 18: gimmick_chart_parameter_list; only attempted when
+                // field 17 decoded (otherwise post_blob starts from pre_tgpehd).
+                let gimmick_chart_parameter_list = if trigger_event_handler_list.is_some() {
+                    let pre18 = probe;
+                    match <CArray<GimmickChartParameter>>::read_from(data, &mut probe) {
+                        Ok(arr) if probe <= entry_end => Some(arr),
+                        _ => { probe = pre18; None }
+                    }
+                } else {
+                    None
                 };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
@@ -174,6 +202,7 @@ impl<'a> GimmickTail<'a> {
                     hash_pair_list: hpl,
                     hash_single_list: hsl,
                     trigger_event_handler_list,
+                    gimmick_chart_parameter_list,
                     post_blob,
                 })
             }
@@ -192,7 +221,7 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -204,6 +233,9 @@ impl<'a> GimmickTail<'a> {
                 hash_pair_list.write_to(w)?;
                 hash_single_list.write_to(w)?;
                 if let Some(arr) = trigger_event_handler_list {
+                    arr.write_to(w)?;
+                }
+                if let Some(arr) = gimmick_chart_parameter_list {
                     arr.write_to(w)?;
                 }
                 w.write_all(post_blob)
@@ -219,7 +251,7 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -234,6 +266,10 @@ impl<'a> GimmickTail<'a> {
                 m.insert("hash_pair_list".to_string(), hash_pair_list.to_json_value());
                 m.insert("hash_single_list".to_string(), hash_single_list.to_json_value());
                 m.insert("trigger_event_handler_list".to_string(), match trigger_event_handler_list {
+                    Some(arr) => arr.to_json_value(),
+                    None => Value::Null,
+                });
+                m.insert("gimmick_chart_parameter_list".to_string(), match gimmick_chart_parameter_list {
                     Some(arr) => arr.to_json_value(),
                     None => Value::Null,
                 });
@@ -274,6 +310,10 @@ impl<'a> GimmickTail<'a> {
                 let teh = json_get_field(obj, "trigger_event_handler_list")?;
                 if !teh.is_null() {
                     <CArray<OptionalTriggerGamePlayEventHandlerData> as WriteJsonValue>::write_from_json(w, teh)?;
+                }
+                let gcpl = json_get_field(obj, "gimmick_chart_parameter_list")?;
+                if !gcpl.is_null() {
+                    <CArray<GimmickChartParameter> as WriteJsonValue>::write_from_json(w, gcpl)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
