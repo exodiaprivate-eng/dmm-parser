@@ -19,8 +19,17 @@ pub mod global_game_event_execute_data;
 pub mod ivariant_item;
 pub mod mini_game_data;
 pub mod schedule_complete_condition_data;
+pub mod filter_condition;
 
 #[cfg(test)]
 mod validate_buffdata;
 #[cfg(test)]
 mod diagnose_conditiondata;
+#[cfg(test)]
+mod diagnose_filter_condition;
+#[cfg(test)]
+mod diagnose_game_level;
+#[cfg(test)]
+mod diagnose_sequencer_spawn;
+#[cfg(test)]
+mod diagnose_special_mode;
