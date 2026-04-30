@@ -4712,23 +4712,26 @@ impl<'a> ConditionDataOptionData<'a> {
 /// `[u8 option_present][optional ConditionDataOptionData]` block.
 ///
 /// ## Failure histogram (from `interaction_info::diag_raw_entries`,
-/// captured 2026-04-30 after tag 19/27/174/393 recipe fixes):
+/// captured 2026-04-30 — running tally; latest re-run after tag 7/99 fix):
 ///
-/// Current state — `n=47` Raw entries (down from 57 baseline; -10 net):
-///   tag 135:                    18 entries  ← skip-list, IDA-suggested
+/// Current state — `n=27` Raw entries (down from 57 baseline; -30 net,
+/// 92.6% interaction_info decoded — 336 of 363):
+///   tag 135:                    18 entries  ← skip-list; IDA-suggested
 ///                                              body+remove regressed
 ///                                              (313→294 decoded), held
 ///   tag 246 (IsCrimeTarget):     4 entries
-///   tag 249:                     4 entries
-///   tag 360:                     3 entries
-///   tag 116, 90, 145, 214, 280:  2 entries each
-///   tag 7,30,31,54,99,343,358,387,393: 1 entry each
+///   tag 90, 214:                 2 entries each
+///   tag 54:                      1 entry
 ///
 /// Already-fixed (Win-IDA verified) since the n=101 regression peak:
-///   tag 174 (CheckRider) — restored 1-byte body via `8f01078`
-///   tag 393 (CheckAccompanyType) — added 1-byte body via `d91d961`
-///   tag 19 (CheckGroggy), tag 27 (IsFocusActor) — kept unit variant
-///   tag 99 (CheckAllyType) — empirical skip-list class C
+///   tag 7   (GetItemCount)      — added trailing u16 via `08b7afc`
+///   tag 99  (CheckAllyType)     — removed from skip-list via `5922251`
+///   tag 116 (CatchTag)          — added OneCStringBodyPayload via `4469883`
+///   tag 174 (CheckRider)        — restored 1-byte body via `8f01078`
+///   tag 358 (CheckMercenaryType)— added OneByteBodyPayload via `147fd7f`
+///   tag 360 (CheckTargetDropListToPushInventory) — 1-byte body via `2102303`
+///   tag 393 (CheckAccompanyType)— added 1-byte body via `d91d961`
+///   tag 19/27 (CheckGroggy/IsFocusActor) — kept as unit variant
 ///
 /// Verification template for any next promote: read vtable[16] and
 /// vtable[19] from the matching `??_7ConditionData_<Name>@pa@@6B@`
