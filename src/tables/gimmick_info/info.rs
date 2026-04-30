@@ -833,6 +833,15 @@ pub enum GimmickTail<'a> {
         field_653_u32: Option<u32>, field_654_u32: Option<u32>, field_655_u32: Option<u32>, field_656_u32: Option<u32>,
         field_657_u32: Option<u32>, field_658_u32: Option<u32>, field_659_u32: Option<u32>, field_660_u32: Option<u32>,
         field_661_u32: Option<u32>, field_662_u32: Option<u32>, field_663_u32: Option<u32>, field_664_u32: Option<u32>,
+        /// Alternate-format trigger header (4975 entries fail field 17 but
+        /// have a structurally different tail starting with u32 count).
+        /// These are likely scene/region gimmicks with named TriggerEntry
+        /// CArrays (e.g. "UnnamedTrigger_0", "Platform").
+        alt_trigger_count: Option<u32>,
+        /// Alternate-format flag byte (typically 0x01).
+        alt_trigger_flag: Option<u8>,
+        /// Alternate-format trigger name (e.g. "UnnamedTrigger_0").
+        alt_trigger_name: Option<CString<'a>>,
         /// Fields 665-728 — long-tail u32 sequence (64-field batch).
         field_665_u32: Option<u32>, field_666_u32: Option<u32>, field_667_u32: Option<u32>, field_668_u32: Option<u32>,
         field_669_u32: Option<u32>, field_670_u32: Option<u32>, field_671_u32: Option<u32>, field_672_u32: Option<u32>,
@@ -2133,6 +2142,28 @@ impl<'a> GimmickTail<'a> {
                 let field_662_u32 = read_u32_chained!(field_661_u32);
                 let field_663_u32 = read_u32_chained!(field_662_u32);
                 let field_664_u32 = read_u32_chained!(field_663_u32);
+                // Alt-format detection: when trigger_event_handler_list (field 17) failed,
+                // probe is still at tail_start. Try to read alt header (count + flag + name).
+                let alt_trigger_count = if trigger_event_handler_list.is_none() && probe + 4 <= entry_end {
+                    let pre_ = probe;
+                    match u32::read_from(data, &mut probe) {
+                        Ok(v) if v < 1000 => Some(v), // sanity: count should be small
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
+                let alt_trigger_flag = if alt_trigger_count.is_some() && probe + 1 <= entry_end {
+                    let pre_ = probe;
+                    match u8::read_from(data, &mut probe) {
+                        Ok(v) => Some(v), _ => { probe = pre_; None }
+                    }
+                } else { None };
+                let alt_trigger_name = if alt_trigger_flag.is_some() {
+                    let pre_ = probe;
+                    match CString::read_from(data, &mut probe) {
+                        Ok(s) if probe <= entry_end => Some(s),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
                 let field_665_u32 = read_u32_chained!(field_664_u32);
                 let field_666_u32 = read_u32_chained!(field_665_u32);
                 let field_667_u32 = read_u32_chained!(field_666_u32);
@@ -2762,6 +2793,9 @@ impl<'a> GimmickTail<'a> {
                     field_653_u32, field_654_u32, field_655_u32, field_656_u32,
                     field_657_u32, field_658_u32, field_659_u32, field_660_u32,
                     field_661_u32, field_662_u32, field_663_u32, field_664_u32,
+                    alt_trigger_count,
+                    alt_trigger_flag,
+                    alt_trigger_name,
                     field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                     field_669_u32, field_670_u32, field_671_u32, field_672_u32,
                     field_673_u32, field_674_u32, field_675_u32, field_676_u32,
@@ -2962,6 +2996,7 @@ impl<'a> GimmickTail<'a> {
                 field_653_u32, field_654_u32, field_655_u32, field_656_u32,
                 field_657_u32, field_658_u32, field_659_u32, field_660_u32,
                 field_661_u32, field_662_u32, field_663_u32, field_664_u32,
+                alt_trigger_count, alt_trigger_flag, alt_trigger_name,
                 field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                 field_669_u32, field_670_u32, field_671_u32, field_672_u32,
                 field_673_u32, field_674_u32, field_675_u32, field_676_u32,
@@ -3660,6 +3695,9 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_662_u32 { v.write_to(w)?; }
                 if let Some(v) = field_663_u32 { v.write_to(w)?; }
                 if let Some(v) = field_664_u32 { v.write_to(w)?; }
+                if let Some(v) = alt_trigger_count { v.write_to(w)?; }
+                if let Some(v) = alt_trigger_flag { v.write_to(w)?; }
+                if let Some(s) = alt_trigger_name { s.write_to(w)?; }
                 if let Some(v) = field_665_u32 { v.write_to(w)?; }
                 if let Some(v) = field_666_u32 { v.write_to(w)?; }
                 if let Some(v) = field_667_u32 { v.write_to(w)?; }
@@ -3903,6 +3941,7 @@ impl<'a> GimmickTail<'a> {
                 field_653_u32, field_654_u32, field_655_u32, field_656_u32,
                 field_657_u32, field_658_u32, field_659_u32, field_660_u32,
                 field_661_u32, field_662_u32, field_663_u32, field_664_u32,
+                alt_trigger_count, alt_trigger_flag, alt_trigger_name,
                 field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                 field_669_u32, field_670_u32, field_671_u32, field_672_u32,
                 field_673_u32, field_674_u32, field_675_u32, field_676_u32,
@@ -4652,6 +4691,7 @@ impl<'a> GimmickTail<'a> {
                                ("field_659_u32", field_659_u32), ("field_660_u32", field_660_u32),
                                ("field_661_u32", field_661_u32), ("field_662_u32", field_662_u32),
                                ("field_663_u32", field_663_u32), ("field_664_u32", field_664_u32),
+                               ("alt_trigger_count", alt_trigger_count),
                                ("field_665_u32", field_665_u32), ("field_666_u32", field_666_u32),
                                ("field_667_u32", field_667_u32), ("field_668_u32", field_668_u32),
                                ("field_669_u32", field_669_u32), ("field_670_u32", field_670_u32),
@@ -4687,6 +4727,10 @@ impl<'a> GimmickTail<'a> {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
                 }
+                m.insert("alt_trigger_flag".to_string(), match alt_trigger_flag {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("alt_trigger_name".to_string(), match alt_trigger_name {
+                    Some(s) => s.to_json_value(), None => Value::Null });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -5062,6 +5106,7 @@ impl<'a> GimmickTail<'a> {
                            "field_653_u32", "field_654_u32", "field_655_u32", "field_656_u32",
                            "field_657_u32", "field_658_u32", "field_659_u32", "field_660_u32",
                            "field_661_u32", "field_662_u32", "field_663_u32", "field_664_u32",
+                           "alt_trigger_count",
                            "field_665_u32", "field_666_u32", "field_667_u32", "field_668_u32",
                            "field_669_u32", "field_670_u32", "field_671_u32", "field_672_u32",
                            "field_673_u32", "field_674_u32", "field_675_u32", "field_676_u32",
@@ -5082,6 +5127,14 @@ impl<'a> GimmickTail<'a> {
                     if !v.is_null() {
                         <u32 as WriteJsonValue>::write_from_json(w, v)?;
                     }
+                }
+                let alt_flag = json_get_field(obj, "alt_trigger_flag")?;
+                if !alt_flag.is_null() {
+                    <u8 as WriteJsonValue>::write_from_json(w, alt_flag)?;
+                }
+                let alt_name = json_get_field(obj, "alt_trigger_name")?;
+                if !alt_name.is_null() {
+                    <CString as WriteJsonValue>::write_from_json(w, alt_name)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
