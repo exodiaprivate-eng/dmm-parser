@@ -349,6 +349,15 @@ py_binary_struct! {
     }
 }
 
+// One entry of the 5-iteration loop at a2+1032..+1112. Each iteration:
+// read_u32_lookup_DA10 (u32 wire / u16 mem) + 8 raw bytes (u64).
+py_binary_struct! {
+    pub struct CharacterField169Entry {
+        pub lookup: u32,
+        pub raw: u64,
+    }
+}
+
 // sub_141B536F0 inner — 76 mem bytes, ~78 wire bytes (with empty
 // strings) / 24 wire fields. Wire ORDER (not mem order):
 py_binary_struct! {
@@ -603,6 +612,17 @@ pabgh_typed_blob_table! {
         pub lookup_161: u32,                              // sub_141100740 a2+972
         pub lookup_162: u32,                              // sub_141100370 a2+974
         pub field_163_list: CArray<u32>,                  // sub_141101960 a2+976 (raw u32 elements)
+        pub raw_164: u32,                                 // a2 + 992
+        pub raw_165: u64,                                 // a2 + 1000
+        pub lookup_166: u32,                              // sub_141101A40 a2+1020 (u32 wire / u16 mem)
+        pub raw_167: u32,                                 // a2 + 1024
+        pub flag_168: u8,                                 // a2 + 1028
+        pub field_169a: CharacterField169Entry,           // 5-iter loop, a2+1032
+        pub field_169b: CharacterField169Entry,
+        pub field_169c: CharacterField169Entry,
+        pub field_169d: CharacterField169Entry,
+        pub field_169e: CharacterField169Entry,
+        pub lookup_170: u32,                              // inline u32 → qword_145F14D90 hash, a2+1112
     }
     tail: tail_blob;
 }
