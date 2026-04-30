@@ -1,10 +1,9 @@
-//! Partial typed wrapper for SequencerStageChartDesc (sub_141D8C6D0).
+//! Full typed wrapper for SequencerStageChartDesc (sub_141D8C6D0).
 //!
-//! The full per-element reader has 26 wire fields / 232 mem bytes.
-//! Field 19 introduces a polymorphic family (SequencerStageTrackChange-
-//! Data via sub_14110C270) that needs its own family-decoder pass, so
-//! the typed prefix tops out at field 15 for now. The first 15 wire
-//! fields each have a deterministic length:
+//! The per-element reader has 26 wire fields / 232 mem bytes — all
+//! reverse-engineered and field-level addressable as of this commit.
+//! `opaque_tail` stays in the struct for graceful degradation but is
+//! always empty on vanilla data. Wire layout:
 //!
 //!   1. CString name
 //!   2. u32 raw
@@ -27,13 +26,16 @@
 //!      SequencerStageSpawnData (sub_1410F3220) is OptionalGame-
 //!      Condition + u64 + 5 lookups + u8 flag + Optional<{CArray<u64>,
 //!      u32}>. Reverse-engineered.
+//!  21. CArray<u16> list_a (sub_1410FFAC0)
+//!  22. CArray<u16> list_b (sub_1410FFAC0)
+//!  23. CArray<u32> list_c (sub_1410FEF40)
+//!  24. CArray<u32> list_d (sub_1410FEF40)
+//!  25. CArray<u32> list_e (sub_141102FF0)
+//!  26. CArray<u32> list_f (sub_141102FF0)
 //!
-//! `SequencerStageChartDescPartial` reads those 20 fields explicitly
-//! and stores everything after as `opaque_tail: Vec<u8>`. For consumers
-//! that own a SequencerStageChartDesc bounded by entry-size arithmetic
-//! (e.g. `field_revive_info`'s single-instance case), this gives users
-//! field-level edit access to the prefix without losing round-trip on
-//! the unfinished tail.
+//! `SequencerStageChartDescPartial` reads all 26 fields explicitly.
+//! `opaque_tail` is preserved for forward compatibility but holds zero
+//! bytes for every vanilla SequencerStageChartDesc.
 
 use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::binary::*;
@@ -505,17 +507,33 @@ pub struct SequencerStageChartDescPartial<'a> {
     /// (sub_14110E010 outer, sub_14110BCC0 inner CArray builder,
     /// sub_1410F3220 per-element reader).
     pub spawn_data_lists: CArray<CArray<SequencerStageSpawnData<'a>>>,
-    /// Bytes 21-26 of the wire layout (2× sub_1410FFAC0 CArray<u16> +
-    /// 2× sub_1410FEF40 CArray<u32> + 2× sub_141102FF0 helper struct).
-    /// Stays opaque until those helpers are typed.
+    /// Field 21 — `CArray<u16>` via sub_1410FFAC0 (qword_145F0DA80
+    /// hash). Wire: u32 count + count× u16.
+    pub list_a: CArray<u16>,
+    /// Field 22 — same shape as `list_a`.
+    pub list_b: CArray<u16>,
+    /// Field 23 — `CArray<u32>` via sub_1410FEF40 (qword_145F0DA30
+    /// hash). Wire: u32 count + count× u32.
+    pub list_c: CArray<u32>,
+    /// Field 24 — same shape as `list_c`.
+    pub list_d: CArray<u32>,
+    /// Field 25 — `CArray<u32>` via sub_141102FF0 (qword_145F0EEE8
+    /// hash). Same wire as `list_c`/`list_d` but different runtime
+    /// hash table.
+    pub list_e: CArray<u32>,
+    /// Field 26 — same shape as `list_e`.
+    pub list_f: CArray<u32>,
+    /// SequencerStageChartDesc is fully decoded — opaque_tail is now
+    /// always empty in vanilla data. Kept around so the wrapper still
+    /// degrades gracefully on unrecognized future appendages.
     pub opaque_tail: Vec<u8>,
 }
 
 impl<'a> SequencerStageChartDescPartial<'a> {
     /// Read a SequencerStageChartDesc whose total wire size on disk is
-    /// known via `total_size`. The 20-field typed prefix is consumed
-    /// from `offset`, and the remaining `total_size - prefix_bytes`
-    /// trail into `opaque_tail`.
+    /// known via `total_size`. All 26 wire fields are typed; any
+    /// leftover bytes (zero on vanilla) trail into `opaque_tail` for
+    /// graceful future-format degradation.
     pub fn read_with_size(
         data: &'a [u8],
         offset: &mut usize,
@@ -558,6 +576,12 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         let string_pair_list = CArray::<StringPair>::read_from(data, offset)?;
         let track_change_list = CArray::<ChartTrackChangeElement>::read_from(data, offset)?;
         let spawn_data_lists = CArray::<CArray<SequencerStageSpawnData>>::read_from(data, offset)?;
+        let list_a = CArray::<u16>::read_from(data, offset)?;
+        let list_b = CArray::<u16>::read_from(data, offset)?;
+        let list_c = CArray::<u32>::read_from(data, offset)?;
+        let list_d = CArray::<u32>::read_from(data, offset)?;
+        let list_e = CArray::<u32>::read_from(data, offset)?;
+        let list_f = CArray::<u32>::read_from(data, offset)?;
 
         if *offset > blob_end {
             return Err(io::Error::new(
@@ -575,7 +599,9 @@ impl<'a> SequencerStageChartDescPartial<'a> {
             name, raw_a, prefab_path, position, raw_b,
             flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h,
             lookup_a, cond_a, cstring_a, cstring_b, string_pair_list,
-            track_change_list, spawn_data_lists, opaque_tail,
+            track_change_list, spawn_data_lists,
+            list_a, list_b, list_c, list_d, list_e, list_f,
+            opaque_tail,
         })
     }
 
@@ -600,6 +626,12 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         self.string_pair_list.write_to(w)?;
         self.track_change_list.write_to(w)?;
         self.spawn_data_lists.write_to(w)?;
+        self.list_a.write_to(w)?;
+        self.list_b.write_to(w)?;
+        self.list_c.write_to(w)?;
+        self.list_d.write_to(w)?;
+        self.list_e.write_to(w)?;
+        self.list_f.write_to(w)?;
         w.write_all(&self.opaque_tail)?;
         Ok(())
     }
@@ -626,6 +658,12 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         m.insert("string_pair_list".to_string(), self.string_pair_list.to_json_value());
         m.insert("track_change_list".to_string(), self.track_change_list.to_json_value());
         m.insert("spawn_data_lists".to_string(), self.spawn_data_lists.to_json_value());
+        m.insert("list_a".to_string(), self.list_a.to_json_value());
+        m.insert("list_b".to_string(), self.list_b.to_json_value());
+        m.insert("list_c".to_string(), self.list_c.to_json_value());
+        m.insert("list_d".to_string(), self.list_d.to_json_value());
+        m.insert("list_e".to_string(), self.list_e.to_json_value());
+        m.insert("list_f".to_string(), self.list_f.to_json_value());
         m.insert("_opaque_tail_b64".to_string(), Value::String(B64.encode(&self.opaque_tail)));
         Value::Object(m)
     }
@@ -661,6 +699,12 @@ impl<'a> SequencerStageChartDescPartial<'a> {
             w,
             json_get_field(obj, "spawn_data_lists")?,
         )?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_a")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_b")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_c")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_d")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_e")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_f")?)?;
         let b64 = json_get_field(obj, "_opaque_tail_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(

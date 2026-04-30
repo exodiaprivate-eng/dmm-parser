@@ -1,6 +1,6 @@
-//! Tier 1 (partial) — every byte typed except the unfinished tail of
-//! the polymorphic SequencerStageChartDesc, which stays as a sized
-//! opaque sub-blob inside the partially-typed wrapper.
+//! Tier 1 — every wire byte typed. The polymorphic
+//! SequencerStageChartDesc that used to ride as an opaque blob is now
+//! fully decoded (26/26 wire fields) by `SequencerStageChartDescPartial`.
 //!
 //! Reader: `sub_1410E1090` in CrimsonDesert.exe (Win build).
 //! Pabgb dump path is `reviepointinfo.pabgb` (typo in filename — game
@@ -224,10 +224,18 @@ mod tests {
             "flag_a", "flag_b", "flag_c", "flag_d", "flag_e",
             "flag_f", "flag_g", "flag_h", "lookup_a", "cond_a",
             "cstring_a", "cstring_b", "string_pair_list",
-            "track_change_list", "spawn_data_lists", "_opaque_tail_b64",
+            "track_change_list", "spawn_data_lists",
+            "list_a", "list_b", "list_c", "list_d", "list_e", "list_f",
+            "_opaque_tail_b64",
         ] {
             assert!(desc.contains_key(f),
                 "SequencerStageChartDescPartial missing field `{}`", f);
         }
+        // Vanilla SequencerStageChartDesc decodes to all-typed fields,
+        // so opaque_tail must be empty.
+        let tail = desc.get("_opaque_tail_b64")
+            .and_then(|v| v.as_str())
+            .expect("_opaque_tail_b64 must be a string");
+        assert_eq!(tail, "", "vanilla SequencerStageChartDesc should leave opaque_tail empty");
     }
 }
