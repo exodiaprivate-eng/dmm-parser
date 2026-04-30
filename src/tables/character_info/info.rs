@@ -259,6 +259,14 @@ py_binary_struct! {
     }
 }
 
+// sub_141101010 inner — 4-wire-byte items (u16 lookup + u16 raw).
+py_binary_struct! {
+    pub struct CharacterShortPair {
+        pub lookup: u16,    // sub_141103F00 wire u16
+        pub raw: u16,
+    }
+}
+
 // sub_141100E90 inner — 32 mem bytes / 28 wire bytes (f32 + 3× 8 bytes).
 // Same shape as faction_node_info::FactionAdjacencyMobItem.
 py_binary_struct! {
@@ -427,6 +435,12 @@ pabgh_typed_blob_table! {
         pub adj_list: CArray<CharacterAdjacencyMobItem>,
         pub tag_list_a: CArray<CharacterTagEntry>,
         pub tag_list_b: CArray<CharacterTagEntry>,
+        pub lookup_125: u32,
+        pub raw_126: u32,
+        pub lookup_127: u32,
+        pub flag_128: u8,
+        pub short_pair_list: CArray<CharacterShortPair>,
+        pub raw_130: u32,
     }
     tail: tail_blob;
 }
