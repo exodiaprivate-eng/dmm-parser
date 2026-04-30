@@ -49,10 +49,20 @@
 //!  37. u64 raw_g
 //!  38. u32 raw_h
 //!  39. u16 raw_i
+//!  40. CArray<StageMobMapEntry> mob_map_list (sub_141108F70 — per
+//!      element u8 flag + 3× u32 lookup, 13 wire bytes)
+//!  41. u32 lookup_j                      (sub_1410FF430)
+//!  42. CArray<StageU32StringEntry> string_entry_list (sub_141108DE0)
+//!  43-46. 4× CArray<FactionAdjacencyMobItem> adjacency_mob_lists
+//!         (sub_141100E90, 28 wire bytes per element)
+//!  47-50. 4× CArray<u32> close_filter_d_list (sub_141100510,
+//!         qword_145F113C8 hash)
+//!  51. CArray<u32> list_d                (sub_1410FEF40,
+//!                                         qword_145F0DA30 hash)
 //!      ← TAIL STARTS HERE
-//!  40+. ~40 trailing fields. Several unknown helpers (sub_141108F70,
-//!       sub_141108DE0, sub_141108C30, sub_141107B30/C70, sub_141103530)
-//!       gate further extension — needs IDA per helper.
+//!  52+. ~30 trailing fields. Several unknown helpers (sub_141108C30,
+//!       sub_141107B30/C70, sub_141103530) gate further extension —
+//!       needs IDA per helper.
 //!
 //! Promotion note: the previous Tier 1.5 cut stopped at field 6 because
 //! field 7 was an opaque polymorphic SequencerStageChartDesc. Now that
@@ -62,6 +72,7 @@ use crate::binary::*;
 use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use crate::tables::faction_node_info::info::FactionAdjacencyMobItem;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
@@ -77,6 +88,26 @@ py_binary_struct! {
         pub flag_a: u8,
         pub flag_b: u8,
         pub flag_c: u8,
+    }
+}
+
+py_binary_struct! {
+    /// Inner of stage_info field 40 (sub_141108F70).
+    /// 13 wire bytes / 8 mem bytes per element.
+    pub struct StageMobMapEntry {
+        pub flag: u8,
+        pub lookup_a: u32,    // read_u32_lookup_DA30 → qword_145F0DA30
+        pub lookup_b: u32,    // read_u32_lookup_DA30
+        pub lookup_c: u32,    // read_u32_lookup_DA30
+    }
+}
+
+py_binary_struct! {
+    /// Inner of stage_info field 42 (sub_141108DE0).
+    /// u32 + CString per element / 16 mem bytes.
+    pub struct StageU32StringEntry<'a> {
+        pub raw: u32,
+        pub label: CString<'a>,
     }
 }
 
@@ -122,6 +153,18 @@ pub struct StageInfo<'a> {
     pub raw_g: u64,
     pub raw_h: u32,
     pub raw_i: u16,
+    pub mob_map_list: CArray<StageMobMapEntry>,
+    pub lookup_j: u32,
+    pub string_entry_list: CArray<StageU32StringEntry<'a>>,
+    pub adjacency_mob_list_a: CArray<FactionAdjacencyMobItem>,
+    pub adjacency_mob_list_b: CArray<FactionAdjacencyMobItem>,
+    pub adjacency_mob_list_c: CArray<FactionAdjacencyMobItem>,
+    pub adjacency_mob_list_d: CArray<FactionAdjacencyMobItem>,
+    pub close_filter_d_a: CArray<u32>,
+    pub close_filter_d_b: CArray<u32>,
+    pub close_filter_d_c: CArray<u32>,
+    pub close_filter_d_d: CArray<u32>,
+    pub list_d: CArray<u32>,
     pub tail_blob: Vec<u8>,
 }
 
@@ -174,6 +217,18 @@ impl<'a> StageInfo<'a> {
         let raw_g = u64::read_from(data, offset)?;
         let raw_h = u32::read_from(data, offset)?;
         let raw_i = u16::read_from(data, offset)?;
+        let mob_map_list = CArray::<StageMobMapEntry>::read_from(data, offset)?;
+        let lookup_j = u32::read_from(data, offset)?;
+        let string_entry_list = CArray::<StageU32StringEntry>::read_from(data, offset)?;
+        let adjacency_mob_list_a = CArray::<FactionAdjacencyMobItem>::read_from(data, offset)?;
+        let adjacency_mob_list_b = CArray::<FactionAdjacencyMobItem>::read_from(data, offset)?;
+        let adjacency_mob_list_c = CArray::<FactionAdjacencyMobItem>::read_from(data, offset)?;
+        let adjacency_mob_list_d = CArray::<FactionAdjacencyMobItem>::read_from(data, offset)?;
+        let close_filter_d_a = CArray::<u32>::read_from(data, offset)?;
+        let close_filter_d_b = CArray::<u32>::read_from(data, offset)?;
+        let close_filter_d_c = CArray::<u32>::read_from(data, offset)?;
+        let close_filter_d_d = CArray::<u32>::read_from(data, offset)?;
+        let list_d = CArray::<u32>::read_from(data, offset)?;
 
         if *offset > entry_end {
             return Err(io::Error::new(
@@ -196,6 +251,12 @@ impl<'a> StageInfo<'a> {
             lookup_f, lookup_g, lookup_h, list_b, list_c, lookup_i, raw_d,
             cstring_a, flag_c, flag_d, raw_e, raw_f, pair_a, pair_b,
             raw_g, raw_h, raw_i,
+            mob_map_list, lookup_j, string_entry_list,
+            adjacency_mob_list_a, adjacency_mob_list_b,
+            adjacency_mob_list_c, adjacency_mob_list_d,
+            close_filter_d_a, close_filter_d_b,
+            close_filter_d_c, close_filter_d_d,
+            list_d,
             tail_blob,
         })
     }
@@ -241,6 +302,18 @@ impl<'a> StageInfo<'a> {
         self.raw_g.write_to(w)?;
         self.raw_h.write_to(w)?;
         self.raw_i.write_to(w)?;
+        self.mob_map_list.write_to(w)?;
+        self.lookup_j.write_to(w)?;
+        self.string_entry_list.write_to(w)?;
+        self.adjacency_mob_list_a.write_to(w)?;
+        self.adjacency_mob_list_b.write_to(w)?;
+        self.adjacency_mob_list_c.write_to(w)?;
+        self.adjacency_mob_list_d.write_to(w)?;
+        self.close_filter_d_a.write_to(w)?;
+        self.close_filter_d_b.write_to(w)?;
+        self.close_filter_d_c.write_to(w)?;
+        self.close_filter_d_d.write_to(w)?;
+        self.list_d.write_to(w)?;
         w.write_all(&self.tail_blob)?;
         Ok(())
     }
@@ -287,6 +360,18 @@ impl<'a> StageInfo<'a> {
         m.insert("raw_g".to_string(), self.raw_g.to_json_value());
         m.insert("raw_h".to_string(), self.raw_h.to_json_value());
         m.insert("raw_i".to_string(), self.raw_i.to_json_value());
+        m.insert("mob_map_list".to_string(), self.mob_map_list.to_json_value());
+        m.insert("lookup_j".to_string(), self.lookup_j.to_json_value());
+        m.insert("string_entry_list".to_string(), self.string_entry_list.to_json_value());
+        m.insert("adjacency_mob_list_a".to_string(), self.adjacency_mob_list_a.to_json_value());
+        m.insert("adjacency_mob_list_b".to_string(), self.adjacency_mob_list_b.to_json_value());
+        m.insert("adjacency_mob_list_c".to_string(), self.adjacency_mob_list_c.to_json_value());
+        m.insert("adjacency_mob_list_d".to_string(), self.adjacency_mob_list_d.to_json_value());
+        m.insert("close_filter_d_a".to_string(), self.close_filter_d_a.to_json_value());
+        m.insert("close_filter_d_b".to_string(), self.close_filter_d_b.to_json_value());
+        m.insert("close_filter_d_c".to_string(), self.close_filter_d_c.to_json_value());
+        m.insert("close_filter_d_d".to_string(), self.close_filter_d_d.to_json_value());
+        m.insert("list_d".to_string(), self.list_d.to_json_value());
         m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
         m
     }
@@ -332,6 +417,18 @@ impl<'a> StageInfo<'a> {
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_g")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_h")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_i")?)?;
+        <CArray<StageMobMapEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mob_map_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_j")?)?;
+        <CArray<StageU32StringEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_entry_list")?)?;
+        <CArray<FactionAdjacencyMobItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "adjacency_mob_list_a")?)?;
+        <CArray<FactionAdjacencyMobItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "adjacency_mob_list_b")?)?;
+        <CArray<FactionAdjacencyMobItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "adjacency_mob_list_c")?)?;
+        <CArray<FactionAdjacencyMobItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "adjacency_mob_list_d")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_d_a")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_d_b")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_d_c")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_d_d")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_d")?)?;
         let b64 = json_get_field(obj, "_tail_blob_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
