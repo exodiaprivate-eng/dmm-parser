@@ -9,15 +9,14 @@ uses a different (non-empirical) analysis layer.
 Field names are inferred from context; true names are unknown without IDA
 symbol access.
 
-> **Research artifact — not a spec of the current implementation.**
-> The empirical blob layout below (fixed\_prefix, sub\_elements, 364-byte
-> mesh\_elements) was derived before the IDA analysis in `effect_data.rs` /
-> `effect_info/info.rs` was available. The code implements a different wire
-> structure: `CArray<EffectDataElement>` (variable-size) followed by
-> `CArray<MeshEffectData>` at 50 bytes/element. The two views are not yet
-> reconciled. Use the IDA-derived code as ground truth for parsing; use
-> this doc for pattern observations and offset landmarks within a single
-> element's bytes.
+> **Research artifact — partially reconciled with IDA analysis.**
+> The empirical blob layout (fixed\_prefix, sub\_elements, inner\_map entries at
+> 364 bytes each, real MeshEffectData at 50 bytes each) has been cross-checked
+> against `effect_data.rs` / `effect_info/info.rs`. Key corrections applied:
+> FP=300 (not 299), all blob sizes +1, 364-byte chunks = `inner_map` entries
+> (not "MeshEffectData"), real MeshEffectData = 50 bytes per IDA `sub_1410DBD90`.
+> Use the IDA-derived code as ground truth for parsing; use this doc for pattern
+> observations and offset landmarks within a single element's bytes.
 
 ---
 
@@ -27,17 +26,22 @@ Three inner sizes changed across patch versions:
 
 | constant         | pre-4-11 | 4-11  | 4-23 / 4-24 |
 |------------------|----------|-------|-------------|
-| `fixed_prefix`   | 299      | 286   | 299         |
+| `fixed_prefix`   | 300      | 287   | 300         |
 | `sub_element`    | 316      | 303   | 316         |
-| `mesh_element`   | 364      | 351   | 364         |
-| baseline blob    | 323      | 310   | 323         |
+| `inner_map_elem` | 364      | 351   | 364         |
+| baseline blob    | 324      | 311   | 324         |
 
 The 4-11 patch shrank all three constants; the 4-23 patch reverted them.
 The outer container layout is unchanged across all versions.
 
+`fixed_prefix` (FP) = 300 bytes: `byte_a`(1) + `lookup_b`(4) + `EffectDataCoreBlock`(254) +
+`lookups_c`(24) + `fields_d`(16) + `byte_e`(1). The last field `byte_e` is always 0 in
+vanilla, which caused early empirical analysis (and Snow's doc) to count FP as 299 by
+absorbing `byte_e` into the "15 trailing zeros" at the end of Region 5.
+
 **Diff (4-11 → 4-24):** 12 zero bytes inserted at blob offset 172
-(= fixed_prefix offset 168) for entries originally 311 bytes; 13 bytes
-for entries originally 310 bytes. In both cases the -π/2 constant float
+(= fixed_prefix offset 168) for entries originally 312 bytes; 13 bytes
+for entries originally 311 bytes. In both cases the -π/2 constant float
 (`db 0f c9 bf`) moved from blob[172] to blob[184]. All common keys between
 the two dumps diverge at exactly blob offset 172 (confirmed across 2035/2036
 common entries).
@@ -75,22 +79,31 @@ is what the layout below describes.
 ```
 Offset  Size    Field
 ──────────────────────────────────────────────────────────────
-0       4       constant {0x01,0x00,0x00,0x00}  (LE u32=1; always present)
-4       FP      fixed_prefix  (see § Fixed Prefix below)
+0       4       CArray<EffectDataElement> count — always 1 in vanilla
+4       FP      fixed_prefix  (= EffectDataElement fixed fields; see § Fixed Prefix)
 4+FP    4       named_item_count   u32_le  (0 for ~95% of entries)
 8+FP    var     string_pairs       named_item_count × StringPair
 X       var     struct_section     u32_le count + count × 144-byte NamedItemStruct
 Y       var     sub_elements       K × SUB bytes  (K implicit: (mc_off − Y) ÷ SUB)
-mc_off  4       mesh_count         u32_le
-mc_off+4  m×MESH  mesh_elements    mesh_count × MeshEffectData
-end−8   8       {0,0,0,0,0,0,0,0}  trailing zeros
+mc_off  4       inner_map_count    u32_le  (IDA: CArray<{u32 key, EffectDataInner}> count)
+mc_off+4  n×364   inner_map_elems  n × 364-byte inner_map entry (key + EffectDataInner)
+end−8   4       MeshEffectData count  u32_le  (IDA: CArray<MeshEffectData>; 50 bytes each)
+end−4   m×50    mesh_elements        real mesh data (50 bytes/element per IDA sub_1410DBD90)
+end     8       {0,0,0,0,0,0,0,0}  trailing zeros
 ```
+
+> **Naming note:** Early empirical analysis (and Snow's external doc) called the 364-byte
+> chunks "MeshEffectData." Per IDA they are `inner_map` entries: `u32 key +
+> EffectDataInner`. The 364-byte wire size holds when all of EffectDataInner's CArrays are
+> empty. Real `MeshEffectData` per IDA `sub_1410DBD90` is 50 bytes:
+> `u8 + 8×u32 + u8 + 4×u32` (lookups). The two fields appear sequentially after the
+> EffectDataElement's variable-length body; the layout above reflects this.
 
 Where per-version constants are:
 
 | symbol   | 4-11 | 4-23/4-24 |
 |----------|------|-----------|
-| FP       | 286  | 299       |
+| FP       | 287  | 300       |
 | SUB      | 303  | 316       |
 | MESH     | 351  | 364       |
 
@@ -108,65 +121,64 @@ Y      = X + 4 + named_item_count × 144
 mc_off = Y + K × SUB   (solve from blob_size: see mc_off detection below)
 ```
 
-**mc_off detection** — two-step: (1) iterate candidate `m` from largest to
-smallest; for each, compute `mc_off = blob_size − 8 − 4 − m×MESH`; check
-that `u32_le(blob, mc_off) == m`. (2) verify `(mc_off − Y) % SUB == 0`.
-The divisibility check is required to avoid false positives: when mesh data
-happens to be zero at a candidate mc_off, step (1) alone gives wrong m.
+**mc_off detection** — two-step: (1) iterate candidate `n` (inner_map count) from
+largest to smallest; for each, compute `mc_off = blob_size − 8 − 4 − n×364`; check
+that `u32_le(blob, mc_off) == n`. (2) verify `(mc_off − Y) % SUB == 0`.
+The divisibility check is required to avoid false positives: when inner_map data
+happens to be zero at a candidate mc_off, step (1) alone gives wrong n.
 
 ---
 
 ## Size Examples
 
-### 2026-4-11 pabgb (2039 entries, FP=286, SUB=303, MESH=351)
+### 2026-4-11 pabgb (2039 entries, FP=287, SUB=303, MESH=351)
 
-General formula: `blob_size = 310 + named_items_extra + K×303 + m×351`
+General formula: `blob_size = 311 + named_items_extra + K×303 + inner_map×351 + mesh×50`
 
 where `named_items_extra = Σ(4+len_i) + named_item_count×144`.
 
-| blob_size | named_item_count | K (×303) | m (×351) | notes |
-|-----------|-----------------|----------|----------|-------|
-| 310       | 0               | 0        | 0        | baseline (1935 entries) |
-| 462       | 1 ("leaf", 4)   | 0        | 0        | |
-| 463       | 1 ("dist1", 5)  | 0        | 0        | |
-| 464       | 1 ("smoke1", 6) | 0        | 0        | |
-| 614       | 2               | 0        | 0        | |
-| 615       | 2               | 0        | 0        | |
-| 613       | 0               | 1        | 0        | |
-| 916       | 0               | 2        | 0        | |
-| 661       | 0               | 0        | 1        | |
-| 1012      | 0               | 0        | 2        | |
-| 1363      | 0               | 0        | 3        | |
-| 1714      | 0               | 0        | 4        | |
+| blob_size | named_item_count | K (×303) | inner_map (×351) | mesh (×50) | notes |
+|-----------|-----------------|----------|-----------------|------------|-------|
+| 311       | 0               | 0        | 0               | 0          | baseline (1935 entries) |
+| 463       | 1 ("leaf", 4)   | 0        | 0               | 0          | |
+| 464       | 1 ("dist1", 5)  | 0        | 0               | 0          | |
+| 465       | 1 ("smoke1", 6) | 0        | 0               | 0          | |
+| 615       | 2               | 0        | 0               | 0          | |
+| 616       | 2               | 0        | 0               | 0          | |
+| 614       | 0               | 1        | 0               | 0          | |
+| 917       | 0               | 2        | 0               | 0          | |
+| 662       | 0               | 0        | 1               | 0          | |
+| 1013      | 0               | 0        | 2               | 0          | |
+| 1364      | 0               | 0        | 3               | 0          | |
+| 1715      | 0               | 0        | 4               | 0          | |
 
-### 2026-4-24 pabgb (2057 entries, FP=299, SUB=316, MESH=364)
+### 2026-4-24 pabgb (2057 entries, FP=300, SUB=316, MESH=364)
 
-General formula: `blob_size = 323 + named_items_extra + K×316 + m×364`
+General formula: `blob_size = 324 + named_items_extra + K×316 + inner_map×364 + mesh×50`
 
-| blob_size | named_item_count | K (×316) | m (×364) | notes |
-|-----------|-----------------|----------|----------|-------|
-| 323       | 0               | 0        | 0        | baseline (1952 entries) |
-| 475       | 1 ("leaf", 4)   | 0        | 0        | |
-| 476       | 1 ("dist1", 5)  | 0        | 0        | |
-| 477       | 1 ("smoke1", 6) | 0        | 0        | |
-| 627       | 2               | 0        | 0        | |
-| 628       | 2               | 0        | 0        | |
-| 639       | 0               | 1        | 0        | |
-| 955       | 0               | 2        | 0        | |
-| 687       | 0               | 0        | 1        | |
-| 1051      | 0               | 0        | 2        | 26 entries |
-| 1415      | 0               | 0        | 3        | |
-| 1779      | 0               | 0        | 4        | |
-| 2143      | 0               | 0        | 5        | |
-| 2507      | 0               | 0        | 6        | |
-| 2871      | 0               | 0        | 7        | 19 entries |
-| 6147      | 0               | 0        | 16       | max observed |
-| 831       | 0               | 0        | 1†       | irregular — bone-name mesh (+144 bytes) |
-| 2535      | 0               | 7        | 0        | confirmed: 311 + 7×316 + 12 = 2535 (`Weapon_Fire_ing`) |
-| 373       | 0               | 0        | 0†       | irregular — `Inspect_SocketMarker`, +50 unknown bytes |
-| 1407      | 0               | 0†       | —        | irregular — `cdfx_mc_onguard_shield_fxpreset_01`, unknown format |
-| 1787      | 0               | —        | —        | irregular — split-reference mesh (K=5, see Type C below) |
-| 2151      | 0               | —        | —        | irregular — split-reference mesh (K=6, see Type C below) |
+| blob_size | named_item_count | K (×316) | inner_map (×364) | mesh (×50) | notes |
+|-----------|-----------------|----------|-----------------|------------|-------|
+| 324       | 0               | 0        | 0               | 0          | baseline (1952 entries) |
+| 476       | 1 ("leaf", 4)   | 0        | 0               | 0          | |
+| 477       | 1 ("dist1", 5)  | 0        | 0               | 0          | |
+| 478       | 1 ("smoke1", 6) | 0        | 0               | 0          | |
+| 628       | 2               | 0        | 0               | 0          | |
+| 629       | 2               | 0        | 0               | 0          | |
+| 374       | 0               | 0        | 0               | 1          | one real MeshEffectData (50 bytes) |
+| 640       | 0               | 1        | 0               | 0          | |
+| 956       | 0               | 2        | 0               | 0          | |
+| 688       | 0               | 0        | 1               | 0          | |
+| 1052      | 0               | 0        | 2               | 0          | 26 entries |
+| 1416      | 0               | 0        | 3               | 0          | |
+| 1780      | 0               | 0        | 4               | 0          | |
+| 2144      | 0               | 0        | 5               | 0          | |
+| 2508      | 0               | 0        | 6               | 0          | |
+| 2872      | 0               | 0        | 7               | 0          | 19 entries |
+| 6148      | 0               | 0        | 16              | 0          | max observed |
+| 832       | 0               | 0        | 1†              | 0          | irregular — bone-name inner_map body (+144 bytes) |
+| 2536      | 0               | 7        | 0               | 0          | confirmed: 312 + 7×316 + 12 = 2536 (`Weapon_Fire_ing`) |
+| 1788      | 0               | —        | —               | —          | irregular — split-reference (K=5, see Type C below) |
+| 2152      | 0               | —        | —               | —          | irregular — split-reference (K=6, see Type C below) |
 
 ---
 
@@ -224,12 +236,26 @@ Total size confirmed: 144 bytes across all 27 entries.
 offset (struct[88+X] ≅ prefix[104+X]). The struct omits prefix[92:104] (the
 first 12 bytes of the prefix's inner sub-struct). No TRS or hash/ID region.
 
+**EffectDataD3Block semantic labels** (Rust field name ↔ semantic meaning from cross-analysis):
+
+| Rust field   | struct offset | semantic                                                  |
+|-------------|--------------|-----------------------------------------------------------|
+| `vec_a`     | 0..12        | named-item colour (RGB f32[3])                            |
+| `vec_b`     | 12..24       | named-item secondary colour (RGB f32[3])                  |
+| `vec_c`     | 24..36       | 0.0 or 0.05f triplet (mirrors prefix[40:52])              |
+| `byte_136`  | 136..137     | bitmask flags (same role as prefix[142])                  |
+| `byte_137`  | 137..138     | named-item bool: 0 or 1 (same role as prefix[143])        |
+| `word_138`  | 138..140     | `0x0a 0x05` constant type marker (same as prefix[140:142])|
+
+`vec_d`–`vec_g` and `field_84`–`field_140` are IDA-derived anonymous names;
+semantics not yet confirmed beyond the mirror relationship with prefix[92:144].
+
 ---
 
 ## Sub-Element (303 bytes in 4-11, 316 bytes in 4-24)
 
 Present when `(mc_off − Y) > 0`. Count K is implicit (no count field stored).
-Mapped from the 4-24 639-blob (K=1), sub-element at blob[311..627].
+Mapped from the 4-24 640-blob (K=1), sub-element at blob[312..628].
 
 **Header (bytes 0..92 — all zeros except the header packet):**
 
@@ -260,10 +286,16 @@ its own transform relative to the parent effect origin.
 
 ---
 
-## MeshEffectData (351 bytes in 4-11, 364 bytes in 4-24)
+## InnerMapElement (351 bytes in 4-11, 364 bytes in 4-24)
 
-Location: immediately after `mesh_count` u32 at `mc_off + 4`.
-In 4-24, confirmed up to m=16 (6147-byte blob).
+> **Naming:** Snow's doc and early empirical analysis called these "MeshEffectData." Per IDA
+> they are `inner_map` entries: `u32 key + EffectDataInner`. The 364-byte wire size applies
+> when all of EffectDataInner's embedded CArrays are empty. This section retains the
+> landmark offsets from empirical analysis; see `effect_data.rs` for the field-typed
+> IDA-derived decoder.
+
+Location: immediately after `inner_map_count` u32 at `mc_off + 4`.
+In 4-24, confirmed up to n=16 (6148-byte blob).
 
 **Activity flag:** mesh[0] = u8, either 0x01 (active) or 0x00 (null slot).
 Only mesh[0] carries a full slot directory; trailing null slots carry only a
@@ -317,7 +349,7 @@ zeros at [0:4] (inactive), hash at [4:8], zeros elsewhere in [0:80].
 
 **Shared inner sub-struct (mesh[108..364]):**
 
-The first 207 bytes (mesh[108..315]) mirror fixed_prefix[92..299] with a +16
+The first 208 bytes (mesh[108..316]) mirror fixed_prefix[92..300] with a +16
 byte shift (mesh[108+X] ≅ prefix[92+X]). Confirmed landmarks:
 
 | mesh offset | prefix equiv | landmark |
@@ -330,7 +362,7 @@ byte shift (mesh[108+X] ≅ prefix[92+X]). Confirmed landmarks:
 | 260..284    | prefix[244..268] | flags/IDs region |
 | 280..296    | prefix[264..280] | `0xe173eac5` hash region |
 
-The remaining mesh[315..364] (49 bytes) extends beyond the fixed_prefix and
+The remaining mesh[316..364] (48 bytes) extends beyond the fixed_prefix and
 is not yet mapped.
 
 ---
@@ -338,7 +370,7 @@ is not yet mapped.
 ## Fixed Prefix (blob[4 .. 4+FP])
 
 Full field-level map from systematic byte and 4-byte-window scans across all
-1952 baseline blobs in the 4-24 dump (FP=299, prefix offset = blob offset − 4).
+1952 baseline blobs in the 4-24 dump (FP=300, prefix offset = blob offset − 4).
 
 ### Region 1 — Colour parameters (prefix[0..92])
 
@@ -417,6 +449,7 @@ Sample non-trivial entries:
 | 264..280      | 16   | —    | mostly constant `c5 ea 73 e1` repeated × 4 (LE u32 = `0xe173eac5`); 941/1952 entries are exactly this; others have same pattern in bytes [2:4] of each u32 with variable low bytes |
 | 280..284      | 4    | u32  | constant `0x0000eac5` |
 | 284..299      | 15   | zero | trailing zeros |
+| 299..300      | 1    | u8   | `byte_e` — always 0 in vanilla; IDA reads as a named field (`EffectDataElement.byte_e`), making FP=300 not 299 |
 
 **Hash region note:** The 28-byte block prefix[256..284] as 14 × u16 shows
 a structured alternating pattern: u16s at positions [3,5,7,9,11] (from start
@@ -432,28 +465,29 @@ constant `0xeac5` values. The two fully-variable fields are effectively:
 
 | dump      | entries | parsed | failures | failure sizes |
 |-----------|---------|--------|----------|---------------|
-| 2026-4-11 | 2039    | ~2032  | 7        | 360×2, 805×1, 1355×2, 1722×1, 2073×1 |
-| 2026-4-24 | 2057    | 2050   | 7        | 373×2 (TypeB), 831×1 (TypeA), 1407×2 (TypeE), 1787×1 (TypeC), 2151×1 (TypeC) |
+| 2026-4-11 | 2039    | ~2036  | 3        | 361×2 (TypeA-equiv), 806×1, 1788×1 (TypeC-equiv) |
+| 2026-4-24 | 2057    | 2054   | 3        | 832×1 (TypeA), 1788×1 (TypeC), 2152×1 (TypeC) |
 
 Each failure size is exactly 13 more than the 4-11 counterpart, confirming the
-13-byte per-entry growth. The 2535-byte blob (K=7 sub-elements) is NOT a
-failure — it fits the general formula and was simply missing from the size table.
-The failures are types A–E as documented in the Irregular Blobs section.
+13-byte per-entry growth. Types B, D, and E are standard after the FP=300 correction:
+- Type B (374-byte) = standard mesh=1 (one 50-byte MeshEffectData)
+- Type D (2536-byte) = standard K=7 sub-elements
+- Type E (1416-byte) = standard inner_map=3
 
 ---
 
 ## Irregular Blobs
 
-The 7 irregular entries in 4-24 fail the mc_off divisibility check. There are
-four distinct sub-types:
+The 3 irregular entries in 4-24 (after reconciliation; Types B, D, and E are now
+standard). Byte offsets below use FP=300 boundaries:
 
-### Type A — Bone-name mesh (831-byte blob)
+### Type A — Bone-name inner_map body (832-byte blob)
 
-One entry (`pafx_mc_rotationbash_lightning_gain_001a_switch_01`) has M=1 mesh
-that is variable-length because it embeds a bone name list and bone weight
-array. The outer layout is identical to a standard mesh blob
-(blob[303:311]=8 zeros, blob[311:315]=M=1, mesh data, 8 trailing zeros),
-but the mesh body is 508 bytes instead of the standard 364.
+One entry (`pafx_mc_rotationbash_lightning_gain_001a_switch_01`) has inner_map=1
+but the entry body is variable-length because it embeds a bone name list and bone
+weight array. The outer layout is identical to a standard inner_map blob
+(blob[304:312]=8 zeros, blob[312:316]=inner_map_count=1, body, 8 trailing zeros),
+but the body is 508 bytes instead of the standard 364.
 
 The bone name list begins at **mesh offset 298**:
 
@@ -472,29 +506,7 @@ The bone name list begins at **mesh offset 298**:
 [58 trailing zeros]
 ```
 
-Total mesh size: 508 bytes (298 standard + 4 count + 120 names + 4 count + 24 weights + 58 zeros).
-
-### Type B — Unknown variant (373-byte blobs)
-
-Two entries (`Inspect_SocketMarker`) have size 373 = 323 + 50. The standard
-mc_off region (blob[311:323]) is all zeros (K=0, M=0). The 50 extra bytes at
-blob[323:373] are partially decoded:
-
-```
-blob[323:327]  u32 = 1                     (count or type)
-blob[327:331]  u32 = 0                     (padding)
-blob[331]      u8  = 0x00                  (alignment byte)
-blob[332:352]  6 × f32 (4-byte aligned)    (float params — entry-specific)
-  entry1: 1.0, 0.0, 0.0, 0.0, 1.0, 0.0
-  entry2: 1.0, 1.0, 0.3, 0.0, 1.0, 0.0
-blob[355:371]  4 hash IDs (0xe173xxxx pattern, same as prefix[264:280] region)
-  first 2 are shared between entries; last 2 are entry-specific
-blob[371:373]  u16 = 0xeac5 (constant sentinel tail)
-```
-
-The 6 floats vary between entries and look like scale/blend parameters.
-The hash IDs match the structure and sentinel bytes of the standard
-`0xe173eac5` hash region. Likely socket/attachment anchor data.
+Total body size: 508 bytes (298 standard + 4 count + 120 names + 4 count + 24 weights + 58 zeros).
 
 ### Type C — Split-reference mesh (1787, 2151-byte blobs)
 
@@ -502,19 +514,19 @@ Two entries use a "split header" format where K mesh headers are stored
 separately from K−1 mesh bodies:
 
 ```
-blob[303:311]         8 zeros (standard)
-blob[311:315]         K  (u32 reference count — NOT the mesh count)
-blob[315:315+K×8]     K reference entries, each = (u32=1, u32=hash)
-blob[315+K×8:end-8]   M = K−1  mesh bodies, each 356 bytes
+blob[304:312]         8 zeros (standard — named_item_count=0, struct_count=0)
+blob[312:316]         K  (u32 reference count — NOT inner_map count)
+blob[316:316+K×8]     K reference entries, each = (u32=1, u32=hash)
+blob[316+K×8:end-8]   M = K−1  bodies, each 356 bytes
 blob[end-8:end]       8 trailing zeros
 ```
 
-Size formula: `315 + K×8 + (K−1)×356 + 8 = 364×K − 33`
+Size formula: `316 + K×8 + (K−1)×356 + 8 = 364×K − 32`
 
 | blob size | K | M=K-1 | entry name |
 |-----------|---|-------|------------|
-| 1787      | 5 | 4     | `pafx_Swim_Foot_Warmachine` |
-| 2151      | 6 | 5     | `fx_smokeshell_out` |
+| 1788      | 5 | 4     | `pafx_Swim_Foot_Warmachine` |
+| 2152      | 6 | 5     | `fx_smokeshell_out` |
 
 The last two reference entries always share the same hash (a back-reference or
 deduplication marker). Body layout (each 356 bytes):
@@ -527,102 +539,57 @@ deduplication marker). Body layout (each 356 bytes):
 | 12..100     | 88   | zeros |
 | 100..356    | 256  | **inner sub-struct** — mirrors prefix[92..348] with body[100+X] ≅ prefix[92+X]; confirmed by body[100:104]=f32=1.0 (≅ prefix[92]=1.0) and body[148:150]=`0a 05` (≅ prefix[140:142]) |
 
-The body's inner sub-struct is identical in structure to standard MeshEffectData[108..364],
+The body's inner sub-struct is identical in structure to standard InnerMapElement[108..364],
 but positioned 8 bytes earlier in the body's own coordinate space.
 
-### Type D — Extended sub-element blob (2535-byte blob)
+### Type D — Extended sub-element blob (2536-byte blob)
+
+> **Reconciled:** this is a standard blob with K=7 sub-elements; not irregular.
 
 One entry (`Weapon_Fire_ing`) has K=7 sub-elements, fitting the standard
-sub-element formula `311 + K×316 + 12`:
+sub-element formula `312 + K×316 + 12`:
 
 ```
-311 + 7×316 + 12 = 2535  ✓
+312 + 7×316 + 12 = 2536  ✓
 ```
 
-Each sub-element starts at blob[311 + i×316] with the standard header
+Each sub-element starts at blob[312 + i×316] with the standard header
 `00 00 00 00 00 00 00 00 01` (8 zeros + 0x01). The trailing 12 zeros are
 also standard. This blob fits the general formula — it was previously
-miscounted in the coverage table because K=7 is larger than the K≤2 samples
-used to set the formula range.
+miscounted because K=7 is larger than the K≤2 samples used to calibrate.
 
-### Type E — Keyed-entry mesh (1407-byte blobs)
+### Type E — Reconciled: standard inner_map=3 (1416-byte blobs)
+
+> **Reconciled:** these entries are no longer classified as irregular. With FP=300
+> the correct size for inner_map=3 is 324 + 3×364 = 1416, not 1407. The earlier
+> "keyed-entry" analysis was derived from a wrong byte boundary (byte_e missed).
+> Both entries fit the general formula with inner_map_count=3.
 
 Two entries (`cdfx_mc_onguard_shield_fxpreset_01` and
-`cdfx_mc_onguard_shield_fxpreset_01_applyAnimationSpeed`) use a "keyed outer
-entry" format distinct from all other types:
-
-```
-blob[303:311]               8 zeros (standard)
-blob[311:315]               K  (outer entry count — currently only K=1 observed)
-blob[315:315+K×12]          K outer entries, each = (u32=M, u32=hash_A, u32=hash_B)
-blob[315+K×12:end-12]       M × 356-byte bodies
-blob[end-12:end]            12 trailing zeros
-```
-
-Size formula: `315 + K×12 + M×356 + 12`
-
-For K=1, M=3: `315 + 12 + 3×356 + 12 = 1407`. ✓
-
-Body layout (each 356 bytes):
-
-| body index | body[0:4]    | body[4:8]       | body[8:16]      |
-|------------|--------------|-----------------|-----------------|
-| 0 (active) | hash_own     | M (total count) | hash_own × 2   |
-| 1 (active) | 0            | 0               | hash_own × 2   |
-| 2 (last)   | 0            | 0x00080000      | hash_outer × 2 |
-
-The `0x00080000` value at body[2][4:8] is the same "last-slot marker" seen in
-standard null mesh slots at mesh[8:12].
-
-Inner sub-struct (body[104..356], mirrors prefix[92..344], body[X+104] ≅ prefix[X+92]):
-
-| body offset | value       | prefix equiv    |
-|-------------|-------------|-----------------|
-| 104..108    | f32 = 1.0   | prefix[92..96]  |
-| 108..116    | f32 = 0.0×2 | prefix[96..104] |
-| 116..120    | f32 = 1.0   | prefix[104..108]|
-| 120..124    | f32 = 1.0   | prefix[108..112]|
-| 124..128    | f32 = −1.0  | prefix[112..116]|
-| 128..132    | f32 = 0.0   | prefix[116..120]|
-| 132..136    | f32 = 1.0   | prefix[120..124]|
-| 136..140    | f32 = 1.0   | prefix[124..128]|
-| 140..144    | f32 = 0.0   | prefix[128..132]|
-| 144..148    | f32 = 1.0   | prefix[132..136]|
-| 148..152    | f32 = 1.0   | prefix[136..140]|
-| 152..154    | `0a 05`     | prefix[140..142]|
-
-All three bodies have identical [104:356] content (the inner sub-struct is the same
-for all body indices). The two instances of this blob type have identical post-prefix
-data, differing only in outer blob metadata.
+`cdfx_mc_onguard_shield_fxpreset_01_applyAnimationSpeed`) — blob_size 1416 =
+baseline(324) + 3×364(inner_map). Standard layout; no special handling required.
 
 ---
 
 ## Next Steps
 
-1. **prefix[88:92]** — now known to carry clean floats {0.3, 0.5, 1.0, 1.5}
-   in ~0.7% of entries (not "rarely"); semantics not yet confirmed (possibly
-   opacity or blend multiplier). prefix[40:52] is confirmed to mirror
-   NamedItemStruct struct[24:36] (both = the 0.05f triplet).
+1. **prefix[88:92]** — carries clean floats {0.3, 0.5, 1.0, 1.5} in ~0.7% of
+   entries; semantics not yet confirmed (possibly opacity or blend multiplier).
+   prefix[40:52] is confirmed to mirror NamedItemStruct struct[24:36] (0.05f triplet).
 
 2. **Identify prefix[256:264] IDs** — two per-entry u16 identifiers at
-   prefix[258:262]; likely reference external tables (texture IDs, material
-   hashes?).
+   prefix[258:262]; likely reference external tables (texture IDs, material hashes?).
 
-3. **Type B irregular blobs (373-byte)** — 50 bytes of unknown structure at
-   blob[323:373] for `Inspect_SocketMarker`.
+3. **inner_map slot directory hashes** — the slot_k hashes in InnerMapElement[0] are
+   external asset IDs: confirmed NOT blob keys within effectinfo.pabgb (0 hits out of
+   233 cross-referenced). Likely mesh/model asset IDs pointing into a different archive.
 
-4. **mesh[0] slot directory hashes** — the slot_k hashes (at [12:16], [20:24],
-   etc. for k=1..M-1) are external asset IDs: confirmed NOT blob keys within
-   effectinfo.pabgb (0 hits out of 233 cross-referenced). Likely mesh/model
-   asset IDs pointing into a different archive (e.g. geometry tables).
+4. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
 
-5. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
+5. **Type C body remainder (body[152:356])** — inner sub-struct bytes after the
+   `0a 05` marker at body[148] contain TRS and ID fields mirroring prefix[140:300];
+   not yet scanned for Type C specifically.
 
-6. **Type C/E body remainder (body[152:356])** — inner sub-struct bytes after
-   the `0a 05` marker at body[148]/body[152] contain TRS and ID fields mirroring
-   prefix[140:299]; not yet scanned for Type C/E specifically.
-
-7. **MeshEffectData mesh[315..364] (49 bytes)** — the inner sub-struct mirrors
-   prefix[92..299] (207 bytes) at mesh[108..315], but the element is 364 bytes,
-   leaving 49 bytes at the end unmapped. Likely contains the flags/IDs region
-   and trailing zeros analogous to prefix[284..299].
+6. **InnerMapElement inner sub-struct tail (mesh[316..364], 48 bytes)** — the inner
+   sub-struct mirrors prefix[92..300] (208 bytes) at mesh[108..316]; the remaining
+   48 bytes likely contain the flags/IDs region analogous to prefix[284..300].
