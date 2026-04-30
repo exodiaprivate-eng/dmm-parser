@@ -10,12 +10,23 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
+// Hand-corrected: empirical sweep across all 9 vanilla elements shows
+// 12-byte elements split as (u32 hash, u32 rate=1000000 fixed-point, u32=0).
+// Rate value of 1,000,000 is the classic 100% × 10000 PPM fixed-point.
+py_binary_struct! {
+    pub struct MaterialRelationMatchUpEntry {
+        pub item_hash: u32,
+        pub rate: u32,
+        pub reserved: u32,
+    }
+}
+
 py_binary_struct! {
     pub struct MaterialRelationInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub material_relation_match_up_data_list: CArray<[u8; 12]>,
+        pub material_relation_match_up_data_list: CArray<MaterialRelationMatchUpEntry>,
     }
 }
 
