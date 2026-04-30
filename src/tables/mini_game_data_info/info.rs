@@ -15,13 +15,126 @@
 //!   5. u32 (numeric value at +20)
 //!   6. CArray<u32> (a2+24/+32 — list of u32 keys)
 
-use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::binary::sequencer_stage_chart_desc::SequencerStageSpawnData;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+/// Per-element of `_spawnDataList`. The outer wrapper sub_14110E010
+/// reads `CArray<{CArray<SequencerStageSpawnData>}>`. The inner
+/// SequencerStageSpawnData is the same family used by stage_info /
+/// field_revive_info / global_stage_sequencer_info.
+#[derive(Debug)]
+pub struct MiniGameSpawnEntry<'a> {
+    pub spawns: CArray<SequencerStageSpawnData<'a>>,
+}
+
+impl<'a> BinaryRead<'a> for MiniGameSpawnEntry<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Self { spawns: <CArray<SequencerStageSpawnData>>::read_from(data, offset)? })
+    }
+}
+
+impl<'a> BinaryWrite for MiniGameSpawnEntry<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.spawns.write_to(w)
+    }
+}
+
+impl<'a> ToJsonValue for MiniGameSpawnEntry<'a> {
+    fn to_json_value(&self) -> Value {
+        self.spawns.to_json_value()
+    }
+}
+
+impl<'a> WriteJsonValue for MiniGameSpawnEntry<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        <CArray<SequencerStageSpawnData> as WriteJsonValue>::write_from_json(w, v)
+    }
+}
+
+/// The spawn_data_list field uses a Decoded|Raw fallback because the
+/// inner `SequencerStageSpawnData` reads `OptionalGameCondition` whose
+/// recursive `ConditionData` tree contains anti-disassembly variants
+/// (54/286 family) that fail to decode. Decoded entries get full
+/// field-level access; Raw fallbacks preserve byte-perfect round-trip.
+#[derive(Debug)]
+pub enum SpawnDataList<'a> {
+    Decoded(CArray<MiniGameSpawnEntry<'a>>),
+    Raw(Vec<u8>),
+}
+
+impl<'a> SpawnDataList<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, region_end: usize) -> io::Result<Self> {
+        let region_start = *offset;
+        let mut probe = region_start;
+        match <CArray<MiniGameSpawnEntry>>::read_from(data, &mut probe) {
+            Ok(list) if probe == region_end => {
+                *offset = probe;
+                Ok(SpawnDataList::Decoded(list))
+            }
+            _ => {
+                let bytes = data[region_start..region_end].to_vec();
+                *offset = region_end;
+                Ok(SpawnDataList::Raw(bytes))
+            }
+        }
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match self {
+            SpawnDataList::Decoded(list) => list.write_to(w),
+            SpawnDataList::Raw(b) => w.write_all(b),
+        }
+    }
+
+    pub fn to_json_value(&self) -> Value {
+        match self {
+            SpawnDataList::Decoded(list) => {
+                let mut m = Map::new();
+                m.insert("kind".into(), Value::String("Decoded".into()));
+                m.insert("spawn_data_list".into(), list.to_json_value());
+                Value::Object(m)
+            }
+            SpawnDataList::Raw(b) => {
+                let mut m = Map::new();
+                m.insert("kind".into(), Value::String("Raw".into()));
+                m.insert("_b64".into(), Value::String(B64.encode(b)));
+                Value::Object(m)
+            }
+        }
+    }
+
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "SpawnDataList: expected object"))?;
+        let kind = json_get_field(obj, "kind")?.as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "SpawnDataList.kind: expected string"))?;
+        match kind {
+            "Decoded" => {
+                <CArray<MiniGameSpawnEntry> as WriteJsonValue>::write_from_json(
+                    w, json_get_field(obj, "spawn_data_list")?,
+                )
+            }
+            "Raw" => {
+                let b64 = json_get_field(obj, "_b64")?.as_str()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                        "SpawnDataList.Raw._b64: expected string"))?;
+                let bytes = B64.decode(b64).map_err(|e| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("SpawnDataList.Raw._b64: invalid base64: {}", e)))?;
+                w.extend_from_slice(&bytes);
+                Ok(())
+            }
+            other => Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("SpawnDataList.kind: unknown variant {:?}", other))),
+        }
+    }
+}
 
 py_binary_struct! {
     /// One element of `player_data_list` or `npc_data_list`. Per
@@ -109,10 +222,12 @@ pub struct MiniGameDataInfo<'a> {
     pub player_data_list: CArray<MiniGameParticipantData>,
     /// _npcDataList — same element shape as player_data_list.
     pub npc_data_list: CArray<MiniGameParticipantData>,
-    /// _spawnDataList — sub_14110E010 → sub_14110BCC0 → sub_1410F3220
-    /// has multiple nested polymorphic readers (some anti-disassembly).
-    /// Captured byte-perfect; boundary recovered via tail probe.
-    pub spawn_data_list_blob: Vec<u8>,
+    /// `_spawnDataList` — sub_14110E010 → sub_14110BCC0 → sub_1410F3220
+    /// (= `CArray<CArray<SequencerStageSpawnData>>`). The inner element
+    /// is fully typed; the outer wraps in a `Decoded|Raw` enum because
+    /// the GameCondition tree inside SequencerStageSpawnData hits
+    /// anti-disassembly ConditionData variants on some entries.
+    pub spawn_data_list: SpawnDataList<'a>,
     pub game_event_handler_info: u16,
     pub knowledge_info: u32,
     pub game_advice_info_list: CArray<u32>,
@@ -127,6 +242,8 @@ fn try_read_tail(data: &[u8], probe: usize, end: usize) -> Option<usize> {
     if cursor != end { return None; }
     Some(cursor - probe)
 }
+
+use crate::binary::variant::find_variant_boundary;
 
 impl<'a> MiniGameDataInfo<'a> {
     pub fn read_with_size(
@@ -159,13 +276,16 @@ impl<'a> MiniGameDataInfo<'a> {
         let player_data_list = CArray::<MiniGameParticipantData>::read_from(data, offset)?;
         let npc_data_list = CArray::<MiniGameParticipantData>::read_from(data, offset)?;
 
-        // _spawnDataList — captured byte-perfect; boundary by tail probe.
+        // _spawnDataList — try typed decode first; fall back to opaque
+        // bytes when the inner GameCondition decode hits anti-disassembly
+        // variants. Boundary is found via the same tail probe used
+        // before; the typed reader runs against the bounded region.
         let post_npc = *offset;
         let spawn_size = find_variant_boundary(data, post_npc, entry_end, 4, |probe| {
             try_read_tail(data, probe, entry_end)
         })?;
-        let spawn_data_list_blob = data[post_npc..post_npc + spawn_size].to_vec();
-        *offset = post_npc + spawn_size;
+        let region_end = post_npc + spawn_size;
+        let spawn_data_list = SpawnDataList::read_with_size(data, offset, region_end)?;
 
         let game_event_handler_info = u16::read_from(data, offset)?;
         let knowledge_info = u32::read_from(data, offset)?;
@@ -175,7 +295,7 @@ impl<'a> MiniGameDataInfo<'a> {
             key, string_key, is_blocked, script_name, phase_panel_tag_name,
             ui_view_id, use_deactive_result, need_change_character_scale,
             entrance_fee_list, default_reward_drop_set_info,
-            player_data_list, npc_data_list, spawn_data_list_blob,
+            player_data_list, npc_data_list, spawn_data_list,
             game_event_handler_info, knowledge_info, game_advice_info_list,
         })
     }
@@ -196,7 +316,7 @@ impl<'a> MiniGameDataInfo<'a> {
         self.default_reward_drop_set_info.write_to(w)?;
         self.player_data_list.write_to(w)?;
         self.npc_data_list.write_to(w)?;
-        w.write_all(&self.spawn_data_list_blob)?;
+        self.spawn_data_list.write_to(w)?;
         self.game_event_handler_info.write_to(w)?;
         self.knowledge_info.write_to(w)?;
         self.game_advice_info_list.write_to(w)?;
@@ -218,10 +338,7 @@ impl<'a> MiniGameDataInfo<'a> {
         m.insert("default_reward_drop_set_info".to_string(), self.default_reward_drop_set_info.to_json_value());
         m.insert("player_data_list".to_string(), self.player_data_list.to_json_value());
         m.insert("npc_data_list".to_string(), self.npc_data_list.to_json_value());
-        m.insert(
-            "_spawn_data_list_blob_b64".to_string(),
-            Value::String(B64.encode(&self.spawn_data_list_blob)),
-        );
+        m.insert("spawn_data_list".to_string(), self.spawn_data_list.to_json_value());
         m.insert("game_event_handler_info".to_string(), self.game_event_handler_info.to_json_value());
         m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
         m.insert("game_advice_info_list".to_string(), self.game_advice_info_list.to_json_value());
@@ -254,13 +371,7 @@ impl<'a> MiniGameDataInfo<'a> {
             w,
             json_get_field(obj, "npc_data_list")?,
         )?;
-        let b64 = json_get_field(obj, "_spawn_data_list_blob_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "MiniGameDataInfo: _spawn_data_list_blob_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("MiniGameDataInfo: _spawn_data_list_blob_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        SpawnDataList::write_from_json(w, json_get_field(obj, "spawn_data_list")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_event_handler_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_advice_info_list")?)?;
@@ -283,13 +394,20 @@ mod tests {
         let ranges = entry_ranges(&entries, data.len());
 
         let mut items = Vec::with_capacity(ranges.len());
+        let mut decoded = 0usize;
+        let mut raw = 0usize;
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
             let item = MiniGameDataInfo::read_with_size(&data, &mut cursor, end - start)
                 .unwrap_or_else(|e| panic!("entry {} key=0x{:x} off=0x{:x} size={}: {}", i, key, start, end-start, e));
             assert_eq!(cursor, *end);
+            match &item.spawn_data_list {
+                SpawnDataList::Decoded(_) => decoded += 1,
+                SpawnDataList::Raw(_) => raw += 1,
+            }
             items.push(item);
         }
+        eprintln!("minigamedatainfo: decoded={} raw={} (total={})", decoded, raw, ranges.len());
 
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
