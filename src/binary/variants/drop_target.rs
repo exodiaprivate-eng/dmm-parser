@@ -336,3 +336,25 @@ impl WriteJsonValue for OptionalDropTarget {
         }
     }
 }
+
+impl<'a> BinaryReadTracked<'a> for OptionalDropTarget {
+    fn read_tracked(data: &'a [u8], offset: &mut usize, _path: &mut String, _ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
+        Self::read_from(data, offset)
+    }
+}
+
+impl crate::python_traits::ToPyValue for OptionalDropTarget {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "OptionalDropTarget: use JSON path",
+        ))
+    }
+}
+
+impl crate::python_traits::WritePyValue for OptionalDropTarget {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "OptionalDropTarget: use JSON path",
+        ))
+    }
+}
