@@ -205,11 +205,14 @@ pub struct EquipSlotInfo {
     pub flag_u8: u8,
     pub flag_u16: u16,
     pub entries: Vec<EquipInfoData>,
-    /// Trailing bytes from the end of `entries` to the pabgh-declared record
-    /// boundary. Universally ends with `00 00 00 00 7c d8 54 b9` (8 bytes);
-    /// some records carry additional opaque per-class data before the
-    /// terminator. Preserved byte-perfect — never decoded by this module.
-    pub footer: Vec<u8>,
+    /// Variable opaque bytes between `entries` and the 8-byte footer
+    /// terminator. Empty in 12/13 vanilla records; one record carries
+    /// 100 extra bytes here (per-class data, semantics undocumented).
+    pub footer_extra: Vec<u8>,
+    /// First u32 of the 8-byte terminator. Always 0 in vanilla.
+    pub footer_terminator_a: u32,
+    /// Second u32 of the terminator. Always 0xB954D87C in vanilla.
+    pub footer_terminator_b: u32,
 }
 
 impl EquipSlotInfo {
@@ -255,10 +258,23 @@ impl EquipSlotInfo {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("EquipSlotInfo k={}: entries over-consumed ({} > {})", key, *offset, entry_end)));
         }
-        let footer = data[*offset..entry_end].to_vec();
-        *offset = entry_end;
+        // Footer is variable opaque bytes followed by an 8-byte terminator
+        // (u32 + u32). Carve the last 8 bytes off as the typed terminator.
+        let footer_total = entry_end - *offset;
+        if footer_total < 8 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("EquipSlotInfo k={}: footer too short for terminator ({} < 8)", key, footer_total)));
+        }
+        let footer_extra_end = entry_end - 8;
+        let footer_extra = data[*offset..footer_extra_end].to_vec();
+        *offset = footer_extra_end;
+        let footer_terminator_a = u32::read_from(data, offset)?;
+        let footer_terminator_b = u32::read_from(data, offset)?;
 
-        Ok(Self { key, header_blob, flag_u8, flag_u16, entries, footer })
+        Ok(Self {
+            key, header_blob, flag_u8, flag_u16, entries,
+            footer_extra, footer_terminator_a, footer_terminator_b,
+        })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
@@ -271,7 +287,9 @@ impl EquipSlotInfo {
         for e in &self.entries {
             e.write_to(w)?;
         }
-        w.write_all(&self.footer)?;
+        w.write_all(&self.footer_extra)?;
+        self.footer_terminator_a.write_to(w)?;
+        self.footer_terminator_b.write_to(w)?;
         Ok(())
     }
 }
@@ -291,7 +309,9 @@ impl ToJsonValue for EquipSlotInfo {
             "flag_u8": self.flag_u8,
             "flag_u16": self.flag_u16,
             "entries": Value::Array(self.entries.iter().map(|e| e.to_json_value()).collect()),
-            "footer": self.footer.iter().copied().collect::<Vec<u8>>(),
+            "footer_extra": self.footer_extra.iter().copied().collect::<Vec<u8>>(),
+            "footer_terminator_a": self.footer_terminator_a,
+            "footer_terminator_b": self.footer_terminator_b,
         })
     }
 }
@@ -323,13 +343,15 @@ impl WriteJsonValue for EquipSlotInfo {
             <EquipInfoData as WriteJsonValue>::write_from_json(w, e).map_err(|err| io::Error::new(
                 err.kind(), format!("entries[{}]: {}", i, err)))?;
         }
-        // footer: raw bytes, no length prefix (length implicit in record boundary).
-        let footer = json_get_field(obj, "footer")?
+        // footer_extra: raw bytes, no length prefix.
+        let footer_extra = json_get_field(obj, "footer_extra")?
             .as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "EquipSlotInfo.footer: expected array"))?;
-        for elem in footer {
+                "EquipSlotInfo.footer_extra: expected array"))?;
+        for elem in footer_extra {
             <u8 as WriteJsonValue>::write_from_json(w, elem)?;
         }
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "footer_terminator_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "footer_terminator_b")?)?;
         Ok(())
     }
 }
