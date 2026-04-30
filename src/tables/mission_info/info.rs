@@ -32,6 +32,42 @@ use crate::binary::*;
 use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
+// sub_1410AA0D0 inner — Quaternion ([f32; 4], 16 wire bytes).
+py_binary_struct! {
+    pub struct Quaternion {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+        pub w: f32,
+    }
+}
+
+// sub_1410AA1B0 — Transform: Vec3 (wire first) + Quaternion + Vec3.
+// Total 40 wire bytes. Mem offsets are out-of-order but wire shape
+// is just sequential reads.
+py_binary_struct! {
+    pub struct TriggerVolumeTransform {
+        pub vec3_a: [f32; 3],
+        pub rotation: Quaternion,
+        pub vec3_b: [f32; 3],
+    }
+}
+
+// sub_141D7FE40 — TriggerVolumeData (88 mem bytes / 9 wire fields).
+py_binary_struct! {
+    pub struct TriggerVolumeData<'a> {
+        pub flag_a: u8,
+        pub transform: TriggerVolumeTransform,
+        pub tag: CString<'a>,             // sub_1410A9D40 (wire = CString)
+        pub name: CString<'a>,
+        pub flag_b: u8,
+        pub vec_a: [f32; 3],
+        pub vec_b: [f32; 3],
+        pub flag_c: u8,
+        pub flag_d: u8,
+    }
+}
+
 // sub_1410F3380 inner — 20 mem bytes / 7 wire fields.
 py_binary_struct! {
     pub struct MissionBranchData {
@@ -69,6 +105,7 @@ pabgh_typed_blob_table! {
         pub start_player_list: CArray<u32>,
         pub field_revive_list: CArray<u32>,
         pub give_up_field_revive_list: CArray<u32>,
+        pub trigger_volume_data: COptional<TriggerVolumeData<'a>>,
     }
     tail: tail_blob;
 }
