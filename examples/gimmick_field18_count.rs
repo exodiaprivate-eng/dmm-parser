@@ -195,6 +195,22 @@ fn main() {
     let mut field_195_typed = 0usize;
     let mut field_196_typed = 0usize;
     let mut field_197_typed = 0usize;
+    let mut field_198_typed = 0usize;
+    let mut field_199_typed = 0usize;
+    let mut field_200_typed = 0usize;
+    let mut field_201_typed = 0usize;
+    let mut field_202_typed = 0usize;
+    let mut field_203_typed = 0usize;
+    let mut field_204_typed = 0usize;
+    let mut field_205_typed = 0usize;
+    let mut field_206_typed = 0usize;
+    let mut field_207_typed = 0usize;
+    let mut field_208_typed = 0usize;
+    let mut field_209_typed = 0usize;
+    let mut field_210_typed = 0usize;
+    let mut field_211_typed = 0usize;
+    let mut field_212_typed = 0usize;
+    let mut field_213_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -386,6 +402,22 @@ fn main() {
                 field_195_u32,
                 field_196_u32,
                 field_197_u32,
+                field_198_u32,
+                field_199_u32,
+                field_200_u32,
+                field_201_u32,
+                field_202_u32,
+                field_203_u32,
+                field_204_u32,
+                field_205_u32,
+                field_206_u32,
+                field_207_u32,
+                field_208_u32,
+                field_209_u32,
+                field_210_u32,
+                field_211_u32,
+                field_212_u32,
+                field_213_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -570,6 +602,22 @@ fn main() {
                 if field_195_u32.is_some() { field_195_typed += 1; }
                 if field_196_u32.is_some() { field_196_typed += 1; }
                 if field_197_u32.is_some() { field_197_typed += 1; }
+                if field_198_u32.is_some() { field_198_typed += 1; }
+                if field_199_u32.is_some() { field_199_typed += 1; }
+                if field_200_u32.is_some() { field_200_typed += 1; }
+                if field_201_u32.is_some() { field_201_typed += 1; }
+                if field_202_u32.is_some() { field_202_typed += 1; }
+                if field_203_u32.is_some() { field_203_typed += 1; }
+                if field_204_u32.is_some() { field_204_typed += 1; }
+                if field_205_u32.is_some() { field_205_typed += 1; }
+                if field_206_u32.is_some() { field_206_typed += 1; }
+                if field_207_u32.is_some() { field_207_typed += 1; }
+                if field_208_u32.is_some() { field_208_typed += 1; }
+                if field_209_u32.is_some() { field_209_typed += 1; }
+                if field_210_u32.is_some() { field_210_typed += 1; }
+                if field_211_u32.is_some() { field_211_typed += 1; }
+                if field_212_u32.is_some() { field_212_typed += 1; }
+                if field_213_u32.is_some() { field_213_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -691,7 +739,15 @@ fn main() {
                        (191, field_191_typed), (192, field_192_typed),
                        (193, field_193_typed), (194, field_194_typed),
                        (195, field_195_typed), (196, field_196_typed),
-                       (197, field_197_typed)] {
+                       (197, field_197_typed), (198, field_198_typed),
+                       (199, field_199_typed), (200, field_200_typed),
+                       (201, field_201_typed), (202, field_202_typed),
+                       (203, field_203_typed), (204, field_204_typed),
+                       (205, field_205_typed), (206, field_206_typed),
+                       (207, field_207_typed), (208, field_208_typed),
+                       (209, field_209_typed), (210, field_210_typed),
+                       (211, field_211_typed), (212, field_212_typed),
+                       (213, field_213_typed)] {
         println!("Field {} (field_{}_u32)                  typed:     {} / {}", i, i, count, decoded);
     }
 
