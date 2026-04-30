@@ -19,7 +19,7 @@ fn main() {
     // (1) Extensions in the pabgb directory
     let mut bin_dir_exts: BTreeMap<String, usize> = BTreeMap::new();
     // (2) Sister extensions per pabgb stem
-    let mut pabgb_stems: HashMap<String, HashSet<String>> = HashMap::new();
+    let _pabgb_stems: HashMap<String, HashSet<String>> = HashMap::new();
     // Collect every <stem, extension, group, dir> tuple, then group by stem
     let mut stems_to_files: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
 
