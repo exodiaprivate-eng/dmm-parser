@@ -34,7 +34,8 @@ This file is for collaborators picking up round-trip work. It's the
 | MiniGameData | ✅ shipped | MiniGameDataInfo |
 | GameExpression / IVariantItem | ✅ shipped (inside StageChart) | (used inside GameCondition tree) |
 | EffectData | ✅ shipped (per-element typed, 47-field core_block) | EffectInfo (Tier 1) |
-| **SequencerStageChartDesc** | ✅ shipped — all 26 wire fields typed in `binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial`. Composes inside CArray via stream-mode trait impls. | FieldReviveInfo, ItemUseInfo PlaySequencerOnly, SequencerSpawnInfo (Tier 1), GlobalStageSequencerInfo (Tier 1), StageInfo (Tier 1, all 91 wire fields), InteractionInfo (Tier 1 with Decoded\|Raw fallback) |
+| **SequencerStageChartDesc** | ✅ shipped — all 26 wire fields typed in `binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial`. Composes inside CArray via stream-mode trait impls. | FieldReviveInfo, ItemUseInfo PlaySequencerOnly, SequencerSpawnInfo (Tier 1), GlobalStageSequencerInfo (Tier 1), StageInfo (Tier 1, all 91 wire fields), InteractionInfo (Tier 1 with Decoded\|Raw fallback), **CharacterInfo (Tier 1, all 174 wire fields, lane-c)** |
+| **GimmickInteractionOverrideCArray** | ✅ shipped — `binary::gimmick_interaction_override::GimmickInteractionOverrideCArray` (15-field inner via sub_1410DF770). | GimmickInfo (Tier 1.5 Decoded\|Raw, 99.93%), CharacterInfo field 133 (Tier 1) |
 | **SequencerStageTrackChangeData** family (Character/Gimmick/Item) | ✅ shipped (inside SequencerStageChartDesc field 19) | (used inside SequencerStageChartDesc) |
 | **SequencerStageSpawnData** | ✅ shipped (inside SequencerStageChartDesc field 20) | (used inside SequencerStageChartDesc) |
 | **GameEventHandler** | ❌ **next target** | GameEventHandlerInfo |
