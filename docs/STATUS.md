@@ -57,6 +57,12 @@
 >   `171a00e` (tag 54 → TwoU32BodyPayload, tag 214 → new
 >   CheckExistStealItemPayload struct). interaction_info is now 100%
 >   Decoded.
+> - **Methodology breakthrough**: tag 54/214 vtables are anti-disasm
+>   stripped in the Win binary but **intact in the Mac binary**
+>   (CrimsonDesert_Steam.app). Itanium ABI uses TWO destructor slots
+>   vs MSVC's one, shifting virtual slots by 1: Mac `vfn[17]` = body
+>   reader (vs Win `vfn[16]`). Verified against tag 7 (Win-known)
+>   matching Mac's vfn[17]. Recipe details landed in `5fa0b06`.
 > - **No remaining internal-Tier-1.5 sub-fields**: GimmickInfo `post_blob`
 >   was unblocked when TGPEHD decoder shipped (`1fc44e8`); GimmickInfo
 >   wires `trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`.
