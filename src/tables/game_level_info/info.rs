@@ -1,39 +1,65 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader (Mac CrimsonDesert_Steam): `sub_101852C78` at 0x101852C78
-//! (size 0x260). Pabgb dump path is `levelinfo.pabgb` (14 KB).
+//! Reader: `sub_1410E4F30` in CrimsonDesert.exe (Win build), discovered
+//! via xref to "GameLevelInfo" string at 0x144afad10.
 //!
-//! The reader has INLINE hash-lookup loops for fields 4 and 5 (no
-//! clean wrapper helpers — the lookup logic is open-coded against
-//! StaticInfoWrapper<StringInfoKey,...> and
-//! StaticInfoWrapper<RegionKey,...> manager structs).
+//! Wire reads, in order (canonical names from
+//! `docs/449_TABLE_CATALOG.md` GameLevelInfo section, 6 fields):
+//!   1. u32 key                               (_key)
+//!   2. CString string_key                    (_stringKey)
+//!   3. u8 is_blocked                         (_isBlocked)
+//!   4. u32 default_level_data_name           (_defaultLevelDataName,
+//!      read_u32_lookup_DA30 — wire u32, mem u16)
+//!   5. u16 update_region_info                (_updateRegionInfo,
+//!      sub_1410FF220 — wire u16, mem u16)
+//!   6. CArray<GameLevelData> level_data_list (_levelDataList,
+//!      sub_141112EA0; per element: 3× u32 lookup + CArray<u32> + u8 —
+//!      32 mem bytes / 5 wire fields)
 //!
-//! Wire reads, in order:
-//!   1. u32 key                    (sub_100F12348, width 4)
-//!   2. CString string_key         (sub_1006B3F50, struct +8)
-//!   3. u8 is_blocked              (sub_1006B3CC0, struct +16)
-//!   4. u32 default_level_data_name (inline: sub_100F051D8 init v26
-//!      + sub_100F055C0 read u32 from stream → StringInfoKey hash
-//!      lookup → u16 index at struct +18, wire 4)
-//!   5. u16 update_region_info     (inline: sub_100F015A0 init v28
-//!      + sub_100F01988 read u16 from stream → RegionKey hash lookup
-//!      → u16 index at struct +20, wire 2)
-//!      ← TAIL STARTS HERE
-//!   6. (tail) _levelDataList      (sub_101882B74, struct +24,
-//!      unknown CArray-like helper)
+//! GameLevelData (sub_141112EA0 inner):
+//!   - lookup_a: u32 (read_u32_lookup_DA30)
+//!   - lookup_b: u32 (sub_1410FF430)
+//!   - lookup_c: u32 (sub_141104340)
+//!   - list: CArray<u32> (sub_1410FEF40 → qword_145F0DA30)
+//!   - flag: u8
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
 
-pabgh_typed_blob_table! {
+py_binary_struct! {
+    pub struct GameLevelData {
+        pub lookup_a: u32,
+        pub lookup_b: u32,
+        pub lookup_c: u32,
+        pub list: CArray<u32>,
+        pub flag: u8,
+    }
+}
+
+py_binary_struct! {
     pub struct GameLevelInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub default_level_data_name: u32,
         pub update_region_info: u16,
+        pub level_data_list: CArray<GameLevelData>,
     }
-    tail: tail_blob;
+}
+
+impl<'a> GameLevelInfo<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("GameLevelInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
 }
 
 #[cfg(test)]
@@ -42,6 +68,7 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\levelinfo.pabgb";
     const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\levelinfo.pabgh";
+
     #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
@@ -50,32 +77,24 @@ mod tests {
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            items.push(
-                GameLevelInfo::read_with_size(&data, &mut c, e - s)
-                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
-            );
-            assert_eq!(c, *e);
+            let item = GameLevelInfo::read_from(&data, &mut c)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            assert_eq!(c, *e, "e{} k=0x{:x}: under/over-read {}/{}", i, k, c - s, e - s);
+            items.push(item);
         }
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
-        assert_eq!(out, data, "gamelevelinfo (levelinfo.pabgb) roundtrip mismatch");
+        assert_eq!(out, data, "gamelevelinfo roundtrip mismatch");
     }
 
     #[test]
     fn json_roundtrip() {
-        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
-            return;
-        };
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
-            let item = GameLevelInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            let item = GameLevelInfo::read_from(&data, &mut cursor).unwrap();
             assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
             let dict = item.to_json_dict();
             let mut from_typed = Vec::new();
