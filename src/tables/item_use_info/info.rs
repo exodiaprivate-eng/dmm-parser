@@ -18,11 +18,12 @@
 //!   - Disc 13 (CustomizeCharacter) is fully typed: dye_lookup +
 //!     CArray<u16> color_data + CArray<u16> texture_data.
 //!   - Disc 14 (PlaySequencerOnly) is partially typed via
-//!     `SequencerStageChartDescPartial` (sub_141D8C6D0). 13 wire
+//!     `SequencerStageChartDescPartial` (sub_141D8C6D0). 18 wire
 //!     fields are field-level addressable (name, raw_a, prefab_path,
-//!     position, raw_b, 8× flag_*); fields 14-26 carry as
-//!     `_opaque_tail_b64` until GameCondition stream-mode and the
-//!     SequencerStageTrackChangeData family decoder land. See
+//!     position, raw_b, 8× flag_*, lookup_a, cond_a [GameCondition
+//!     tree], cstring_a, cstring_b, string_pair_list); fields 19-26
+//!     carry as `_opaque_tail_b64` until the
+//!     SequencerStageTrackChangeData family decoder lands. See
 //!     `binary::sequencer_stage_chart_desc` for the wrapper and
 //!     `tables::stage_info::info` for the full extracted wire layout.
 //!

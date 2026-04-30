@@ -77,7 +77,7 @@ pub struct SequencerStageChartDescPartial<'a> {
 
 impl<'a> SequencerStageChartDescPartial<'a> {
     /// Read a SequencerStageChartDesc whose total wire size on disk is
-    /// known via `total_size`. The 13-field typed prefix is consumed
+    /// known via `total_size`. The 18-field typed prefix is consumed
     /// from `offset`, and the remaining `total_size - prefix_bytes`
     /// trail into `opaque_tail`.
     pub fn read_with_size(
