@@ -309,6 +309,20 @@ to 16 (added 26, 135, 370, 99, 174, 360).
 successfully decode. Bulk-adding remaining candidates regressed the
 success rate (297 → 206), so each candidate must be tested individually.
 
+**2026-04-30 regression note**: After tags 19 (CheckGroggy), 27
+(IsFocusActor), and 174 (CheckRider) were downgraded from
+OneByteBodyPayload to unit variants (`b95e5c0`, `0618efb`, prior),
+`diag_raw_entries` shows interaction_info Raw fallbacks have grown
+from 57 → 101. The downgrades pass `roundtrip` byte-perfectly because
+Raw fallback preserves bytes verbatim — the test cannot detect
+decode-success regressions. Histogram tags now showing fresh entries
+(e.g. tag 249 (7), tag 13 (3), tag 360 (3), tag 116 (2), tag 393 (3))
+suggest the unit-variant downgrades are consuming 1 fewer byte and
+shifting the option_block boundary — entries that previously decoded
+now fail downstream. Same pattern as the empirical skip-list adds
+warned about above. Recommend halting further speculative tag-recipe
+changes until vtable[19] verification is in place.
+
 **Important caveat (verified this session via Win-IDA)**: Of the 16
 tags currently in the skip list, only the original 11 are confirmed
 "true" vtable[19] no-ops. The 5 empirical adds (26, 135, 370, 99,
