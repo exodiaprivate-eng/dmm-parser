@@ -80,14 +80,22 @@ use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-/// Tail of GimmickInfo. When the field-7 CArray decode succeeds it
-/// joins the typed prefix; the rest of the body (~95 fields) still
-/// rides as `post_blob`. On decode failure the entire post-prefix
+/// Tail of GimmickInfo. When the field-7 CArray decode succeeds (and
+/// the immediately-following stable scalar block parses cleanly) it
+/// joins the typed prefix; the rest of the body (~85 fields) still
+/// rides as `post_blob`. On any decode failure the entire post-prefix
 /// region is captured as `Raw`.
 #[derive(Debug)]
 pub enum GimmickTail<'a> {
     Decoded {
         gimmick_interaction_override_list: GimmickInteractionOverrideCArray<'a>,
+        use_interaction_ui_socket: u8,
+        use_sub_part_for_interaction: u8,
+        property_list: CArray<u32>,
+        gimmick_name_hash: u32,
+        gimmick_name: LocalizableString<'a>,
+        emoji_texture_id: CString<'a>,
+        dev_memo: CString<'a>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -97,16 +105,37 @@ impl<'a> GimmickTail<'a> {
     pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize) -> io::Result<Self> {
         let tail_start = *offset;
         let mut probe = tail_start;
-        match GimmickInteractionOverrideCArray::read_from(data, &mut probe) {
-            Ok(list) if probe <= entry_end => {
+        let try_decode = (|| -> io::Result<_> {
+            let list = GimmickInteractionOverrideCArray::read_from(data, &mut probe)?;
+            if probe > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "overrun")); }
+            let use_interaction_ui_socket = u8::read_from(data, &mut probe)?;
+            let use_sub_part_for_interaction = u8::read_from(data, &mut probe)?;
+            let property_list = <CArray<u32>>::read_from(data, &mut probe)?;
+            let gimmick_name_hash = u32::read_from(data, &mut probe)?;
+            let gimmick_name = LocalizableString::read_from(data, &mut probe)?;
+            let emoji_texture_id = CString::read_from(data, &mut probe)?;
+            let dev_memo = CString::read_from(data, &mut probe)?;
+            if probe > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "overrun")); }
+            Ok((list, use_interaction_ui_socket, use_sub_part_for_interaction,
+                property_list, gimmick_name_hash, gimmick_name, emoji_texture_id, dev_memo))
+        })();
+        match try_decode {
+            Ok((list, ui, sp, pl, gnh, gn, eti, dm)) => {
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
                     gimmick_interaction_override_list: list,
+                    use_interaction_ui_socket: ui,
+                    use_sub_part_for_interaction: sp,
+                    property_list: pl,
+                    gimmick_name_hash: gnh,
+                    gimmick_name: gn,
+                    emoji_texture_id: eti,
+                    dev_memo: dm,
                     post_blob,
                 })
             }
-            _ => {
+            Err(_) => {
                 let blob = data[tail_start..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Raw(blob))
@@ -116,8 +145,18 @@ impl<'a> GimmickTail<'a> {
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         match self {
-            GimmickTail::Decoded { gimmick_interaction_override_list, post_blob } => {
+            GimmickTail::Decoded { gimmick_interaction_override_list,
+                use_interaction_ui_socket, use_sub_part_for_interaction,
+                property_list, gimmick_name_hash, gimmick_name,
+                emoji_texture_id, dev_memo, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
+                use_interaction_ui_socket.write_to(w)?;
+                use_sub_part_for_interaction.write_to(w)?;
+                property_list.write_to(w)?;
+                gimmick_name_hash.write_to(w)?;
+                gimmick_name.write_to(w)?;
+                emoji_texture_id.write_to(w)?;
+                dev_memo.write_to(w)?;
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -126,11 +165,21 @@ impl<'a> GimmickTail<'a> {
 
     pub fn to_json_value(&self) -> Value {
         match self {
-            GimmickTail::Decoded { gimmick_interaction_override_list, post_blob } => {
+            GimmickTail::Decoded { gimmick_interaction_override_list,
+                use_interaction_ui_socket, use_sub_part_for_interaction,
+                property_list, gimmick_name_hash, gimmick_name,
+                emoji_texture_id, dev_memo, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
                          gimmick_interaction_override_list.to_json_value());
+                m.insert("use_interaction_ui_socket".to_string(), use_interaction_ui_socket.to_json_value());
+                m.insert("use_sub_part_for_interaction".to_string(), use_sub_part_for_interaction.to_json_value());
+                m.insert("property_list".to_string(), property_list.to_json_value());
+                m.insert("gimmick_name_hash".to_string(), gimmick_name_hash.to_json_value());
+                m.insert("gimmick_name".to_string(), gimmick_name.to_json_value());
+                m.insert("emoji_texture_id".to_string(), emoji_texture_id.to_json_value());
+                m.insert("dev_memo".to_string(), dev_memo.to_json_value());
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -156,6 +205,13 @@ impl<'a> GimmickTail<'a> {
                 <GimmickInteractionOverrideCArray as WriteJsonValue>::write_from_json(
                     w, json_get_field(obj, "gimmick_interaction_override_list")?,
                 )?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_interaction_ui_socket")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_sub_part_for_interaction")?)?;
+                <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "property_list")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_name_hash")?)?;
+                <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_name")?)?;
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "emoji_texture_id")?)?;
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_memo")?)?;
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                         "GimmickTail.Decoded._post_blob_b64: expected string"))?;
