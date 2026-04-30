@@ -13,8 +13,8 @@
 //!   4. [u8; 12] position                      (_position, vec3 of f32s)
 //!   5. u32 rotation_y                         (_rotationY, f32-as-u32)
 //!   6. SequencerStageChartDescPartial sequencer_stage_chart_desc
-//!      (sub_141D8C6D0; first 19 wire fields typed via partial
-//!      wrapper, fields 20-26 ride as `_opaque_tail_b64`. Sized by
+//!      (sub_141D8C6D0; first 20 wire fields typed via partial
+//!      wrapper, fields 21-26 ride as `_opaque_tail_b64`. Sized by
 //!      `entry_size - 13` from the trailing fixed-size fields below)
 //!   7. u32 field_info_key                     (_fieldInfoKey)
 //!   8. u32 knowledge_info                     (_knowledgeInfo,
@@ -45,10 +45,10 @@ pub struct FieldReviveInfo<'a> {
     pub position: [f32; 3],
     /// f32 yaw rotation (sub_1006B3DE0).
     pub rotation_y: f32,
-    /// Polymorphic SequencerStageChartDesc with its 19-field typed
-    /// prefix exposed and the unfinished tail (fields 20-26) carried
+    /// Polymorphic SequencerStageChartDesc with its 20-field typed
+    /// prefix exposed and the unfinished tail (fields 21-26) carried
     /// as a sized opaque blob. Round-trips byte-perfect; field-level
-    /// editing for fields 1-19 is available via the partial wrapper.
+    /// editing for fields 1-20 is available via the partial wrapper.
     pub sequencer_stage_chart_desc: SequencerStageChartDescPartial<'a>,
     pub field_info_key: u32,
     pub knowledge_info: u32,
@@ -224,7 +224,7 @@ mod tests {
             "flag_a", "flag_b", "flag_c", "flag_d", "flag_e",
             "flag_f", "flag_g", "flag_h", "lookup_a", "cond_a",
             "cstring_a", "cstring_b", "string_pair_list",
-            "track_change_list", "_opaque_tail_b64",
+            "track_change_list", "spawn_data_lists", "_opaque_tail_b64",
         ] {
             assert!(desc.contains_key(f),
                 "SequencerStageChartDescPartial missing field `{}`", f);

@@ -22,8 +22,13 @@
 //!      element is OptionalGameCondition + 3 fixed-class CArrays
 //!      (Character / Gimmick / Item subclasses of
 //!      SequencerStageTrackChangeData), all reverse-engineered.
+//!  20. CArray<CArray<SequencerStageSpawnData>> spawn_data_lists —
+//!      sub_14110E010 outer + sub_14110BCC0 inner builder; each
+//!      SequencerStageSpawnData (sub_1410F3220) is OptionalGame-
+//!      Condition + u64 + 5 lookups + u8 flag + Optional<{CArray<u64>,
+//!      u32}>. Reverse-engineered.
 //!
-//! `SequencerStageChartDescPartial` reads those 19 fields explicitly
+//! `SequencerStageChartDescPartial` reads those 20 fields explicitly
 //! and stores everything after as `opaque_tail: Vec<u8>`. For consumers
 //! that own a SequencerStageChartDesc bounded by entry-size arithmetic
 //! (e.g. `field_revive_info`'s single-instance case), this gives users
@@ -248,6 +253,161 @@ impl<'a> WriteJsonValue for TrackChangeItem<'a> {
     }
 }
 
+/// `sub_14110BE50` — `Option<{CArray<u64>, u32}>`. 24 mem bytes when
+/// present. Wire: u8 presence + (if present: CArray<u64> + u32).
+#[derive(Debug)]
+pub struct OptionalU64ListAndU32 {
+    pub inner: Option<U64ListAndU32>,
+}
+
+#[derive(Debug)]
+pub struct U64ListAndU32 {
+    pub list: CArray<u64>,
+    pub raw: u32,
+}
+
+impl<'a> BinaryRead<'a> for OptionalU64ListAndU32 {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let presence = u8::read_from(data, offset)?;
+        let inner = if presence != 0 {
+            Some(U64ListAndU32 {
+                list: CArray::<u64>::read_from(data, offset)?,
+                raw: u32::read_from(data, offset)?,
+            })
+        } else {
+            None
+        };
+        Ok(Self { inner })
+    }
+}
+
+impl BinaryWrite for OptionalU64ListAndU32 {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match &self.inner {
+            Some(v) => {
+                1u8.write_to(w)?;
+                v.list.write_to(w)?;
+                v.raw.write_to(w)?;
+            }
+            None => 0u8.write_to(w)?,
+        }
+        Ok(())
+    }
+}
+
+impl ToJsonValue for OptionalU64ListAndU32 {
+    fn to_json_value(&self) -> Value {
+        match &self.inner {
+            Some(v) => {
+                let mut m = Map::new();
+                m.insert("list".to_string(), v.list.to_json_value());
+                m.insert("raw".to_string(), v.raw.to_json_value());
+                Value::Object(m)
+            }
+            None => Value::Null,
+        }
+    }
+}
+
+impl WriteJsonValue for OptionalU64ListAndU32 {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() {
+            0u8.write_to(w)?;
+            return Ok(());
+        }
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "OptionalU64ListAndU32: expected object or null",
+        ))?;
+        1u8.write_to(w)?;
+        <CArray<u64> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw")?)?;
+        Ok(())
+    }
+}
+
+/// `SequencerStageSpawnData` element (sub_1410F3220, 48 mem bytes).
+/// Wire: OptionalGameCondition + u64 + 2× u32 lookup + 2× u16 lookup
+/// + u32 lookup + u8 + Optional<{CArray<u64>, u32}>.
+#[derive(Debug)]
+pub struct SequencerStageSpawnData<'a> {
+    pub cond: OptionalGameCondition<'a>,
+    pub raw_a: u64,
+    pub lookup_a: u32,
+    pub lookup_b: u16,
+    pub lookup_c: u32,
+    pub lookup_d: u16,
+    pub lookup_e: u32,
+    pub flag: u8,
+    pub extra: OptionalU64ListAndU32,
+}
+
+impl<'a> BinaryRead<'a> for SequencerStageSpawnData<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Self {
+            cond: OptionalGameCondition::read_from(data, offset)?,
+            raw_a: u64::read_from(data, offset)?,
+            lookup_a: u32::read_from(data, offset)?,
+            lookup_b: u16::read_from(data, offset)?,
+            lookup_c: u32::read_from(data, offset)?,
+            lookup_d: u16::read_from(data, offset)?,
+            lookup_e: u32::read_from(data, offset)?,
+            flag: u8::read_from(data, offset)?,
+            extra: OptionalU64ListAndU32::read_from(data, offset)?,
+        })
+    }
+}
+
+impl<'a> BinaryWrite for SequencerStageSpawnData<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.cond.write_to(w)?;
+        self.raw_a.write_to(w)?;
+        self.lookup_a.write_to(w)?;
+        self.lookup_b.write_to(w)?;
+        self.lookup_c.write_to(w)?;
+        self.lookup_d.write_to(w)?;
+        self.lookup_e.write_to(w)?;
+        self.flag.write_to(w)?;
+        self.extra.write_to(w)?;
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for SequencerStageSpawnData<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("cond".to_string(), self.cond.to_json_value());
+        m.insert("raw_a".to_string(), self.raw_a.to_json_value());
+        m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
+        m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
+        m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
+        m.insert("lookup_d".to_string(), self.lookup_d.to_json_value());
+        m.insert("lookup_e".to_string(), self.lookup_e.to_json_value());
+        m.insert("flag".to_string(), self.flag.to_json_value());
+        m.insert("extra".to_string(), self.extra.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for SequencerStageSpawnData<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "SequencerStageSpawnData: expected object",
+        ))?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_d")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_e")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)?;
+        OptionalU64ListAndU32::write_from_json(w, json_get_field(obj, "extra")?)?;
+        Ok(())
+    }
+}
+
 /// `sub_1410F2F90` per-element of field 19's outer CArray (56 mem
 /// bytes). Wire = OptionalGameCondition + 3 inner CArrays.
 #[derive(Debug)]
@@ -341,15 +501,19 @@ pub struct SequencerStageChartDescPartial<'a> {
     /// `SequencerStageTrackChangeData_*` elements (Character /
     /// Gimmick / Item subclasses, all reverse-engineered).
     pub track_change_list: CArray<ChartTrackChangeElement<'a>>,
-    /// Bytes 20-26 of the wire layout (1 helper CArray + 2× sub_1410FFAC0
-    /// CArray<u16> + 2× sub_1410FEF40 CArray<u32> + 2× sub_141102FF0
-    /// helper struct). Stays opaque until those helpers are typed.
+    /// `CArray<CArray<SequencerStageSpawnData>>` — field 20
+    /// (sub_14110E010 outer, sub_14110BCC0 inner CArray builder,
+    /// sub_1410F3220 per-element reader).
+    pub spawn_data_lists: CArray<CArray<SequencerStageSpawnData<'a>>>,
+    /// Bytes 21-26 of the wire layout (2× sub_1410FFAC0 CArray<u16> +
+    /// 2× sub_1410FEF40 CArray<u32> + 2× sub_141102FF0 helper struct).
+    /// Stays opaque until those helpers are typed.
     pub opaque_tail: Vec<u8>,
 }
 
 impl<'a> SequencerStageChartDescPartial<'a> {
     /// Read a SequencerStageChartDesc whose total wire size on disk is
-    /// known via `total_size`. The 19-field typed prefix is consumed
+    /// known via `total_size`. The 20-field typed prefix is consumed
     /// from `offset`, and the remaining `total_size - prefix_bytes`
     /// trail into `opaque_tail`.
     pub fn read_with_size(
@@ -393,6 +557,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         let cstring_b = CString::read_from(data, offset)?;
         let string_pair_list = CArray::<StringPair>::read_from(data, offset)?;
         let track_change_list = CArray::<ChartTrackChangeElement>::read_from(data, offset)?;
+        let spawn_data_lists = CArray::<CArray<SequencerStageSpawnData>>::read_from(data, offset)?;
 
         if *offset > blob_end {
             return Err(io::Error::new(
@@ -410,7 +575,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
             name, raw_a, prefab_path, position, raw_b,
             flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h,
             lookup_a, cond_a, cstring_a, cstring_b, string_pair_list,
-            track_change_list, opaque_tail,
+            track_change_list, spawn_data_lists, opaque_tail,
         })
     }
 
@@ -434,6 +599,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         self.cstring_b.write_to(w)?;
         self.string_pair_list.write_to(w)?;
         self.track_change_list.write_to(w)?;
+        self.spawn_data_lists.write_to(w)?;
         w.write_all(&self.opaque_tail)?;
         Ok(())
     }
@@ -459,6 +625,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         m.insert("cstring_b".to_string(), self.cstring_b.to_json_value());
         m.insert("string_pair_list".to_string(), self.string_pair_list.to_json_value());
         m.insert("track_change_list".to_string(), self.track_change_list.to_json_value());
+        m.insert("spawn_data_lists".to_string(), self.spawn_data_lists.to_json_value());
         m.insert("_opaque_tail_b64".to_string(), Value::String(B64.encode(&self.opaque_tail)));
         Value::Object(m)
     }
@@ -489,6 +656,10 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         <CArray<ChartTrackChangeElement> as WriteJsonValue>::write_from_json(
             w,
             json_get_field(obj, "track_change_list")?,
+        )?;
+        <CArray<CArray<SequencerStageSpawnData>> as WriteJsonValue>::write_from_json(
+            w,
+            json_get_field(obj, "spawn_data_lists")?,
         )?;
         let b64 = json_get_field(obj, "_opaque_tail_b64")?
             .as_str()
