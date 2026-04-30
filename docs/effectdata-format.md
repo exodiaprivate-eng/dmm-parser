@@ -1,13 +1,13 @@
 # EffectData Binary Format — effectinfo.pabgb
 
 Empirically derived from effectinfo.pabgb dumps via Python hex analysis
-(`tools/analyze_effectinfo[1-9].py`). Documents the **outer blob structure**
+(`tools/analyze_effectinfo[1-13].py`). Documents the **outer blob structure**
 as seen from the wire; the IDA-derived field-level decoder for the inner
 EffectDataElement record lives in `src/binary/variants/effect_data.rs` and
 uses a different (non-empirical) analysis layer.
 
-Field names are guesses derived from context; the IDA class names are
-`EffectData` (stride 376 in C++ memory) and `MeshEffectData` (stride 48).
+Field names are inferred from context; true names are unknown without IDA
+symbol access.
 
 ---
 
@@ -168,38 +168,51 @@ All string pairs for an entry are stored consecutively (no structs between them)
 ## NamedItemStruct (144 bytes)
 
 Immediately follows the struct_section count u32. One per named item, same
-order as the string pairs. Internal layout **not yet fully mapped** — known
-landmarks:
+order as the string pairs. Internal layout partially mapped from 475-blob
+(3 entries with `named_item_count=1`):
 
-| offset (within struct) | observation |
-|------------------------|-------------|
-| ~132..135              | bytes `0a 05` appear (type or flag field) |
-| ~137..140              | `05 01 00 00` (u32=261) — appears identically in struct1 and struct2 of 626-blob |
-| various                | several `00 00 80 3f` = 1.0f IEEE 754, and `cd cc 4c 3d` ≈ 0.05f |
+| offset (within struct) | size | observation |
+|------------------------|------|-------------|
+| 0..12                  | 12   | f32[3]: 3 unique values each — 0 or 1.5 (2 entries vs 1) |
+| 12..24                 | 12   | f32[3]: small values — 0 or ~{0.784, 0.392, 0.078} (colour-like) |
+| 24..36                 | 12   | zeros |
+| 36..48                 | 12   | f32[3]: 0.0 or all three = 0.05f (`cd cc 4c 3d`) |
+| 48..88                 | 40   | zeros |
+| 88..136                | 48   | float cluster — mirrors fixed_prefix[92:140] (same field layout) |
+| 136..138               | 2    | `0a 05` (constant — same type marker as prefix[140:142]) |
+| 138..144               | 6    | trailing — `0x09 0x01` or `0x02 0x01` + zeros (3-entry variation) |
 
-Total size confirmed: 144 bytes (derived from 4-24 475-blob: mc_off 463 −
-struct_start 319 = 144).
+Total size confirmed: 144 bytes (4-24 475-blob: mc_off 463 − struct_start 319 = 144).
+The float cluster at struct[88..136] aligns with prefix[92..140] with a −4 byte
+shift, confirming NamedItemStruct and the main prefix share the same inner
+sub-struct layout starting 4 bytes earlier.
 
 ---
 
 ## Sub-Element (303 bytes in 4-11, 316 bytes in 4-24)
 
 Present when `(mc_off − Y) > 0`. Count K is implicit (no count field stored).
-Known landmarks in the 4-24 639-blob (K=1), sub-element starting at blob[311]:
+Mapped from the 4-24 639-blob (K=1), sub-element at blob[311..627].
 
-| offset (within sub-element) | observation |
-|-----------------------------|-------------|
-| 0..7                        | zeros |
-| 8                           | 0x01 |
-| 9..11                       | 0x57 0x04 0x06 |
-| 12                          | 0x24 |
-| ~92..                       | float 1.0 values — same pattern as main fixed_prefix |
-| ~140..                      | `0a 05` flag signature |
+**Header (bytes 0..92 — all zeros except the header packet):**
 
-The sub-element appears to be a fixed-size copy of an EffectData sub-record
-(same float cluster and flag patterns as the main prefix).
+| offset (within sub-element) | size | observation |
+|-----------------------------|------|-------------|
+| 0..8                        | 8    | zeros |
+| 8                           | 1    | `0x01` (constant — version or type byte) |
+| 9..12                       | 3    | variable — `57 04 06` (5 of 6 entries) or `c6 46 5e` (1 entry) |
+| 12                          | 1    | variable — `0x24` (= 36) or `0x26` (= 38) |
+| 13..92                      | 79   | zeros |
 
-Internal layout **not yet fully mapped**.
+**Body (bytes 92..316):**
+
+Mirrors fixed_prefix[92..299] with a 9-byte alignment offset. Byte-match
+sub[9:] vs prefix[0:] = 272/299 bytes identical across the 6 available
+sub-element entries. The float cluster, `0a 05` flag, and TRS block all
+appear at the same relative offsets (sub[92], sub[140], sub[200:236]).
+
+The sub-element is a fixed-size copy of the same EffectData inner record
+that begins at prefix[92] in the main prefix.
 
 ---
 
@@ -215,36 +228,93 @@ In 4-24, confirmed up to m=16 (6147-byte blob).
 
 ## Fixed Prefix (blob[4 .. 4+FP])
 
-The bulk of scalar EffectData fields. Landmarks identified from constant-byte
-scan across 200 baseline blobs in the 4-24 dump (FP=299, blob[4..303]):
+Full field-level map from systematic byte and 4-byte-window scans across all
+1952 baseline blobs in the 4-24 dump (FP=299, prefix offset = blob offset − 4).
 
-| blob offset (4-24) | prefix offset | observation |
-|--------------------|---------------|-------------|
-| 4..96              | 0..92         | mostly zeros; 240 of 299 prefix bytes are constant |
-| 96..100            | 92..96        | `00 00 80 3f` = float 1.0 |
-| 108..112           | 104..108      | float 1.0 |
-| 112..116           | 108..112      | float 1.0 (variable across entries) |
-| 124..128           | 120..124      | float 1.0 |
-| 128..132           | 124..128      | float 1.0 |
-| 136..140           | 132..136      | float 1.0 |
-| 140..144           | 136..140      | float 1.0 |
-| 144..146           | 140..142      | `0a 05` — likely type/enum field (constant) |
-| 148..172           | 144..168      | variable scalar region |
-| 172..184           | 168..180      | **12 zero bytes new in 4-24** (absent in 4-11) |
-| 184..188           | 180..184      | `db 0f c9 bf` = float ≈ −π/2 (constant across entries) |
-| 188..204           | 184..200      | variable |
-| 204..240           | 200..236      | variable scalar data |
-| 240                | 236           | `0x01` (constant) |
-| 256                | 252           | `0x05` (constant) |
-| 259                | 255           | `0x01` (constant) |
-| 270..278           | 266..274      | 8 bytes: `73 e1 c5 ea 73 e1 c5 ea` (repeated — hash/timestamp?) |
-| 282..286           | 278..282      | `73 e1 c5 ea` (constant) |
-| 286..303           | 282..299      | trailing zeros |
+### Region 1 — Scalar parameters (prefix[0..92])
 
-The float cluster at prefix[92..140] (7 × 1.0f) mirrors the same cluster
-visible in sub-elements at sub[92..140], suggesting a shared sub-struct.
-The `0a 05` sequence at prefix[140] appears again in sub-elements at the same
-relative offset — likely a type discriminator byte pair.
+| prefix offset | size | type    | description |
+|---------------|------|---------|-------------|
+| 0..4          | 4    | zero    | always zero |
+| 4..16         | 12   | f32[3]  | **colour tint** (grayscale): default 0.0; 5 of 1952 entries set all three fields to same value (0.3 / 0.5 / 0.6 / 0.85) |
+| 16..40        | 24   | f32[6]  | 6 floats, ~98% zero; non-zero values in range ~0.02..1.0 |
+| 40..52        | 12   | f32[3]  | 3 floats, each either 0.0 or 0.05f (`cd cc 4c 3d`); when set, all three equal 0.05 |
+| 52..88        | 36   | zero    | always zero |
+| 88..92        | 4    | f32     | ~99% zero; rarely non-zero (small positive float) |
+
+### Region 2 — Inner sub-struct (prefix[92..145])
+
+This block mirrors the same inner structure found in NamedItemStruct[88..141]
+and in sub-elements at sub[92..145]. Offset −4 shift in NamedItemStruct.
+
+| prefix offset | size | type    | description |
+|---------------|------|---------|-------------|
+| 92..96        | 4    | f32     | ~99.7% = 1.0; 5 unique values, range 0.02..1.0 |
+| 96..104       | 8    | f32[2]  | 0.0, 0.0 (constant) |
+| 104..108      | 4    | f32     | ~98% = 1.0; 13 unique values, range 0.3..3.0 |
+| 108..112      | 4    | f32     | ~98% = 1.0; 16 unique values, range 0.0..4.0 |
+| 112..116      | 4    | f32     | default **−1.0** (sentinel); 6 unique values, can be positive |
+| 116..120      | 4    | f32     | 0.0 (constant) |
+| 120..128      | 8    | f32[2]  | 1.0, 1.0 (constant) |
+| 128..132      | 4    | f32     | 0.0 (constant) |
+| 132..140      | 8    | f32[2]  | 1.0, 1.0 (constant) |
+| 140..142      | 2    | u8[2]   | `0x0a 0x05` — **constant type marker** |
+| 142..143      | 1    | u8      | bitmask flags: 96% zero; nonzero values are powers of 2 {2,4,6,8,16,32,48} |
+| 143..144      | 1    | u8      | bool: 0 (1950 entries) or 1 (2 entries) |
+| 144..145      | 1    | u8      | enum 0..5: 73% zero, then 1(23%), 2(2%), 3(1%), 4(0.5%), 5(0.2%) |
+
+### Region 3 — Zero padding (prefix[145..200])
+
+All 55 bytes are constant zero in every entry. This includes the 12 zero
+bytes inserted at prefix[168:180] in the 4-24 patch (absent in 4-11 where
+the `−π/2` constant began at prefix[168]).
+
+Exception embedded within the zero run:
+
+| prefix offset | size | type | description |
+|---------------|------|------|-------------|
+| 180..184      | 4    | f32  | `db 0f c9 bf` = **−π/2 ≈ −1.5708** (constant) |
+
+### Region 4 — Transform (prefix[200..236])
+
+TRS (translation, scale, rotation) transform for this effect element,
+confirmed from non-trivial entries (e.g., fire-effect entries with realistic
+position, rotated turret effects with π/2 angles, etc.).
+
+| prefix offset | size | type   | description |
+|---------------|------|--------|-------------|
+| 200..212      | 12   | f32[3] | **position** XYZ offset — default (0,0,0); range ~±40 |
+| 212..224      | 12   | f32[3] | **scale** XYZ — default (1,1,1); **never zero**; range −1..10 |
+| 224..236      | 12   | f32[3] | **rotation** XYZ in radians — default (0,0,0); range ±π |
+
+Sample non-trivial entries:
+- `pos=(0,0,0.75)  scale=(1,1,1)  rot=(0, π/2, 0)` — vertical offset, 90° yaw
+- `pos=(−0.36,0,0) scale=(1.5,0.7,1.5)` — lateral shift, non-uniform scale
+- `pos=(0,0,0.035) scale=(2.5,2.5,2.5)` — vertical offset, uniform upscale
+- `scale=(0.05,0.05,0.01)` — tiny uniform scale
+
+### Region 5 — Flags and IDs (prefix[236..284])
+
+| prefix offset | size | type | description |
+|---------------|------|------|-------------|
+| 236..240      | 4    | u32  | constant `0x00000001` (single `0x01` byte) |
+| 240..244      | 4    | —    | mostly zero; 2 of 1952 entries non-zero |
+| 244..248      | 4    | u8[4]| `{0x00, 0x01, 0x00, 0x00}` for most entries (byte 245 = 1) |
+| 248..252      | 4    | u8[4]| `{0x01, 0x00, 0x00, X}` where X ∈ {0,1,2,3,5} — byte 251 is an enum |
+| 252..256      | 4    | u32  | constant `0x01000005` (bytes: `05 00 00 01`) |
+| 256..260      | 4    | u32  | low 16 bits always 0x0000; high 16 bits = unique per-entry ID (1521 unique) |
+| 260..264      | 4    | u32  | fully variable — 1741 unique values; both halves non-zero |
+| 264..280      | 16   | —    | mostly constant `c5 ea 73 e1` repeated × 4 (LE u32 = `0xe173eac5`); 941/1952 entries are exactly this; others have same pattern in bytes [2:4] of each u32 with variable low bytes |
+| 280..284      | 4    | u32  | constant `0x0000eac5` |
+| 284..299      | 15   | zero | trailing zeros |
+
+**Hash region note:** The 28-byte block prefix[256..284] as 14 × u16 shows
+a structured alternating pattern: u16s at positions [3,5,7,9,11] (from start
+of block) are always `0xe173`; the remaining positions hold variable or
+constant `0xeac5` values. The two fully-variable fields are effectively:
+- `u16` at prefix[258:260] — unique per-entry identifier A (1521 unique)
+- `u16` at prefix[260:262] — unique per-entry identifier B (in combination
+  with the following constant `0xe173` half)
 
 ---
 
@@ -287,19 +357,20 @@ sub-item type. Full structure TBD.
 
 ## Next Steps
 
-1. **Map fixed_prefix field-by-field** — use the constant/variable scan from
-   script 8 as a skeleton. Target offsets: the variable bytes at prefix[100..],
-   prefix[144..168], prefix[200..236]. Compare 10+ entries to find which
-   fields vary per-entry vs which are constants.
+1. **Map prefix[16..92] precisely** — 9 variable floats at prefix[16..52] need
+   identification; the three 0.05f-or-zero fields at prefix[40..52] may correspond
+   to NamedItemStruct[36..48] (same pattern). Scan all 1952 entries for co-variation.
 
-2. **Map NamedItemStruct (144 bytes)** — dump single-item 4-24 blobs (475,
-   476, 477) and compare byte-by-byte with the 323 baseline.
+2. **Map sub-element fully** — the 9-byte header at sub[0..9] (`01 XX XX XX YY`)
+   has only two distinct byte patterns across 6 available entries; needs the
+   955-blob (K=2) for a second sub-element to compare against.
 
-3. **Map the sub-element (316 bytes in 4-24)** — compare 639-blob and
-   955-blob sub-element regions. Note the shared float pattern with the prefix.
-
-4. **Map MeshEffectData (364 bytes in 4-24)** — compare 687 (m=1) and
+3. **Map MeshEffectData (364 bytes in 4-24)** — compare 687 (m=1) and
    1051 (m=2) blobs in the mesh region.
+
+4. **Identify prefix[256..264] IDs** — the two per-entry u16 identifiers at
+   prefix[258..262] likely reference other game data tables; compare key values
+   with known iteminfo or other pabgb file keys.
 
 5. **Resolve irregular blobs** — figure out whether the bone-name
    sub-element is preceded by a size prefix, and what the 373-blob
