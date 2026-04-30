@@ -301,13 +301,14 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 ## What's next, in priority order
 
 ### Big wins (each enables a polymorphic family)
-1. **EffectData family**. EffectInfo consumer. Most likely the next
-   bespoke-dispatcher target.
-2. **Per-sub_tag typed payloads inside GlobalGameEventExecuteData &
-   GameEventHandlerData** (follow-up). The `Decoded { sub_tag, body:
-   Vec<u8> }` shape is shipped for both; full per-sub_tag typed body
-   structs are mechanical work that unlocks field-level JSON editing
-   inside the body.
+1. ~~**EffectData family**~~ — ✅ SHIPPED. Per-element typed with 47-field
+   `core_block`; `inner_map` typed as `Vec<EffectDataInnerMapEntry>`.
+   See `binary::variants::effect_data` and `tables::effect_info` (Tier 1).
+2. ~~**Per-sub_tag typed payloads inside GameEventHandlerData**~~ — ✅
+   SHIPPED. sub_tag 2 (SetUIPlayGuideParameter) is 12-byte body, sub_tag
+   3 (SetUIFullscreenGuideParameter) is 6-byte body, sub_tag 4 in-place,
+   sub_tags 0/1 unobserved (Raw fallback). GlobalGameEventExecuteData
+   per-sub_tag bodies still pending IDA verification of dispatch slots.
 3. **TriggerEventHandler family** (task #95). DEFERRED — uses
    `pa::ReflectObject` reflection-driven serialization (sub_14055F190
    constructor reveals the inheritance chain through `ReflectDerive
