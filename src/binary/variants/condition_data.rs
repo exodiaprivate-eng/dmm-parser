@@ -4714,11 +4714,8 @@ impl<'a> ConditionDataOptionData<'a> {
 /// ## Failure histogram (from `interaction_info::diag_raw_entries`,
 /// captured 2026-04-30 — running tally; latest re-run after tag 7/99 fix):
 ///
-/// Current state — `n=27` Raw entries (down from 57 baseline; -30 net,
-/// 92.6% interaction_info decoded — 336 of 363):
-///   tag 135:                    18 entries  ← skip-list; IDA-suggested
-///                                              body+remove regressed
-///                                              (313→294 decoded), held
+/// Current state — `n=9` Raw entries (down from 57 baseline; -48 net,
+/// 97.5% interaction_info decoded — 354 of 363):
 ///   tag 246 (IsCrimeTarget):     4 entries
 ///   tag 90, 214:                 2 entries each
 ///   tag 54:                      1 entry
@@ -4727,6 +4724,10 @@ impl<'a> ConditionDataOptionData<'a> {
 ///   tag 7   (GetItemCount)      — added trailing u16 via `08b7afc`
 ///   tag 99  (CheckAllyType)     — removed from skip-list via `5922251`
 ///   tag 116 (CatchTag)          — added OneCStringBodyPayload via `4469883`
+///   tag 135 (CheckTargetToPushInventory) — added 1-byte body, KEPT in
+///                                  skip-list (different from prior
+///                                  attempt that also removed from skip)
+///                                  via `93cc34d`; cleared all 18 entries
 ///   tag 174 (CheckRider)        — restored 1-byte body via `8f01078`
 ///   tag 358 (CheckMercenaryType)— added OneByteBodyPayload via `147fd7f`
 ///   tag 360 (CheckTargetDropListToPushInventory) — 1-byte body via `2102303`
