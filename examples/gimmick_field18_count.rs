@@ -275,6 +275,38 @@ fn main() {
     let mut field_275_typed = 0usize;
     let mut field_276_typed = 0usize;
     let mut field_277_typed = 0usize;
+    let mut field_278_typed = 0usize;
+    let mut field_279_typed = 0usize;
+    let mut field_280_typed = 0usize;
+    let mut field_281_typed = 0usize;
+    let mut field_282_typed = 0usize;
+    let mut field_283_typed = 0usize;
+    let mut field_284_typed = 0usize;
+    let mut field_285_typed = 0usize;
+    let mut field_286_typed = 0usize;
+    let mut field_287_typed = 0usize;
+    let mut field_288_typed = 0usize;
+    let mut field_289_typed = 0usize;
+    let mut field_290_typed = 0usize;
+    let mut field_291_typed = 0usize;
+    let mut field_292_typed = 0usize;
+    let mut field_293_typed = 0usize;
+    let mut field_294_typed = 0usize;
+    let mut field_295_typed = 0usize;
+    let mut field_296_typed = 0usize;
+    let mut field_297_typed = 0usize;
+    let mut field_298_typed = 0usize;
+    let mut field_299_typed = 0usize;
+    let mut field_300_typed = 0usize;
+    let mut field_301_typed = 0usize;
+    let mut field_302_typed = 0usize;
+    let mut field_303_typed = 0usize;
+    let mut field_304_typed = 0usize;
+    let mut field_305_typed = 0usize;
+    let mut field_306_typed = 0usize;
+    let mut field_307_typed = 0usize;
+    let mut field_308_typed = 0usize;
+    let mut field_309_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -546,6 +578,38 @@ fn main() {
                 field_275_u32,
                 field_276_u32,
                 field_277_u32,
+                field_278_u32,
+                field_279_u32,
+                field_280_u32,
+                field_281_u32,
+                field_282_u32,
+                field_283_u32,
+                field_284_u32,
+                field_285_u32,
+                field_286_u32,
+                field_287_u32,
+                field_288_u32,
+                field_289_u32,
+                field_290_u32,
+                field_291_u32,
+                field_292_u32,
+                field_293_u32,
+                field_294_u32,
+                field_295_u32,
+                field_296_u32,
+                field_297_u32,
+                field_298_u32,
+                field_299_u32,
+                field_300_u32,
+                field_301_u32,
+                field_302_u32,
+                field_303_u32,
+                field_304_u32,
+                field_305_u32,
+                field_306_u32,
+                field_307_u32,
+                field_308_u32,
+                field_309_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -810,6 +874,38 @@ fn main() {
                 if field_275_u32.is_some() { field_275_typed += 1; }
                 if field_276_u32.is_some() { field_276_typed += 1; }
                 if field_277_u32.is_some() { field_277_typed += 1; }
+                if field_278_u32.is_some() { field_278_typed += 1; }
+                if field_279_u32.is_some() { field_279_typed += 1; }
+                if field_280_u32.is_some() { field_280_typed += 1; }
+                if field_281_u32.is_some() { field_281_typed += 1; }
+                if field_282_u32.is_some() { field_282_typed += 1; }
+                if field_283_u32.is_some() { field_283_typed += 1; }
+                if field_284_u32.is_some() { field_284_typed += 1; }
+                if field_285_u32.is_some() { field_285_typed += 1; }
+                if field_286_u32.is_some() { field_286_typed += 1; }
+                if field_287_u32.is_some() { field_287_typed += 1; }
+                if field_288_u32.is_some() { field_288_typed += 1; }
+                if field_289_u32.is_some() { field_289_typed += 1; }
+                if field_290_u32.is_some() { field_290_typed += 1; }
+                if field_291_u32.is_some() { field_291_typed += 1; }
+                if field_292_u32.is_some() { field_292_typed += 1; }
+                if field_293_u32.is_some() { field_293_typed += 1; }
+                if field_294_u32.is_some() { field_294_typed += 1; }
+                if field_295_u32.is_some() { field_295_typed += 1; }
+                if field_296_u32.is_some() { field_296_typed += 1; }
+                if field_297_u32.is_some() { field_297_typed += 1; }
+                if field_298_u32.is_some() { field_298_typed += 1; }
+                if field_299_u32.is_some() { field_299_typed += 1; }
+                if field_300_u32.is_some() { field_300_typed += 1; }
+                if field_301_u32.is_some() { field_301_typed += 1; }
+                if field_302_u32.is_some() { field_302_typed += 1; }
+                if field_303_u32.is_some() { field_303_typed += 1; }
+                if field_304_u32.is_some() { field_304_typed += 1; }
+                if field_305_u32.is_some() { field_305_typed += 1; }
+                if field_306_u32.is_some() { field_306_typed += 1; }
+                if field_307_u32.is_some() { field_307_typed += 1; }
+                if field_308_u32.is_some() { field_308_typed += 1; }
+                if field_309_u32.is_some() { field_309_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -971,7 +1067,23 @@ fn main() {
                        (271, field_271_typed), (272, field_272_typed),
                        (273, field_273_typed), (274, field_274_typed),
                        (275, field_275_typed), (276, field_276_typed),
-                       (277, field_277_typed)] {
+                       (277, field_277_typed), (278, field_278_typed),
+                       (279, field_279_typed), (280, field_280_typed),
+                       (281, field_281_typed), (282, field_282_typed),
+                       (283, field_283_typed), (284, field_284_typed),
+                       (285, field_285_typed), (286, field_286_typed),
+                       (287, field_287_typed), (288, field_288_typed),
+                       (289, field_289_typed), (290, field_290_typed),
+                       (291, field_291_typed), (292, field_292_typed),
+                       (293, field_293_typed), (294, field_294_typed),
+                       (295, field_295_typed), (296, field_296_typed),
+                       (297, field_297_typed), (298, field_298_typed),
+                       (299, field_299_typed), (300, field_300_typed),
+                       (301, field_301_typed), (302, field_302_typed),
+                       (303, field_303_typed), (304, field_304_typed),
+                       (305, field_305_typed), (306, field_306_typed),
+                       (307, field_307_typed), (308, field_308_typed),
+                       (309, field_309_typed)] {
         println!("Field {} (field_{}_u32)                  typed:     {} / {}", i, i, count, decoded);
     }
 

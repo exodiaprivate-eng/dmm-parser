@@ -528,6 +528,39 @@ pub enum GimmickTail<'a> {
         field_275_u32: Option<u32>,
         field_276_u32: Option<u32>,
         field_277_u32: Option<u32>,
+        /// Fields 278-309 — long-tail u32 sequence.
+        field_278_u32: Option<u32>,
+        field_279_u32: Option<u32>,
+        field_280_u32: Option<u32>,
+        field_281_u32: Option<u32>,
+        field_282_u32: Option<u32>,
+        field_283_u32: Option<u32>,
+        field_284_u32: Option<u32>,
+        field_285_u32: Option<u32>,
+        field_286_u32: Option<u32>,
+        field_287_u32: Option<u32>,
+        field_288_u32: Option<u32>,
+        field_289_u32: Option<u32>,
+        field_290_u32: Option<u32>,
+        field_291_u32: Option<u32>,
+        field_292_u32: Option<u32>,
+        field_293_u32: Option<u32>,
+        field_294_u32: Option<u32>,
+        field_295_u32: Option<u32>,
+        field_296_u32: Option<u32>,
+        field_297_u32: Option<u32>,
+        field_298_u32: Option<u32>,
+        field_299_u32: Option<u32>,
+        field_300_u32: Option<u32>,
+        field_301_u32: Option<u32>,
+        field_302_u32: Option<u32>,
+        field_303_u32: Option<u32>,
+        field_304_u32: Option<u32>,
+        field_305_u32: Option<u32>,
+        field_306_u32: Option<u32>,
+        field_307_u32: Option<u32>,
+        field_308_u32: Option<u32>,
+        field_309_u32: Option<u32>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -1414,6 +1447,38 @@ impl<'a> GimmickTail<'a> {
                 let field_275_u32 = read_u32_chained!(field_274_u32);
                 let field_276_u32 = read_u32_chained!(field_275_u32);
                 let field_277_u32 = read_u32_chained!(field_276_u32);
+                let field_278_u32 = read_u32_chained!(field_277_u32);
+                let field_279_u32 = read_u32_chained!(field_278_u32);
+                let field_280_u32 = read_u32_chained!(field_279_u32);
+                let field_281_u32 = read_u32_chained!(field_280_u32);
+                let field_282_u32 = read_u32_chained!(field_281_u32);
+                let field_283_u32 = read_u32_chained!(field_282_u32);
+                let field_284_u32 = read_u32_chained!(field_283_u32);
+                let field_285_u32 = read_u32_chained!(field_284_u32);
+                let field_286_u32 = read_u32_chained!(field_285_u32);
+                let field_287_u32 = read_u32_chained!(field_286_u32);
+                let field_288_u32 = read_u32_chained!(field_287_u32);
+                let field_289_u32 = read_u32_chained!(field_288_u32);
+                let field_290_u32 = read_u32_chained!(field_289_u32);
+                let field_291_u32 = read_u32_chained!(field_290_u32);
+                let field_292_u32 = read_u32_chained!(field_291_u32);
+                let field_293_u32 = read_u32_chained!(field_292_u32);
+                let field_294_u32 = read_u32_chained!(field_293_u32);
+                let field_295_u32 = read_u32_chained!(field_294_u32);
+                let field_296_u32 = read_u32_chained!(field_295_u32);
+                let field_297_u32 = read_u32_chained!(field_296_u32);
+                let field_298_u32 = read_u32_chained!(field_297_u32);
+                let field_299_u32 = read_u32_chained!(field_298_u32);
+                let field_300_u32 = read_u32_chained!(field_299_u32);
+                let field_301_u32 = read_u32_chained!(field_300_u32);
+                let field_302_u32 = read_u32_chained!(field_301_u32);
+                let field_303_u32 = read_u32_chained!(field_302_u32);
+                let field_304_u32 = read_u32_chained!(field_303_u32);
+                let field_305_u32 = read_u32_chained!(field_304_u32);
+                let field_306_u32 = read_u32_chained!(field_305_u32);
+                let field_307_u32 = read_u32_chained!(field_306_u32);
+                let field_308_u32 = read_u32_chained!(field_307_u32);
+                let field_309_u32 = read_u32_chained!(field_308_u32);
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -1688,6 +1753,38 @@ impl<'a> GimmickTail<'a> {
                     field_275_u32,
                     field_276_u32,
                     field_277_u32,
+                    field_278_u32,
+                    field_279_u32,
+                    field_280_u32,
+                    field_281_u32,
+                    field_282_u32,
+                    field_283_u32,
+                    field_284_u32,
+                    field_285_u32,
+                    field_286_u32,
+                    field_287_u32,
+                    field_288_u32,
+                    field_289_u32,
+                    field_290_u32,
+                    field_291_u32,
+                    field_292_u32,
+                    field_293_u32,
+                    field_294_u32,
+                    field_295_u32,
+                    field_296_u32,
+                    field_297_u32,
+                    field_298_u32,
+                    field_299_u32,
+                    field_300_u32,
+                    field_301_u32,
+                    field_302_u32,
+                    field_303_u32,
+                    field_304_u32,
+                    field_305_u32,
+                    field_306_u32,
+                    field_307_u32,
+                    field_308_u32,
+                    field_309_u32,
                     post_blob,
                 })
             }
@@ -1774,7 +1871,15 @@ impl<'a> GimmickTail<'a> {
                 field_262_u32, field_263_u32, field_264_u32, field_265_u32,
                 field_266_u32, field_267_u32, field_268_u32, field_269_u32,
                 field_270_u32, field_271_u32, field_272_u32, field_273_u32,
-                field_274_u32, field_275_u32, field_276_u32, field_277_u32, post_blob } => {
+                field_274_u32, field_275_u32, field_276_u32, field_277_u32,
+                field_278_u32, field_279_u32, field_280_u32, field_281_u32,
+                field_282_u32, field_283_u32, field_284_u32, field_285_u32,
+                field_286_u32, field_287_u32, field_288_u32, field_289_u32,
+                field_290_u32, field_291_u32, field_292_u32, field_293_u32,
+                field_294_u32, field_295_u32, field_296_u32, field_297_u32,
+                field_298_u32, field_299_u32, field_300_u32, field_301_u32,
+                field_302_u32, field_303_u32, field_304_u32, field_305_u32,
+                field_306_u32, field_307_u32, field_308_u32, field_309_u32, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -2070,6 +2175,38 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_275_u32 { v.write_to(w)?; }
                 if let Some(v) = field_276_u32 { v.write_to(w)?; }
                 if let Some(v) = field_277_u32 { v.write_to(w)?; }
+                if let Some(v) = field_278_u32 { v.write_to(w)?; }
+                if let Some(v) = field_279_u32 { v.write_to(w)?; }
+                if let Some(v) = field_280_u32 { v.write_to(w)?; }
+                if let Some(v) = field_281_u32 { v.write_to(w)?; }
+                if let Some(v) = field_282_u32 { v.write_to(w)?; }
+                if let Some(v) = field_283_u32 { v.write_to(w)?; }
+                if let Some(v) = field_284_u32 { v.write_to(w)?; }
+                if let Some(v) = field_285_u32 { v.write_to(w)?; }
+                if let Some(v) = field_286_u32 { v.write_to(w)?; }
+                if let Some(v) = field_287_u32 { v.write_to(w)?; }
+                if let Some(v) = field_288_u32 { v.write_to(w)?; }
+                if let Some(v) = field_289_u32 { v.write_to(w)?; }
+                if let Some(v) = field_290_u32 { v.write_to(w)?; }
+                if let Some(v) = field_291_u32 { v.write_to(w)?; }
+                if let Some(v) = field_292_u32 { v.write_to(w)?; }
+                if let Some(v) = field_293_u32 { v.write_to(w)?; }
+                if let Some(v) = field_294_u32 { v.write_to(w)?; }
+                if let Some(v) = field_295_u32 { v.write_to(w)?; }
+                if let Some(v) = field_296_u32 { v.write_to(w)?; }
+                if let Some(v) = field_297_u32 { v.write_to(w)?; }
+                if let Some(v) = field_298_u32 { v.write_to(w)?; }
+                if let Some(v) = field_299_u32 { v.write_to(w)?; }
+                if let Some(v) = field_300_u32 { v.write_to(w)?; }
+                if let Some(v) = field_301_u32 { v.write_to(w)?; }
+                if let Some(v) = field_302_u32 { v.write_to(w)?; }
+                if let Some(v) = field_303_u32 { v.write_to(w)?; }
+                if let Some(v) = field_304_u32 { v.write_to(w)?; }
+                if let Some(v) = field_305_u32 { v.write_to(w)?; }
+                if let Some(v) = field_306_u32 { v.write_to(w)?; }
+                if let Some(v) = field_307_u32 { v.write_to(w)?; }
+                if let Some(v) = field_308_u32 { v.write_to(w)?; }
+                if let Some(v) = field_309_u32 { v.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -2151,7 +2288,15 @@ impl<'a> GimmickTail<'a> {
                 field_262_u32, field_263_u32, field_264_u32, field_265_u32,
                 field_266_u32, field_267_u32, field_268_u32, field_269_u32,
                 field_270_u32, field_271_u32, field_272_u32, field_273_u32,
-                field_274_u32, field_275_u32, field_276_u32, field_277_u32, post_blob } => {
+                field_274_u32, field_275_u32, field_276_u32, field_277_u32,
+                field_278_u32, field_279_u32, field_280_u32, field_281_u32,
+                field_282_u32, field_283_u32, field_284_u32, field_285_u32,
+                field_286_u32, field_287_u32, field_288_u32, field_289_u32,
+                field_290_u32, field_291_u32, field_292_u32, field_293_u32,
+                field_294_u32, field_295_u32, field_296_u32, field_297_u32,
+                field_298_u32, field_299_u32, field_300_u32, field_301_u32,
+                field_302_u32, field_303_u32, field_304_u32, field_305_u32,
+                field_306_u32, field_307_u32, field_308_u32, field_309_u32, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -2556,7 +2701,39 @@ impl<'a> GimmickTail<'a> {
                                ("field_274_u32", field_274_u32),
                                ("field_275_u32", field_275_u32),
                                ("field_276_u32", field_276_u32),
-                               ("field_277_u32", field_277_u32)] {
+                               ("field_277_u32", field_277_u32),
+                               ("field_278_u32", field_278_u32),
+                               ("field_279_u32", field_279_u32),
+                               ("field_280_u32", field_280_u32),
+                               ("field_281_u32", field_281_u32),
+                               ("field_282_u32", field_282_u32),
+                               ("field_283_u32", field_283_u32),
+                               ("field_284_u32", field_284_u32),
+                               ("field_285_u32", field_285_u32),
+                               ("field_286_u32", field_286_u32),
+                               ("field_287_u32", field_287_u32),
+                               ("field_288_u32", field_288_u32),
+                               ("field_289_u32", field_289_u32),
+                               ("field_290_u32", field_290_u32),
+                               ("field_291_u32", field_291_u32),
+                               ("field_292_u32", field_292_u32),
+                               ("field_293_u32", field_293_u32),
+                               ("field_294_u32", field_294_u32),
+                               ("field_295_u32", field_295_u32),
+                               ("field_296_u32", field_296_u32),
+                               ("field_297_u32", field_297_u32),
+                               ("field_298_u32", field_298_u32),
+                               ("field_299_u32", field_299_u32),
+                               ("field_300_u32", field_300_u32),
+                               ("field_301_u32", field_301_u32),
+                               ("field_302_u32", field_302_u32),
+                               ("field_303_u32", field_303_u32),
+                               ("field_304_u32", field_304_u32),
+                               ("field_305_u32", field_305_u32),
+                               ("field_306_u32", field_306_u32),
+                               ("field_307_u32", field_307_u32),
+                               ("field_308_u32", field_308_u32),
+                               ("field_309_u32", field_309_u32)] {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
                 }
@@ -2803,7 +2980,17 @@ impl<'a> GimmickTail<'a> {
                            "field_268_u32", "field_269_u32", "field_270_u32",
                            "field_271_u32", "field_272_u32", "field_273_u32",
                            "field_274_u32", "field_275_u32", "field_276_u32",
-                           "field_277_u32"] {
+                           "field_277_u32", "field_278_u32", "field_279_u32",
+                           "field_280_u32", "field_281_u32", "field_282_u32",
+                           "field_283_u32", "field_284_u32", "field_285_u32",
+                           "field_286_u32", "field_287_u32", "field_288_u32",
+                           "field_289_u32", "field_290_u32", "field_291_u32",
+                           "field_292_u32", "field_293_u32", "field_294_u32",
+                           "field_295_u32", "field_296_u32", "field_297_u32",
+                           "field_298_u32", "field_299_u32", "field_300_u32",
+                           "field_301_u32", "field_302_u32", "field_303_u32",
+                           "field_304_u32", "field_305_u32", "field_306_u32",
+                           "field_307_u32", "field_308_u32", "field_309_u32"] {
                     let v = json_get_field(obj, k)?;
                     if !v.is_null() {
                         <u32 as WriteJsonValue>::write_from_json(w, v)?;
