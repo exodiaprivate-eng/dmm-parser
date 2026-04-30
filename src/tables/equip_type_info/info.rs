@@ -15,7 +15,12 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub destroyed_ai_event: [u8; 12],
+        // [u8;12] composite split into 4 fields per empirical sweep across
+        // all 111 entries: head=0xFFFF, pad=0, hash u32 varies, tail=0xFFFFFFFF.
+        pub destroyed_ai_event_head: u16,
+        pub destroyed_ai_event_pad: u16,
+        pub destroyed_ai_event_hash: u32,
+        pub destroyed_ai_event_tail: u32,
         pub use_resource_item_type: u32,
         pub fake_equip_reserve_slot_data: u32,
         pub apply_status_group_info_on_activate: u32,
