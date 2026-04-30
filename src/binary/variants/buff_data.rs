@@ -2259,3 +2259,18 @@ impl<'a> BuffData<'a> {
         Ok(())
     }
 }
+
+impl<'a> crate::json_traits::ToJsonValue for BuffData<'a> {
+    fn to_json_value(&self) -> Value {
+        Value::Object(self.to_json_dict())
+    }
+}
+
+impl<'a> crate::json_traits::WriteJsonValue for BuffData<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "BuffData: expected object",
+        ))?;
+        BuffData::write_from_json_dict(w, obj)
+    }
+}
