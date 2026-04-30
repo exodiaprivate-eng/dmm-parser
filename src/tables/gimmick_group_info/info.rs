@@ -1,4 +1,4 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410E4450` in CrimsonDesert.exe (Win build).
 //!
@@ -54,7 +54,6 @@
 //! (CString-hash; wire bytes are u32 length + N raw bytes).
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -195,7 +194,7 @@ py_binary_struct! {
     }
 }
 
-pabgh_typed_blob_table! {
+py_binary_struct! {
     pub struct GimmickGroupInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
@@ -270,7 +269,21 @@ pabgh_typed_blob_table! {
         pub field_list: CArray<GimmickFieldEntry>,
         pub u32_pair_list: CArray<GimmickU32Pair>,
     }
-    tail: tail_blob;
+}
+
+impl<'a> GimmickGroupInfo<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("GimmickGroupInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
 }
 
 #[cfg(test)]
