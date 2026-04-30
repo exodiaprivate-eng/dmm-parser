@@ -26,8 +26,10 @@
 //!  15. (tail) u8 _keyboardClickType (mem a2+103)
 //!  16. (tail) 4× u8 unknown flags (mem a2+104..107)
 //!  17. (tail) sub_141D8C6D0 _someSequencerDesc (232 mem bytes;
-//!      26 wire fields incl. 1 GameCondition + 2 unknown helpers
-//!      sub_1410F2F90 + sub_14110E010 — blocks Tier 1 promotion)
+//!      26 wire fields fully decoded as of this session — see
+//!      `binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial`.
+//!      Both helpers (sub_1410F2F90 SequencerStageTrackChangeData family,
+//!      sub_14110E010 SequencerStageSpawnData family) are typed.)
 //!  18. (tail) u32 raw at a2+344
 //!  19. (tail) u32 _someName lookup at a2+348 (read_u32_lookup_DA30)
 //!  20. (tail) u16 lookup at a2+350 (sub_141100370)
@@ -39,12 +41,15 @@
 //!  25. (tail) CString at a2+400
 //!  26. (tail) 10× u8 trailing flags at a2+408..417
 //!
-//! Steps 1-9 are typed. Field 10 (ConditionPairCArray) is decodable
-//! via the shared helper but blocked: stream-mode GameConditionNode
-//! reads through ConditionData variant 36 (and other anti-disassembly
-//! variants) misinterpret bytes as CString lengths inside leaf
-//! payloads. Field 17 (sub_141D8C6D0) blocks the rest until two
-//! unknown helpers are decoded.
+//! Steps 1-9 are typed. Field 10 (ConditionPairCArray) is the only
+//! remaining blocker — stream-mode GameConditionNode misalign on
+//! anti-disassembly tags causes "not enough data" errors on entry 0.
+//! Earlier diagnostic loop established the ceiling at 306/363 entries.
+//! Field 17 onward is fully decodable now (SequencerStageChartDesc
+//! family decoder shipped this session) but cannot be reached without
+//! consuming field 10 first. Promotion is one-step-away pending the
+//! ConditionPair stream-mode fix or a Decoded|Raw fallback wrapper
+//! around ConditionPairCArray.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
