@@ -478,12 +478,14 @@ readers — preserved byte-perfect via the GameCondition::Raw fallback.
 **Important caveat — superseded by 2026-04-30 progression above**:
 The `57-entry ceiling` and the "empirical-add masking" warnings below
 were correct at the time but the methodical Win-IDA verification cycle
-above shows the path forward worked. Tag 99/174/360 were removed from
-the skip-list (each verified in IDA as needing a proper body recipe);
-tags 26/135/370 remain in the skip-list because they ARE genuine
-no-ops despite their slot-19 thunk pointing into `sub_14139AE80`
-(empirically confirmed by the n=3 stable state). Current Class C
-skip-list size: 3 tags (was 6). Original Class A/B counts unchanged.
+above shows the path forward worked. Tag 99/135/174/360/370 were
+removed from the skip-list (each verified in IDA — tags 99/174/360/393
+got proper body recipes; tags 135/370 got bodies AND were kept in skip
+when that combination won, then later 135/370 were removed altogether
+as the recipe stabilized). Only tag **26** remains in Class C now
+(empirically confirmed by the n=3 stable state). Final tally — Class A:
+8 tags (2/81/126/256/272/300/306/401), Class B: 2 tags (79/195),
+Class C: **1 tag (26)** — down from 6 originally.
 
 **Path forward (revised, mostly DONE)**:
 1. ~~Walk all 405 ConditionData_* vtables~~ — proven unnecessary; the
