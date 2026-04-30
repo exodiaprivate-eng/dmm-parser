@@ -13,6 +13,7 @@ pub mod optional_game_condition;
 pub mod condition_pair;
 pub mod sequencer_stage_chart_desc;
 pub mod gimmick_interaction_override;
+pub mod auto_spawn_entry;
 
 pub use types::*;
 
