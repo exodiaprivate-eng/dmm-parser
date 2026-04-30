@@ -318,8 +318,8 @@ in one retry.
 | Instance | Started | Lane / table | Status |
 |---|---|---|---|
 | Snow | (long-running) | Skill/Buff Python bindings | active |
-| A | now | EffectData inner_map typing | active |
-| B | — | (pick: GlobalGameEventExecuteData per-sub_tag bodies) | not started |
+| A | 2026-04-30 | ConditionData variant byte-recipes — fixing per-tag body sizes for InteractionInfo Tier 1 (TAG_TRAIL diagnostic now armed) | active — last fix tag 99 CheckAllyType to OneByteBodyPayload |
+| B | — | (per recent commits: cross-table field-level cleanup + QuestInfo FilterCondition decompile trail) | active |
 | C | 2026-04-29 | full JSON round-trip coverage across all hand-corrected tables | done — every macro and hand-written table now has field-level JSON access |
 
 When you start a task, edit your row to `Status: in progress on <table/feature>`.
