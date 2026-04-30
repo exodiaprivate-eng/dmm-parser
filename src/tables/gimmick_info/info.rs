@@ -179,6 +179,8 @@ pub enum GimmickTail<'a> {
         field_31_u32_list: Option<CArray<u32>>,
         /// Field 32 — empirically `CArray<u32>` continuation.
         field_32_u32_list: Option<CArray<u32>>,
+        /// Field 33 — single u32 hash (6492 entries share 0x6c000000).
+        field_33_u32: Option<u32>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -329,6 +331,13 @@ impl<'a> GimmickTail<'a> {
                         _ => { probe = pre_; None }
                     }
                 } else { None };
+                let field_33_u32 = if field_32_u32_list.is_some() && probe + 4 <= entry_end {
+                    let pre_ = probe;
+                    match u32::read_from(data, &mut probe) {
+                        Ok(v) => Some(v),
+                        _ => { probe = pre_; None }
+                    }
+                } else { None };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -358,6 +367,7 @@ impl<'a> GimmickTail<'a> {
                     field_30_u32_list,
                     field_31_u32_list,
                     field_32_u32_list,
+                    field_33_u32,
                     post_blob,
                 })
             }
@@ -382,7 +392,8 @@ impl<'a> GimmickTail<'a> {
                 field_23_u32_list, field_24_u32_list,
                 field_25_u32_list, field_26_u32, field_27_u32_list,
                 field_28_u32, field_29_u32_list, field_30_u32_list,
-                field_31_u32_list, field_32_u32_list, post_blob } => {
+                field_31_u32_list, field_32_u32_list,
+                field_33_u32, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -433,6 +444,7 @@ impl<'a> GimmickTail<'a> {
                 if let Some(arr) = field_30_u32_list { arr.write_to(w)?; }
                 if let Some(arr) = field_31_u32_list { arr.write_to(w)?; }
                 if let Some(arr) = field_32_u32_list { arr.write_to(w)?; }
+                if let Some(v) = field_33_u32 { v.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -452,7 +464,8 @@ impl<'a> GimmickTail<'a> {
                 field_23_u32_list, field_24_u32_list,
                 field_25_u32_list, field_26_u32, field_27_u32_list,
                 field_28_u32, field_29_u32_list, field_30_u32_list,
-                field_31_u32_list, field_32_u32_list, post_blob } => {
+                field_31_u32_list, field_32_u32_list,
+                field_33_u32, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -522,6 +535,8 @@ impl<'a> GimmickTail<'a> {
                     Some(arr) => arr.to_json_value(), None => Value::Null });
                 m.insert("field_32_u32_list".to_string(), match field_32_u32_list {
                     Some(arr) => arr.to_json_value(), None => Value::Null });
+                m.insert("field_33_u32".to_string(), match field_33_u32 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -610,6 +625,10 @@ impl<'a> GimmickTail<'a> {
                     if !v.is_null() {
                         <CArray<u32> as WriteJsonValue>::write_from_json(w, v)?;
                     }
+                }
+                let f33 = json_get_field(obj, "field_33_u32")?;
+                if !f33.is_null() {
+                    <u32 as WriteJsonValue>::write_from_json(w, f33)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
