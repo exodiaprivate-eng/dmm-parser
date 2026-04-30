@@ -113,6 +113,14 @@ fn main() {
     let mut field_113_typed = 0usize;
     let mut field_114_typed = 0usize;
     let mut field_115_typed = 0usize;
+    let mut field_116_typed = 0usize;
+    let mut field_117_typed = 0usize;
+    let mut field_118_typed = 0usize;
+    let mut field_119_typed = 0usize;
+    let mut field_120_typed = 0usize;
+    let mut field_121_typed = 0usize;
+    let mut field_122_typed = 0usize;
+    let mut field_123_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -222,6 +230,14 @@ fn main() {
                 field_113_u32,
                 field_114_u32,
                 field_115_u32,
+                field_116_u32,
+                field_117_u32,
+                field_118_u32,
+                field_119_u32,
+                field_120_u32,
+                field_121_u32,
+                field_122_u32,
+                field_123_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -324,6 +340,14 @@ fn main() {
                 if field_113_u32.is_some() { field_113_typed += 1; }
                 if field_114_u32.is_some() { field_114_typed += 1; }
                 if field_115_u32.is_some() { field_115_typed += 1; }
+                if field_116_u32.is_some() { field_116_typed += 1; }
+                if field_117_u32.is_some() { field_117_typed += 1; }
+                if field_118_u32.is_some() { field_118_typed += 1; }
+                if field_119_u32.is_some() { field_119_typed += 1; }
+                if field_120_u32.is_some() { field_120_typed += 1; }
+                if field_121_u32.is_some() { field_121_typed += 1; }
+                if field_122_u32.is_some() { field_122_typed += 1; }
+                if field_123_u32.is_some() { field_123_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -404,7 +428,11 @@ fn main() {
                        (109, field_109_typed), (110, field_110_typed),
                        (111, field_111_typed), (112, field_112_typed),
                        (113, field_113_typed), (114, field_114_typed),
-                       (115, field_115_typed)] {
+                       (115, field_115_typed), (116, field_116_typed),
+                       (117, field_117_typed), (118, field_118_typed),
+                       (119, field_119_typed), (120, field_120_typed),
+                       (121, field_121_typed), (122, field_122_typed),
+                       (123, field_123_typed)] {
         println!("Field {} (field_{}_u32)                  typed:     {} / {}", i, i, count, decoded);
     }
 
