@@ -68,6 +68,23 @@ py_binary_struct! {
     }
 }
 
+// sub_1410ECE20 inner — 48 mem bytes / 11 wire fields.
+py_binary_struct! {
+    pub struct MissionResultData {
+        pub flag_a: u8,
+        pub list: CArray<u32>,           // sub_1410FEF40
+        pub lookup_a: u32,                // sub_141100370
+        pub lookup_b: u32,                // sub_1410FF5C0
+        pub raw_a: u32,
+        pub lookup_c: u32,                // read_u32_lookup_DA30
+        pub lookup_d: u32,                // read_u32_lookup_DA30
+        pub raw_b: u32,
+        pub lookup_e: u32,                // sub_141102D90
+        pub flag_b: u8,
+        pub flag_c: u8,
+    }
+}
+
 // sub_1410F3380 inner — 20 mem bytes / 7 wire fields.
 py_binary_struct! {
     pub struct MissionBranchData {
@@ -106,6 +123,8 @@ pabgh_typed_blob_table! {
         pub field_revive_list: CArray<u32>,
         pub give_up_field_revive_list: CArray<u32>,
         pub trigger_volume_data: COptional<TriggerVolumeData<'a>>,
+        pub reward_list: CArray<u32>,
+        pub result_data_list: CArray<MissionResultData>,
     }
     tail: tail_blob;
 }
