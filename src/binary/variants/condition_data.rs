@@ -2158,7 +2158,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_ReserveSlotItemCount(ConditionData_ReserveSlotItemCountPayload),
     ConditionData_PuzzleSavePresetApplied,
     ConditionData_IsStableForInteraction,
-    ConditionData_CheckAccompanyType,
+    ConditionData_CheckAccompanyType(OneByteBodyPayload),
     ConditionData_CheckFactionWantedLevel(ConditionData_CheckFactionWantedLevelPayload),
     ConditionData_CheckVehicleAllowableHeight,
     ConditionData_CheckMercenaryCallCooltime(ConditionData_CheckMercenaryCallCooltimePayload),
@@ -2568,7 +2568,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_ReserveSlotItemCount(_) => 390,
             Self::ConditionData_PuzzleSavePresetApplied => 391,
             Self::ConditionData_IsStableForInteraction => 392,
-            Self::ConditionData_CheckAccompanyType => 393,
+            Self::ConditionData_CheckAccompanyType(_) => 393,
             Self::ConditionData_CheckFactionWantedLevel(_) => 394,
             Self::ConditionData_CheckVehicleAllowableHeight => 395,
             Self::ConditionData_CheckMercenaryCallCooltime(_) => 396,
@@ -2981,7 +2981,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_ReserveSlotItemCount(_) => "ConditionData_ReserveSlotItemCount",
             Self::ConditionData_PuzzleSavePresetApplied => "ConditionData_PuzzleSavePresetApplied",
             Self::ConditionData_IsStableForInteraction => "ConditionData_IsStableForInteraction",
-            Self::ConditionData_CheckAccompanyType => "ConditionData_CheckAccompanyType",
+            Self::ConditionData_CheckAccompanyType(_) => "ConditionData_CheckAccompanyType",
             Self::ConditionData_CheckFactionWantedLevel(_) => "ConditionData_CheckFactionWantedLevel",
             Self::ConditionData_CheckVehicleAllowableHeight => "ConditionData_CheckVehicleAllowableHeight",
             Self::ConditionData_CheckMercenaryCallCooltime(_) => "ConditionData_CheckMercenaryCallCooltime",
@@ -3395,7 +3395,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_ReserveSlotItemCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_PuzzleSavePresetApplied => {}
             Self::ConditionData_IsStableForInteraction => {}
-            Self::ConditionData_CheckAccompanyType => {}
+            Self::ConditionData_CheckAccompanyType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckFactionWantedLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckVehicleAllowableHeight => {}
             Self::ConditionData_CheckMercenaryCallCooltime(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3816,7 +3816,7 @@ impl<'a> ConditionDataVariant<'a> {
             390 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_ReserveSlotItemCount: missing body object"))?; ConditionData_ReserveSlotItemCountPayload::write_from_json_dict(w, body)?; }
             391 => {}
             392 => {}
-            393 => {}
+            393 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAccompanyType: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             394 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFactionWantedLevel: missing body object"))?; ConditionData_CheckFactionWantedLevelPayload::write_from_json_dict(w, body)?; }
             395 => {}
             396 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMercenaryCallCooltime: missing body object"))?; ConditionData_CheckMercenaryCallCooltimePayload::write_from_json_dict(w, body)?; }
@@ -4231,7 +4231,7 @@ impl<'a> ConditionDataVariant<'a> {
             390 => Self::ConditionData_ReserveSlotItemCount(ConditionData_ReserveSlotItemCountPayload::read_from(data, offset)?),
             391 => Self::ConditionData_PuzzleSavePresetApplied,
             392 => Self::ConditionData_IsStableForInteraction,
-            393 => Self::ConditionData_CheckAccompanyType,
+            393 => Self::ConditionData_CheckAccompanyType(OneByteBodyPayload::read_from(data, offset)?),
             394 => Self::ConditionData_CheckFactionWantedLevel(ConditionData_CheckFactionWantedLevelPayload::read_from(data, offset)?),
             395 => Self::ConditionData_CheckVehicleAllowableHeight,
             396 => Self::ConditionData_CheckMercenaryCallCooltime(ConditionData_CheckMercenaryCallCooltimePayload::read_from(data, offset)?),
@@ -4642,7 +4642,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_ReserveSlotItemCount(p) => p.write_to(w),
             Self::ConditionData_PuzzleSavePresetApplied => Ok(()),
             Self::ConditionData_IsStableForInteraction => Ok(()),
-            Self::ConditionData_CheckAccompanyType => Ok(()),
+            Self::ConditionData_CheckAccompanyType(p) => p.write_to(w),
             Self::ConditionData_CheckFactionWantedLevel(p) => p.write_to(w),
             Self::ConditionData_CheckVehicleAllowableHeight => Ok(()),
             Self::ConditionData_CheckMercenaryCallCooltime(p) => p.write_to(w),
