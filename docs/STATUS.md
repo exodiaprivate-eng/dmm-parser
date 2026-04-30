@@ -172,7 +172,7 @@ much smaller scope).
 | **GimmickInteractionOverrideCArray** | ✅ shipped — `binary::gimmick_interaction_override::GimmickInteractionOverrideCArray` (15-field inner via sub_1410DF770). | GimmickInfo (Tier 1.5 Decoded\|Raw, 99.93%), CharacterInfo field 133 (Tier 1) |
 | **SequencerStageTrackChangeData** family (Character/Gimmick/Item) | ✅ shipped (inside SequencerStageChartDesc field 19) | (used inside SequencerStageChartDesc) |
 | **SequencerStageSpawnData** | ✅ shipped (inside SequencerStageChartDesc field 20) | (used inside SequencerStageChartDesc) |
-| **GameEventHandler** | ❌ **next target** | GameEventHandlerInfo |
+| **GameEventHandler** | ✅ shipped — per-sub_tag typed bodies (sub_tag 2 = 12-byte SetUIPlayGuideParameter, sub_tag 3 = 6-byte SetUIFullscreenGuideParameter, sub_tags 0/1/4 in-place or Raw fallback). | GameEventHandlerInfo (Tier 1) |
 | **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
 
 ### Tables by tier
