@@ -1,4 +1,4 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410ED0E0` in CrimsonDesert.exe (Win build).
 //!
@@ -29,7 +29,6 @@
 //! is decoded.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
 // sub_1410AA0D0 inner — Quaternion ([f32; 4], 16 wire bytes).
@@ -168,7 +167,7 @@ py_binary_struct! {
     }
 }
 
-pabgh_typed_blob_table! {
+py_binary_struct! {
     pub struct MissionInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
@@ -192,8 +191,40 @@ pabgh_typed_blob_table! {
         pub result_data_2_lookup: u32,       // sub_141102D90 (KNOWN)
         pub result_data_list_2: CArray<MissionResultData2<'a>>,
         pub mission_stage_list: CArray<MissionStageData>,
+        pub category_info: u32,             // sub_1410FF430
+        pub raw_418: u16,
+        pub raw_420: u16,
+        pub raw_424: u32,
+        pub flag_428: u8,
+        pub flag_429: u8,
+        pub flag_430: u8,
+        pub flag_431: u8,
+        pub flag_432: u8,
+        pub flag_433: u8,
+        pub flag_434: u8,
+        pub flag_435: u8,
+        pub flag_436: u8,
+        pub flag_437: u8,
+        pub flag_438: u8,
+        pub flag_439: u8,
+        pub flag_440: u8,
+        pub trailing_u32: u32,              // sub_141BD4120 (raw u32)
     }
-    tail: tail_blob;
+}
+
+impl<'a> MissionInfo<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("MissionInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
 }
 
 #[cfg(test)]
