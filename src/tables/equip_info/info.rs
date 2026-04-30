@@ -1,9 +1,21 @@
 //! Tier 1.5 — typed prefix + tail blob.
 //!
-//! Reader (Mac CrimsonDesert_Steam): `sub_10186D874` at 0x10186D874.
-//! No on-disk pabgb dump — table is runtime/conditional, so the
-//! roundtrip test SKIPs. Typed prefix is documentation + tooling
-//! support only.
+//! Reader: `sub_1410DB040` in CrimsonDesert.exe (Win build), discovered
+//! via xref to "EquipInfo" string at 0x144ae7ee0. Mac equivalent
+//! `sub_10186D874` at 0x10186D874. No on-disk pabgb dump — table is
+//! runtime/conditional, so the roundtrip test SKIPs. Typed prefix is
+//! documentation + tooling support only.
+//!
+//! Win wire shape (from sub_1410DB040):
+//!   1. u32 key (a2+0)
+//!   2. CString string_key (a2+8)
+//!   3. u8 is_blocked (a2+16)
+//!   4. u16 attacked_material_slot_no (a2+18, 2 raw wire bytes)
+//!   5. CArray<EquipListItem> _list (sub_141117600 → sub_1410DACB0;
+//!      112 mem bytes/element — DEEP, blocked)
+//!   6. CArray<RagdollEquipTableGroupData> _radgollEquipTableGroupDataList
+//!      (sub_1411173F0 — composite, blocked)
+//!   7. u32 ui_component_name (read_u32_lookup_DA30)
 //!
 //! Wire reads, in order:
 //!   1. u32 key                       (sub_100EFBC60, width 4)

@@ -25,6 +25,42 @@
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
+
+// InteractionPivotData — sub_141E2BEB0 inner, 168 mem bytes / 28 wire fields.
+// Wire order: u32 key + 4× (CString-hash + Vec3) + 3× u32 raw + 4× u32 raw
+// (v56 cluster) + 2× u32 raw (v57) + 2× u32 raw (v58) + 2× u32 raw +
+// CString name + Vec3 + u32 + 2× u64 + u32 (faction_group_info lookup).
+py_binary_struct! {
+    pub struct InteractionPivotData<'a> {
+        pub key: u32,
+        pub tag_a: CString<'a>,
+        pub vec_a: [f32; 3],
+        pub tag_b: CString<'a>,
+        pub vec_b: [f32; 3],
+        pub tag_c: CString<'a>,
+        pub vec_c: [f32; 3],
+        pub tag_d: CString<'a>,
+        pub vec_d: [f32; 3],
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub raw_c: u32,
+        pub vec_e: [f32; 3],     // v56 cluster: 4 raw u32s = 16 bytes
+        pub raw_e_3: u32,
+        pub raw_f: u32,
+        pub raw_f_1: u32,
+        pub raw_g: u32,
+        pub raw_g_1: u32,
+        pub raw_h: u32,
+        pub raw_i: u32,
+        pub name: CString<'a>,
+        pub vec_f: [f32; 3],
+        pub raw_j: u32,
+        pub raw_k: u64,
+        pub raw_l: u64,
+        pub faction_group_info: u32,
+    }
+}
 
 pabgh_typed_blob_table! {
     pub struct InteractionInfo<'a> {
@@ -36,6 +72,7 @@ pabgh_typed_blob_table! {
         pub preemption_type: u8,
         pub interaction_name: LocalizableString<'a>,
         pub pivot_selection_target: u8,
+        pub interaction_pivot_list: CArray<InteractionPivotData<'a>>,
     }
     tail: tail_blob;
 }
