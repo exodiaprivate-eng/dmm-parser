@@ -725,6 +725,11 @@ mod tests {
             let item = CharacterInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
             assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
             let dict = item.to_json_dict();
+            // CharacterInfo's typed prefix consumes every byte of every
+            // vanilla entry, so the macro-generated `_tail_b64` field
+            // must never leak into the JSON dict (Tier 1 invariant).
+            assert!(!dict.contains_key("_tail_b64"),
+                "entry {} key=0x{:x}: _tail_b64 leaked — typed reader is missing fields", i, key);
             let mut from_typed = Vec::new();
             item.write_to(&mut from_typed).unwrap();
             let mut from_json = Vec::new();
