@@ -1,1 +1,1 @@
-mod info; pub use info::QuestInfo;
+pub mod info; pub use info::QuestInfo;
