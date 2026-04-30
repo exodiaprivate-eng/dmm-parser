@@ -177,52 +177,45 @@ py_binary_struct! {
 
 // RandomBox (variant 2) — sub_141E45240.
 // Wire after BaseUseData: u8 flag_a + (if flag_a) u32 lookup_a
-// (sub_141100370 → qword_145F113C8) + u8 flag_b + (if flag_b) variable
-// inner bytes via sub_141D03AA0 (deep recursive, kept opaque) + u32
-// final_lookup (read_u32_lookup_DA30 → qword_145F0DA30). The inner
-// blob is sized by extra_size minus the 4-byte trailing final_lookup
-// minus whatever has been consumed by the surrounding flag/lookup
-// fields. Cloning a whole RandomBoxPayload between entries stays
-// byte-perfect; per-field editing of the inner blob is gated on the
-// sub_141600210 family decoder being reverse-engineered.
+// (sub_141100370 → qword_145F113C8) + u8 outer_present + (if
+// outer_present) sub_141D03AA0 (= u8 inner_present + sub_141600210
+// DropTargetData) + u32 final_lookup (read_u32_lookup_DA30 →
+// qword_145F0DA30). Note RandomBox has BOTH the outer presence flag
+// AND the inner sub_141D03AA0 presence — two distinct bytes —
+// whereas DropSetInfo._list calls sub_141D03AA0 directly so it only
+// has the single inner presence. The inner DropTarget is fully
+// field-addressable via `crate::binary::drop_target`.
 #[derive(Debug)]
 pub struct RandomBoxPayload {
     pub lookup_a: Option<u32>,
-    pub inner_data_bytes: Option<Vec<u8>>,
+    /// Outer wrapper around the OptionalDropTarget. `None` when the
+    /// outer presence flag is 0; otherwise carries the inner
+    /// `OptionalDropTarget` (which itself may be empty when its inner
+    /// presence is 0).
+    pub inner: Option<crate::binary::drop_target::OptionalDropTarget>,
     pub final_lookup: u32,
 }
 
 impl RandomBoxPayload {
     pub fn read_with_size(data: &[u8], offset: &mut usize, extra_size: usize) -> io::Result<Self> {
-        let extra_end = *offset + extra_size;
-        if extra_end > data.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
-                format!("RandomBox: extra_size {} runs past end of data", extra_size)));
-        }
+        let _ = extra_size; // typed reader is byte-perfect; size is informational
         let flag_a = u8::read_from(data, offset)?;
         let lookup_a = if flag_a != 0 { Some(u32::read_from(data, offset)?) } else { None };
-        let flag_b = u8::read_from(data, offset)?;
-        let inner_data_bytes = if flag_b != 0 {
-            if extra_end < 4 || *offset > extra_end - 4 {
-                return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("RandomBox: inner_data bounds invalid (cursor={}, extra_end={})", *offset, extra_end)));
-            }
-            let inner_end = extra_end - 4;
-            let bytes = data[*offset..inner_end].to_vec();
-            *offset = inner_end;
-            Some(bytes)
+        let outer = u8::read_from(data, offset)?;
+        let inner = if outer != 0 {
+            Some(crate::binary::drop_target::OptionalDropTarget::read_from(data, offset)?)
         } else {
             None
         };
         let final_lookup = u32::read_from(data, offset)?;
-        Ok(Self { lookup_a, inner_data_bytes, final_lookup })
+        Ok(Self { lookup_a, inner, final_lookup })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         (self.lookup_a.is_some() as u8).write_to(w)?;
         if let Some(v) = self.lookup_a { v.write_to(w)?; }
-        (self.inner_data_bytes.is_some() as u8).write_to(w)?;
-        if let Some(ref b) = self.inner_data_bytes { w.write_all(b)?; }
+        (self.inner.is_some() as u8).write_to(w)?;
+        if let Some(ref i) = self.inner { i.write_to(w)?; }
         self.final_lookup.write_to(w)?;
         Ok(())
     }
@@ -233,8 +226,8 @@ impl RandomBoxPayload {
             Some(v) => v.to_json_value(),
             None => Value::Null,
         });
-        m.insert("inner_data_b64".to_string(), match &self.inner_data_bytes {
-            Some(b) => Value::String(B64.encode(b)),
+        m.insert("inner".to_string(), match &self.inner {
+            Some(i) => i.to_json_value(),
             None => Value::Null,
         });
         m.insert("final_lookup".to_string(), self.final_lookup.to_json_value());
@@ -249,16 +242,14 @@ impl RandomBoxPayload {
             w.push(1);
             <u32 as WriteJsonValue>::write_from_json(w, lookup_a)?;
         }
-        let inner = obj.get("inner_data_b64").unwrap_or(&Value::Null);
+        let inner = obj.get("inner").unwrap_or(&Value::Null);
         if inner.is_null() {
             w.push(0);
         } else {
-            let s = inner.as_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "RandomBox.inner_data_b64: expected string or null"))?;
-            let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-                format!("RandomBox.inner_data_b64: invalid base64: {}", e)))?;
             w.push(1);
-            w.extend_from_slice(&bytes);
+            <crate::binary::drop_target::OptionalDropTarget as WriteJsonValue>::write_from_json(
+                w, inner,
+            )?;
         }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "final_lookup")?)?;
         Ok(())
