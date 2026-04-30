@@ -39,7 +39,7 @@ pabgh_typed_blob_table! {
         pub is_blocked: u8,
         pub exchange_item_info_for_buy: u32,
         pub exchange_item_info_list_for_sell: CArray<u32>,
-        pub sell_percents: [u8; 8],
+        pub sell_percents: u64,
         pub store_type: u8,
         pub price_increase_percent_list: CArray<u64>,
         pub sellable_character_condition_logic: u32,

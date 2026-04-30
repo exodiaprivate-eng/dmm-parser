@@ -59,7 +59,7 @@ py_binary_struct! {
         pub unk_80: u8,
         pub unk_81: u8,
         pub unk_84: u32,
-        pub unk_88: [u8; 8],
+        pub unk_88: u64,
         pub ref_list: CArray<u32>,
     }
 }

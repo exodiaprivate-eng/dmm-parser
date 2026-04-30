@@ -21,7 +21,9 @@ py_binary_struct! {
         pub max_vehicle_seat: u8,
         pub vehicle_seat_data_list: [u8; 128],
         pub max_parent_link_attach_count: u8,
-        pub parent_link_attach_data_list: [u8; 16],
+        // Split 2 × 8-byte fixed-loop slots (per docstring "× 2") into u64 pair.
+        pub parent_link_attach_data_a: u64,
+        pub parent_link_attach_data_b: u64,
         pub rider_spawn_upper_action: u32,
         pub rider_spawn_lower_action: u32,
         pub vehicle_spawn_upper_action: u32,

@@ -67,7 +67,7 @@ use std::io::{self, Write};
 py_binary_struct! {
     pub struct SubLevelExpInnerLookupItem {
         pub lookup: u32,
-        pub raw_8: [u8; 8],
+        pub raw_8: u64,
     }
 }
 
@@ -90,7 +90,7 @@ py_binary_struct! {
     pub struct SubLevelExpData<'a> {
         pub outer_lookup: u32,
         pub inner_lookup_list: CArray<SubLevelExpInnerLookupItem>,
-        pub raw_8: [u8; 8],
+        pub raw_8: u64,
         pub inner_label_list: CArray<SubLevelExpInnerLabelItem<'a>>,
     }
 }
@@ -113,7 +113,7 @@ py_binary_struct! {
         pub lookup_a: u32,
         pub lookup_b: u32,
         pub lookup_c: u32,
-        pub raw_8: [u8; 8],
+        pub raw_8: u64,
     }
 }
 
@@ -123,8 +123,8 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct VaryExpPerDonationData {
         pub lookup: u32,
-        pub raw_a: [u8; 8],
-        pub raw_b: [u8; 8],
+        pub raw_a: u64,
+        pub raw_b: u64,
     }
 }
 

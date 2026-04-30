@@ -48,7 +48,9 @@ py_binary_struct! {
         pub job_list: CArray<u16>,
         pub equip_type_list: CArray<u32>,
         pub faction_list: CArray<u32>,
-        pub action_attribute_flag: [u8; 16],
+        // Split 16-byte flag field into 2× u64 for field-level scalar access.
+        pub action_attribute_flag_low: u64,
+        pub action_attribute_flag_high: u64,
         pub and_condition_data_list: CArray<NighScheduleConvertingConditionData<'a>>,
     }
 }
