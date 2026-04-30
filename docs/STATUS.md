@@ -232,13 +232,17 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 | **TriggerGamePlayEventHandlerData** (TGPEHD) | 🔵 researched (8/8 cases reverse-engineered, see "Reverse-engineering notes" section above), implementation pending | GimmickInfo `post_blob` (sub_1411125E0) — would unlock GimmickInfo internal-Tier-1.5 → Tier-1 |
 
 ### Tables by tier
-- **Tier 1** (typed, all fields editable through JSON): the bulk of the
-  125 tables — see `docs/449_TABLE_CATALOG.md` for the per-table list.
-  ConditionInfo just joined this tier (commit `9f1be1d`).
-- **Tier 1.5** (typed-internal, blob payload via base64 / clone-only):
-  tables whose polymorphic body waits on its family decoder.
-- **Tier 2** (whole-tail blob): no longer the default — only used for
-  tables where we haven't yet hand-corrected the wire format.
+- **Tier 1** (typed, all fields editable through JSON): all 92 on-disk
+  tables in the catalog — see `docs/449_TABLE_CATALOG.md` for the
+  per-table list. ConditionInfo (commit `9f1be1d`), then EffectInfo,
+  CharacterInfo, MiniGameDataInfo, EquipSlotInfo and others have all
+  joined this tier in 2026-04-30 work.
+- **Tier 1.5** (sub-field opacities inside otherwise-T1 tables):
+  see "Remaining Tier 1.5" section above — QuestInfo
+  `quest_dialog_filter_data_list_blob` and GimmickInfo `post_blob`
+  remain blocked on family decoder reverse engineering.
+- **Tier 2** (whole-tail blob): **0 tables** — eliminated. The
+  catalog-level T2 count is now 0 (was previously 3 stale entries).
 
 ---
 
