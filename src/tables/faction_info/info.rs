@@ -2,7 +2,8 @@
 //!
 //! Reader: `sub_1410DA3D0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order (canonical names from Mac Korean error strings):
+//! Wire reads, in order (canonical names from Mac Korean error strings
+//! / `docs/449_TABLE_CATALOG.md` FactionInfo section):
 //!   1. u32 key                              (_key)
 //!   2. CString string_key                   (_stringKey)
 //!   3. u8 is_blocked                        (_isBlocked)
@@ -20,15 +21,52 @@
 //!      inline → qword_145F0DA08)
 //!  11. u32 faction_relation_group_info      (_factionRelationGroupInfo,
 //!      inline → qword_145F0DA08)
-//!  12. _factionGroupInfo (sub_141100370 → struct +46) ← TAIL STARTS HERE
-//!  13. (body) _representFactionInfo, _stageIconPath, _factionUiCardList,
-//!      …
+//!  12. u32 faction_group_info               (_factionGroupInfo,
+//!      sub_141100370 → qword_145F113C8 — wire u32, mem u16)
+//!  13. u16 represent_faction_info_lookup_a  (sub_141102410 →
+//!      qword_145F0EEF0 — wire u16, mem u16; unnamed catalog sub-field)
+//!  14. u16 represent_faction_info_lookup_b  (sub_1411024C0 →
+//!      qword_145F24D10 — wire u16; unnamed catalog sub-field)
+//!  15. u32 represent_faction_info           (_representFactionInfo,
+//!      sub_141100860 → qword_145F0DA48 — wire u32, mem u16)
+//!  16. u32 stage_icon_path                  (_stageIconPath,
+//!      read_u32_lookup_DA30)
+//!  17. CArray<FactionUiCardEntry> faction_ui_card_list
+//!      (_factionUiCardList, sub_141117AC0; per element: u32 lookup
+//!      via sub_1411006D0 + nested CArray<u32 raw> = 24 mem bytes)
+//!  18. CArray<StealthOption> stealth_option_list
+//!      (_stealthOptionList, sub_141117920; per element:
+//!      CString tag + u32 lookup via sub_1410FF430 + u8 — 8 mem bytes)
+//!      ← TAIL STARTS HERE
+//!  19. (tail) _factionEventDataList — 13× sub_141128990 (each a
+//!      CArray of 288-byte composites via sub_1410DD2A0 + sub_1410DD420;
+//!      sub_1410DD420 alone has 30+ wire reads + sub_1410DD140 unknown).
+//!      Hard blocker for full Tier 1.
+//!  20. (tail) u8 _isEmptyMisc                (a2+296)
+//!  21. (tail) u32 _factionColor              (a2+300)
 //!
-//! Steps 1-11 are typed (11 fields). The faction body has many more
-//! reads but several unknown helpers. Reopens cleanly when decoded.
+//! Steps 1-18 are typed (18 of 19 catalog fields surfaced + 2 sub-field
+//! lookups). Reopens cleanly for the final 3 tail fields once the
+//! `_factionEventDataList` 13-slot composite is decoded.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
+
+py_binary_struct! {
+    pub struct FactionUiCardEntry {
+        pub knowledge_info: u32,
+        pub list: CArray<u32>,
+    }
+}
+
+py_binary_struct! {
+    pub struct StealthOption<'a> {
+        pub tag: CString<'a>,
+        pub condition_logic: u32,
+        pub flag: u8,
+    }
+}
 
 pabgh_typed_blob_table! {
     pub struct FactionInfo<'a> {
@@ -43,6 +81,13 @@ pabgh_typed_blob_table! {
         pub contribution_worker_info: u32,
         pub trade_reward_dropset_info: u32,
         pub faction_relation_group_info: u32,
+        pub faction_group_info: u32,
+        pub represent_faction_info_lookup_a: u16,
+        pub represent_faction_info_lookup_b: u16,
+        pub represent_faction_info: u32,
+        pub stage_icon_path: u32,
+        pub faction_ui_card_list: CArray<FactionUiCardEntry>,
+        pub stealth_option_list: CArray<StealthOption<'a>>,
     }
     tail: tail_blob;
 }
