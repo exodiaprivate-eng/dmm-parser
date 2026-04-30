@@ -64,6 +64,13 @@ This file is for collaborators picking up round-trip work. It's the
   entries (typed decode for 99.8%, raw-bytes fallback for 0.2%)
 
 ### Recent Tier 1 promotions (lane-c)
+- `QuestInfo.quest_dialog_filter_data_list` — wired to consume the
+  FilterCondition family decoder (binary::variants::filter_condition,
+  shipped by lane-b). Replaced `quest_dialog_filter_data_list_blob: Vec<u8>`
+  with `QuestDialogFilterDataList<'a>` Decoded|Raw enum. Decoded entries
+  expose 18 typed wire fields per QuestDialogFilterData; Raw fallback
+  preserves byte-perfect round-trip on any unmapped FilterCondition tag.
+  308/308 tests pass. (lane-c, 2026-04-30)
 - `CharacterChartEntry.raw_block_a/b` — `[u8; 16]` → 4× named u32 each
   (`block_{a,b}_dword_{0..3}`). IDA `sub_141107700` confirmed as
   `for i in 0..4 { read_u32() }`; split into 4 u32 fields per the
@@ -96,9 +103,11 @@ This file is for collaborators picking up round-trip work. It's the
   dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded
 
 ### Remaining Tier 1.5 (blocked by family decoders)
-- `QuestInfo.quest_dialog_filter_data_list_blob` — FilterCondition variant family
 - `GimmickInfo.post_blob` — within Decoded; blocked by sub_1411125E0
   (CArray<COptional<sub_141D7FF30 → sub_141D80A90 dispatcher>>)
+
+(QuestInfo.quest_dialog_filter_data_list_blob was promoted in lane-c
+2026-04-30 — see "Recent Tier 1 promotions" above.)
 
 (MiniGameDataInfo previously listed here was promoted via `38ff7c3` —
 spawn_data_list is now a `Decoded|Raw` enum (`SpawnDataList`) with
