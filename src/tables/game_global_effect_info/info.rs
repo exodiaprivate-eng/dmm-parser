@@ -38,52 +38,109 @@ use crate::py_binary_struct;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
+// EffectData: 31 wire bytes (in-memory 32 bytes with 1 byte padding).
+// Per sub_1410E25F0. Field names from canonical catalog
+// (GameGlobalEffectInfo_Effect, 7 fields):
+//   _effectFileName: u32 (read_u32_lookup_DA30 → u16 result)
+//   _spawnInterval: 8 raw wire bytes (paired min/max f32)
+//   _spawnRatioCheckValue: 8 raw wire bytes
+//   _spawnRatio: 8 raw wire bytes
+//   _spawnType, _spawnRatioType, _indoorType: u8 enums
 py_binary_struct! {
-    /// 32-byte fixed struct (31 wire bytes + 1 byte padding).
-    /// Per sub_1410E25F0:
-    ///   u32 lookup (read_u32_lookup_DA30 → qword_145F0DA30)
-    ///   + 8 bytes raw + 8 bytes raw + 8 bytes raw + 3 trailing bytes.
     pub struct EffectData {
-        pub lookup: u32,
-        pub raw_a: [u8; 8],
-        pub raw_b: [u8; 8],
-        pub raw_c: [u8; 8],
-        pub flag_a: u8,
-        pub flag_b: u8,
-        pub flag_c: u8,
+        pub effect_file_name: u32,
+        pub spawn_interval: [u8; 8],
+        pub spawn_ratio_check_value: [u8; 8],
+        pub spawn_ratio: [u8; 8],
+        pub spawn_type: u8,
+        pub spawn_ratio_type: u8,
+        pub indoor_type: u8,
     }
 }
 
+// WeatherData: 181 wire bytes per sub_1410E2740 (45 u32 + 1 u8).
+// Field names from canonical catalog (GameGlobalEffectInfo_Weather,
+// 46 fields). All numeric fields stored as u32 to preserve bit
+// patterns (NaN, edge-case floats round-trip without serde_json
+// normalization).
 py_binary_struct! {
-    /// 184-byte fixed struct (181 wire bytes + 3 padding).
-    /// Per sub_1410E2740: 45 sequential u32 reads + 1 trailing u8.
     pub struct WeatherData {
-        pub field_00: u32, pub field_04: u32, pub field_08: u32, pub field_0c: u32,
-        pub field_10: u32, pub field_14: u32, pub field_18: u32, pub field_1c: u32,
-        pub field_20: u32, pub field_24: u32, pub field_28: u32, pub field_2c: u32,
-        pub field_30: u32, pub field_34: u32, pub field_38: u32, pub field_3c: u32,
-        pub field_40: u32, pub field_44: u32, pub field_48: u32, pub field_4c: u32,
-        pub field_50: u32, pub field_54: u32, pub field_58: u32, pub field_5c: u32,
-        pub field_60: u32, pub field_64: u32, pub field_68: u32, pub field_6c: u32,
-        pub field_70: u32, pub field_74: u32, pub field_78: u32, pub field_7c: u32,
-        pub field_80: u32, pub field_84: u32, pub field_88: u32, pub field_8c: u32,
-        pub field_90: u32, pub field_94: u32, pub field_98: u32, pub field_9c: u32,
-        pub field_a0: u32, pub field_a4: u32, pub field_a8: u32, pub field_ac: u32,
-        pub field_b0: u32,
-        pub flag_b4: u8,
+        pub precipitation: u32,
+        pub cloudiness: u32,
+        pub humidity: u32,
+        pub wind_speed: u32,
+        pub puddle_rate: u32,
+        pub snow_puddle_rate: u32,
+        pub snow_amount: u32,
+        pub snow_rate: u32,
+        pub ice_ratio: u32,
+        pub wind_degree: u32,
+        pub altitude_wind_ratio: u32,
+        pub sun_dir_x: u32,
+        pub sun_dir_y: u32,
+        pub moon_size_angle: u32,
+        pub moon_dir_x: u32,
+        pub moon_dir_y: u32,
+        pub mie_scaled_height: u32,
+        pub mie_aerosol_density: u32,
+        pub mie_aerosol_density_multi_ratio: u32,
+        pub mie_aerosol_absorption: u32,
+        pub mie_scatter_color: u32,
+        pub ozone_ratio: u32,
+        pub directional_light_luminance_scale: u32,
+        pub height_fog_density: u32,
+        pub height_fog_baseline: u32,
+        pub height_fog_falloff: u32,
+        pub volume_fog_scatter_color: u32,
+        pub cloud_base_density: u32,
+        pub cloud_base_contrast: u32,
+        pub cloud_alpha: u32,
+        pub cloud_scroll_multiplier: u32,
+        pub cloud_altitude: u32,
+        pub cloud_thickness: u32,
+        pub cloud_near: u32,
+        pub cloud_fade_range: u32,
+        pub cloud_detail_ratio: u32,
+        pub cloud_detail_scale: u32,
+        pub cloud_cirrus_altitude: u32,
+        pub cloud_cirrus_density: u32,
+        pub cloud_cirrus_weight_r: u32,
+        pub cloud_cirrus_weight_g: u32,
+        pub cloud_cirrus_weight_b: u32,
+        pub cloud_flow: u32,
+        pub cloud_seed: u32,
+        pub rayleigh_scattering_color: u32,
+        pub enable_climate_texture: u8,
     }
 }
 
+// PostProcessData: 88 wire bytes per sub_1410E2E10 (22 u32). Field
+// names from canonical catalog (GameGlobalEffectInfo_PostProcess,
+// 22 fields). All u32 to preserve f32 bit patterns including NaN.
 py_binary_struct! {
-    /// 88-byte fixed struct (22 sequential u32 reads).
-    /// Per sub_1410E2E10.
     pub struct PostProcessData {
-        pub field_00: u32, pub field_04: u32, pub field_08: u32, pub field_0c: u32,
-        pub field_10: u32, pub field_14: u32, pub field_18: u32, pub field_1c: u32,
-        pub field_20: u32, pub field_24: u32, pub field_28: u32, pub field_2c: u32,
-        pub field_30: u32, pub field_34: u32, pub field_38: u32, pub field_3c: u32,
-        pub field_40: u32, pub field_44: u32, pub field_48: u32, pub field_4c: u32,
-        pub field_50: u32, pub field_54: u32,
+        pub exposure_compensation: u32,
+        pub exposure_low_percent: u32,
+        pub exposure_high_percent: u32,
+        pub min_luminance: u32,
+        pub max_luminance: u32,
+        pub fixed_exposure_value: u32,
+        pub local_tone_mapping_shadows: u32,
+        pub local_tone_mapping_highlights: u32,
+        pub local_tone_mapping_sigma: u32,
+        pub chromatic_aberration_ratio: u32,
+        pub vignetting_ratio: u32,
+        pub slope_red: u32,
+        pub slope_green: u32,
+        pub slope_blue: u32,
+        pub power_red: u32,
+        pub power_green: u32,
+        pub power_blue: u32,
+        pub white_balance: u32,
+        pub saturation: u32,
+        pub brightness: u32,
+        pub contrast: u32,
+        pub auto_white_balance_ratio: u32,
     }
 }
 
