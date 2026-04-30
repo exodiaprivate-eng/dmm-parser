@@ -89,7 +89,10 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct WayPointTriplet {
-        pub bytes: [u8; 12],
+        // Promoted from [u8;12] to [f32;3] — name "Triplet" + 12 bytes is
+        // canonically a Vec3. 0 vanilla entries (deprecated path) so no
+        // NaN risk.
+        pub xyz: [f32; 3],
     }
 }
 
@@ -130,6 +133,7 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\factionnode.pabgb";
     const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\factionnode.pabgh";
+
 
     #[test]
     fn roundtrip() {
