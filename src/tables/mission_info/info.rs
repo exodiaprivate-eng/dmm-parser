@@ -68,6 +68,30 @@ py_binary_struct! {
     }
 }
 
+// sub_1410EC8B0 — MissionUIDesc, 80 mem bytes / 18 wire fields.
+py_binary_struct! {
+    pub struct MissionUIDesc {
+        pub icon_a: u32,           // read_u32_lookup_DA30
+        pub icon_b: u32,           // read_u32_lookup_DA30
+        pub icon_c: u32,           // read_u32_lookup_DA30
+        pub lookup_a: u32,         // sub_1410FF050
+        pub lookup_b: u32,         // sub_1410FF430
+        pub lookup_c: u32,         // sub_141102D90
+        pub list_a: CArray<u32>,   // sub_141101610 → qword_145F0EF38
+        pub list_b: CArray<u32>,   // inline CArray<u32 raw>
+        pub lookup_d: u32,         // sub_141101D50
+        pub vec3: [f32; 3],
+        pub raw_a: u32,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub flag_f: u8,
+        pub trailing: u16,         // sub_141106760 (wire u16)
+    }
+}
+
 // sub_1410ECE20 inner — 48 mem bytes / 11 wire fields.
 py_binary_struct! {
     pub struct MissionResultData {
@@ -125,6 +149,12 @@ pabgh_typed_blob_table! {
         pub trigger_volume_data: COptional<TriggerVolumeData<'a>>,
         pub reward_list: CArray<u32>,
         pub result_data_list: CArray<MissionResultData>,
+        pub reward_inventory_key: u16,
+        pub ui_desc: MissionUIDesc,
+        pub label_a: LocalizableString<'a>,
+        pub label_b: LocalizableString<'a>,
+        pub label_c: LocalizableString<'a>,
+        pub label_d: LocalizableString<'a>,
     }
     tail: tail_blob;
 }
