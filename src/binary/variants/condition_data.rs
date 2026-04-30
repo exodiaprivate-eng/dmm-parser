@@ -4777,7 +4777,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // GetLevel has the same thunk and reads option_block normally).
         // These adds may be masking real bugs elsewhere — see
         // docs/STATUS.md "Stream-mode GameCondition" section.
-        26 | 99 | 135 | 370
+        26 | 135 | 370
     )
 }
 
