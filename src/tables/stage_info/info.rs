@@ -59,10 +59,14 @@
 //!         qword_145F113C8 hash)
 //!  51. CArray<u32> list_d                (sub_1410FEF40,
 //!                                         qword_145F0DA30 hash)
+//!  52. OptStageOpt52 platform_entry      (sub_141108C30 — presence-
+//!      flagged { Optional<StagePlatformEntry> + u16 + u32 + u32 }.
+//!      The inner StagePlatformEntry decodes through sub_141D7FE40 +
+//!      sub_1410AA1B0 and exposes 9 named fields.)
 //!      ← TAIL STARTS HERE
-//!  52+. ~30 trailing fields. Several unknown helpers (sub_141108C30,
-//!       sub_141107B30/C70, sub_141103530) gate further extension —
-//!       needs IDA per helper.
+//!  53+. ~30 trailing fields. sub_141107B30 (field 67), sub_141103530
+//!       (field 70), and the 21 trailing scalars/lookups still need
+//!       IDA verification before they can join the typed prefix.
 //!
 //! Promotion note: the previous Tier 1.5 cut stopped at field 6 because
 //! field 7 was an opaque polymorphic SequencerStageChartDesc. Now that
@@ -108,6 +112,163 @@ py_binary_struct! {
     pub struct StageU32StringEntry<'a> {
         pub raw: u32,
         pub label: CString<'a>,
+    }
+}
+
+py_binary_struct! {
+    /// `sub_1410AA1B0` — 40 wire bytes.
+    /// Wire order: Vec3 (12) + 4× u32 (16) + Vec3 (12).
+    pub struct StagePosBlock {
+        pub pos_a: [f32; 3],
+        pub block: [u32; 4],
+        pub pos_b: [f32; 3],
+    }
+}
+
+py_binary_struct! {
+    /// `sub_141D7FE40` inner — 86 mem bytes / 9 wire fields.
+    /// Wire: u8 + StagePosBlock + CString-hash + CString + u8 + Vec3 +
+    /// Vec3 + 2× u8.
+    pub struct StagePlatformEntry<'a> {
+        pub flag_a: u8,
+        pub pos_block: StagePosBlock,
+        pub key_hash: CString<'a>,    // sub_1410A9D40 — wire CString, mem u32
+        pub label: CString<'a>,
+        pub flag_b: u8,
+        pub vec_a: [f32; 3],
+        pub vec_b: [f32; 3],
+        pub flag_c: u8,
+        pub flag_d: u8,
+    }
+}
+
+/// `sub_141106AE0` — `Option<StagePlatformEntry>`. 88 mem bytes when
+/// present; just a presence flag on the wire (0 → None, 1 → present).
+#[derive(Debug)]
+pub struct OptStagePlatformEntry<'a> {
+    pub inner: Option<StagePlatformEntry<'a>>,
+}
+
+impl<'a> BinaryRead<'a> for OptStagePlatformEntry<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let presence = u8::read_from(data, offset)?;
+        let inner = if presence != 0 {
+            Some(StagePlatformEntry::read_from(data, offset)?)
+        } else {
+            None
+        };
+        Ok(Self { inner })
+    }
+}
+
+impl<'a> BinaryWrite for OptStagePlatformEntry<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match &self.inner {
+            Some(v) => { 1u8.write_to(w)?; v.write_to(w) }
+            None => 0u8.write_to(w),
+        }
+    }
+}
+
+impl<'a> ToJsonValue for OptStagePlatformEntry<'a> {
+    fn to_json_value(&self) -> Value {
+        match &self.inner {
+            Some(v) => v.to_json_value(),
+            None => Value::Null,
+        }
+    }
+}
+
+impl<'a> WriteJsonValue for OptStagePlatformEntry<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() {
+            0u8.write_to(w)
+        } else {
+            1u8.write_to(w)?;
+            <StagePlatformEntry as WriteJsonValue>::write_from_json(w, v)
+        }
+    }
+}
+
+/// `sub_141108C30` — `Option<{ OptStagePlatformEntry + u16 + u32 + u32 }>`.
+#[derive(Debug)]
+pub struct OptStageOpt52<'a> {
+    pub inner: Option<StageOpt52Inner<'a>>,
+}
+
+#[derive(Debug)]
+pub struct StageOpt52Inner<'a> {
+    pub platform: OptStagePlatformEntry<'a>,
+    pub lookup: u16,    // sub_141107C70 → qword_145F0E9D8 (wire u16)
+    pub raw_a: u32,
+    pub raw_b: u32,
+}
+
+impl<'a> BinaryRead<'a> for OptStageOpt52<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let presence = u8::read_from(data, offset)?;
+        let inner = if presence != 0 {
+            Some(StageOpt52Inner {
+                platform: OptStagePlatformEntry::read_from(data, offset)?,
+                lookup: u16::read_from(data, offset)?,
+                raw_a: u32::read_from(data, offset)?,
+                raw_b: u32::read_from(data, offset)?,
+            })
+        } else {
+            None
+        };
+        Ok(Self { inner })
+    }
+}
+
+impl<'a> BinaryWrite for OptStageOpt52<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match &self.inner {
+            Some(v) => {
+                1u8.write_to(w)?;
+                v.platform.write_to(w)?;
+                v.lookup.write_to(w)?;
+                v.raw_a.write_to(w)?;
+                v.raw_b.write_to(w)?;
+                Ok(())
+            }
+            None => 0u8.write_to(w),
+        }
+    }
+}
+
+impl<'a> ToJsonValue for OptStageOpt52<'a> {
+    fn to_json_value(&self) -> Value {
+        match &self.inner {
+            Some(v) => {
+                let mut m = Map::new();
+                m.insert("platform".to_string(), v.platform.to_json_value());
+                m.insert("lookup".to_string(), v.lookup.to_json_value());
+                m.insert("raw_a".to_string(), v.raw_a.to_json_value());
+                m.insert("raw_b".to_string(), v.raw_b.to_json_value());
+                Value::Object(m)
+            }
+            None => Value::Null,
+        }
+    }
+}
+
+impl<'a> WriteJsonValue for OptStageOpt52<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() {
+            0u8.write_to(w)?;
+            return Ok(());
+        }
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "OptStageOpt52: expected object or null",
+        ))?;
+        1u8.write_to(w)?;
+        OptStagePlatformEntry::write_from_json(w, json_get_field(obj, "platform")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_b")?)?;
+        Ok(())
     }
 }
 
@@ -165,6 +326,7 @@ pub struct StageInfo<'a> {
     pub close_filter_d_c: CArray<u32>,
     pub close_filter_d_d: CArray<u32>,
     pub list_d: CArray<u32>,
+    pub platform_entry: OptStageOpt52<'a>,
     pub tail_blob: Vec<u8>,
 }
 
@@ -229,6 +391,7 @@ impl<'a> StageInfo<'a> {
         let close_filter_d_c = CArray::<u32>::read_from(data, offset)?;
         let close_filter_d_d = CArray::<u32>::read_from(data, offset)?;
         let list_d = CArray::<u32>::read_from(data, offset)?;
+        let platform_entry = OptStageOpt52::read_from(data, offset)?;
 
         if *offset > entry_end {
             return Err(io::Error::new(
@@ -256,7 +419,7 @@ impl<'a> StageInfo<'a> {
             adjacency_mob_list_c, adjacency_mob_list_d,
             close_filter_d_a, close_filter_d_b,
             close_filter_d_c, close_filter_d_d,
-            list_d,
+            list_d, platform_entry,
             tail_blob,
         })
     }
@@ -314,6 +477,7 @@ impl<'a> StageInfo<'a> {
         self.close_filter_d_c.write_to(w)?;
         self.close_filter_d_d.write_to(w)?;
         self.list_d.write_to(w)?;
+        self.platform_entry.write_to(w)?;
         w.write_all(&self.tail_blob)?;
         Ok(())
     }
@@ -372,6 +536,7 @@ impl<'a> StageInfo<'a> {
         m.insert("close_filter_d_c".to_string(), self.close_filter_d_c.to_json_value());
         m.insert("close_filter_d_d".to_string(), self.close_filter_d_d.to_json_value());
         m.insert("list_d".to_string(), self.list_d.to_json_value());
+        m.insert("platform_entry".to_string(), self.platform_entry.to_json_value());
         m.insert("_tail_blob_b64".to_string(), Value::String(B64.encode(&self.tail_blob)));
         m
     }
@@ -429,6 +594,7 @@ impl<'a> StageInfo<'a> {
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_d_c")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "close_filter_d_d")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_d")?)?;
+        OptStageOpt52::write_from_json(w, json_get_field(obj, "platform_entry")?)?;
         let b64 = json_get_field(obj, "_tail_blob_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
