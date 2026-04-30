@@ -11,9 +11,17 @@
 //!      qword_145F11D70 lookup)
 //!   5. u64 battery_init_capacity            (_batteryInitCapacity)
 //!   6. u64 battery_total_capacity           (_batteryTotalCapacity)
+//!   7. CArray<GimmickProperty> link_signal_group_list
+//!      (_linkSignalGroupList, sub_141113BF0 wraps sub_1410E3D20;
+//!      per element: CString name + u8 + u32 + u8 + u32 + u32 +
+//!      u64 + u64 — 30 + variable wire bytes)
+//!   8. CArray<u32> property_list                (_propertyList,
+//!      sub_141101AB0 — wire u32 per element, mem u32)
+//!   9. CArray<CString> gimmick_tag_list         (_gimmickTagList,
+//!      sub_141102990 — runtime hashes each tag to u32 via
+//!      sub_1410A9D40, wire is CString)
 //!      ← TAIL STARTS HERE
-//!   7. _linkSignalGroupList, _propertyList, _gimmickTagList,
-//!      _gimmickChartPath, _gimmickType, _gimmickPlacementStyle,
+//!  10. _gimmickChartPath, _gimmickType, _gimmickPlacementStyle,
 //!      _gimmickInterfaceType, _gimmickRemoteCatchableData,
 //!      _autoTargetingConstraintDataList, _gimmickConstraintDataList,
 //!      _gimmickInfoList, _gameEventHandlerList,
@@ -25,12 +33,33 @@
 //!      _useSlidingMotionProperty, _isEditorUseable,
 //!      _isGetKnowledgeWhenGetItem, _isUseConstrainSound, …
 //!
-//! Steps 1-6 are typed (6 fields). Body has 100+ wire reads.
+//! Steps 1-9 are typed (9 fields). Body has 80+ wire reads with
+//! several deep composites; reopens cleanly when those are decoded.
 //!
 //! Helper: `sub_141104AE0` = u32 lookup at qword_145F11D70.
+//! `sub_141113BF0` = CArray<GimmickProperty> (48 mem bytes/element
+//! via sub_1410E3D20).
+//! `sub_1410E3D20` = inner GimmickProperty reader (8 wire fields).
+//! `sub_141101AB0` = CArray<u32> (4 wire bytes/element).
+//! `sub_141102990` = CArray<CString> via sub_1410A9D40
+//! (CString-hash; wire bytes are u32 length + N raw bytes).
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
+
+py_binary_struct! {
+    pub struct GimmickProperty<'a> {
+        pub name: CString<'a>,
+        pub flag_a: u8,
+        pub raw_a: u32,
+        pub flag_b: u8,
+        pub raw_b: u32,
+        pub raw_c: u32,
+        pub raw_d: u64,
+        pub raw_e: u64,
+    }
+}
 
 pabgh_typed_blob_table! {
     pub struct GimmickGroupInfo<'a> {
@@ -40,6 +69,9 @@ pabgh_typed_blob_table! {
         pub main_gimmick_group_info_of_combination: u32,
         pub battery_init_capacity: u64,
         pub battery_total_capacity: u64,
+        pub link_signal_group_list: CArray<GimmickProperty<'a>>,
+        pub property_list: CArray<u32>,
+        pub gimmick_tag_list: CArray<CString<'a>>,
     }
     tail: tail_blob;
 }
