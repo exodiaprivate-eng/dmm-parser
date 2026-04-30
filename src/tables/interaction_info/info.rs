@@ -1,8 +1,10 @@
 //! Tier 1 (with Decoded|Raw fallback) — typed prefix plus a per-entry
-//! enum that exposes the full body when decode succeeds and falls back
-//! to opaque bytes for just 3 / 363 vanilla entries (0.8%, down from
-//! 57 baseline as ConditionData per-tag recipes are verified) where
-//! the ConditionPair stream-mode decode still hits unresolved variants.
+//! enum that exposes the full body. As of 2026-04-30 with the
+//! Mac-IDA tag 54/214 recipe fixes (`5fa0b06`), **all 363/363 vanilla
+//! entries route through Decoded** (100% Decoded, down from 57 Raw at
+//! the start of recipe-verification). The Raw fallback path is kept
+//! for byte-perfect resilience if a future build introduces
+//! unresolved ConditionPair variants.
 //!
 //! Reader: `sub_1410DFBA0` in CrimsonDesert.exe (Win build).
 //!
@@ -35,13 +37,13 @@
 //!  28. CString cstring_b
 //!  29-38. 10× u8 trailing flags
 //!
-//! 360 / 363 vanilla entries (99.2%) route through `Decoded`. The
-//! remaining 3 hit ConditionData stream-mode tags inside the
-//! cond_data_list and route through `Raw { tail_blob }`. Every typed
-//! prefix field stays editable in both cases. Remaining blockers:
-//! tag 214 (2 entries), tag 54 (1) — all in the anti-disassembly-
-//! protected family (tag 54 is `CheckCurrentEquipType_OrTag54`, an
-//! obfuscated reader called out in `game_condition.rs::Raw` comment).
+//! **All 363 / 363 vanilla entries (100%)** route through `Decoded`.
+//! The Raw fallback path is preserved for byte-perfect resilience
+//! against future builds. Tag 54 (`CheckCurrentEquipType_OrTag54`,
+//! TwoU32BodyPayload) and tag 214 (`CheckExistStealItem`,
+//! `ConditionData_CheckExistStealItemPayload`) — formerly the only
+//! anti-disassembly blockers — were resolved via Mac-IDA in
+//! `5fa0b06`.
 
 use crate::binary::*;
 use crate::binary::variants::condition_pair::ConditionPairCArray;
