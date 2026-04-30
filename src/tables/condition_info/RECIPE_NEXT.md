@@ -27,7 +27,7 @@ GameCondition wrapper.
 | 0 | sub_141E65740 | BinaryOp_A (recursive) | YES — `binary::variants::game_condition` |
 | 1 | sub_141E65D40 | BinaryOp_B (recursive) | YES |
 | 2 | sub_141E662D0 | UnaryOp (recursive) | YES |
-| 3 | sub_141C87CE0 | ConditionData (405 leaves) | partial — codegen done, ~55 wrong recipes |
+| 3 | sub_141C87CE0 | ConditionData (405 leaves) | YES — typed enum + per-tag dispatch; per-tag recipe verification ongoing (see `docs/STATUS.md`) |
 | 4 | sub_141D89730 | BranchConditionData (14 leaves) | codegen done — verify against data |
 | 5 | sub_141D8B1A0 | ScheduleCompleteConditionData | YES — `binary::variants::schedule_complete_condition_data` |
 | 6 | sub_141CB6480 | ConditionGimmickData | YES — `binary::variants::condition_gimmick_data` |
@@ -87,7 +87,9 @@ The recipe `conditiondata_recipes.json` claims tag 206 has `tail_bytes: 0` — w
    `condition_info::info::ConditionInfo.game_condition: GameCondition<'a>`).
    Round-trip is byte-perfect on 8,934/8,934 entries.
 
-5. **Update v3 docs**: Move ConditionInfo from blob-tail to fully field-decoded in `mod-authors-guide.md` (65 → 66 typed, 56 → 55 blob-tail).
+5. **Update v3 docs** (n/a — `mod-authors-guide.md` no longer exists in
+   this repo; per-table tier status now lives in `docs/STATUS.md` and
+   `docs/449_TABLE_CATALOG.md`).
 
 ## Why this matters
 
