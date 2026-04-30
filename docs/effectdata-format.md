@@ -363,26 +363,45 @@ bone-name sub-element variant.
 
 ---
 
-## Irregular Blobs (bone-name sub-elements)
+## Irregular Blobs
 
-The 7 irregular entries contain a **bone name list** (CString array) inside
-what appears to be a variable-length sub-element. Evidence from the 4-24
-831-blob (which has the bone list visible at blob[616..]):
+The 7 irregular entries fail the mc_off divisibility check and fall into two
+sub-types:
+
+### Type A — Bone-name mesh (831, 1407, 1787, 2151-byte blobs)
+
+These have M=1 mesh element that is **variable-length** because it embeds a
+bone name list and bone weight array. The outer layout is identical to a
+standard mesh blob (8 zero bytes + u32 M + mesh_data + 8 trailing zeros),
+but the mesh data itself is larger than the standard MESH constant.
+
+The 4-24 831-blob (entry `pafx_mc_rotationbash_lightning_gain_001a_switch_01`)
+contains M=1 mesh with the bone name list at mesh offset 298:
 
 ```
-07 00 00 00             ← count = 7 bone names
-0b 00 00 00             ← len = 11
-42 69 70 30 31 20 53 70 69 6e 65   "Bip01 Spine"
-0c 00 00 00             ← len = 12
-42 69 70 30 31 20 53 70 69 6e 65 31  "Bip01 Spine1"
-... (7 names total: Spine, Spine1, Spine2, R Clavicle, R UpperArm, R Elbow, R Hand)
-06 00 00 00             ← count = 6 (float array following bone names)
-89 88 08 3e ...         ← 6 × f32 ≈ 0.133f (bone weights)
+                                        ... (298 bytes standard mesh data)
+07 00 00 00             ← bone_count = 7
+0b 00 00 00  42 69 70 30 31 20 53 70 69 6e 65          "Bip01 Spine" (11)
+0c 00 00 00  42 69 70 30 31 20 53 70 69 6e 65 31       "Bip01 Spine1" (12)
+0c 00 00 00  42 69 70 30 31 20 53 70 69 6e 65 32       "Bip01 Spine2" (12)
+10 00 00 00  42 69 70 30 31 20 52 20 43 6c 61 76 69 63 6c 65  "Bip01 R Clavicle" (16)
+10 00 00 00  42 69 70 30 31 20 52 20 55 70 70 65 72 41 72 6d  "Bip01 R UpperArm" (16)
+0d 00 00 00  42 69 70 30 31 20 52 20 45 6c 62 6f 77          "Bip01 R Elbow" (13)
+0c 00 00 00  42 69 70 30 31 20 52 20 48 61 6e 64             "Bip01 R Hand" (12)
+06 00 00 00             ← weight_count = 6
+89 88 08 3e  ×6         ← 6 × f32 ≈ 0.1333 (bone weights per bone attachment?)
+[58 trailing zeros]
 ```
 
-Hypothesis: the fixed-size sub-element (SUB bytes) and this variable-size
-bone-name sub-element are different variants of the same `_effectDataList`
-sub-item type. Full structure TBD.
+Total mesh size for this entry: 508 bytes (= 298 fixed + 4 count + 120 names + 4 count + 24 weights + 58 zeros).
+
+### Type B — Unknown variant (373-byte blobs)
+
+Two entries (entry name `Inspect_SocketMarker`) have size 373 = 323 + 50. The
+standard mc_off region (blob[311:323]) is all zeros, indicating K=0 and M=0.
+The 50 extra bytes at blob[323:373] contain unknown data — partially a pattern
+of (1.0, 0.0, 1.0, 0.0) float-like values followed by bytes that resemble hash
+values. Not yet decoded. Possibly socket/attachment marker geometry.
 
 ---
 
@@ -393,16 +412,16 @@ sub-item type. Full structure TBD.
    prefix[88..92] remain unnamed. Scan co-variation with other fields.
 
 2. **Map sub-element[9:13]** — the 4-byte header packet (e.g. `57 04 06 24`)
-   has only 2 distinct values across 6 entries; the 955-blob (K=2) would
-   provide a second sub-element to compare.
+   varies per-instance; cross-reference against 955-blob (K=2) where two
+   sub-elements in the same parent differ at this field.
 
 3. **Identify prefix[256..264] IDs** — two per-entry u16 identifiers at
    prefix[258..262]; likely reference external tables (texture IDs, material
    hashes?).
 
-4. **Resolve irregular blobs** — figure out whether the bone-name
-   sub-element is preceded by a size prefix, and what the 373-blob
-   (smaller irregular) contains.
+4. **Type B irregular blobs (373-byte)** — 50 bytes of unknown structure at
+   blob[323:373] for `Inspect_SocketMarker` entries. Possibly socket/attachment
+   marker geometry; compare against any IDA type info for socket marker data.
 
 5. **MeshEffectData mesh[56..108]** — 48 bytes mostly zero; expand beyond
    3-entry sample to characterize the f32 at mesh[104].
@@ -410,3 +429,7 @@ sub-item type. Full structure TBD.
 6. **NamedItemStruct struct[0..36]** — only 3 instances available; the
    colour-like values at struct[12..24] need cross-referencing with prefix
    color1/color2 fields.
+
+7. **Type A irregular blobs (1407+)** — larger bone-name meshes; determine
+   if bone_count and weight_count are always equal, and whether the 58-zero
+   trailer is a fixed-size pad or variable.
