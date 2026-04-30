@@ -6,9 +6,9 @@
 //!   3. u8 is_blocked
 //!   4. effect_data: CArray<EffectDataElement> via sub_141116A70 — each
 //!      element exposes 10 named fields plus a typed `core_block` (47
-//!      named sub-fields). The recursive `inner_map` portion of each
-//!      element is bounded but still rides as opaque bytes pending
-//!      reverse of its anti-disassembly tail.
+//!      named sub-fields). The recursive `inner_map` portion is fully
+//!      typed as `Vec<EffectDataInnerMapEntry>` (u32 key + nested
+//!      EffectDataInner value).
 //!   5. mesh_effect_data: u32 count + N × 50-byte MeshEffectData (read
 //!      by sub_1410DBD90). Fully typed below.
 //!   6. u8 has_equip_type

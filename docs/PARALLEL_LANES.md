@@ -4,7 +4,22 @@ We're running 3-4 Claude instances in parallel against the same repo.
 Each instance owns a distinct file scope so we never trample each
 other's work.
 
-**Last updated**: 2026-04-29
+**Last updated**: 2026-04-30 (instance A working session — see "Active state" below)
+
+## Active state — DO NOT PUSH (user directive)
+
+The user has paused all `git push origin` until **every parsable table
+is field-level parsed**. Local commits accumulate freely; no instance
+should push to GitHub until the all-clear is given. `origin/main` is
+behind local `main` as a result.
+
+| Instance | Cwd | Branch | Active | Status |
+|---|---|---|---|---|
+| **A** (this) | `dmm-parser/` | `main` | Now (loop active, cron `415b6872` every minute, no-push mode) | ConditionData per-tag Win-IDA recipe verification → unblocks `interaction_info` Raw entries (currently 50 / 363 = 14%, was 115). Top remaining: tag 135 (18, downstream issue — not a recipe bug), tag 246/249 (4 each), tag 360/393 (3 each). |
+| **B** | `dmm-parser-b/` | `lane-b` | (not actively working in this session) | Last known: 1147 lines uncommitted WIP (sequencer_stage_chart_desc, special_mode_info, etc.). Should rebase onto local `main` when resuming. |
+| **C** | `dmm-parser-c/` | `lane-c` | (not actively working in this session) | Last known: lane-c flushed; major Tier-1 promotions landed (CharacterInfo 174 fields, MiniGameDataInfo, StoreInfo, DropSetInfo). |
+
+
 
 ---
 
@@ -318,7 +333,7 @@ in one retry.
 | Instance | Started | Lane / table | Status |
 |---|---|---|---|
 | Snow | (long-running) | Skill/Buff Python bindings | active |
-| A | 2026-04-30 | ConditionData variant byte-recipes — fixing per-tag body sizes for InteractionInfo Tier 1 (TAG_TRAIL diagnostic now armed) | active — last fix tag 99 CheckAllyType to OneByteBodyPayload |
+| A | 2026-04-30 | ConditionData variant work paused — STATUS.md regression flag (tag 19/27/135 speculative changes regressed Raw fallback 57→101). **Holding off** further skip-list/body recipe edits until Win-IDA vtable[19] verification batch lands. Local-only edits this session — not pushing per user directive. | holding (no speculative edits) |
 | B | — | (per recent commits: cross-table field-level cleanup + QuestInfo FilterCondition decompile trail) | active |
 | C | 2026-04-29 | full JSON round-trip coverage across all hand-corrected tables | done — every macro and hand-written table now has field-level JSON access |
 

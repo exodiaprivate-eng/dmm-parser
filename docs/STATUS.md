@@ -1,8 +1,35 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-04-30
+**Last updated**: 2026-04-30 (instance A working session, loop active)
 **Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
+
+> **Active work (instance A, lane-A — `dmm-parser/`):** ConditionData
+> per-tag recipe verification against Win-IDA, driven by the
+> `interaction_info::diag_raw_entries` failure histogram. Goal:
+> eliminate the 50 Raw-fallback entries on interaction_info and
+> promote it to full Tier 1.
+>
+> **Local-only commits** — per user directive, do NOT push until all
+> tables are field-level parsed. The remote `origin/main` is currently
+> behind local `main`. Other instances (B, C) should rebase against
+> local main only when explicitly synced; do not pull from origin until
+> the user gives the go-ahead.
+>
+> Per-tag verification template (Win-IDA derived), see commits
+> `8f01078` tag 174, `47c1697` tag 19, prior tag 27 reapply. Lookup
+> pattern (vtable starts at the matching `??_7ConditionData_<Name>@pa@@6B@`
+> RTTI symbol):
+>   - `vtable[16] = 0x141C9A550 → sub_14F18E780` reads 1 byte → `OneByteBodyPayload`
+>   - `vtable[16] = 0x1402D3A80` is no-op `return 1` → unit variant
+>   - `vtable[19] = 0x141C8D560` is standard option_block reader → NOT in skip-list
+>   - `vtable[19] = 0x1402D3A80` is no-op → IS in skip-list
+>
+> Empirical guard: each fix must keep `cargo test --lib` at 304 pass
+> AND not REDUCE `interaction_info::roundtrip` decoded count. Tag 135
+> was a counter-example where IDA suggested 1-byte body + remove-from-skip
+> but empirical regressed (313 → 294 decoded); left as unit + skip-list.
+> Reason unknown — possibly a downstream-tree issue masking as tag 135.
 
 This file is for collaborators picking up round-trip work. It's the
 "where are we, what's next" snapshot. For per-table specs see
