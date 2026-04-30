@@ -169,6 +169,16 @@ fn main() {
     let mut field_169_typed = 0usize;
     let mut field_170_typed = 0usize;
     let mut field_171_typed = 0usize;
+    let mut field_172_typed = 0usize;
+    let mut field_173_typed = 0usize;
+    let mut field_174_typed = 0usize;
+    let mut field_175_typed = 0usize;
+    let mut field_176_typed = 0usize;
+    let mut field_177_typed = 0usize;
+    let mut field_178_typed = 0usize;
+    let mut field_179_typed = 0usize;
+    let mut field_180_typed = 0usize;
+    let mut field_181_typed = 0usize;
     let mut post_blob_sizes: Vec<usize> = vec![];
 
     for (_key, start, end) in &ranges {
@@ -334,6 +344,16 @@ fn main() {
                 field_169_u32,
                 field_170_u32,
                 field_171_u32,
+                field_172_u32,
+                field_173_u32,
+                field_174_u32,
+                field_175_u32,
+                field_176_u32,
+                field_177_u32,
+                field_178_u32,
+                field_179_u32,
+                field_180_u32,
+                field_181_u32,
                 post_blob, ..
             } => {
                 decoded += 1;
@@ -492,6 +512,16 @@ fn main() {
                 if field_169_u32.is_some() { field_169_typed += 1; }
                 if field_170_u32.is_some() { field_170_typed += 1; }
                 if field_171_u32.is_some() { field_171_typed += 1; }
+                if field_172_u32.is_some() { field_172_typed += 1; }
+                if field_173_u32.is_some() { field_173_typed += 1; }
+                if field_174_u32.is_some() { field_174_typed += 1; }
+                if field_175_u32.is_some() { field_175_typed += 1; }
+                if field_176_u32.is_some() { field_176_typed += 1; }
+                if field_177_u32.is_some() { field_177_typed += 1; }
+                if field_178_u32.is_some() { field_178_typed += 1; }
+                if field_179_u32.is_some() { field_179_typed += 1; }
+                if field_180_u32.is_some() { field_180_typed += 1; }
+                if field_181_u32.is_some() { field_181_typed += 1; }
                 post_blob_sizes.push(post_blob.len());
             }
             GimmickTail::Raw(_) => { raw += 1; }
@@ -600,7 +630,12 @@ fn main() {
                        (165, field_165_typed), (166, field_166_typed),
                        (167, field_167_typed), (168, field_168_typed),
                        (169, field_169_typed), (170, field_170_typed),
-                       (171, field_171_typed)] {
+                       (171, field_171_typed), (172, field_172_typed),
+                       (173, field_173_typed), (174, field_174_typed),
+                       (175, field_175_typed), (176, field_176_typed),
+                       (177, field_177_typed), (178, field_178_typed),
+                       (179, field_179_typed), (180, field_180_typed),
+                       (181, field_181_typed)] {
         println!("Field {} (field_{}_u32)                  typed:     {} / {}", i, i, count, decoded);
     }
 
