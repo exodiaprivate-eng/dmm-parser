@@ -10,12 +10,27 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
+// Hand-corrected: empirical sweep across all 1233 vanilla member entries
+// shows 21-byte elements split as 5×f32 + u8 (no NaN values present).
+// First f32 looks like a position offset (varies signed); rest are
+// formation parameters (most are 0.0 or constant 0.2).
+py_binary_struct! {
+    pub struct FormationMemberData {
+        pub offset_a: f32,
+        pub offset_b: f32,
+        pub offset_c: f32,
+        pub param_a: f32,
+        pub param_b: f32,
+        pub flag: u8,
+    }
+}
+
 py_binary_struct! {
     pub struct FormationInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub member_data_list: CArray<[u8; 21]>,
+        pub member_data_list: CArray<FormationMemberData>,
         pub absolute_offset: u8,
         pub is_super_strict: u8,
     }
