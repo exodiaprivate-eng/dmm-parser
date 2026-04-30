@@ -24,30 +24,8 @@
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{json, Value};
 use std::io::{self, Write};
-
-// Helper: serialize anything that implements BinaryWrite as base64 string.
-fn bw_to_b64<T: BinaryWrite>(v: &T) -> Value {
-    let mut bytes = Vec::new();
-    v.write_to(&mut bytes).expect("vec write infallible");
-    Value::String(B64.encode(&bytes))
-}
-
-// Helper: read base64 string and write its raw bytes to w.
-fn b64_to_w(w: &mut Vec<u8>, v: &Value, field: &str) -> io::Result<()> {
-    let s = v.as_str().ok_or_else(|| io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("{}: expected base64 string", field),
-    ))?;
-    let bytes = B64.decode(s).map_err(|e| io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("{}: invalid base64: {}", field, e),
-    ))?;
-    w.extend_from_slice(&bytes);
-    Ok(())
-}
 
 /// `[u8 absent_flag][BuffData if absent_flag == 0]` per sub_1419D9C70.
 /// 1 = absent (skip), 0 = present (read BuffData). Inverted from typical COptional.
@@ -335,12 +313,10 @@ impl<'a> SkillInfo<'a> {
 // SkillInfo's simple fields (key, string_key, is_blocked, etc.) are exposed
 // as JSON for direct field editing via v3 mods.
 //
-// The polymorphic field `buff_level_list` (CArray<CArray<BuffDataOptional>>)
-// is serialized as base64 of its raw bytes — Tier 2 blob-tail equivalent.
-// Mod authors can clone a whole `buff_level_list` from another skill via
-// `set` with the base64 value, but cannot drill into individual buffs yet.
-// Field-level BuffData JSON (per-variant ToJsonValue across 120 variants) is
-// the next step once needed.
+// `buff_level_list` (CArray<CArray<BuffDataOptional>>) ships as fully
+// typed JSON via the per-variant BuffData ToJsonValue/WriteJsonValue
+// impls in `binary::variants::buff_data`. Mod authors can drill into
+// any single buff at any level.
 
 impl ToJsonValue for GraphData {
     fn to_json_value(&self) -> Value {
