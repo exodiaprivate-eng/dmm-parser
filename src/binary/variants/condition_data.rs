@@ -4726,7 +4726,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         135 | 370 |
         // Added one at a time during interaction_info diagnostic; each
         // verified to keep conditioninfo passing.
-        99 | 174
+        99 | 174 | 360
     )
 }
 
