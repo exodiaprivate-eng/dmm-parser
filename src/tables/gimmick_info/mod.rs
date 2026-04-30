@@ -1,1 +1,1 @@
-mod info; pub use info::GimmickInfo;
+pub mod info; pub use info::GimmickInfo;

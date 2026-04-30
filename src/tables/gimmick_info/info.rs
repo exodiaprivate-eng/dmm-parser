@@ -102,6 +102,18 @@ py_binary_struct! {
     }
 }
 
+py_binary_struct! {
+    /// Field 18 — `_gimmickChartParameterList` per-element.
+    /// Win-IDA `sub_141C7F8B0`: 16-byte mem stride; wire = u32 + u8 + u32 + u8
+    /// = 10 wire bytes per element. CArray<GimmickChartParameter>.
+    pub struct GimmickChartParameter {
+        pub a: u32,
+        pub b: u8,
+        pub c: u32,
+        pub d: u8,
+    }
+}
+
 /// Tail of GimmickInfo. When the field-7 CArray decode succeeds (and
 /// the immediately-following stable scalar block parses cleanly) it
 /// joins the typed prefix; the rest of the body (~85 fields) still
@@ -125,6 +137,10 @@ pub enum GimmickTail<'a> {
         /// back to leaving these bytes inside `post_blob` if any TGPEHD
         /// variant decode under/over-reads.
         trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData<'a>>>,
+        /// Field 18 — `_gimmickChartParameterList` (sub_141C7F8B0). 10 wire
+        /// bytes per element (u32+u8+u32+u8). Best-effort typed; bytes
+        /// remain in post_blob if decode under/over-reads.
+        gimmick_chart_parameter_list: Option<CArray<GimmickChartParameter>>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -160,6 +176,17 @@ impl<'a> GimmickTail<'a> {
                     Ok(arr) if probe <= entry_end => Some(arr),
                     _ => { probe = pre_tgpehd; None }
                 };
+                // Field 18: gimmick_chart_parameter_list — only attempted
+                // if the TGPEHD list parsed cleanly (probe is aligned).
+                let gimmick_chart_parameter_list = if trigger_event_handler_list.is_some() {
+                    let pre_chart = probe;
+                    match <CArray<GimmickChartParameter>>::read_from(data, &mut probe) {
+                        Ok(arr) if probe <= entry_end => Some(arr),
+                        _ => { probe = pre_chart; None }
+                    }
+                } else {
+                    None
+                };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -174,6 +201,7 @@ impl<'a> GimmickTail<'a> {
                     hash_pair_list: hpl,
                     hash_single_list: hsl,
                     trigger_event_handler_list,
+                    gimmick_chart_parameter_list,
                     post_blob,
                 })
             }
@@ -192,7 +220,7 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -204,6 +232,9 @@ impl<'a> GimmickTail<'a> {
                 hash_pair_list.write_to(w)?;
                 hash_single_list.write_to(w)?;
                 if let Some(arr) = trigger_event_handler_list {
+                    arr.write_to(w)?;
+                }
+                if let Some(arr) = gimmick_chart_parameter_list {
                     arr.write_to(w)?;
                 }
                 w.write_all(post_blob)
@@ -219,7 +250,7 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -234,6 +265,10 @@ impl<'a> GimmickTail<'a> {
                 m.insert("hash_pair_list".to_string(), hash_pair_list.to_json_value());
                 m.insert("hash_single_list".to_string(), hash_single_list.to_json_value());
                 m.insert("trigger_event_handler_list".to_string(), match trigger_event_handler_list {
+                    Some(arr) => arr.to_json_value(),
+                    None => Value::Null,
+                });
+                m.insert("gimmick_chart_parameter_list".to_string(), match gimmick_chart_parameter_list {
                     Some(arr) => arr.to_json_value(),
                     None => Value::Null,
                 });
@@ -274,6 +309,10 @@ impl<'a> GimmickTail<'a> {
                 let teh = json_get_field(obj, "trigger_event_handler_list")?;
                 if !teh.is_null() {
                     <CArray<OptionalTriggerGamePlayEventHandlerData> as WriteJsonValue>::write_from_json(w, teh)?;
+                }
+                let gcp = json_get_field(obj, "gimmick_chart_parameter_list")?;
+                if !gcp.is_null() {
+                    <CArray<GimmickChartParameter> as WriteJsonValue>::write_from_json(w, gcp)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
