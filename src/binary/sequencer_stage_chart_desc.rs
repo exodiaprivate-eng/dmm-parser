@@ -1,11 +1,10 @@
 //! Partial typed wrapper for SequencerStageChartDesc (sub_141D8C6D0).
 //!
-//! The full per-element reader has 26 wire fields / 232 mem bytes, but
-//! field 15 onward depends on the GameCondition stream-mode anti-
-//! disassembly fix and field 19 introduces a second polymorphic family
-//! (SequencerStageTrackChangeData via sub_14110C270). Until those land,
-//! the first 14 wire fields are individually decodable since each has
-//! a deterministic length:
+//! The full per-element reader has 26 wire fields / 232 mem bytes.
+//! Field 19 introduces a polymorphic family (SequencerStageTrackChange-
+//! Data via sub_14110C270) that needs its own family-decoder pass, so
+//! the typed prefix tops out at field 15 for now. The first 15 wire
+//! fields each have a deterministic length:
 //!
 //!   1. CString name
 //!   2. u32 raw
@@ -14,14 +13,17 @@
 //!   5. u32 raw
 //!   6-13. 8× u8 flag
 //!  14. u32 lookup_a (sub_141106210, qword_145F113B8 hash)
+//!  15. OptionalGameCondition cond_a (sub_141103B30 — u8 presence +
+//!      optional GameCondition tree + 3 footer bytes)
 //!
-//! `SequencerStageChartDescPartial` reads those 14 fields explicitly
+//! `SequencerStageChartDescPartial` reads those 15 fields explicitly
 //! and stores everything after as `opaque_tail: Vec<u8>`. For consumers
 //! that own a SequencerStageChartDesc bounded by entry-size arithmetic
 //! (e.g. `field_revive_info`'s single-instance case), this gives users
 //! field-level edit access to the prefix without losing round-trip on
 //! the unfinished tail.
 
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -45,9 +47,16 @@ pub struct SequencerStageChartDescPartial<'a> {
     pub flag_h: u8,
     /// u32 wire / u16 mem hash (sub_141106210 → qword_145F113B8).
     pub lookup_a: u32,
-    /// Bytes 15-26 of the wire layout (GameCondition + 2 CStrings +
-    /// 2 polymorphic CArrays + 4 helper structs). Stays opaque until
-    /// the GameCondition stream-mode fix lands.
+    /// `OptionalGameCondition` (sub_141103B30 — u8 presence + optional
+    /// recursive GameCondition tree + 3 footer bytes). When the tree
+    /// hits an anti-disassembly tag, the typed read fails; consumers
+    /// fall back to opaque-tail mode in that case via
+    /// `read_with_size`'s outer error path.
+    pub cond_a: OptionalGameCondition<'a>,
+    /// Bytes 16-26 of the wire layout (2 CStrings + 2 polymorphic
+    /// CArrays + 4 helper structs). Stays opaque until the
+    /// GameCondition stream-mode fix lands AND the
+    /// SequencerStageTrackChangeData family decoder is shipped.
     pub opaque_tail: Vec<u8>,
 }
 
@@ -92,6 +101,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         let flag_g = u8::read_from(data, offset)?;
         let flag_h = u8::read_from(data, offset)?;
         let lookup_a = u32::read_from(data, offset)?;
+        let cond_a = OptionalGameCondition::read_from(data, offset)?;
 
         if *offset > blob_end {
             return Err(io::Error::new(
@@ -108,7 +118,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         Ok(Self {
             name, raw_a, prefab_path, position, raw_b,
             flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h,
-            lookup_a, opaque_tail,
+            lookup_a, cond_a, opaque_tail,
         })
     }
 
@@ -127,6 +137,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         self.flag_g.write_to(w)?;
         self.flag_h.write_to(w)?;
         self.lookup_a.write_to(w)?;
+        self.cond_a.write_to(w)?;
         w.write_all(&self.opaque_tail)?;
         Ok(())
     }
@@ -147,6 +158,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         m.insert("flag_g".to_string(), self.flag_g.to_json_value());
         m.insert("flag_h".to_string(), self.flag_h.to_json_value());
         m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
+        m.insert("cond_a".to_string(), self.cond_a.to_json_value());
         m.insert("_opaque_tail_b64".to_string(), Value::String(B64.encode(&self.opaque_tail)));
         Value::Object(m)
     }
@@ -170,6 +182,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_g")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_h")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond_a")?)?;
         let b64 = json_get_field(obj, "_opaque_tail_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(
