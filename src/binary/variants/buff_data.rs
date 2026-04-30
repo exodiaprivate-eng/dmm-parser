@@ -8,15 +8,15 @@ use crate::py_binary_struct;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-/// Shared 28-byte BuffData value block (sub_141E2BB80). Wire reads
-/// u64 + u64 + u64 + u32 in order. Used as a recurring sub-record
-/// across DamageBuffData (3×), VaryRegenerateValueBuffData,
-/// AdditionalRegenerateValueBuffData, and other variants.
-///
-/// The runtime types of these fields aren't recovered yet; keeping
-/// them as integer primitives preserves the bit pattern losslessly
-/// (mod authors can reinterpret as f64/f32 if needed).
 py_binary_struct! {
+    /// Shared 28-byte BuffData value block (sub_141E2BB80). Wire reads
+    /// u64 + u64 + u64 + u32 in order. Used as a recurring sub-record
+    /// across DamageBuffData (3×), VaryRegenerateValueBuffData,
+    /// AdditionalRegenerateValueBuffData, and other variants.
+    ///
+    /// The runtime types of these fields aren't recovered yet; keeping
+    /// them as integer primitives preserves the bit pattern losslessly
+    /// (mod authors can reinterpret as f64/f32 if needed).
     pub struct BuffDataValueBlock {
         pub field_0: u64,
         pub field_8: u64,
