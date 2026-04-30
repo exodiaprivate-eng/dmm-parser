@@ -72,7 +72,18 @@ pub struct EquipInfoData {
     pub complex_u8: u8,
     pub complex_u64: u64,
     pub complex_blob: CArray<u8>,
-    pub tail_bytes: [u8; 11],
+    /// 11-byte tail composite split into 8 named fields. Empirical sweep
+    /// shows: byte 0 = small flag (0/1), byte 1 = small count (0-9),
+    /// bytes 2-5 = u32 (always 0 in vanilla), bytes 6-10 = 5× small u8
+    /// flags (0/1).
+    pub tail_byte_0: u8,
+    pub tail_byte_1: u8,
+    pub tail_pad_u32: u32,
+    pub tail_byte_6: u8,
+    pub tail_byte_7: u8,
+    pub tail_byte_8: u8,
+    pub tail_byte_9: u8,
+    pub tail_byte_10: u8,
 }
 
 impl<'a> BinaryRead<'a> for EquipInfoData {
@@ -88,11 +99,20 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         let complex_u8 = u8::read_from(data, offset)?;
         let complex_u64 = u64::read_from(data, offset)?;
         let complex_blob = CArray::<u8>::read_from(data, offset)?;
-        let tail_bytes = <[u8; 11]>::read_from(data, offset)?;
+        let tail_byte_0 = u8::read_from(data, offset)?;
+        let tail_byte_1 = u8::read_from(data, offset)?;
+        let tail_pad_u32 = u32::read_from(data, offset)?;
+        let tail_byte_6 = u8::read_from(data, offset)?;
+        let tail_byte_7 = u8::read_from(data, offset)?;
+        let tail_byte_8 = u8::read_from(data, offset)?;
+        let tail_byte_9 = u8::read_from(data, offset)?;
+        let tail_byte_10 = u8::read_from(data, offset)?;
         Ok(Self {
             etl_hashes, category_a, category_b, name_hash, slot_index,
             field_u64, name_hash_2, fields_u32, complex_u8, complex_u64,
-            complex_blob, tail_bytes,
+            complex_blob,
+            tail_byte_0, tail_byte_1, tail_pad_u32,
+            tail_byte_6, tail_byte_7, tail_byte_8, tail_byte_9, tail_byte_10,
         })
     }
 }
@@ -110,7 +130,14 @@ impl BinaryWrite for EquipInfoData {
         self.complex_u8.write_to(w)?;
         self.complex_u64.write_to(w)?;
         self.complex_blob.write_to(w)?;
-        self.tail_bytes.write_to(w)?;
+        self.tail_byte_0.write_to(w)?;
+        self.tail_byte_1.write_to(w)?;
+        self.tail_pad_u32.write_to(w)?;
+        self.tail_byte_6.write_to(w)?;
+        self.tail_byte_7.write_to(w)?;
+        self.tail_byte_8.write_to(w)?;
+        self.tail_byte_9.write_to(w)?;
+        self.tail_byte_10.write_to(w)?;
         Ok(())
     }
 }
@@ -129,7 +156,14 @@ impl ToJsonValue for EquipInfoData {
             "complex_u8": self.complex_u8,
             "complex_u64": self.complex_u64,
             "complex_blob": self.complex_blob.to_json_value(),
-            "tail_bytes": self.tail_bytes.to_json_value(),
+            "tail_byte_0": self.tail_byte_0,
+            "tail_byte_1": self.tail_byte_1,
+            "tail_pad_u32": self.tail_pad_u32,
+            "tail_byte_6": self.tail_byte_6,
+            "tail_byte_7": self.tail_byte_7,
+            "tail_byte_8": self.tail_byte_8,
+            "tail_byte_9": self.tail_byte_9,
+            "tail_byte_10": self.tail_byte_10,
         })
     }
 }
@@ -149,7 +183,14 @@ impl WriteJsonValue for EquipInfoData {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u8")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u64")?)?;
         <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_blob")?)?;
-        <[u8; 11] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_bytes")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_0")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_1")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_pad_u32")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_6")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_7")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_8")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_9")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_10")?)?;
         Ok(())
     }
 }
