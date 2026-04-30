@@ -370,8 +370,11 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 2. ~~**Per-sub_tag typed payloads inside GameEventHandlerData**~~ — ✅
    SHIPPED. sub_tag 2 (SetUIPlayGuideParameter) is 12-byte body, sub_tag
    3 (SetUIFullscreenGuideParameter) is 6-byte body, sub_tag 4 in-place,
-   sub_tags 0/1 unobserved (Raw fallback). GlobalGameEventExecuteData
-   per-sub_tag bodies still pending IDA verification of dispatch slots.
+   sub_tags 0/1 unobserved (Raw fallback). ~~**GlobalGameEventExecuteData
+   per-sub_tag bodies**~~ — ✅ SHIPPED also: typed `GlobalGameEventExecuteDataBody`
+   enum with VaryTradeItemPrice (sub_tag 0, full payload typed),
+   OpenRoyalSupply (sub_tag 1), InPlace (sub_tag 2, no body); Raw fallback
+   for unknown sub_tags.
 3. **TriggerEventHandler family** (task #95). DEFERRED — uses
    `pa::ReflectObject` reflection-driven serialization (sub_14055F190
    constructor reveals the inheritance chain through `ReflectDerive
