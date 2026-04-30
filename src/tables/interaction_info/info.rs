@@ -444,6 +444,47 @@ mod tests {
         assert_eq!(out, data, "interactioninfo roundtrip mismatch");
     }
 
+    /// Diagnostic: for each Raw fallback, re-run the typed decode on the
+    /// preserved raw bytes and capture the failing ConditionData tag.
+    #[test]
+    #[ignore]
+    fn diag_raw_entries() {
+        use std::collections::BTreeMap;
+        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
+        let mut count = 0usize;
+        for (i, (k, _s, _e)) in ranges.iter().enumerate() {
+            let mut cursor = *_s;
+            let item = InteractionInfo::read_with_size(&data, &mut cursor, _e - _s).unwrap();
+            if let InteractionTail::Raw(blob) = &item.tail {
+                // Re-run the typed decode on these tail bytes.
+                let mut probe = 0usize;
+                let end = blob.len();
+                crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.set(None));
+                crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow_mut().clear());
+                let _ = InteractionTail::try_read_decoded(blob, &mut probe, end);
+                let tag = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.get());
+                if let Some(t) = tag {
+                    *hist.entry(t).or_insert(0) += 1;
+                }
+                count += 1;
+                if count <= 3 {
+                    let trail = crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow().clone());
+                    let trail_str: Vec<String> = trail.iter().map(|(t, off)| format!("{}@{}", t, off)).collect();
+                    let last_off = trail.last().map(|(_, o)| *o).unwrap_or(0);
+                    let next_bytes: Vec<String> = blob[last_off..(last_off + 8).min(blob.len())].iter().map(|b| format!("{:02x}", b)).collect();
+                    eprintln!("entry {} k=0x{:x} LAST={:?}: TRAIL=[{}], next_bytes=[{}]", i, k, tag, trail_str.join(", "), next_bytes.join(" "));
+                }
+            }
+        }
+        eprintln!("\n=== Failure tag histogram (n={}) ===", count);
+        for (tag, c) in &hist {
+            eprintln!("  tag {:>4}: {} entries", tag, c);
+        }
+    }
+
     #[test]
     fn json_roundtrip() {
         let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: missing fixture {}", PABGB_PATH); return; };
