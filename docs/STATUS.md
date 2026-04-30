@@ -110,8 +110,13 @@ This file is for collaborators picking up round-trip work. It's the
   dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded
 
 ### Remaining Tier 1.5 (blocked by family decoders)
-- `GimmickInfo.post_blob` — within Decoded; blocked by sub_1411125E0
-  (CArray<COptional<sub_141D7FF30 → sub_141D80A90 dispatcher>>)
+**None remaining.** Both prior blockers resolved on 2026-04-30:
+- ~~`QuestInfo.quest_dialog_filter_data_list_blob`~~ — wired via
+  FilterCondition family decoder in `6cdc22c` (lane-c).
+- ~~`GimmickInfo.post_blob`~~ — wired via TriggerGamePlayEventHandlerData
+  family decoder this session (`binary::variants::trigger_gameplay_event_handler_data`,
+  all 8 cases shipped). GimmickInfo's `trigger_event_handler_list` field
+  now exposes typed `OptionalTriggerGamePlayEventHandlerData<'a>` entries.
 
 (QuestInfo.quest_dialog_filter_data_list_blob was promoted in lane-c
 2026-04-30 — see "Recent Tier 1 promotions" above.)
@@ -256,7 +261,7 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 | **SequencerStageSpawnData** | ✅ shipped (inside SequencerStageChartDesc field 20) | (used inside SequencerStageChartDesc) |
 | **GameEventHandler** | ✅ shipped — per-sub_tag typed bodies (sub_tag 2 = 12-byte SetUIPlayGuideParameter, sub_tag 3 = 6-byte SetUIFullscreenGuideParameter, sub_tags 0/1/4 in-place or Raw fallback). | GameEventHandlerInfo (Tier 1) |
 | **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
-| **TriggerGamePlayEventHandlerData** (TGPEHD) | 🔵 researched (8/8 cases reverse-engineered, see "Reverse-engineering notes" section above), implementation pending | GimmickInfo `post_blob` (sub_1411125E0) — would unlock GimmickInfo internal-Tier-1.5 → Tier-1 |
+| **TriggerGamePlayEventHandlerData** (TGPEHD) | ✅ FULLY SHIPPED — `binary::variants::trigger_gameplay_event_handler_data` covers all 8 cases (Gimmick 0, IgnoreFallingDamageToTarget 1, ApplyPassiveSkillToTarget 2, ForceField 3, MoveSyncGimmickWithPlatform 4, DetectTriggerExpansion 5, TriggerRegionInfo 6, ElementalArea 7). GimmickInfo wired via `trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`. | GimmickInfo `post_blob` — Tier 1 (was internal-T1.5) |
 | **FilterCondition** family | ✅ FULLY SHIPPED — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). QuestInfo wired via `6cdc22c` (lane-c, 2026-04-30). | QuestInfo `_questDialogFilterDataList` — Tier 1 |
 | **ElementalMaterial** | ✅ shipped — `binary::variants::elemental_material` (sub_1410DC8F0 top + 4 sub-readers). | ElementalMaterialInfo (Tier 1) |
 | **StoreData** | ✅ shipped — `binary::variants::store_data` (sub_1410FC8F0 stockData + trailers; reuses `OptionalDropTarget`). | StoreInfo (Tier 1) |
