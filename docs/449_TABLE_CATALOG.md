@@ -67,7 +67,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | ✅ T1 | `ConditionInfo` | 6 | records for condition (records can be individually blocked via is_blocked) |
 | 🧠 — | `ConditionOptionData` | 4 | records for condition option data |
 | 🧠 — | `ConditionTargetData` | 5 | records for condition target data |
-| 🟡 T2 | `EffectInfo` | 8 | records for effect (records can be individually blocked via is_blocked) |
+| ✅ T1 | `EffectInfo` | 8 | records for effect (records can be individually blocked via is_blocked) |
 | 🧠 — | `EffectInfoData` | 18 | records for effect info data (spawn-related) |
 | 🧠 — | `EffectPlayInfo` | 1 | records for effect play |
 | 🧠 — | `EffectPresetElement` | 18 | records for effect preset element (positional; spawn-related) |
@@ -1939,7 +1939,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_dyeTextureSetKey`
 - `_condition`
 
-### EffectInfo 🟡 T2
+### EffectInfo ✅ T1
 
 **Category**: Buff/Effect/Condition  
 **Purpose**: records for effect (records can be individually blocked via is_blocked)  
