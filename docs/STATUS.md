@@ -89,6 +89,8 @@ This file is for collaborators picking up round-trip work. It's the
 - `EffectInfo` — parser fully typed end-to-end (EffectDataElement + EffectDataInner + MeshEffectData); catalog corrected to ✅ T1
 - `FactionSpawnDataInfo` — parser was already fully typed (all 7 fields); catalog corrected to ✅ T1
 - Catalog count: T1 88 → 91, T2 4 → 1 (only MiniGameDataInfo remains, blocked by spawn_data_list fallback)
+- `FieldReviveInfo` (pabgb: `reviepointinfo.pabgb`) — fixture gap closed. Tests updated to use 4-12 dump;
+  full byte-perfect roundtrip on 1109 entries confirmed. Catalog: 📚 P → ✅ T1. T1 count: 92 → 93.
 
 ### Recent Tier 1 promotions (lane-c)
 - `FilterConditionBlock.raw_block` — `[u8; 12]` → 3× named u32
@@ -152,6 +154,15 @@ This file is for collaborators picking up round-trip work. It's the
 spawn_data_list is now a `Decoded|Raw` enum (`SpawnDataList`) with
 `CArray<CArray<SequencerStageSpawnData>>` Decoded shape, same T1
 pattern as ConditionInfo's GameCondition wrapper.)
+
+### Unresolved format mysteries
+- `levelinfo.pabgb` (134 entries) — empirical analysis shows the file uses the
+  `pa::ReflectObject` reflection pattern. Every entry starts `e2 e0 51 1f 00 00
+  [count] 00 00 00` (hash 0x1f51e0e2 + u16 + outer count), then outer elements
+  each begin with the same hash. Sub-element structure has variable sizes determined
+  by nested inner counts. Class name hashes 0xa19e44b1 and 0x66be15a8 appear as
+  element type tags. **Deferred — needs IDA decompile of the LevelInfo reader to
+  identify concrete field layout.**
 
 ### Recently cracked (was previously labeled DEFERRED ReflectObject)
 - `DropSetInfo._list` — sub_141600210 turned out fixed-shape with a

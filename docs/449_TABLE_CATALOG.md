@@ -179,7 +179,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `FactionWayPointInfo` | 4 | records for faction way point (records can be individually blocked via is_blocked) |
 | ✅ T1 | `FieldInfo` | 24 | records for field (records can be individually blocked via is_blocked; spawn-related) |
 | ✅ T1 | `FieldLevelNameTableInfo` | 5 | lookup table for field level name (records can be individually blocked via is_blocked) |
-| 📚 P | `FieldReviveInfo` | 10 | records for field revive (records can be individually blocked via is_blocked; positional) |
+| ✅ T1 | `FieldReviveInfo` | 10 | records for field revive (records can be individually blocked via is_blocked; positional); pabgb is `reviepointinfo.pabgb` (game typo) |
 | 📚 P | `GameEventHandlerInfo` | 9 | records for game event handler (records can be individually blocked via is_blocked) |
 | 📚 P | `GameLevelInfo` | 6 | records for game level (records can be individually blocked via is_blocked) |
 | 📚 P | `GamePlayTriggerInfo` | 13 | records for game play trigger (records can be individually blocked via is_blocked; positional) |
@@ -2759,10 +2759,11 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_fieldLevelName`
 - `_levelNameInfoDataList`
 
-### FieldReviveInfo 📚 P
+### FieldReviveInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for field revive (records can be individually blocked via is_blocked; positional)  
+**Pabgb file**: `reviepointinfo.pabgb` (game typo — file does NOT follow the table name pattern)  
 **Parser**: `dmm-parser/src/tables/field_revive_info/`
 **Fields (10)**:
 
