@@ -280,6 +280,19 @@ py_binary_struct! {
     }
 }
 
+// sub_1411181F0 inner — 32 mem bytes per element.
+// Wire: CArray<u32> + u32 lookup + u16 lookup + u32 lookup + u64 raw
+// (per sub_1411181F0 IDA decompile).
+py_binary_struct! {
+    pub struct CharacterField136Entry {
+        pub list: CArray<u32>,            // sub_141100510 (qword_145F113C8)
+        pub lookup_a: u32,                // sub_1410FF5C0 (qword_145F0DA00)
+        pub lookup_b: u16,                // sub_141100620 (qword_145F0DA20)
+        pub lookup_c: u32,                // sub_1411006D0 (qword_145F0DA28)
+        pub raw: u64,
+    }
+}
+
 // sub_141B536F0 inner — 76 mem bytes, ~78 wire bytes (with empty
 // strings) / 24 wire fields. Wire ORDER (not mem order):
 py_binary_struct! {
@@ -501,6 +514,10 @@ pabgh_typed_blob_table! {
         pub chart_entry_list: CArray<CharacterChartEntry<'a>>,
         pub five_tuple_list: CArray<CharacterFiveTuple>,
         pub gimmick_interaction_override_list: GimmickInteractionOverrideCArray<'a>,
+        pub flag_after_gimmick: u8,                       // a2 + 752
+        pub raw_after_gimmick: u32,                       // a2 + 756
+        pub field_136_list: CArray<CharacterField136Entry>, // sub_1411181F0 a2+760
+        pub raw_after_136: u32,                           // a2 + 776
     }
     tail: tail_blob;
 }
