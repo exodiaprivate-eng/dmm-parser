@@ -42,7 +42,7 @@
 >
 > **Session results (2026-04-30):**
 > - `interaction_info`: Decoded 248 → **363** (+115), Raw 115 → **0** (100% drop). **100% typed.**
-> - `condition_info`: 8914 / 8934 Decoded (99.78%); diagnostic counter added.
+> - `condition_info`: 8918 / 8934 Decoded (99.82%); diagnostic counter added. (Bumped from 99.78% by the Mac-IDA recipe fixes for tags 54/214.)
 > - `gimmick_info`: 12393 / 12399 Decoded (99.95%).
 > - 13 ConditionData tag recipes touched: 7, 19, 27, 29, 54, 99, 116,
 >   135, 174, 358, 360, 370, 393. Tag 54 was a best-effort u32-body
@@ -379,7 +379,7 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 
 ### Tables
 - `src/tables/condition_info/info.rs` — **canonical Tier 1 model**
-  with typed GameCondition wrapper (Decoded|Raw fallback, 99.78% Decoded
+  with typed GameCondition wrapper (Decoded|Raw fallback, 99.82% Decoded
   on 8,934 entries). Use as the template for wiring family decoders
   into consuming tables.
 - `src/tables/skill_info/` — original blueprint for Tier 1 with
