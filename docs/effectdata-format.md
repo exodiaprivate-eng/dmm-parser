@@ -182,9 +182,9 @@ Internal layout from systematic byte scan across all 27 named item structs
 
 | offset (within struct) | size | observation |
 |------------------------|------|-------------|
-| 0..12                  | 12   | f32[3]: 0.0 or ~{0.784, 0.392, 0.078} — colour-like RGB |
-| 12..24                 | 12   | zeros |
-| 24..36                 | 12   | f32[3]: 0.0 or all three = 0.05f (`cd cc 4c 3d`) |
+| 0..12                  | 12   | f32[3]: **named-item colour** — independent of prefix color1/color2; default (0,0,0); e.g. (0.784, 0.392, 0.078) for one `leaf` component |
+| 12..24                 | 12   | f32[3]: **named-item secondary colour** — default (0,0,0); not necessarily equal to prefix color2 |
+| 24..36                 | 12   | f32[3]: mirrors prefix[40:52] — all three = 0.0f or all three = 0.05f (`cd cc 4c 3d`); only set when prefix[40:52] is set |
 | 36..72                 | 36   | zeros |
 | 72..76                 | 4    | f32: 0.0 or 0.3 |
 | 76..80                 | 4    | f32: 0.0, 0.3, or 1.0 |
@@ -223,8 +223,7 @@ Mapped from the 4-24 639-blob (K=1), sub-element at blob[311..627].
 |-----------------------------|------|-------------|
 | 0..8                        | 8    | zeros |
 | 8                           | 1    | `0x01` (constant — version or type byte) |
-| 9..12                       | 3    | **per-instance ID** — 3 variable bytes; each sub-element within a blob has a unique value (e.g. `79 1c a5` vs `bd 57 bf` for the two subs in a 955-blob) |
-| 12                          | 1    | variable — `0x9a`, `0x8a`, `0x24`, `0x26` observed |
+| 9..13                       | 4    | **sub-element type ID** — 4 bytes identifying the sub-element class; shared across all blobs of the same class (e.g. `57 04 06 24` for 5 different 639-blobs, `79 1c a5 9a` for two 955-blobs and one sub within a 2535-blob). Not per-blob-unique. |
 | 13..92                      | 79   | zeros |
 
 **Body (bytes 9..316):**
@@ -253,21 +252,52 @@ Location: immediately after `mesh_count` u32 at `mc_off + 4`.
 In 4-24, confirmed up to m=16 (6147-byte blob).
 
 **Activity flag:** mesh[0] = u8, either 0x01 (active) or 0x00 (null slot).
-In m=2 entries, all second slots are null (mesh2[0]=0, mesh2[4:8]=0).
-Only active slots carry meaningful body data.
+Only mesh[0] carries a full slot directory; trailing null slots carry only a
+truncated self-reference and their own hash.
 
-**Mesh-specific prefix (mesh[0..108]):**
+**Slot directory (mesh[0] only, variable size 28..68 bytes depending on M):**
+
+mesh[0] encodes a linked "slot directory" covering all M active mesh slots.
+The directory is `max(M,2)×8 + 12` bytes (always ≥ 28 bytes):
+
+```
+[0:4]         = 1 (active flag — slot 0)
+[4:8]         = hash_A (slot 0's own hash/ID)
+
+For k = 1 .. max(M-1, 1):         ← (M-1) other slots; for M=1 this is one self-ref
+  [8k:8k+4]   = 1 (active flag for slot k)
+  [8k+4:8k+8] = hash_k (slot k's hash; for M=1, k=1 → hash_A self-ref)
+
+[8+8M:8+8M+4] = M  (total slot count)
+[8+8M+4:8+8M+8]  = hash_A (repeated)
+[8+8M+8:8+8M+12] = hash_A (repeated again)
+[8+8M+12 : 80]   = zeros (for standard entries; some complex entries override)
+```
+
+Concrete examples (from 70-sample scan — all M values confirmed):
+
+| M | directory bytes | M field at | hash_A terminator at |
+|---|-----------------|------------|----------------------|
+| 1 | 28  | [16:20] | [20:28] |
+| 2 | 28  | [16:20] | [20:28] |
+| 3 | 36  | [24:28] | [28:36] |
+| 4 | 44  | [32:36] | [36:44] |
+| 5 | 52  | [40:44] | [44:52] |
+| 6 | 60  | [48:52] | [52:60] |
+| 7 | 68  | [56:60] | [60:68] |
+
+For M=1: the second slot pair (k=1) is a self-reference, so [8:12]=1 and [12:16]=hash_A.
+For M≥2: each slot pair (k=1..M-1) references one of the other active mesh slots.
+
+**Null/trailing mesh slots** contain only a compact back-reference (no directory):
+zeros at [0:4] (inactive), hash at [4:8], zeros elsewhere in [0:80].
+
+**Remaining mesh[0..108] fields:**
 
 | mesh offset | size | description |
 |-------------|------|-------------|
-| 0..4        | 4    | activity flag: u32=1 (active) or 0 (null) |
-| 4..8        | 4    | mesh asset hash/ID; 0x00000000 for null slots |
-| 8..12       | 4    | mirrors activity flag: u32=1 (active) or 0 (null) |
-| 12..16      | 4    | hash field B — equals mesh[4:8] when M=1; references next mesh's hash_A when M>1; null slots use their own hash |
-| 16..20      | 4    | **M** (total mesh count) stored in mesh[0] only; null/trailing slots store their own hash here |
-| 20..24      | 4    | hash field A repeated (= mesh[4:8]) for mesh[0]; 0 for null/trailing slots |
-| 24..28      | 4    | hash field A repeated again for mesh[0]; null/trailing slot stores its own hash |
-| 28..80      | 52   | **variable-content region**: hash/ID fields for ~60% of entries (42/70 active mesh[0] samples nonzero); null/simple effects are all zero. One observed entry with RGB colour data has f32=4.0 at [28:32] and RGB at [44:56]; other nonzero entries carry hash IDs. Not fully mapped. |
+| 0..8+8M+12  | var  | slot directory (see above) |
+| 8+8M+12..80 | var  | zeros for standard entries; one observed entry has f32=4.0 and RGB at [44:56] |
 | 80..104     | 24   | zeros (confirmed across all 70 active mesh[0] samples) |
 | 104..108    | 4    | f32: 0.0 or ~1.4 (1 of 70 active samples) |
 
@@ -530,30 +560,24 @@ data, differing only in outer blob metadata.
 
 ## Next Steps
 
-1. **Map prefix[40:52] and prefix[88:92]** — 3 floats at prefix[40:52] (0 or
-   0.05, only 2 of 1952 entries) and the rarely-nonzero float at prefix[88:92]
-   remain unnamed. Scan co-variation with other fields.
+1. **prefix[40:52] and prefix[88:92]** — prefix[40:52] is now confirmed to mirror
+   NamedItemStruct struct[24:36] (same 0.05f triplet). The rarely-nonzero float
+   at prefix[88:92] is still unmapped; scan co-variation with other fields.
 
-2. **Map sub-element[9:13]** — the 4-byte header packet (e.g. `57 04 06 24`)
-   varies per-instance; cross-reference against 955-blob (K=2).
-
-3. **Identify prefix[256:264] IDs** — two per-entry u16 identifiers at
+2. **Identify prefix[256:264] IDs** — two per-entry u16 identifiers at
    prefix[258:262]; likely reference external tables (texture IDs, material
    hashes?).
 
-4. **Type B irregular blobs (373-byte)** — 50 bytes of unknown structure at
+3. **Type B irregular blobs (373-byte)** — 50 bytes of unknown structure at
    blob[323:373] for `Inspect_SocketMarker`.
 
-5. **MeshEffectData mesh[28:80]** — variable-content region (hashes/IDs for ~60%
-   of active entries); map which hash fields are stored here and their roles. The
-   one RGB-colour entry (4.0f at [28:32], RGB at [44:56]) may indicate a colour/bounds
-   sub-region used by certain effect subtypes. 70 samples scanned; still undeciphered.
+4. **mesh[0] slot directory hashes** — the slot_k hashes stored in the directory
+   (at [12:16], [20:24], etc. for k=1..M-1) have unknown semantic roles; they are
+   NOT the same as the null-slot null hashes (those are 0). Determine whether
+   they are references into the effects table or intra-blob cross-refs.
 
-6. **NamedItemStruct struct[0:36]** — colour-like triplets at struct[0:12] and
-   struct[12:24]; co-vary with prefix color1/color2.
+5. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
 
-7. **NamedItemStruct struct[80:84]** — u32 ∈ {0, 2, 30}; unknown role.
-
-8. **Type C/E body remainder (body[152:356])** — inner sub-struct bytes after
+6. **Type C/E body remainder (body[152:356])** — inner sub-struct bytes after
    the `0a 05` marker at body[148]/body[152] contain TRS and ID fields mirroring
    prefix[140:299]; not yet scanned for Type C/E specifically.
