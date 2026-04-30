@@ -1784,7 +1784,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckTribeMassLevel(ConditionData_CheckTribeMassLevelPayload),
     ConditionData_CheckDead(OneByteBodyPayload),
     ConditionData_CheckDeadOrRetreat(OneByteBodyPayload),
-    ConditionData_CheckGroggy(OneByteBodyPayload),
+    ConditionData_CheckGroggy,
     ConditionData_CheckDeadPoseOK(OneByteBodyPayload),
     ConditionData_CheckFatal(OneByteBodyPayload),
     ConditionData_CheckStageFail(OneByteBodyPayload),
@@ -2194,7 +2194,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTribeMassLevel(_) => 16,
             Self::ConditionData_CheckDead(_) => 17,
             Self::ConditionData_CheckDeadOrRetreat(_) => 18,
-            Self::ConditionData_CheckGroggy(_) => 19,
+            Self::ConditionData_CheckGroggy => 19,
             Self::ConditionData_CheckDeadPoseOK(_) => 20,
             Self::ConditionData_CheckFatal(_) => 21,
             Self::ConditionData_CheckStageFail(_) => 22,
@@ -2607,7 +2607,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTribeMassLevel(_) => "ConditionData_CheckTribeMassLevel",
             Self::ConditionData_CheckDead(_) => "ConditionData_CheckDead",
             Self::ConditionData_CheckDeadOrRetreat(_) => "ConditionData_CheckDeadOrRetreat",
-            Self::ConditionData_CheckGroggy(_) => "ConditionData_CheckGroggy",
+            Self::ConditionData_CheckGroggy => "ConditionData_CheckGroggy",
             Self::ConditionData_CheckDeadPoseOK(_) => "ConditionData_CheckDeadPoseOK",
             Self::ConditionData_CheckFatal(_) => "ConditionData_CheckFatal",
             Self::ConditionData_CheckStageFail(_) => "ConditionData_CheckStageFail",
@@ -3021,7 +3021,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTribeMassLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckDead(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckDeadOrRetreat(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_CheckGroggy(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_CheckGroggy => {}
             Self::ConditionData_CheckDeadPoseOK(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckFatal(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckStageFail(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3442,7 +3442,7 @@ impl<'a> ConditionDataVariant<'a> {
             16 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTribeMassLevel: missing body object"))?; ConditionData_CheckTribeMassLevelPayload::write_from_json_dict(w, body)?; }
             17 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDead: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             18 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDeadOrRetreat: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
-            19 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGroggy: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            19 => {}
             20 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckDeadPoseOK: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             21 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFatal: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             22 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckStageFail: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
@@ -3857,7 +3857,7 @@ impl<'a> ConditionDataVariant<'a> {
             16 => Self::ConditionData_CheckTribeMassLevel(ConditionData_CheckTribeMassLevelPayload::read_from(data, offset)?),
             17 => Self::ConditionData_CheckDead(OneByteBodyPayload::read_from(data, offset)?),
             18 => Self::ConditionData_CheckDeadOrRetreat(OneByteBodyPayload::read_from(data, offset)?),
-            19 => Self::ConditionData_CheckGroggy(OneByteBodyPayload::read_from(data, offset)?),
+            19 => Self::ConditionData_CheckGroggy,
             20 => Self::ConditionData_CheckDeadPoseOK(OneByteBodyPayload::read_from(data, offset)?),
             21 => Self::ConditionData_CheckFatal(OneByteBodyPayload::read_from(data, offset)?),
             22 => Self::ConditionData_CheckStageFail(OneByteBodyPayload::read_from(data, offset)?),
@@ -4268,7 +4268,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckTribeMassLevel(p) => p.write_to(w),
             Self::ConditionData_CheckDead(p) => p.write_to(w),
             Self::ConditionData_CheckDeadOrRetreat(p) => p.write_to(w),
-            Self::ConditionData_CheckGroggy(p) => p.write_to(w),
+            Self::ConditionData_CheckGroggy => Ok(()),
             Self::ConditionData_CheckDeadPoseOK(p) => p.write_to(w),
             Self::ConditionData_CheckFatal(p) => p.write_to(w),
             Self::ConditionData_CheckStageFail(p) => p.write_to(w),
