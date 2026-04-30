@@ -189,34 +189,35 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 - ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated
   debug entries in the source data; not worth chasing.
 
-### Stream-mode GameCondition (blocks 5 Tier 1.5 tables)
-**Issue**: Tables that embed `sub_141103B30` in CArray context
-(character_info, gimmick_info, interaction_info, stage_info,
-global_stage_sequencer_info) cannot use the same slice-bounded
-GameCondition decoder that works for ConditionInfo. In stream mode,
-GameConditionNode::read_from must consume an EXACT number of bytes; if
-a single ConditionData variant size is off, the recursive walk
-misaligns and downstream reads fail (often with Utf8Error in CString,
-or unknown case_tag for invalid bytes).
+### Stream-mode GameCondition (partially unblocked, 82% interaction_info)
+**Root cause identified**: The `variant_skips_option_block` list in
+`condition_data.rs` was incomplete. Variants whose vtable[19] is a
+no-op (return 1 with no read) need to be in the skip list. The list
+originally had 11 variants (81, 272, 300, 256, 401, 2, 79, 195, 306,
+126); after empirical verification using a LAST_ATTEMPTED_TAG diagnostic
+loop on stream-mode GameCondition decode against interaction_info
+entries, 3 more were added: 26 (CheckHasImportantItem), 135, 370.
 
-**Verified**: byte-walking the GameCondition tree in interaction_info
-entry 0 fails at offset 0x17b with case_tag=71 (invalid for GameCondition
-which only has cases 0-8). This is downstream of variant size
-miscalculation somewhere earlier in the walk.
+**Current state**: With those 3 added, 297 of 363 interaction_info
+entries (82%) successfully decode their ConditionPair lists. The
+remaining 66 entries hit other variants whose option_block status is
+unclear — bulk-adding all candidate tags from the diagnostic
+REGRESSED the success rate (from 297 to 206), confirming that
+LAST_ATTEMPTED_TAG points to a variant in the chain BEFORE the actual
+problematic one (it's not always the failing variant). Each remaining
+candidate must be tested INDIVIDUALLY against conditioninfo's full
+roundtrip to confirm safety before adding.
 
-**Architectural fix needed** (one of):
-1. Verify all 366 ConditionData variant payload sizes against the IDA
-   decompile of each variant's reader (some variants like
-   ConditionData_CheckActionAttribute = 17 bytes per the struct
-   definition might actually consume different bytes per the dispatcher).
-2. Add a Raw-bytes fallback wrapper that captures opaque GameCondition
-   bytes when typed decode fails, with explicit byte-extent tracking
-   from the consumer (entry boundary).
-3. Reverse-engineer separate per-consumer dispatcher tables in case
-   stream-mode tables use a different ConditionData variant set.
-
-Until any of (1)-(3) is resolved, the 5 Tier 1.5 tables remain at
-typed-prefix + tail_blob.
+**Path forward**: Continue the diagnostic loop on individual variants:
+1. Run interaction_info ConditionPairCArray test
+2. Identify first distinct failing tag
+3. Add ONE tag to skip list
+4. Verify conditioninfo still passes (304-test full suite)
+5. If conditioninfo passes, commit; otherwise revert and investigate why
+6. Repeat until interaction_info passes 100%
+7. Apply ConditionPairCArray to interaction_info field 10
+8. Repeat the same approach for gimmick_info field 7, character_info
+   field 133, stage_info field 7, global_stage_sequencer_info field 6
 
 ---
 
