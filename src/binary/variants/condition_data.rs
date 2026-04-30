@@ -4774,14 +4774,16 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // (sub_14F0D2550 / sub_14F24B730). Byte-math verified: vanilla
         // `case(1)+tag(2)+body+footer(3)` matches with zero option_block.
         79 | 195 |
-        // Class C — empirical adds via LAST_ATTEMPTED_TAG diagnostic on
+        // Class C — empirical add via LAST_ATTEMPTED_TAG diagnostic on
         // interaction_info. vtable[19] = `0x1413B89E0` (thunk in
         // sub_14139AE80, non-decompilable). Verified Win-IDA this
-        // session that these are NOT class A — they share their slot 19
+        // session that this is NOT class A — its slot 19 is shared
         // with many tags that genuinely DO read option_block (e.g. tag 0
         // GetLevel has the same thunk and reads option_block normally).
-        // These adds may be masking real bugs elsewhere — see
-        // docs/STATUS.md "Stream-mode GameCondition" section.
+        // Originally 6 entries (26 | 99 | 135 | 174 | 360 | 370); the
+        // others were promoted to body+option_block recipes during the
+        // 2026-04-30 verification cycle (see docs/STATUS.md
+        // "Stream-mode GameCondition" section). Tag 26 alone remains.
         26
     )
 }
