@@ -1,64 +1,54 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 (with Decoded|Raw fallback) — typed prefix plus a per-entry
+//! enum that exposes the full body when decode succeeds and falls back
+//! to opaque bytes for the 57 / 363 vanilla entries (15.7%) where the
+//! ConditionPair stream-mode decode hits anti-disassembly variants.
 //!
 //! Reader: `sub_1410DFBA0` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order (canonical names from Mac Korean error strings):
-//!   1. u32 key                            (_key)
-//!   2. CString string_key                 (_stringKey)
-//!   3. u8 is_blocked                      (_isBlocked)
-//!   4. u8 interaction_type                (_interactionType)
-//!   5. u8 interaction_show_ui_type        (_interactionShowUIType)
-//!   6. u8 preemption_type                 (_preemptionType)
-//!   7. LocalizableString interaction_name (_interactionName)
-//!   8. u8 pivot_selection_target          (_pivotSelectionTarget)
+//! Wire reads, in order:
+//!   1. u32 key
+//!   2. CString string_key
+//!   3. u8 is_blocked
+//!   4. u8 interaction_type
+//!   5. u8 interaction_show_ui_type
+//!   6. u8 preemption_type
+//!   7. LocalizableString interaction_name
+//!   8. u8 pivot_selection_target
 //!   9. CArray<InteractionPivotData> interaction_pivot_list
-//!      (sub_141E2BEB0 → 168 mem bytes / 28 wire fields per element)
-//!      ← TAIL STARTS HERE
-//!  10. (tail) _interactionConditionDataList — sub_141114DD0 →
-//!      CArray<COptional<InteractionConditionData>>; per inner
-//!      element: 2 GameCondition (sub_141103B30) + u8 + u32 lookup
-//!      (sub_1410FF050) + u32 raw + u8 + u8. Reusable shape provided
-//!      by `crate::binary::condition_pair::ConditionPairCArray`.
-//!  11. (tail) u8 _autoInteractionType (mem a2+96)
-//!  12. (tail) u16 _categoryInfo (sub_141103CA0, mem a2+98)
-//!  13. (tail) u32 _inputKeyMapName (read_u32_lookup_DA30, mem a2+100)
-//!  14. (tail) u8 _buttonClickType (mem a2+102)
-//!  15. (tail) u8 _keyboardClickType (mem a2+103)
-//!  16. (tail) 4× u8 unknown flags (mem a2+104..107)
-//!  17. (tail) sub_141D8C6D0 _someSequencerDesc (232 mem bytes;
-//!      26 wire fields fully decoded as of this session — see
-//!      `binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial`.
-//!      Both helpers (sub_1410F2F90 SequencerStageTrackChangeData family,
-//!      sub_14110E010 SequencerStageSpawnData family) are typed.)
-//!  18. (tail) u32 raw at a2+344
-//!  19. (tail) u32 _someName lookup at a2+348 (read_u32_lookup_DA30)
-//!  20. (tail) u16 lookup at a2+350 (sub_141100370)
-//!  21. (tail) sub_141100E90 — CArray of 32-byte items (28 wire bytes
-//!      per element: f32 + 3× 8-byte clusters), mem a2+352
-//!  22. (tail) sub_141103C30 — u32 lookup, mem a2+368
-//!  23. (tail) CArray<u32> at a2+376 (sub_1410FEF40)
-//!  24. (tail) CString at a2+392
-//!  25. (tail) CString at a2+400
-//!  26. (tail) 10× u8 trailing flags at a2+408..417
+//!     ← typed prefix ends here; tail follows
+//!  10. ConditionPairCArray cond_data_list (sub_141114DD0)
+//!  11. u8 auto_interaction_type
+//!  12. u16 category_info        (sub_141103CA0 → qword_145F290B0)
+//!  13. u32 input_key_map_name   (read_u32_lookup_DA30)
+//!  14. u8 button_click_type
+//!  15. u8 keyboard_click_type
+//!  16-19. 4× u8 unknown_flags
+//!  20. SequencerStageChartDescPartial sequencer_desc (sub_141D8C6D0)
+//!  21. u32 raw_a
+//!  22. u32 some_name            (read_u32_lookup_DA30)
+//!  23. u32 lookup_b             (sub_141100370 → qword_145F113C8)
+//!  24. CArray<FactionAdjacencyMobItem> mob_list (sub_141100E90)
+//!  25. u32 lookup_c             (sub_141103C30 → qword_145F1A720)
+//!  26. CArray<u32> list_a       (sub_1410FEF40 → qword_145F0DA30)
+//!  27. CString cstring_a
+//!  28. CString cstring_b
+//!  29-38. 10× u8 trailing flags
 //!
-//! Steps 1-9 are typed. Field 10 (ConditionPairCArray) is the only
-//! remaining blocker — stream-mode GameConditionNode misalign on
-//! anti-disassembly tags causes "not enough data" errors on entry 0.
-//! Earlier diagnostic loop established the ceiling at 306/363 entries.
-//! Field 17 onward is fully decodable now (SequencerStageChartDesc
-//! family decoder shipped this session) but cannot be reached without
-//! consuming field 10 first. Promotion is one-step-away pending the
-//! ConditionPair stream-mode fix or a Decoded|Raw fallback wrapper
-//! around ConditionPairCArray.
+//! 306 / 363 vanilla entries route through `Decoded`. The remaining 57
+//! hit ConditionData stream-mode anti-disassembly tags inside the
+//! cond_data_list and route through `Raw { tail_blob }`. Every typed
+//! prefix field stays editable in both cases.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::binary::condition_pair::ConditionPairCArray;
+use crate::binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use crate::tables::faction_node_info::info::FactionAdjacencyMobItem;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
+use std::io::{self, Write};
 
-// InteractionPivotData — sub_141E2BEB0 inner, 168 mem bytes / 28 wire fields.
-// Wire order: u32 key + 4× (CString-hash + Vec3) + 3× u32 raw + 4× u32 raw
-// (v56 cluster) + 2× u32 raw (v57) + 2× u32 raw (v58) + 2× u32 raw +
-// CString name + Vec3 + u32 + 2× u64 + u32 (faction_group_info lookup).
 py_binary_struct! {
     pub struct InteractionPivotData<'a> {
         pub key: u32,
@@ -73,7 +63,7 @@ py_binary_struct! {
         pub raw_a: u32,
         pub raw_b: u32,
         pub raw_c: u32,
-        pub vec_e: [f32; 3],     // v56 cluster: 4 raw u32s = 16 bytes
+        pub vec_e: [f32; 3],
         pub raw_e_3: u32,
         pub raw_f: u32,
         pub raw_f_1: u32,
@@ -90,19 +80,329 @@ py_binary_struct! {
     }
 }
 
-pabgh_typed_blob_table! {
-    pub struct InteractionInfo<'a> {
-        pub key: u32,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub interaction_type: u8,
-        pub interaction_show_ui_type: u8,
-        pub preemption_type: u8,
-        pub interaction_name: LocalizableString<'a>,
-        pub pivot_selection_target: u8,
-        pub interaction_pivot_list: CArray<InteractionPivotData<'a>>,
+#[derive(Debug)]
+pub struct InteractionTailDecoded<'a> {
+    pub cond_data_list: ConditionPairCArray<'a>,
+    pub auto_interaction_type: u8,
+    pub category_info: u16,
+    pub input_key_map_name: u32,
+    pub button_click_type: u8,
+    pub keyboard_click_type: u8,
+    pub unknown_flag_a: u8,
+    pub unknown_flag_b: u8,
+    pub unknown_flag_c: u8,
+    pub unknown_flag_d: u8,
+    pub sequencer_desc: SequencerStageChartDescPartial<'a>,
+    pub raw_a: u32,
+    pub some_name: u32,
+    pub lookup_b: u32,
+    pub mob_list: CArray<FactionAdjacencyMobItem>,
+    pub lookup_c: u32,
+    pub list_a: CArray<u32>,
+    pub cstring_a: CString<'a>,
+    pub cstring_b: CString<'a>,
+    pub flag_a: u8,
+    pub flag_b: u8,
+    pub flag_c: u8,
+    pub flag_d: u8,
+    pub flag_e: u8,
+    pub flag_f: u8,
+    pub flag_g: u8,
+    pub flag_h: u8,
+    pub flag_i: u8,
+    pub flag_j: u8,
+}
+
+#[derive(Debug)]
+pub enum InteractionTail<'a> {
+    Decoded(InteractionTailDecoded<'a>),
+    Raw(Vec<u8>),
+}
+
+impl<'a> InteractionTail<'a> {
+    fn try_read_decoded(data: &'a [u8], offset: &mut usize, end: usize) -> io::Result<InteractionTailDecoded<'a>> {
+        let cond_data_list = ConditionPairCArray::read_from(data, offset)?;
+        let auto_interaction_type = u8::read_from(data, offset)?;
+        let category_info = u16::read_from(data, offset)?;
+        let input_key_map_name = u32::read_from(data, offset)?;
+        let button_click_type = u8::read_from(data, offset)?;
+        let keyboard_click_type = u8::read_from(data, offset)?;
+        let unknown_flag_a = u8::read_from(data, offset)?;
+        let unknown_flag_b = u8::read_from(data, offset)?;
+        let unknown_flag_c = u8::read_from(data, offset)?;
+        let unknown_flag_d = u8::read_from(data, offset)?;
+        let sequencer_desc = SequencerStageChartDescPartial::read_from(data, offset)?;
+        let raw_a = u32::read_from(data, offset)?;
+        let some_name = u32::read_from(data, offset)?;
+        let lookup_b = u32::read_from(data, offset)?;
+        let mob_list = CArray::<FactionAdjacencyMobItem>::read_from(data, offset)?;
+        let lookup_c = u32::read_from(data, offset)?;
+        let list_a = CArray::<u32>::read_from(data, offset)?;
+        let cstring_a = CString::read_from(data, offset)?;
+        let cstring_b = CString::read_from(data, offset)?;
+        let flag_a = u8::read_from(data, offset)?;
+        let flag_b = u8::read_from(data, offset)?;
+        let flag_c = u8::read_from(data, offset)?;
+        let flag_d = u8::read_from(data, offset)?;
+        let flag_e = u8::read_from(data, offset)?;
+        let flag_f = u8::read_from(data, offset)?;
+        let flag_g = u8::read_from(data, offset)?;
+        let flag_h = u8::read_from(data, offset)?;
+        let flag_i = u8::read_from(data, offset)?;
+        let flag_j = u8::read_from(data, offset)?;
+        if *offset != end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("InteractionTail decoded under/over-read ({} != {})", *offset, end)));
+        }
+        Ok(InteractionTailDecoded {
+            cond_data_list, auto_interaction_type, category_info, input_key_map_name,
+            button_click_type, keyboard_click_type,
+            unknown_flag_a, unknown_flag_b, unknown_flag_c, unknown_flag_d,
+            sequencer_desc, raw_a, some_name, lookup_b, mob_list, lookup_c, list_a,
+            cstring_a, cstring_b,
+            flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h, flag_i, flag_j,
+        })
     }
-    tail: tail_blob;
+
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize) -> io::Result<Self> {
+        let tail_start = *offset;
+        let mut probe = tail_start;
+        match Self::try_read_decoded(data, &mut probe, entry_end) {
+            Ok(d) => {
+                *offset = entry_end;
+                Ok(InteractionTail::Decoded(d))
+            }
+            Err(_) => {
+                let blob = data[tail_start..entry_end].to_vec();
+                *offset = entry_end;
+                Ok(InteractionTail::Raw(blob))
+            }
+        }
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match self {
+            InteractionTail::Decoded(d) => {
+                d.cond_data_list.write_to(w)?;
+                d.auto_interaction_type.write_to(w)?;
+                d.category_info.write_to(w)?;
+                d.input_key_map_name.write_to(w)?;
+                d.button_click_type.write_to(w)?;
+                d.keyboard_click_type.write_to(w)?;
+                d.unknown_flag_a.write_to(w)?;
+                d.unknown_flag_b.write_to(w)?;
+                d.unknown_flag_c.write_to(w)?;
+                d.unknown_flag_d.write_to(w)?;
+                d.sequencer_desc.write_to(w)?;
+                d.raw_a.write_to(w)?;
+                d.some_name.write_to(w)?;
+                d.lookup_b.write_to(w)?;
+                d.mob_list.write_to(w)?;
+                d.lookup_c.write_to(w)?;
+                d.list_a.write_to(w)?;
+                d.cstring_a.write_to(w)?;
+                d.cstring_b.write_to(w)?;
+                d.flag_a.write_to(w)?;
+                d.flag_b.write_to(w)?;
+                d.flag_c.write_to(w)?;
+                d.flag_d.write_to(w)?;
+                d.flag_e.write_to(w)?;
+                d.flag_f.write_to(w)?;
+                d.flag_g.write_to(w)?;
+                d.flag_h.write_to(w)?;
+                d.flag_i.write_to(w)?;
+                d.flag_j.write_to(w)?;
+                Ok(())
+            }
+            InteractionTail::Raw(b) => w.write_all(b),
+        }
+    }
+
+    pub fn to_json_value(&self) -> Value {
+        match self {
+            InteractionTail::Decoded(d) => {
+                let mut m = Map::new();
+                m.insert("kind".to_string(), Value::String("Decoded".to_string()));
+                m.insert("cond_data_list".to_string(), d.cond_data_list.to_json_value());
+                m.insert("auto_interaction_type".to_string(), d.auto_interaction_type.to_json_value());
+                m.insert("category_info".to_string(), d.category_info.to_json_value());
+                m.insert("input_key_map_name".to_string(), d.input_key_map_name.to_json_value());
+                m.insert("button_click_type".to_string(), d.button_click_type.to_json_value());
+                m.insert("keyboard_click_type".to_string(), d.keyboard_click_type.to_json_value());
+                m.insert("unknown_flag_a".to_string(), d.unknown_flag_a.to_json_value());
+                m.insert("unknown_flag_b".to_string(), d.unknown_flag_b.to_json_value());
+                m.insert("unknown_flag_c".to_string(), d.unknown_flag_c.to_json_value());
+                m.insert("unknown_flag_d".to_string(), d.unknown_flag_d.to_json_value());
+                m.insert("sequencer_desc".to_string(), d.sequencer_desc.to_json_value());
+                m.insert("raw_a".to_string(), d.raw_a.to_json_value());
+                m.insert("some_name".to_string(), d.some_name.to_json_value());
+                m.insert("lookup_b".to_string(), d.lookup_b.to_json_value());
+                m.insert("mob_list".to_string(), d.mob_list.to_json_value());
+                m.insert("lookup_c".to_string(), d.lookup_c.to_json_value());
+                m.insert("list_a".to_string(), d.list_a.to_json_value());
+                m.insert("cstring_a".to_string(), d.cstring_a.to_json_value());
+                m.insert("cstring_b".to_string(), d.cstring_b.to_json_value());
+                m.insert("flag_a".to_string(), d.flag_a.to_json_value());
+                m.insert("flag_b".to_string(), d.flag_b.to_json_value());
+                m.insert("flag_c".to_string(), d.flag_c.to_json_value());
+                m.insert("flag_d".to_string(), d.flag_d.to_json_value());
+                m.insert("flag_e".to_string(), d.flag_e.to_json_value());
+                m.insert("flag_f".to_string(), d.flag_f.to_json_value());
+                m.insert("flag_g".to_string(), d.flag_g.to_json_value());
+                m.insert("flag_h".to_string(), d.flag_h.to_json_value());
+                m.insert("flag_i".to_string(), d.flag_i.to_json_value());
+                m.insert("flag_j".to_string(), d.flag_j.to_json_value());
+                Value::Object(m)
+            }
+            InteractionTail::Raw(b) => {
+                let mut m = Map::new();
+                m.insert("kind".to_string(), Value::String("Raw".to_string()));
+                m.insert("_b64".to_string(), Value::String(B64.encode(b)));
+                Value::Object(m)
+            }
+        }
+    }
+
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "InteractionTail: expected object",
+        ))?;
+        let kind = json_get_field(obj, "kind")?
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "InteractionTail.kind: expected string"))?;
+        match kind {
+            "Decoded" => {
+                <ConditionPairCArray as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cond_data_list")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "auto_interaction_type")?)?;
+                <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "category_info")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "input_key_map_name")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "button_click_type")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "keyboard_click_type")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unknown_flag_a")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unknown_flag_b")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unknown_flag_c")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unknown_flag_d")?)?;
+                <SequencerStageChartDescPartial as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sequencer_desc")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "some_name")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+                <CArray<FactionAdjacencyMobItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mob_list")?)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
+                <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_a")?)?;
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_a")?)?;
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_b")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_d")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_e")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_f")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_g")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_h")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_i")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_j")?)?;
+                Ok(())
+            }
+            "Raw" => {
+                let b64 = json_get_field(obj, "_b64")?.as_str()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                        "InteractionTail.Raw._b64: expected string"))?;
+                let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("InteractionTail.Raw._b64: invalid base64: {}", e)))?;
+                w.extend_from_slice(&bytes);
+                Ok(())
+            }
+            other => Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("InteractionTail.kind: unknown variant {:?}", other))),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct InteractionInfo<'a> {
+    pub key: u32,
+    pub string_key: CString<'a>,
+    pub is_blocked: u8,
+    pub interaction_type: u8,
+    pub interaction_show_ui_type: u8,
+    pub preemption_type: u8,
+    pub interaction_name: LocalizableString<'a>,
+    pub pivot_selection_target: u8,
+    pub interaction_pivot_list: CArray<InteractionPivotData<'a>>,
+    pub tail: InteractionTail<'a>,
+}
+
+impl<'a> InteractionInfo<'a> {
+    pub fn read_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = u32::read_from(data, offset)?;
+        let string_key = CString::read_from(data, offset)?;
+        let is_blocked = u8::read_from(data, offset)?;
+        let interaction_type = u8::read_from(data, offset)?;
+        let interaction_show_ui_type = u8::read_from(data, offset)?;
+        let preemption_type = u8::read_from(data, offset)?;
+        let interaction_name = LocalizableString::read_from(data, offset)?;
+        let pivot_selection_target = u8::read_from(data, offset)?;
+        let interaction_pivot_list = CArray::<InteractionPivotData>::read_from(data, offset)?;
+        let tail = InteractionTail::read_with_size(data, offset, entry_end)?;
+
+        Ok(Self {
+            key, string_key, is_blocked, interaction_type, interaction_show_ui_type,
+            preemption_type, interaction_name, pivot_selection_target,
+            interaction_pivot_list, tail,
+        })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.key.write_to(w)?;
+        self.string_key.write_to(w)?;
+        self.is_blocked.write_to(w)?;
+        self.interaction_type.write_to(w)?;
+        self.interaction_show_ui_type.write_to(w)?;
+        self.preemption_type.write_to(w)?;
+        self.interaction_name.write_to(w)?;
+        self.pivot_selection_target.write_to(w)?;
+        self.interaction_pivot_list.write_to(w)?;
+        self.tail.write_to(w)?;
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("interaction_type".to_string(), self.interaction_type.to_json_value());
+        m.insert("interaction_show_ui_type".to_string(), self.interaction_show_ui_type.to_json_value());
+        m.insert("preemption_type".to_string(), self.preemption_type.to_json_value());
+        m.insert("interaction_name".to_string(), self.interaction_name.to_json_value());
+        m.insert("pivot_selection_target".to_string(), self.pivot_selection_target.to_json_value());
+        m.insert("interaction_pivot_list".to_string(), self.interaction_pivot_list.to_json_value());
+        m.insert("tail".to_string(), self.tail.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_show_ui_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "preemption_type")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pivot_selection_target")?)?;
+        <CArray<InteractionPivotData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_pivot_list")?)?;
+        InteractionTail::write_from_json(w, json_get_field(obj, "tail")?)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -118,12 +418,19 @@ mod tests {
         let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: {}", PABGH_PATH); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
+        let mut decoded = 0usize;
+        let mut raw = 0usize;
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
             let item = InteractionInfo::read_with_size(&data, &mut c, e - s).unwrap_or_else(|er| panic!("entry {} k=0x{:x}: {}", i, k, er));
             assert_eq!(c, *e);
+            match &item.tail {
+                InteractionTail::Decoded(_) => decoded += 1,
+                InteractionTail::Raw(_) => raw += 1,
+            }
             items.push(item);
         }
+        eprintln!("interactioninfo: decoded={} raw={} (total={})", decoded, raw, ranges.len());
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "interactioninfo roundtrip mismatch");
@@ -131,15 +438,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
-            return;
-        };
+        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: missing fixture {}", PABGB_PATH); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
