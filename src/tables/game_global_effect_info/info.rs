@@ -17,7 +17,7 @@
 //!   5.  u32 projectile_key                         (_projectileKey)
 //!   6.  u32 projectile_shot_key                    (_projectileShotKey)
 //!   7.  u32 projectile_chase_physics_material_hash (_projectileChasePhysicsMaterialHash)
-//!   8.  [u8; 12] projectile_shot_spread            (_projectileShotSpread)
+//!   8.  [f32; 3] projectile_shot_spread           (_projectileShotSpread, Vec3)
 //!   9.  [u8; 8] projectile_shot_interval           (_projectileShotInterval)
 //!  10.  u32 projectile_height_offset               (_projectileHeightOffset)
 //!  11.  u32 projectile_create_delay_time           (_projectileCreateDelayTime)
@@ -194,7 +194,7 @@ pub struct GameGlobalEffectInfo<'a> {
     pub projectile_key: u32,
     pub projectile_shot_key: u32,
     pub projectile_chase_physics_material_hash: u32,
-    pub projectile_shot_spread: [u8; 12],
+    pub projectile_shot_spread: [f32; 3],
     pub projectile_shot_interval: [u8; 8],
     pub projectile_height_offset: u32,
     pub projectile_create_delay_time: u32,
@@ -226,7 +226,7 @@ impl<'a> GameGlobalEffectInfo<'a> {
         let projectile_key = u32::read_from(data, offset)?;
         let projectile_shot_key = u32::read_from(data, offset)?;
         let projectile_chase_physics_material_hash = u32::read_from(data, offset)?;
-        let projectile_shot_spread = <[u8; 12]>::read_from(data, offset)?;
+        let projectile_shot_spread = <[f32; 3]>::read_from(data, offset)?;
         let projectile_shot_interval = <[u8; 8]>::read_from(data, offset)?;
         let projectile_height_offset = u32::read_from(data, offset)?;
         let projectile_create_delay_time = u32::read_from(data, offset)?;
@@ -297,7 +297,7 @@ impl<'a> GameGlobalEffectInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_key")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_key")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_chase_physics_material_hash")?)?;
-        <[u8; 12] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_spread")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_spread")?)?;
         <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_interval")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_height_offset")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_create_delay_time")?)?;

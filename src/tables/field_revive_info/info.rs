@@ -38,8 +38,11 @@ pub struct FieldReviveInfo<'a> {
     pub key: u32,
     pub string_key: CString<'a>,
     pub is_blocked: u8,
-    pub position: [u8; 12],
-    pub rotation_y: u32,
+    /// Vec3 spawn position (x, y, z) per IDA sub_1006B48A8 — same Vec3
+    /// helper as projectileShotSpread in game_global_effect_info.
+    pub position: [f32; 3],
+    /// f32 yaw rotation (sub_1006B3DE0).
+    pub rotation_y: f32,
     /// Opaque bytes for the polymorphic SequencerStageChartDesc.
     /// Sized by `entry_size - bytes_consumed_so_far - 13`. Cloning between
     /// entries round-trips byte-perfect; per-field editing is gated on
@@ -67,8 +70,8 @@ impl<'a> FieldReviveInfo<'a> {
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
-        let position = <[u8; 12]>::read_from(data, offset)?;
-        let rotation_y = u32::read_from(data, offset)?;
+        let position = <[f32; 3]>::read_from(data, offset)?;
+        let rotation_y = f32::read_from(data, offset)?;
 
         // Size the opaque sequencer_stage_chart_desc by subtracting the
         // fixed trailing-field width from the remaining bytes.
@@ -128,8 +131,8 @@ impl<'a> FieldReviveInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <[u8; 12] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
+        <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
         let b64 = json_get_field(obj, "_sequencer_stage_chart_desc_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
