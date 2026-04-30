@@ -12,8 +12,8 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 | Status | Count |
 |---|---|
-| **On-disk + Tier 1 (fully field-decoded)** | 88 |
-| **On-disk + Tier 2 (blob-tail, partial decode)** | 4 |
+| **On-disk + Tier 1 (fully field-decoded)** | 91 |
+| **On-disk + Tier 2 (blob-tail, partial decode)** | 1 |
 | **Parser exists but not in current dump** | 28 |
 | **In-memory only (C++ struct, no pabgb file)** | 328 |
 | **TOTAL** | 449 |
@@ -48,7 +48,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | Status | Class | Fields | Purpose |
 |---|---|---:|---|
 | ✅ T1 | `AIActionAttributeInfo` | 4 | records for ai action attribute (records can be individually blocked via is_blocked) |
-| 🟡 T2 | `AIDialogStringInfo` | 11 | records for ai dialog string (records can be individually blocked via is_blocked) |
+| ✅ T1 | `AIDialogStringInfo` | 11 | records for ai dialog string (records can be individually blocked via is_blocked) |
 | ✅ T1 | `AIDialogTypeInfo` | 7 | type/enum definitions for ai dialog (records can be individually blocked via is_blocked) |
 | ✅ T1 | `AIEventTableInfo` | 12 | lookup table for ai event (records can be individually blocked via is_blocked) |
 | 📚 P | `AIMemoryInfo` | 3 | records for ai memory (records can be individually blocked via is_blocked) |
@@ -67,7 +67,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | ✅ T1 | `ConditionInfo` | 6 | records for condition (records can be individually blocked via is_blocked) |
 | 🧠 — | `ConditionOptionData` | 4 | records for condition option data |
 | 🧠 — | `ConditionTargetData` | 5 | records for condition target data |
-| 🟡 T2 | `EffectInfo` | 8 | records for effect (records can be individually blocked via is_blocked) |
+| ✅ T1 | `EffectInfo` | 8 | records for effect (records can be individually blocked via is_blocked) |
 | 🧠 — | `EffectInfoData` | 18 | records for effect info data (spawn-related) |
 | 🧠 — | `EffectPlayInfo` | 1 | records for effect play |
 | 🧠 — | `EffectPresetElement` | 18 | records for effect preset element (positional; spawn-related) |
@@ -171,7 +171,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `FactionSchedulePlayInfo` | 6 | records for faction schedule play (spawn-related) |
 | 🧠 — | `FactionScheduleSpawnInfo` | 1 | spawn rules for faction schedule |
 | 🧠 — | `FactionSequencerSpawnInfo` | 1 | spawn rules for faction sequencer |
-| 🟡 T2 | `FactionSpawnDataInfo` | 7 | data records for faction spawn (records can be individually blocked via is_blocked) |
+| ✅ T1 | `FactionSpawnDataInfo` | 7 | data records for faction spawn (records can be individually blocked via is_blocked) |
 | 🧠 — | `FactionStateData` | 4 | records for faction state data |
 | 🧠 — | `FactionStealthOptionData` | 3 | records for faction stealth option data |
 | 🧠 — | `FactionUICardData` | 2 | records for faction ui card data |
@@ -571,7 +571,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_isBlocked`
 - `_passiveSkillKeyList`
 
-### AIDialogStringInfo 🟡 T2
+### AIDialogStringInfo ✅ T1
 
 **Category**: AI  
 **Purpose**: records for ai dialog string (records can be individually blocked via is_blocked)  
@@ -1939,7 +1939,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_dyeTextureSetKey`
 - `_condition`
 
-### EffectInfo 🟡 T2
+### EffectInfo ✅ T1
 
 **Category**: Buff/Effect/Condition  
 **Purpose**: records for effect (records can be individually blocked via is_blocked)  
@@ -2621,7 +2621,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 - `_sequencerSpawnInfoList`
 
-### FactionSpawnDataInfo 🟡 T2
+### FactionSpawnDataInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: data records for faction spawn (records can be individually blocked via is_blocked)  
