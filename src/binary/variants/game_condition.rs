@@ -310,19 +310,19 @@ impl<'a> GameConditionNode<'a> {
             }
             Self::ScheduleCompleteConditionData(s) => {
                 m.insert("case".into(), Value::String("ScheduleCompleteConditionData".into()));
-                m.insert("wire_b64".into(), leaf_b64(|w| s.write_to(w)));
+                m.insert("data".into(), Value::Object(s.to_json_dict()));
             }
             Self::ConditionGimmickData(g) => {
                 m.insert("case".into(), Value::String("ConditionGimmickData".into()));
-                m.insert("wire_b64".into(), leaf_b64(|w| g.write_to(w)));
+                m.insert("data".into(), Value::Object(g.to_json_dict()));
             }
             Self::StageChart(s) => {
                 m.insert("case".into(), Value::String("StageChart".into()));
-                m.insert("wire_b64".into(), leaf_b64(|w| s.write_to(w)));
+                m.insert("data".into(), Value::Object(s.to_json_dict()));
             }
             Self::GlobalEffectConditionData(g) => {
                 m.insert("case".into(), Value::String("GlobalEffectConditionData".into()));
-                m.insert("wire_b64".into(), leaf_b64(|w| g.write_to(w)));
+                m.insert("data".into(), Value::Object(g.to_json_dict()));
             }
         }
         Value::Object(m)
@@ -373,29 +373,35 @@ impl<'a> GameConditionNode<'a> {
             }
             "ScheduleCompleteConditionData" => {
                 w.push(5u8);
-                let bytes = decode_b64(
-                    get_field(obj, "wire_b64")?,
-                    "ScheduleCompleteConditionData.wire_b64",
-                )?;
-                w.extend_from_slice(&bytes);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ScheduleCompleteConditionData.data: expected object",
+                ))?;
+                ScheduleCompleteConditionData::write_from_json_dict(w, data_obj)?;
             }
             "ConditionGimmickData" => {
                 w.push(6u8);
-                let bytes = decode_b64(get_field(obj, "wire_b64")?, "ConditionGimmickData.wire_b64")?;
-                w.extend_from_slice(&bytes);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ConditionGimmickData.data: expected object",
+                ))?;
+                ConditionGimmickData::write_from_json_dict(w, data_obj)?;
             }
             "StageChart" => {
                 w.push(7u8);
-                let bytes = decode_b64(get_field(obj, "wire_b64")?, "StageChart.wire_b64")?;
-                w.extend_from_slice(&bytes);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "StageChart.data: expected object",
+                ))?;
+                ConditionDataStageChart::write_from_json_dict(w, data_obj)?;
             }
             "GlobalEffectConditionData" => {
                 w.push(8u8);
-                let bytes = decode_b64(
-                    get_field(obj, "wire_b64")?,
-                    "GlobalEffectConditionData.wire_b64",
-                )?;
-                w.extend_from_slice(&bytes);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "GlobalEffectConditionData.data: expected object",
+                ))?;
+                GlobalEffectConditionData::write_from_json_dict(w, data_obj)?;
             }
             other => {
                 return Err(io::Error::new(

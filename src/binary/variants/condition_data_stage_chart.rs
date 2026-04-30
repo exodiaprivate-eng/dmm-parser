@@ -11,6 +11,9 @@
 use super::game_expression::GameExpression;
 use super::ivariant_item::IVariantItem;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -61,5 +64,74 @@ impl<'a> ConditionDataStageChart<'a> {
                 item.write_to(w)
             }
         }
+    }
+
+    /// JSON shape: discriminated union.
+    /// - BranchA: {branch: "A", outer_presence, label, byte_b, qword_c,
+    ///   expression_b64} — GameExpression body still rides as base64
+    ///   pending its own per-variant JSON rollout.
+    /// - BranchB: {branch: "B", ivariant_selector, item_b64}
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        match self {
+            Self::BranchA { outer_presence, label, byte_b, qword_c, expression } => {
+                m.insert("branch".into(), Value::String("A".into()));
+                m.insert("outer_presence".into(), outer_presence.to_json_value());
+                m.insert("label".into(), label.to_json_value());
+                m.insert("byte_b".into(), byte_b.to_json_value());
+                m.insert("qword_c".into(), qword_c.to_json_value());
+                let mut buf = Vec::new();
+                expression.write_to(&mut buf).expect("write_to Vec");
+                m.insert("expression_b64".into(), Value::String(B64.encode(&buf)));
+            }
+            Self::BranchB { ivariant_selector, item } => {
+                m.insert("branch".into(), Value::String("B".into()));
+                m.insert("ivariant_selector".into(), ivariant_selector.to_json_value());
+                let mut buf = Vec::new();
+                item.write_to(&mut buf).expect("write_to Vec");
+                m.insert("item_b64".into(), Value::String(B64.encode(&buf)));
+            }
+        }
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let branch = json_get_field(obj, "branch")?.as_str().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData,
+                "ConditionDataStageChart.branch: expected string")
+        })?;
+        match branch {
+            "A" => {
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "outer_presence")?)?;
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "label")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_b")?)?;
+                <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_c")?)?;
+                let s = json_get_field(obj, "expression_b64")?.as_str().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData,
+                        "expression_b64: expected base64 string")
+                })?;
+                let bytes = B64.decode(s).map_err(|e| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("expression_b64: invalid base64: {}", e),
+                ))?;
+                w.extend_from_slice(&bytes);
+            }
+            "B" => {
+                w.push(0u8);  // outer_presence == 0 implies BranchB
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ivariant_selector")?)?;
+                let s = json_get_field(obj, "item_b64")?.as_str().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData,
+                        "item_b64: expected base64 string")
+                })?;
+                let bytes = B64.decode(s).map_err(|e| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("item_b64: invalid base64: {}", e),
+                ))?;
+                w.extend_from_slice(&bytes);
+            }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("ConditionDataStageChart.branch: unknown {:?}", other))),
+        }
+        Ok(())
     }
 }

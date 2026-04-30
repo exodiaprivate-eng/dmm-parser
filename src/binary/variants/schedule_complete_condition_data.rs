@@ -5,34 +5,18 @@
 //!   CString + u8 + u64 + u8 + u8
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-#[derive(Debug)]
-pub struct ScheduleCompletePayload<'a> {
-    pub label: CString<'a>,
-    pub byte_a: u8,
-    pub qword_b: u64,
-    pub byte_c: u8,
-    pub byte_d: u8,
-}
-
-impl<'a> ScheduleCompletePayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let label = CString::read_from(data, offset)?;
-        let byte_a = u8::read_from(data, offset)?;
-        let qword_b = u64::read_from(data, offset)?;
-        let byte_c = u8::read_from(data, offset)?;
-        let byte_d = u8::read_from(data, offset)?;
-        Ok(Self { label, byte_a, qword_b, byte_c, byte_d })
-    }
-
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.label.write_to(w)?;
-        self.byte_a.write_to(w)?;
-        self.qword_b.write_to(w)?;
-        self.byte_c.write_to(w)?;
-        self.byte_d.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ScheduleCompletePayload<'a> {
+        pub label: CString<'a>,
+        pub byte_a: u8,
+        pub qword_b: u64,
+        pub byte_c: u8,
+        pub byte_d: u8,
     }
 }
 
@@ -57,6 +41,40 @@ impl<'a> ScheduleCompleteConditionData<'a> {
         self.presence_flag.write_to(w)?;
         if let Some(p) = &self.payload {
             p.write_to(w)?;
+        }
+        Ok(())
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("presence_flag".into(), self.presence_flag.to_json_value());
+        m.insert(
+            "payload".into(),
+            match &self.payload {
+                Some(p) => Value::Object(p.to_json_dict()),
+                None => Value::Null,
+            },
+        );
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let presence = json_get_field(obj, "presence_flag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ScheduleCompleteConditionData.presence_flag: expected u8"))?;
+        if presence > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("presence_flag {} out of u8 range", presence)));
+        }
+        (presence as u8).write_to(w)?;
+        if presence == 0 {
+            let payload_v = json_get_field(obj, "payload")?;
+            let payload_obj = payload_v.as_object().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ScheduleCompleteConditionData.payload: expected object when presence_flag==0",
+            ))?;
+            ScheduleCompletePayload::write_from_json_dict(w, payload_obj)?;
         }
         Ok(())
     }
