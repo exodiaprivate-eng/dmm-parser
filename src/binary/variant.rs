@@ -197,6 +197,11 @@ macro_rules! pabgh_blob_table {
 /// Field-level mod targeting works for every typed prefix field; the tail
 /// stays a single byte-blob until the next decode pass extends the schema.
 ///
+/// JSON output: each typed prefix field appears by name; `_tail_b64` is
+/// emitted only when the tail Vec is non-empty (Tier 1 promotions where
+/// the typed prefix consumes every byte get a clean, tail-free dict).
+/// `write_from_json_dict` accepts dicts with or without `_tail_b64`.
+///
 /// Usage:
 /// ```ignore
 /// pabgh_typed_blob_table! {
