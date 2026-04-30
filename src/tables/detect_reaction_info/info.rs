@@ -11,13 +11,28 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 // Hand-corrected: parser reads a 5x12=60 byte fixed block for _reactionTable
-// (nested for-loop in the IDA decompile) — auto-extractor saw it as 1 byte.
+// (nested for-loop in the IDA decompile — 60 individual u8 reads).
+// Promoted to typed 5-row struct with 12 named cells per row.
+// Each cell is a small enum value (0x01, 0x15, 0x17, 0x2a, 0x2d, 0x3b
+// observed in vanilla); JSON consumers can edit any individual cell.
+py_binary_struct! {
+    pub struct DetectReactionRow {
+        pub c0: u8, pub c1: u8, pub c2: u8, pub c3: u8,
+        pub c4: u8, pub c5: u8, pub c6: u8, pub c7: u8,
+        pub c8: u8, pub c9: u8, pub c10: u8, pub c11: u8,
+    }
+}
+
 py_binary_struct! {
     pub struct DetectReactionInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub reaction_table: [u8; 60],
+        pub reaction_row_0: DetectReactionRow,
+        pub reaction_row_1: DetectReactionRow,
+        pub reaction_row_2: DetectReactionRow,
+        pub reaction_row_3: DetectReactionRow,
+        pub reaction_row_4: DetectReactionRow,
         pub buff_reaction_type: u8,
         pub strong_buff_reaction_type: u8,
         pub player_sensible_reaction_type: u8,
