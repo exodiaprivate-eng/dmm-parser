@@ -10,6 +10,7 @@ pub mod paloc;
 pub mod variant;
 pub mod variants;
 pub mod optional_game_condition;
+pub mod paatt;
 
 pub use types::*;
 
