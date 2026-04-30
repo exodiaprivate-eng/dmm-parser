@@ -200,8 +200,8 @@ Mapped from the 4-24 639-blob (K=1), sub-element at blob[311..627].
 |-----------------------------|------|-------------|
 | 0..8                        | 8    | zeros |
 | 8                           | 1    | `0x01` (constant — version or type byte) |
-| 9..12                       | 3    | variable — `57 04 06` (5 of 6 entries) or `c6 46 5e` (1 entry) |
-| 12                          | 1    | variable — `0x24` (= 36) or `0x26` (= 38) |
+| 9..12                       | 3    | **per-instance ID** — 3 variable bytes; each sub-element within a blob has a unique value (e.g. `79 1c a5` vs `bd 57 bf` for the two subs in a 955-blob) |
+| 12                          | 1    | variable — `0x9a`, `0x8a`, `0x24`, `0x26` observed |
 | 13..92                      | 79   | zeros |
 
 **Body (bytes 9..316):**
