@@ -70,6 +70,35 @@ py_binary_struct! {
     }
 }
 
+// GameEventHandler — sub_1411138C0 inner, 8 mem bytes.
+// Wire: u8 + sub_1410FF430 (u32 wire) + u32 raw = 9 wire bytes.
+py_binary_struct! {
+    pub struct GameEventHandler {
+        pub kind: u8,
+        pub lookup: u32,
+        pub raw: u32,
+    }
+}
+
+// GimmickConstraintData — sub_1410E3E90 inner, 64 mem bytes.
+// Wire: CString (sub_1410A9D40) + 5 u8 + u32 + 2× Vec3 +
+// CString (sub_1410A9D40) + CArray<CString> (sub_141102990).
+py_binary_struct! {
+    pub struct GimmickConstraintData<'a> {
+        pub name: CString<'a>,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub raw: u32,
+        pub vec_a: [f32; 3],
+        pub vec_b: [f32; 3],
+        pub tag: CString<'a>,
+        pub tag_list: CArray<CString<'a>>,
+    }
+}
+
 pabgh_typed_blob_table! {
     pub struct GimmickGroupInfo<'a> {
         pub key: u32,
@@ -88,6 +117,10 @@ pabgh_typed_blob_table! {
         pub gimmick_remote_catchable_data: [f32; 3],
         pub use_attack_target_owner_constraint: u8,
         pub use_self_constraint: u8,
+        pub auto_targeting_constraint_data_list: CArray<GimmickConstraintData<'a>>,
+        pub gimmick_constraint_data_list: CArray<GimmickConstraintData<'a>>,
+        pub gimmick_info_list: CArray<u32>,
+        pub game_event_handler_list: CArray<GameEventHandler>,
     }
     tail: tail_blob;
 }
