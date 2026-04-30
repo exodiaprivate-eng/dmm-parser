@@ -151,11 +151,16 @@ FilterCondition (sub_141D8F740, 64 mem bytes)
 ```
 
 All 14+ helpers verified as fixed-shape via IDA decompile. The depth
-makes this a focused multi-session crack rather than an in-loop win;
-shipping it would unlock `QuestInfo.quest_dialog_filter_data_list_blob`
-and probably `MiniGameDataInfo.spawn_data_list_blob` which uses
-overlapping helpers (sub_14110BCC0 → sub_1410F3220 + sub_141103B30 +
-sub_14110BE50).
+made this a focused multi-session crack rather than an in-loop win.
+
+**Status update**: `src/binary/variants/filter_condition.rs` decoder
+**module is now shipped** (FilterCondition + 8 sub-readers all typed,
+1:1 mapping to IDA sub-routines). What's still pending: wiring it
+into `tables/quest_info/info.rs` to replace
+`quest_dialog_filter_data_list_blob: Vec<u8>` with the typed
+`Decoded|Raw` enum. Once wired, QuestInfo moves from internal-T1.5 →
+T1. (MiniGameDataInfo's separate spawn_data_list path was already
+typed via lane-c's `38ff7c3` work using SequencerStageSpawnData.)
 
 ### Reverse-engineering notes — TriggerGamePlayEventHandlerData
 
