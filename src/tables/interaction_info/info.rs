@@ -11,17 +11,40 @@
 //!   6. u8 preemption_type                 (_preemptionType)
 //!   7. LocalizableString interaction_name (_interactionName)
 //!   8. u8 pivot_selection_target          (_pivotSelectionTarget)
-//!   9. sub_141E2BEB0 → struct +64 (_interactionPivotList: CArray of
-//!      168-byte composite items with 30+ helpers, way over budget)
+//!   9. CArray<InteractionPivotData> interaction_pivot_list
+//!      (sub_141E2BEB0 → 168 mem bytes / 28 wire fields per element)
 //!      ← TAIL STARTS HERE
-//!  10. (body) _interactionConditionDataList, _autoInteractionType,
-//!      _categoryInfo, _inputKeyMapName, _buttonClickType,
-//!      _keyboardClickType, … (sub_141D8C6D0 polymorphic
-//!      GameCondition tree at struct +112)
+//!  10. (tail) _interactionConditionDataList — sub_141114DD0 →
+//!      CArray<COptional<InteractionConditionData>>; per inner
+//!      element: 2 GameCondition (sub_141103B30) + u8 + u32 lookup
+//!      (sub_1410FF050) + u32 raw + u8 + u8. Reusable shape provided
+//!      by `crate::binary::condition_pair::ConditionPairCArray`.
+//!  11. (tail) u8 _autoInteractionType (mem a2+96)
+//!  12. (tail) u16 _categoryInfo (sub_141103CA0, mem a2+98)
+//!  13. (tail) u32 _inputKeyMapName (read_u32_lookup_DA30, mem a2+100)
+//!  14. (tail) u8 _buttonClickType (mem a2+102)
+//!  15. (tail) u8 _keyboardClickType (mem a2+103)
+//!  16. (tail) 4× u8 unknown flags (mem a2+104..107)
+//!  17. (tail) sub_141D8C6D0 _someSequencerDesc (232 mem bytes;
+//!      26 wire fields incl. 1 GameCondition + 2 unknown helpers
+//!      sub_1410F2F90 + sub_14110E010 — blocks Tier 1 promotion)
+//!  18. (tail) u32 raw at a2+344
+//!  19. (tail) u32 _someName lookup at a2+348 (read_u32_lookup_DA30)
+//!  20. (tail) u16 lookup at a2+350 (sub_141100370)
+//!  21. (tail) sub_141100E90 — CArray of 32-byte items (28 wire bytes
+//!      per element: f32 + 3× 8-byte clusters), mem a2+352
+//!  22. (tail) sub_141103C30 — u32 lookup, mem a2+368
+//!  23. (tail) CArray<u32> at a2+376 (sub_1410FEF40)
+//!  24. (tail) CString at a2+392
+//!  25. (tail) CString at a2+400
+//!  26. (tail) 10× u8 trailing flags at a2+408..417
 //!
-//! Steps 1-8 are typed. Step 9 onward is tail. The InteractionInfo
-//! body is unusually deep (40+ wire reads, 5+ unknown helpers) and
-//! includes the sub_141D8C6D0 polymorphic GameCondition descriptor.
+//! Steps 1-9 are typed. Field 10 (ConditionPairCArray) is decodable
+//! via the shared helper but blocked: stream-mode GameConditionNode
+//! reads through ConditionData variant 36 (and other anti-disassembly
+//! variants) misinterpret bytes as CString lengths inside leaf
+//! payloads. Field 17 (sub_141D8C6D0) blocks the rest until two
+//! unknown helpers are decoded.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
