@@ -333,7 +333,7 @@ in one retry.
 | Instance | Started | Lane / table | Status |
 |---|---|---|---|
 | Snow | (long-running) | Skill/Buff Python bindings | active |
-| A | 2026-04-30 | ConditionData variant work paused — STATUS.md regression flag (tag 19/27/135 speculative changes regressed Raw fallback 57→101). **Holding off** further skip-list/body recipe edits until Win-IDA vtable[19] verification batch lands. Local-only edits this session — not pushing per user directive. | holding (no speculative edits) |
+| A | 2026-04-30 | ConditionData per-tag recipe verification (Win-IDA driven) + doc-drift cleanup. Recently shipped: tag 7/99/116/174/358/360/393 recipe fixes and skip-list adjustments — interaction_info Raw 57 → 27 (92.6% Decoded). Doc updates this session: condition_data skip-list comment, condition_info/RECIPE_NEXT.md historical banner, 449_TABLE_CATALOG EffectInfo T2→T1, interaction_info module docstring stats, effect_info inner_map docstring. Local-only commits — not pushing per user directive. | active (recipe verification + doc-drift cleanup) |
 | B | — | (per recent commits: cross-table field-level cleanup + QuestInfo FilterCondition decompile trail) | active |
 | C | 2026-04-29 | full JSON round-trip coverage across all hand-corrected tables | done — every macro and hand-written table now has field-level JSON access |
 
