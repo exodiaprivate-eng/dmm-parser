@@ -26,10 +26,25 @@ This file is for collaborators picking up round-trip work. It's the
 - `FrameEventAttrGroupInfo` — sub_1410E14F0 turned out to be fixed-shape
   (not polymorphic as the old docstring claimed); 421 wire bytes per
   FrameEventAttr with 5× triplet + 5× secondary + 5× tertiary + 5× pair
+- `LevelGimmickSceneObjectInfo` — sub_1410EB270 fixed-shape (16 fields
+  per element including 2× SceneObjectAA1B0Block)
+- `TerrainRegionAutoSpawnInfo` + `SpawningPoolAutoSpawnInfo` — both
+  share the AutoSpawnEntry type from `binary::auto_spawn_entry`. Cracked
+  sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
+  sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
 - `GimmickInfo` — Decoded tail extended from 1 to 10 typed fields
   (use_interaction_ui_socket, use_sub_part_for_interaction,
   property_list, gimmick_name_hash, gimmick_name, emoji_texture_id,
   dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded
+
+### Remaining Tier 1.5 (blocked by family decoders)
+- `DropSetInfo._list` — sub_141102760 / sub_141D03AA0 (ReflectObject reflection)
+- `EquipSlotInfo.header_blob` + `.footer` — opaque sub_1410830B0 prefix
+- `MiniGameDataInfo.spawn_data_list_blob` — sub_14110E010 nested polymorphic
+  with anti-disassembly territory
+- `QuestInfo.quest_dialog_filter_data_list_blob` — FilterCondition variant family
+- `GimmickInfo.post_blob` — within Decoded; blocked by sub_1411125E0
+  (CArray<COptional<sub_141D7FF30>>)
 
 ### Polymorphic family decoders
 | Family | Status | Tables that consume it |
