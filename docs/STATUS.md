@@ -87,7 +87,7 @@ This file is for collaborators picking up round-trip work. It's the
 - `LevelGimmickSceneObjectInfo` — sub_1410EB270 fixed-shape (16 fields
   per element including 2× SceneObjectAA1B0Block)
 - `TerrainRegionAutoSpawnInfo` + `SpawningPoolAutoSpawnInfo` — both
-  share the AutoSpawnEntry type from `binary::auto_spawn_entry`. Cracked
+  share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
 - `GimmickInfo` — Decoded tail extended from 1 to 10 typed fields
@@ -108,7 +108,7 @@ pattern as ConditionInfo's GameCondition wrapper.)
 ### Recently cracked (was previously labeled DEFERRED ReflectObject)
 - `DropSetInfo._list` — sub_141600210 turned out fixed-shape with a
   tag-dispatched 14-case variant tail (63 fixed bytes + variant payload).
-  Decoder lives in `binary::drop_target::DropTargetData`.
+  Decoder lives in `binary::variants::drop_target::DropTargetData`.
 - `ItemUseInfo` RandomBox `inner` — same payload via shared decoder,
   modeled as `Option<OptionalDropTarget>` to capture RandomBox's outer
   wrapper presence plus sub_141D03AA0's own inner presence.
@@ -232,8 +232,8 @@ struct. Wrap in `Decoded|Raw` for byte-perfect fallback.
 | MiniGameData | ✅ shipped | MiniGameDataInfo |
 | GameExpression / IVariantItem | ✅ shipped (inside StageChart) | (used inside GameCondition tree) |
 | EffectData | ✅ shipped (per-element typed, 47-field core_block) | EffectInfo (Tier 1) |
-| **SequencerStageChartDesc** | ✅ shipped — all 26 wire fields typed in `binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial`. Composes inside CArray via stream-mode trait impls. | FieldReviveInfo, ItemUseInfo PlaySequencerOnly, SequencerSpawnInfo (Tier 1), GlobalStageSequencerInfo (Tier 1), StageInfo (Tier 1, all 91 wire fields), InteractionInfo (Tier 1 with Decoded\|Raw fallback), **CharacterInfo (Tier 1, all 174 wire fields, lane-c)** |
-| **GimmickInteractionOverrideCArray** | ✅ shipped — `binary::gimmick_interaction_override::GimmickInteractionOverrideCArray` (15-field inner via sub_1410DF770). | GimmickInfo (Tier 1.5 Decoded\|Raw, 99.93%), CharacterInfo field 133 (Tier 1) |
+| **SequencerStageChartDesc** | ✅ shipped — all 26 wire fields typed in `binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial`. Composes inside CArray via stream-mode trait impls. | FieldReviveInfo, ItemUseInfo PlaySequencerOnly, SequencerSpawnInfo (Tier 1), GlobalStageSequencerInfo (Tier 1), StageInfo (Tier 1, all 91 wire fields), InteractionInfo (Tier 1 with Decoded\|Raw fallback), **CharacterInfo (Tier 1, all 174 wire fields, lane-c)** |
+| **GimmickInteractionOverrideCArray** | ✅ shipped — `binary::variants::gimmick_interaction_override::GimmickInteractionOverrideCArray` (15-field inner via sub_1410DF770). | GimmickInfo (Tier 1.5 Decoded\|Raw, 99.93%), CharacterInfo field 133 (Tier 1) |
 | **SequencerStageTrackChangeData** family (Character/Gimmick/Item) | ✅ shipped (inside SequencerStageChartDesc field 19) | (used inside SequencerStageChartDesc) |
 | **SequencerStageSpawnData** | ✅ shipped (inside SequencerStageChartDesc field 20) | (used inside SequencerStageChartDesc) |
 | **GameEventHandler** | ✅ shipped — per-sub_tag typed bodies (sub_tag 2 = 12-byte SetUIPlayGuideParameter, sub_tag 3 = 6-byte SetUIFullscreenGuideParameter, sub_tags 0/1/4 in-place or Raw fallback). | GameEventHandlerInfo (Tier 1) |
