@@ -204,25 +204,55 @@ Mapped from the 4-24 639-blob (K=1), sub-element at blob[311..627].
 | 12                          | 1    | variable — `0x24` (= 36) or `0x26` (= 38) |
 | 13..92                      | 79   | zeros |
 
-**Body (bytes 92..316):**
+**Body (bytes 9..316):**
 
-Mirrors fixed_prefix[92..299] with a 9-byte alignment offset. Byte-match
-sub[9:] vs prefix[0:] = 272/299 bytes identical across the 6 available
-sub-element entries. The float cluster, `0a 05` flag, and TRS block all
-appear at the same relative offsets (sub[92], sub[140], sub[200:236]).
+The inner EffectData record begins at sub[9]. Its fields mirror
+fixed_prefix[0..] with a +9 byte offset: sub[9+X] corresponds to prefix[X].
+Byte-match sub[9+X] vs prefix[X] = 272/299 identical across available entries
+(variable fields like TRS and IDs naturally differ).
 
-The sub-element is a fixed-size copy of the same EffectData inner record
-that begins at prefix[92] in the main prefix.
+| sub offset    | prefix equiv  | description |
+|---------------|---------------|-------------|
+| 9+92 = 101    | prefix[92]    | inner sub-struct float cluster begins |
+| 9+140 = 149   | prefix[140]   | `0a 05` type marker |
+| 9+200 = 209   | prefix[200]   | position XYZ (real values, e.g. (−0.020, 0, −0.237)) |
+| 9+212 = 221   | prefix[212]   | scale XYZ (e.g. (0.5, 1, 1)) |
+| 9+224 = 233   | prefix[224]   | rotation XYZ radians |
+
+Sub-element TRS differs from the parent blob's TRS — each sub-element has
+its own transform relative to the parent effect origin.
 
 ---
 
 ## MeshEffectData (351 bytes in 4-11, 364 bytes in 4-24)
 
-Internal layout **not yet mapped**. The IDA C++ stride is 48 bytes (memory).
-
 Location: immediately after `mesh_count` u32 at `mc_off + 4`.
-
 In 4-24, confirmed up to m=16 (6147-byte blob).
+
+**Activity flag:** mesh[0] = u8, either 0x01 (active) or 0x00 (null slot).
+In m=2 entries, all second slots are null (mesh2[0]=0, mesh2[4:8]=0).
+Only active slots carry meaningful body data.
+
+**Mesh-specific prefix (mesh[0..108]):**
+
+| mesh offset | size | description |
+|-------------|------|-------------|
+| 0..4        | 4    | activity flag: u32=1 (active) or 0 (null) |
+| 4..8        | 4    | mesh asset hash/ID; 0x00000000 for null slots |
+| 8..12       | 4    | mirrors activity flag: u32=1 or 0 |
+| 12..20      | 8    | mesh IDs — same value as mesh[4:8] for active; stale for null |
+| 20..32      | 12   | f32[3]: 0.0 or 4.0 per component (dimension/bounds?) |
+| 32..44      | 12   | zeros (3 entries sampled) |
+| 44..56      | 12   | f32[3]: RGB colour (0 or normalised colour values) |
+| 56..104     | 48   | mostly zeros |
+| 104..108    | 4    | f32: 0.0 or ~1.4 |
+
+**Shared inner sub-struct (mesh[108..364]):**
+
+Mirrors fixed_prefix[92..299] with a +16 byte shift (mesh[108+X] ≅ prefix[92+X]).
+All the same landmarks appear: float cluster at mesh[108], `0a 05` at mesh[156],
+−π/2 at mesh[196], TRS at mesh[216:252], constant 0x01 at mesh[252],
+flags/IDs region at mesh[260..284], `0xe173eac5` sentinel at mesh[284..300].
 
 ---
 
@@ -231,14 +261,15 @@ In 4-24, confirmed up to m=16 (6147-byte blob).
 Full field-level map from systematic byte and 4-byte-window scans across all
 1952 baseline blobs in the 4-24 dump (FP=299, prefix offset = blob offset − 4).
 
-### Region 1 — Scalar parameters (prefix[0..92])
+### Region 1 — Colour parameters (prefix[0..92])
 
 | prefix offset | size | type    | description |
 |---------------|------|---------|-------------|
 | 0..4          | 4    | zero    | always zero |
-| 4..16         | 12   | f32[3]  | **colour tint** (grayscale): default 0.0; 5 of 1952 entries set all three fields to same value (0.3 / 0.5 / 0.6 / 0.85) |
-| 16..40        | 24   | f32[6]  | 6 floats, ~98% zero; non-zero values in range ~0.02..1.0 |
-| 40..52        | 12   | f32[3]  | 3 floats, each either 0.0 or 0.05f (`cd cc 4c 3d`); when set, all three equal 0.05 |
+| 4..16         | 12   | f32[3]  | **grayscale tint** (all three always equal): default (0,0,0); 5 entries set value to 0.3/0.5/0.6/0.85. Mutually exclusive with color1/color2 — entries use one or the other. |
+| 16..28        | 12   | f32[3]  | **color1** (start color, RGB normalised 0..1): default (0,0,0); 47 entries non-zero |
+| 28..40        | 12   | f32[3]  | **color2** (end color, RGB normalised 0..1): default (0,0,0); 22 entries non-zero. When both color1 and color2 are non-zero they are usually equal (constant color). |
+| 40..52        | 12   | f32[3]  | 3 floats, each 0.0 or 0.05f (`cd cc 4c 3d`); only 2 of 1952 entries use this |
 | 52..88        | 36   | zero    | always zero |
 | 88..92        | 4    | f32     | ~99% zero; rarely non-zero (small positive float) |
 
@@ -357,21 +388,25 @@ sub-item type. Full structure TBD.
 
 ## Next Steps
 
-1. **Map prefix[16..92] precisely** — 9 variable floats at prefix[16..52] need
-   identification; the three 0.05f-or-zero fields at prefix[40..52] may correspond
-   to NamedItemStruct[36..48] (same pattern). Scan all 1952 entries for co-variation.
+1. **Map prefix[16..92] precisely** — color1 and color2 RGB triplets are
+   identified; the 3 floats at prefix[40..52] (0 or 0.05) and the float at
+   prefix[88..92] remain unnamed. Scan co-variation with other fields.
 
-2. **Map sub-element fully** — the 9-byte header at sub[0..9] (`01 XX XX XX YY`)
-   has only two distinct byte patterns across 6 available entries; needs the
-   955-blob (K=2) for a second sub-element to compare against.
+2. **Map sub-element[9:13]** — the 4-byte header packet (e.g. `57 04 06 24`)
+   has only 2 distinct values across 6 entries; the 955-blob (K=2) would
+   provide a second sub-element to compare.
 
-3. **Map MeshEffectData (364 bytes in 4-24)** — compare 687 (m=1) and
-   1051 (m=2) blobs in the mesh region.
+3. **Identify prefix[256..264] IDs** — two per-entry u16 identifiers at
+   prefix[258..262]; likely reference external tables (texture IDs, material
+   hashes?).
 
-4. **Identify prefix[256..264] IDs** — the two per-entry u16 identifiers at
-   prefix[258..262] likely reference other game data tables; compare key values
-   with known iteminfo or other pabgb file keys.
-
-5. **Resolve irregular blobs** — figure out whether the bone-name
+4. **Resolve irregular blobs** — figure out whether the bone-name
    sub-element is preceded by a size prefix, and what the 373-blob
    (smaller irregular) contains.
+
+5. **MeshEffectData mesh[56..108]** — 48 bytes mostly zero; expand beyond
+   3-entry sample to characterize the f32 at mesh[104].
+
+6. **NamedItemStruct struct[0..36]** — only 3 instances available; the
+   colour-like values at struct[12..24] need cross-referencing with prefix
+   color1/color2 fields.
