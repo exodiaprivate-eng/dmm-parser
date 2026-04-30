@@ -293,6 +293,39 @@ py_binary_struct! {
     }
 }
 
+// sub_141101380 inner — 8 wire bytes per element.
+// Wire: u32 lookup (sub_1410FF2D0 → qword_145F115E8) + u32 lookup
+// (qword_145F1A550). Both are u32 on the wire even though mem stores
+// u16 hashes after the lookup.
+py_binary_struct! {
+    pub struct CharacterField137Entry {
+        pub lookup_a: u32,
+        pub lookup_b: u32,
+    }
+}
+
+// sub_141118000 inner — 24 mem bytes per element.
+// Wire: u32 lookup (sub_1410FF430) + u32 lookup (read_u32_lookup_DA30)
+// + CArray<u32> (sub_1410FEF40 → qword_145F0DA30).
+py_binary_struct! {
+    pub struct CharacterField141Entry {
+        pub lookup_a: u32,
+        pub lookup_b: u32,
+        pub list: CArray<u32>,
+    }
+}
+
+// sub_1411014B0 inner — 13 wire bytes / 12 mem bytes per element.
+// Wire: u32 lookup (sub_1410FF430) + u32 lookup (sub_1410FF430) + u8 + u32.
+py_binary_struct! {
+    pub struct CharacterField144Entry {
+        pub lookup_a: u32,
+        pub lookup_b: u32,
+        pub flag: u8,
+        pub raw: u32,
+    }
+}
+
 // sub_141B536F0 inner — 76 mem bytes, ~78 wire bytes (with empty
 // strings) / 24 wire fields. Wire ORDER (not mem order):
 py_binary_struct! {
@@ -518,6 +551,17 @@ pabgh_typed_blob_table! {
         pub raw_after_gimmick: u32,                       // a2 + 756
         pub field_136_list: CArray<CharacterField136Entry>, // sub_1411181F0 a2+760
         pub raw_after_136: u32,                           // a2 + 776
+        pub field_137_list: CArray<CharacterField137Entry>, // sub_141101380 a2+784
+        pub field_138_list: CArray<u32>,                  // sub_1410FFF10 a2+800
+        pub raw_140a: u64,                                // a2 + 816
+        pub raw_140b: u64,                                // a2 + 824
+        pub raw_140c: u32,                                // a2 + 832
+        pub flag_140a: u8,                                // a2 + 836
+        pub flag_140b: u8,                                // a2 + 837
+        pub field_141_list: CArray<CharacterField141Entry>, // sub_141118000 a2+840
+        pub raw_142: u32,                                 // a2 + 856
+        pub flag_143: u8,                                 // a2 + 860
+        pub field_144_list: CArray<CharacterField144Entry>, // sub_1411014B0 a2+864
     }
     tail: tail_blob;
 }
