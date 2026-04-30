@@ -326,6 +326,23 @@ py_binary_struct! {
     }
 }
 
+// sub_1410D7370 inline (NOT a CArray — single 14-wire-byte struct)
+// at a2+896. Wire: 3× u32 + 2× u8.
+py_binary_struct! {
+    pub struct CharacterInline147 {
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub raw_c: u32,
+        pub flag_a: u8,
+        pub flag_b: u8,
+    }
+}
+
+// sub_141101710 inner intentionally not modeled yet — adding the
+// CArray wrapper here over- or under-reads the wire (see
+// CharacterField150Entry attempt this iteration). Keep the field in
+// tail_blob until the per-element shape is reverified.
+
 // sub_141B536F0 inner — 76 mem bytes, ~78 wire bytes (with empty
 // strings) / 24 wire fields. Wire ORDER (not mem order):
 py_binary_struct! {
@@ -562,6 +579,10 @@ pabgh_typed_blob_table! {
         pub raw_142: u32,                                 // a2 + 856
         pub flag_143: u8,                                 // a2 + 860
         pub field_144_list: CArray<CharacterField144Entry>, // sub_1411014B0 a2+864
+        pub field_146_list: CArray<u32>,                  // sub_141101610 a2+880 (qword_145F0EF38)
+        pub inline_147: CharacterInline147,               // sub_1410D7370 inline at a2+896
+        pub raw_148: u32,                                 // a2 + 912
+        pub lookup_149: u32,                              // inline u32 → qword_145F15960 hash, a2+916
     }
     tail: tail_blob;
 }
