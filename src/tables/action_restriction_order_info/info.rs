@@ -10,6 +10,17 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
+// Hand-corrected: the auto-extractor saw spawn_action_list elements as
+// [u8;12] but empirical sweep across all 29 vanilla elements shows the
+// trailing u32 is always 0, with the first 8 bytes carrying real data.
+// Promoted to (u64 + u32 reserved) for field-level JSON access.
+py_binary_struct! {
+    pub struct SpawnActionEntry {
+        pub hash: u64,
+        pub reserved: u32,
+    }
+}
+
 py_binary_struct! {
     pub struct ActionRestrictionOrderInfo<'a> {
         pub key: u32,
@@ -21,7 +32,7 @@ py_binary_struct! {
         pub action_restriction_type: u8,
         pub regist_type_status: u32,
         pub skill_info: u32,
-        pub spawn_action_list: CArray<[u8; 12]>,
+        pub spawn_action_list: CArray<SpawnActionEntry>,
         pub ai_event_tag_name_hash: u32,
         pub ignore_catch: u8,
         pub ignore_throw: u8,
