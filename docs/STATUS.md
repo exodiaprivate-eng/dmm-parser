@@ -64,6 +64,10 @@ This file is for collaborators picking up round-trip work. It's the
   entries (typed decode for 99.8%, raw-bytes fallback for 0.2%)
 
 ### Recent Tier 1 promotions (lane-c)
+- `CharacterChartEntry.raw_block_a/b` — `[u8; 16]` → 4× named u32 each
+  (`block_{a,b}_dword_{0..3}`). IDA `sub_141107700` confirmed as
+  `for i in 0..4 { read_u32() }`; split into 4 u32 fields per the
+  field-level rule. (lane-c, 2026-04-30)
 - `EquipSlotInfo` — full Tier 1.5 → 1 promotion. `header_blob: Vec<u8>`
   → `header: CArray<u8>` (typed wire-equivalent, always empty in vanilla
   but JSON-addressable). `footer_extra/footer_terminator_a/b: Vec<u8>+u32+u32`

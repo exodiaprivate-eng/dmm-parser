@@ -419,7 +419,13 @@ py_binary_struct! {
         pub lookup_c: u32,             // inline u32 → qword_145F0DA00
         pub key_a: CString<'a>,        // sub_1410A9D40 wire CString
         pub key_b: CString<'a>,        // sub_1410A9D40
-        pub raw_block_a: [u8; 16],     // sub_141107700 = 4× u32
+        // raw_block_a was [u8;16] — sub_141107700 IDA-confirmed as
+        // `for i in 0..4 { read_u32() }`, so split into 4 named u32s
+        // per the field-level rule (lane-c, 2026-04-30).
+        pub block_a_dword_0: u32,
+        pub block_a_dword_1: u32,
+        pub block_a_dword_2: u32,
+        pub block_a_dword_3: u32,
         pub raw_a: u16,
         pub raw_b: u32,
         pub flag_a: u8,
@@ -437,7 +443,11 @@ py_binary_struct! {
         pub flag_l: u8,
         pub key_c: CString<'a>,        // sub_1410A9D40
         pub flag_m: u8,
-        pub raw_block_b: [u8; 16],     // sub_141107700 = 4× u32
+        // raw_block_b: same 4× u32 split (sub_141107700).
+        pub block_b_dword_0: u32,
+        pub block_b_dword_1: u32,
+        pub block_b_dword_2: u32,
+        pub block_b_dword_3: u32,
     }
 }
 
