@@ -8,12 +8,13 @@
 > per-tag recipe verification against Win-IDA, driven by the
 > `interaction_info::diag_raw_entries` failure histogram. Original
 > goal was to eliminate the 50-ish Raw-fallback entries on
-> interaction_info; **achieved**: down to **3 / 363 Raw** (99.2%
-> Decoded). The remaining 3 (tag 54 ×1, tag 214 ×2) are genuine
-> anti-disassembly readers — RTTI is present but vtables aren't
-> findable in IDA. Continuing with doc-drift cleanup across STATUS.md,
-> PARALLEL_LANES.md, condition_data.rs comments, and module
-> docstrings to keep the lane state synchronized.
+> interaction_info; **achieved and exceeded**: down to **0 / 363 Raw
+> (100% Decoded)** as of `171a00e` — tag 54 promoted to
+> `TwoU32BodyPayload` and tag 214 to a new
+> `ConditionData_CheckExistStealItemPayload` struct, clearing the
+> remaining anti-disasm entries. Continuing with doc-drift cleanup
+> across STATUS.md, PARALLEL_LANES.md, condition_data.rs comments,
+> and module docstrings.
 >
 > **Local-only commits** — per user directive, do NOT push until all
 > tables are field-level parsed. The remote `origin/main` is currently
@@ -40,7 +41,7 @@
 > upstream over/under-consumption corrupts downstream alignment.
 >
 > **Session results (2026-04-30):**
-> - `interaction_info`: Decoded 248 → **360** (+112), Raw 115 → **3** (97% drop). 99.2% typed.
+> - `interaction_info`: Decoded 248 → **363** (+115), Raw 115 → **0** (100% drop). **100% typed.**
 > - `condition_info`: 8914 / 8934 Decoded (99.78%); diagnostic counter added.
 > - `gimmick_info`: 12393 / 12399 Decoded (99.95%).
 > - 13 ConditionData tag recipes touched: 7, 19, 27, 29, 54, 99, 116,
@@ -52,8 +53,10 @@
 > - **5 family decoders restructured** from `src/binary/` into
 >   `src/binary/variants/` for consistency (`12dd29e`).
 > - `[u8; N]` audit complete (1 remaining is genuinely opaque single 16-byte xmmword read per IDA).
-> - Remaining 3 interaction_info Raw entries are genuine anti-disasm
->   (tags 54, 214 — RTTI present but vtables not findable in IDA).
+> - ~~Remaining 3 interaction_info Raw entries~~ — ✅ all cleared via
+>   `171a00e` (tag 54 → TwoU32BodyPayload, tag 214 → new
+>   CheckExistStealItemPayload struct). interaction_info is now 100%
+>   Decoded.
 > - **No remaining internal-Tier-1.5 sub-fields**: GimmickInfo `post_blob`
 >   was unblocked when TGPEHD decoder shipped (`1fc44e8`); GimmickInfo
 >   wires `trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`.
