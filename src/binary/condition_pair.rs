@@ -2,9 +2,12 @@
 //! lookup, u32, u8, u8)` shape used in multiple tables:
 //!
 //!   - `sub_1410DF630` — InteractionInfo's _interactionConditionDataList
-//!     element (via sub_141114DD0 outer CArray<COptional<...>>).
+//!     element (via sub_141114DD0 outer `CArray<COptional<...>>`).
 //!   - `sub_141E2C900` inner — GimmickInteractionOverrideData's condition
-//!     list element (via sub_1410DF770 + 32-byte stride).
+//!     list element. Verified via Win-IDA decompile: outer wrapper is
+//!     `CArray<ConditionPair>` (32-byte stride per element, NO
+//!     per-element COptional flag — distinct from sub_141114DD0's
+//!     `CArray<COptional<...>>` shape).
 //!
 //! Wire layout (all 7 fields read sequentially):
 //!   1. OptionalGameCondition cond_a    (sub_141103B30 — u8 presence +
@@ -195,6 +198,70 @@ impl<'a> WriteJsonValue for ConditionPairCArray<'a> {
         (arr.len() as u32).write_to(w)?;
         for item in arr {
             OptionalConditionPair::write_from_json(w, item)?;
+        }
+        Ok(())
+    }
+}
+
+/// `CArray<ConditionPair>` — sub_141E2C900 (used inside
+/// GimmickInteractionOverrideData via sub_1410DF770). Distinct from
+/// `ConditionPairCArray`: each element is a bare `ConditionPair`
+/// (32-byte mem stride) with NO per-element COptional flag.
+#[derive(Debug)]
+pub struct BareConditionPairCArray<'a> {
+    pub items: Vec<ConditionPair<'a>>,
+}
+
+impl<'a> BinaryRead<'a> for BareConditionPairCArray<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let count = u32::read_from(data, offset)?;
+        let mut items = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            items.push(ConditionPair::read_from(data, offset)?);
+        }
+        Ok(Self { items })
+    }
+}
+
+impl<'a> BinaryWrite for BareConditionPairCArray<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        (self.items.len() as u32).write_to(w)?;
+        for item in &self.items {
+            item.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for BareConditionPairCArray<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let item = <Self as BinaryRead>::read_from(data, offset)?;
+        ranges.push(FieldRange { path: path.clone(), start, end: *offset, ty: "BareConditionPairCArray" });
+        Ok(item)
+    }
+}
+
+impl<'a> ToJsonValue for BareConditionPairCArray<'a> {
+    fn to_json_value(&self) -> Value {
+        Value::Array(self.items.iter().map(|i| i.to_json_value()).collect())
+    }
+}
+
+impl<'a> WriteJsonValue for BareConditionPairCArray<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "BareConditionPairCArray: expected array",
+        ))?;
+        (arr.len() as u32).write_to(w)?;
+        for item in arr {
+            ConditionPair::write_from_json(w, item)?;
         }
         Ok(())
     }

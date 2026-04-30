@@ -30,6 +30,53 @@
 //!
 //! Stop at field 6 because field 7 is the SequencerDesc polymorphic
 //! family. Body has 40+ more wire reads.
+//!
+//! ## SequencerStageChartDesc wire layout (sub_141D8C6D0, Win-IDA)
+//!
+//! Per-element reader for `_sequencerDesc` (stage_info field 7) and
+//! `_loadingTargetInfo` / `_sequencerDescList` in
+//! global_stage_sequencer_info. 232 mem bytes per element, 26 wire
+//! fields. The first 13 fields (offsets +8..+55) are trivially
+//! typeable; field 15 onward depends on the GameCondition stream-mode
+//! anti-disassembly fix.
+//!
+//!  1. CString name                                    (mem +8)
+//!  2. u32 raw                                         (mem +16)
+//!  3. CString prefab_path                             (mem +24)
+//!  4. Vec3 position                                   (mem +32, 12 b)
+//!  5. u32 raw                                         (mem +44)
+//!  6. u8 flag                                         (mem +48)
+//!  7. u8 flag                                         (mem +49)
+//!  8. u8 flag                                         (mem +50)
+//!  9. u8 flag                                         (mem +51)
+//! 10. u8 flag                                         (mem +52)
+//! 11. u8 flag                                         (mem +53)
+//! 12. u8 flag                                         (mem +54)
+//! 13. u8 flag                                         (mem +55)
+//! 14. sub_141106210 — 8 mem bytes                     (mem +56)
+//! 15. sub_141103B30 — OptionalGameCondition           (mem +64)
+//!     ← stream-mode GameCondition blocker starts here
+//! 16. CString cstring_a                               (mem +72)
+//! 17. CString cstring_b                               (mem +80)
+//! 18. CArray<(CString, CString)>                      (mem +88, 16 b)
+//! 19. CArray<sub_1410F2F90> — 56-byte items           (mem +104, 16 b)
+//!     (per element: GameCondition + sub_14110C270 +
+//!     sub_14110C110 + sub_14110BFB0 — sub_14110C270 is
+//!     CArray<SequencerStageTrackChangeData_*> with its own
+//!     polymorphic hierarchy)
+//! 20. sub_14110E010 — 16 mem bytes                    (mem +120)
+//! 21. sub_1410FFAC0 — CArray-shaped                   (mem +136)
+//! 22. sub_1410FFAC0 — CArray-shaped                   (mem +152)
+//! 23. sub_1410FEF40 — CArray<u32>                     (mem +168)
+//! 24. sub_1410FEF40 — CArray<u32>                     (mem +184)
+//! 25. sub_141102FF0 — 16 mem bytes                    (mem +200)
+//! 26. sub_141102FF0 — 16 mem bytes                    (mem +216)
+//!
+//! Layout extracted from Win-IDA decompile of sub_141D8C6D0 (this
+//! session). Promotion path: once GameCondition stream-mode lands,
+//! fields 15-26 unblock; field 19 brings in a second polymorphic
+//! family (SequencerStageTrackChangeData) that needs its own
+//! family-decoder pass.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;

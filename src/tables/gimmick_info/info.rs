@@ -37,6 +37,41 @@
 //! 144-byte GimmickInteractionOverrideData struct depends on at least 3
 //! unresolved helpers (sub_141114FC0, sub_141E2C900, sub_141101AB0).
 //! Body has 100+ wire reads.
+//!
+//! ## GimmickInteractionOverrideData wire layout (sub_1410DF770)
+//!
+//! 144 mem bytes per element, 15 wire fields. Decompiled from Win-IDA
+//! this session.
+//!
+//!   1. sub_1411026F0 — u16 lookup                    (mem +0)
+//!   2. read_LocalizableString                        (mem +8, 32 b)
+//!   3. u32 raw                                       (mem +40)
+//!   4. CArray<{u32 hash + u32 raw}> (8-byte stride)  (mem +48, 16 b)
+//!      — outer reads u32 count, then each element: sub_1410A9D40
+//!      (CString-hash → u32) + u32 raw.
+//!   5. sub_141114FC0 — CArray of 48-byte items via   (mem +64, 16 b)
+//!      sub_1410DF4C0; per-element wire: u32 + CString-hash +
+//!      CString + u32 + Vec3 + 3× u32. (Verified Win-IDA, 7 wire
+//!      reads / 48 mem bytes.)
+//!   6. sub_141E2C900 — `CArray<ConditionPair>` via   (mem +80, 16 b)
+//!      `BareConditionPairCArray`. NO per-element COptional —
+//!      bare ConditionPair stride. ← stream-mode GameCondition
+//!      blocker starts here.
+//!   7. sub_141100E90 — CArray of 32-byte items       (mem +96, 16 b)
+//!      (28 wire bytes per element: f32 + 3× 8-byte clusters).
+//!   8. sub_141101AB0 — `CArray<u32>`                 (mem +112, 16 b)
+//!   9. sub_141103C30 — u32 lookup                    (mem +128)
+//!  10. sub_141100370 — u16 lookup                    (mem +132)
+//!  11. u8 flag                                       (mem +134)
+//!  12. u8 flag                                       (mem +135)
+//!  13. u8 flag                                       (mem +136)
+//!  14. u8 flag                                       (mem +137)
+//!  15. u8 flag                                       (mem +138)
+//!
+//! Outer wrapper (sub_141118470): `CArray<COptional<...>>` — u32
+//! count + per-element u8 presence + (if present) heap-allocated
+//! 144-byte GimmickInteractionOverrideData populated by
+//! sub_1410DF770.
 
 use crate::binary::*;
 use crate::pabgh_typed_blob_table;
