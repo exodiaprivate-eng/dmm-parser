@@ -358,6 +358,43 @@ py_binary_struct! {
     }
 }
 
+// sub_1410FC090 — 40-byte struct, 5× u64 raw.
+py_binary_struct! {
+    pub struct CharacterFiveU64 {
+        pub a: u64,
+        pub b: u64,
+        pub c: u64,
+        pub d: u64,
+        pub e: u64,
+    }
+}
+
+// sub_141101B80 inner — 8-byte items per element.
+// Wire: u32 raw + u32 raw (post-processed via sub_141BF6840).
+py_binary_struct! {
+    pub struct CharacterField174Entry {
+        pub raw_a: u32,
+        pub raw_b: u32,
+    }
+}
+
+// sub_1410D6F70 — 128-byte per-element of sub_141117EC0.
+// Wire: u32 + u64 + u64 + 4× u32 (loop) + u32 + 5 nested CArrays.
+py_binary_struct! {
+    pub struct CharacterField171Entry {
+        pub raw_a: u32,
+        pub raw_b: u64,
+        pub raw_c: u64,
+        pub block: [u32; 4],
+        pub raw_d: u32,
+        pub list_a: CArray<u32>,                 // sub_141100090 (qword_145F0DA68 hash)
+        pub list_b: CArray<u32>,                 // sub_141100090
+        pub quint_list_a: CArray<CharacterFiveU64>, // sub_1411001A0 → sub_1410FC090
+        pub quint_list_b: CArray<CharacterFiveU64>, // sub_1411001A0
+        pub byte_list: CArray<u8>,                // sub_1411002A0
+    }
+}
+
 // sub_141B536F0 inner — 76 mem bytes, ~78 wire bytes (with empty
 // strings) / 24 wire fields. Wire ORDER (not mem order):
 py_binary_struct! {
@@ -623,6 +660,8 @@ pabgh_typed_blob_table! {
         pub field_169d: CharacterField169Entry,
         pub field_169e: CharacterField169Entry,
         pub lookup_170: u32,                              // inline u32 → qword_145F14D90 hash, a2+1112
+        pub field_171_list: CArray<CharacterField171Entry>, // sub_141117EC0 a2+1120
+        pub field_172_list: CArray<u32>,                    // sub_141101AB0 a2+1136
     }
     tail: tail_blob;
 }
