@@ -294,14 +294,16 @@ py_binary_struct! {
         pub game_condition_opt: GameConditionOptional<'a>,
         pub u32_24: u32,
         pub u16_28: u16,
-        pub bytes_32: [u8; 12],
+        pub u32_32: u32,
+        pub u32_36: u32,
+        pub u32_40: u32,
         pub u32_44: u32,
         pub u8_48: u8,
         pub cstring_56: CString<'a>,
         pub u8_64: u8,
         pub u8_65: u8,
         pub u8_66: u8,
-        pub bytes_72: [u8; 8],
+        pub u64_72: u64,
         pub four_lookups_80: [u32; 4],
         pub u8_96: u8,
         pub u8_97: u8,
@@ -314,7 +316,7 @@ py_binary_struct! {
         pub u32_136: u32,
         pub graph_144: SummonGraphData,
         pub cstring_168: CString<'a>,
-        pub bytes_176: [u8; 8],
+        pub u64_176: u64,
         pub u8_184: u8,
         pub u32_188: u32,
         pub u32_192: u32,
@@ -323,10 +325,10 @@ py_binary_struct! {
         pub u8_198: u8,
         pub u8_199: u8,
         pub u8_200: u8,
-        pub bytes_204: [u8; 8],
+        pub u64_204: u64,
         pub lookup_212: u32,
-        pub bytes_216: [u8; 4],
-        pub bytes_220: [u8; 2],
+        pub u32_216: u32,
+        pub u16_220: u16,
         pub u8_222: u8,
         pub u8_223: u8,
         pub u8_224: u8,
@@ -541,12 +543,16 @@ py_binary_struct! {
     pub struct ElementalAreaBuffDataPayload {
         pub f00: u32,
         pub f01: u64,
-        pub f02: [u8; 12],
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
         pub f03: u32,
         pub f04: u32,
         pub f05: u32,
         pub f06: u32,
-        pub f07: [u8; 12],
+        pub f07_a: u32,
+        pub f07_b: u32,
+        pub f07_c: u32,
         pub f08: u32,
         pub f09: u8,
         pub f0a: u8,
@@ -767,7 +773,9 @@ py_binary_struct! {
     pub struct ApplyPhysicsImpulseBuffDataPayload {
         pub f00: u32,
         pub f01: u32,
-        pub f02: [u8; 12],
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
     }
 }
 
@@ -795,8 +803,13 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct SummonGimmickBuffDataPayload<'a> {
         pub f00: CString<'a>,
-        pub f01: [u8; 12],
-        pub f02: [u8; 16],
+        pub f01_a: u32,
+        pub f01_b: u32,
+        pub f01_c: u32,
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
+        pub f02_d: u32,
         pub f03: u8,
         pub f04: u8,
     }
@@ -1105,7 +1118,7 @@ py_binary_struct! {
     /// corrected from earlier mis-typing).
     pub struct VaryMaxExpandInventorySlotBuffDataPayload {
         pub f00_lookup: u16,
-        pub f01: [u8; 2],
+        pub f01: u16,
     }
 }
 
@@ -1125,7 +1138,9 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct ConsumeSpawnerMercenaryBuffDataPayload {
         pub f00: u32,
-        pub f01: [u8; 12],
+        pub f01_a: u32,
+        pub f01_b: u32,
+        pub f01_c: u32,
         pub f02: u8,
     }
 }
