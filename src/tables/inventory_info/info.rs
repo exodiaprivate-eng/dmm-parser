@@ -77,11 +77,12 @@ py_binary_struct! {
 // bytes per IDA sub_141103310:
 //   u32 lookup (sub_1410FF5C0 → ItemInfoKey)
 //   8 raw wire bytes (per Mac error string ordering, paired f32/f32
-//   most likely; preserved as [u8; 8] for round-trip integrity).
+//   most likely; promoted to u64 for field-level scalar access while
+//   preserving any potential NaN bit patterns).
 py_binary_struct! {
     pub struct InventoryCollectionItemData {
         pub item_info: u32,
-        pub raw_8: [u8; 8],
+        pub raw_8: u64,
     }
 }
 

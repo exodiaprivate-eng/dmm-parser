@@ -135,7 +135,7 @@ py_binary_struct! {
         pub first_focus_skill_info: u32,
         pub first_focus_zoom: f32,
         pub first_focus_position: [f32; 2],
-        pub skill_tree_area: [u8; 8],
+        pub skill_tree_area: u64,
     }
 }
 

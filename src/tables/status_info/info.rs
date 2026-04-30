@@ -28,7 +28,9 @@ py_binary_struct! {
         pub max_resistance_status_info: u32,
         pub is_resistance_stat: u8,
         pub is_elemental_stat: u8,
-        pub block_regen_on_min_stat_tick: [u8; 8],
+        // [u8;8] → u64 for field-level scalar access. Wire preserved;
+        // semantic is a tick-timing value (fixed-point or u64 ID).
+        pub block_regen_on_min_stat_tick: u64,
         pub decrease_on_item_broken: u8,
         pub buff_info: u32,
         pub actual_status_key_to_refer: u32,

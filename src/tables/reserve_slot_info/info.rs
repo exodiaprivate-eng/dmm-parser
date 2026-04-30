@@ -10,12 +10,12 @@
 //!   1. u32 key
 //!   2. CString string_key
 //!   3. u8 is_blocked
-//!   4. [u8; 8] raw_24
+//!   4. u64 raw_24
 //!   5. u32 u32_32
 //!   6. u32 lookup_36 (sub_1410FF5C0 → qword_145F0DA00)
 //!   7. u32 lookup_38 (sub_1410FF5C0 → qword_145F0DA00)
 //!   8. CArray<ReserveSlotPairA> pair_list_a (inline: u32 lookup
-//!      sub_1410FF430 + [u8; 8])
+//!      sub_1410FF430 + u64)
 //!   9. CString second_string
 //!  10. u8 u8_64
 //!  11. u8 u8_65
@@ -33,7 +33,7 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct ReserveSlotPairA {
         pub lookup: u32,
-        pub raw_bytes: [u8; 8],
+        pub raw_bytes: u64,
     }
 }
 
@@ -49,7 +49,7 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub raw_24: [u8; 8],
+        pub raw_24: u64,
         pub u32_32: u32,
         pub lookup_36: u32,
         pub lookup_38: u32,
