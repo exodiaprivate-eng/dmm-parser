@@ -439,11 +439,35 @@ Remaining 3 Raw entries (tag 54 ×1, tag 214 ×2) are all in the
 anti-disassembly family that wraps `sub_14F0xxxxx` obfuscated
 readers — preserved byte-perfect via the GameCondition::Raw fallback.
 
-**Important caveat (verified this session via Win-IDA)**: Of the 16
-tags currently in the skip list, only the original 11 are confirmed
-"true" vtable[19] no-ops. The 5 empirical adds (26, 135, 370, 99,
-174, 360) are NOT vtable[19] no-ops — their slot-19 entries each
-point into the giant `sub_14139AE80` thunk forest (size 0x1dc88,
+**Important caveat — superseded by 2026-04-30 progression above**:
+The `57-entry ceiling` and the "empirical-add masking" warnings below
+were correct at the time but the methodical Win-IDA verification cycle
+above shows the path forward worked. Tag 99/174/360 were removed from
+the skip-list (each verified in IDA as needing a proper body recipe);
+tags 26/135/370 remain in the skip-list because they ARE genuine
+no-ops despite their slot-19 thunk pointing into `sub_14139AE80`
+(empirically confirmed by the n=3 stable state). Current Class C
+skip-list size: 3 tags (was 6). Original Class A/B counts unchanged.
+
+**Path forward (revised, mostly DONE)**:
+1. ~~Walk all 405 ConditionData_* vtables~~ — proven unnecessary; the
+   `interaction_info::diag_raw_entries` histogram pinpointed the wrong
+   recipes faster than a full vtable walk would.
+2. ~~Replace the empirical adds with the verified list~~ — DONE
+   piecemeal across the n=69 → n=3 progression.
+3. Remaining: tag 54 + tag 214 are in the genuine anti-disasm family
+   (`sub_14F0xxxxx` obfuscated readers — RTTI present but vtables not
+   findable in IDA). Recoverable later if anyone runs the game in a
+   debugger and observes the obfuscated reader's actual byte
+   consumption. Until then, the GameCondition::Raw fallback handles
+   them byte-perfectly.
+
+<details><summary>Original caveat text (preserved for context)</summary>
+
+Of the 16 tags currently in the skip list, only the original 11 are
+confirmed "true" vtable[19] no-ops. The 5 empirical adds (26, 135,
+370, 99, 174, 360) are NOT vtable[19] no-ops — their slot-19 entries
+each point into the giant `sub_14139AE80` thunk forest (size 0x1dc88,
 non-decompilable by Hex-Rays). Concrete check: tag 81's vtable
 (`ConditionData_QuestGaugePercent` at `0x144ce3038`) has slot 19 =
 `0x1402d3a80` (the `return 1;` no-op), while tag 99's vtable
@@ -457,11 +481,6 @@ LAST_ATTEMPTED_TAG points to the wrong tag in the failure chain. The
 requires proper per-variant vtable[19] reverse engineering, not more
 empirical adds.
 
-**Path forward (revised)**:
-1. Walk all 405 ConditionData_* vtables, read slot 19 of each, and
-   build a definitive list of `slot_19 == 0x1402d3a80` (true no-ops).
-2. Replace the empirical adds (26, 135, 370, 99, 174, 360) with the
-   verified list — likely a strict subset.
 3. For the empirical adds that turn out NOT to be no-ops, investigate
    why removing them STILL allows their entries to decode (likely
    because the body recipe is wrong elsewhere — option_block probe is
@@ -480,6 +499,8 @@ The vtable layouts and per-element wire layouts for sub_141D8C6D0
 sub_1410DF770 (GimmickInteractionOverrideData, 15 wire fields / 144
 mem bytes) are documented in the consuming tables' module docstrings
 and ready to wire up the moment the skip-list is verified.
+
+</details>
 
 ---
 
