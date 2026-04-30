@@ -27,9 +27,21 @@
 >
 > Empirical guard: each fix must keep `cargo test --lib` at 304 pass
 > AND not REDUCE `interaction_info::roundtrip` decoded count. Tag 135
-> was a counter-example where IDA suggested 1-byte body + remove-from-skip
-> but empirical regressed (313 → 294 decoded); left as unit + skip-list.
-> Reason unknown — possibly a downstream-tree issue masking as tag 135.
+> initially regressed in isolation (313 → 294 decoded); resolved by
+> retrying AFTER upstream tags (174, 99, 27, etc.) had cleaned up tree
+> alignment. **Final state: tag 135 with 1-byte body + standard option,
+> matches IDA.** Lesson: tag fixes have ordering dependencies because
+> upstream over/under-consumption corrupts downstream alignment.
+>
+> **Session results (2026-04-30):**
+> - `interaction_info`: Decoded 248 → **360** (+112), Raw 115 → **3** (97% drop). 99.2% typed.
+> - `condition_info`: 8914 / 8934 Decoded (99.78%); diagnostic counter added.
+> - `gimmick_info`: 12393 / 12399 Decoded (99.95%).
+> - 12 ConditionData tag recipes fixed: 7, 19, 27, 29, 99, 116, 135, 174, 358, 360, 370, 393.
+> - Catalog: **92 T1 / 0 T2** (3 stale T2s promoted).
+> - `[u8; N]` audit complete (1 remaining is genuinely opaque single 16-byte xmmword read per IDA).
+> - Remaining 3 interaction_info Raw entries are genuine anti-disasm
+>   (tags 54, 214 — RTTI present but vtables not findable in IDA).
 
 This file is for collaborators picking up round-trip work. It's the
 "where are we, what's next" snapshot. For per-table specs see
