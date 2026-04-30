@@ -37,8 +37,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         offset: &mut usize,
         entry_size: usize,
     ) -> io::Result<Self> {
-        let entry_start = *offset;
-        let entry_end = entry_start + entry_size;
+        let _ = entry_size; // typed reader is byte-perfect; size is informational
 
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;

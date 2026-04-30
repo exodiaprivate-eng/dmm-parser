@@ -5,7 +5,7 @@
 //!   CString + u8 + u64 + u8 + u8
 
 use crate::binary::*;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::json_traits::{ToJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use serde_json::{Map, Value};
 use std::io::{self, Write};

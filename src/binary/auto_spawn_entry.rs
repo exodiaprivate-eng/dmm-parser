@@ -15,7 +15,6 @@
 
 use crate::binary::*;
 use crate::py_binary_struct;
-use std::io::{self, Write};
 
 py_binary_struct! {
     /// `sub_1410F9DF0` per inner element. 14 wire bytes / 10 mem bytes.

@@ -5,7 +5,6 @@
 //! Note: the f32 field at object+8 is zero-initialized from xmm0 in memory only —
 //! NOT read from the stream.
 
-use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {

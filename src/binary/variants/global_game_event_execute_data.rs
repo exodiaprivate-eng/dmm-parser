@@ -56,7 +56,7 @@
 //! cycle is byte-perfect, and downstream tooling can re-resolve at use time.
 
 use crate::binary::*;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::json_traits::get_field as json_get_field;
 use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
