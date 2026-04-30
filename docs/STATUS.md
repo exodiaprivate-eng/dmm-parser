@@ -19,6 +19,18 @@ This file is for collaborators picking up round-trip work. It's the
 - **GameCondition wrapper: 100.0% round-trip** on 8,934 ConditionInfo
   entries (typed decode for 99.8%, raw-bytes fallback for 0.2%)
 
+### Recent Tier 1 promotions (lane-c)
+- `CharacterInfo` — all 174 wire fields typed, 0 nonempty tails on 6966 entries
+- `FactionNodeSpawnInfo` — patrol_ai_spline_data_list typed
+  (sub_141115890 + sub_1413F8A20 + sub_1413F9BD0 reverse-engineered)
+- `FrameEventAttrGroupInfo` — sub_1410E14F0 turned out to be fixed-shape
+  (not polymorphic as the old docstring claimed); 421 wire bytes per
+  FrameEventAttr with 5× triplet + 5× secondary + 5× tertiary + 5× pair
+- `GimmickInfo` — Decoded tail extended from 1 to 10 typed fields
+  (use_interaction_ui_socket, use_sub_part_for_interaction,
+  property_list, gimmick_name_hash, gimmick_name, emoji_texture_id,
+  dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded
+
 ### Polymorphic family decoders
 | Family | Status | Tables that consume it |
 |---|---|---|
