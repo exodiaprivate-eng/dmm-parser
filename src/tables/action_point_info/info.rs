@@ -16,7 +16,12 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct ActionPoint {
         pub field_a: u32,
-        pub block_a: [u8; 24],
+        // block_a [u8;24] split via empirical per-slot probe across all
+        // 25988 entries: slots 0-3 (bytes 0-15) are always non-NaN f32
+        // (zero in vanilla); slots 4-5 (bytes 16-23) are always NaN bit
+        // patterns and must stay opaque to preserve round-trip.
+        pub block_a_floats: [f32; 4],
+        pub block_a_nan_tail: [u8; 8],
         pub field_b: u32,
         pub block_b: [f32; 4],
         pub field_c: u32,
@@ -45,6 +50,7 @@ mod tests {
     use super::*;
 
     const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\actionpointinfo.pabgb";
+
 
 
 
