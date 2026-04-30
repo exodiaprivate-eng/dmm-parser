@@ -18,8 +18,12 @@
 //!  16. CString cstring_a
 //!  17. CString cstring_b
 //!  18. CArray<(CString, CString)> string_pair_list
+//!  19. CArray<ChartTrackChangeElement> track_change_list — each
+//!      element is OptionalGameCondition + 3 fixed-class CArrays
+//!      (Character / Gimmick / Item subclasses of
+//!      SequencerStageTrackChangeData), all reverse-engineered.
 //!
-//! `SequencerStageChartDescPartial` reads those 18 fields explicitly
+//! `SequencerStageChartDescPartial` reads those 19 fields explicitly
 //! and stores everything after as `opaque_tail: Vec<u8>`. For consumers
 //! that own a SequencerStageChartDesc bounded by entry-size arithmetic
 //! (e.g. `field_revive_info`'s single-instance case), this gives users
@@ -40,6 +44,269 @@ py_binary_struct! {
     pub struct StringPair<'a> {
         pub key: CString<'a>,
         pub value: CString<'a>,
+    }
+}
+
+/// `SequencerStageTrackChangeData_Character` element (sub_1410F27B0,
+/// 40 mem bytes). Wire reads:
+///   1. OptionalGameCondition cond     (sub_141103B30)
+///   2. u64 raw                        (8 wire bytes)
+///   3. u32 lookup_a                   (sub_1410FF340 → qword_145F0DA08)
+///   4. u32 lookup_b                   (sub_1410FF340)
+///   5. u16 lookup_c                   (sub_1411003E0 → qword_145F12668)
+///   6. u8 has_extra
+///   7. if has_extra != 0: u64 extra
+#[derive(Debug)]
+pub struct TrackChangeCharacter<'a> {
+    pub cond: OptionalGameCondition<'a>,
+    pub raw_a: u64,
+    pub lookup_a: u32,
+    pub lookup_b: u32,
+    pub lookup_c: u16,
+    pub has_extra: u8,
+    pub extra: Option<u64>,
+}
+
+impl<'a> BinaryRead<'a> for TrackChangeCharacter<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let cond = OptionalGameCondition::read_from(data, offset)?;
+        let raw_a = u64::read_from(data, offset)?;
+        let lookup_a = u32::read_from(data, offset)?;
+        let lookup_b = u32::read_from(data, offset)?;
+        let lookup_c = u16::read_from(data, offset)?;
+        let has_extra = u8::read_from(data, offset)?;
+        let extra = if has_extra != 0 {
+            Some(u64::read_from(data, offset)?)
+        } else {
+            None
+        };
+        Ok(Self { cond, raw_a, lookup_a, lookup_b, lookup_c, has_extra, extra })
+    }
+}
+
+impl<'a> BinaryWrite for TrackChangeCharacter<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.cond.write_to(w)?;
+        self.raw_a.write_to(w)?;
+        self.lookup_a.write_to(w)?;
+        self.lookup_b.write_to(w)?;
+        self.lookup_c.write_to(w)?;
+        self.has_extra.write_to(w)?;
+        if let Some(v) = &self.extra { v.write_to(w)?; }
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for TrackChangeCharacter<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("cond".to_string(), self.cond.to_json_value());
+        m.insert("raw_a".to_string(), self.raw_a.to_json_value());
+        m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
+        m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
+        m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
+        m.insert("has_extra".to_string(), self.has_extra.to_json_value());
+        m.insert("extra".to_string(), match &self.extra {
+            Some(v) => v.to_json_value(),
+            None => Value::Null,
+        });
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for TrackChangeCharacter<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "TrackChangeCharacter: expected object",
+        ))?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
+        let has_extra_v = json_get_field(obj, "has_extra")?;
+        <u8 as WriteJsonValue>::write_from_json(w, has_extra_v)?;
+        let has_extra = has_extra_v.as_u64().unwrap_or(0);
+        if has_extra != 0 {
+            <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "extra")?)?;
+        }
+        Ok(())
+    }
+}
+
+/// `SequencerStageTrackChangeData_Gimmick` element (sub_1410F2A30,
+/// 32 mem bytes). Wire = OptionalGameCondition + u64 + 2× u32 lookup
+/// (sub_141100740 → qword_145F0DA38).
+#[derive(Debug)]
+pub struct TrackChangeGimmick<'a> {
+    pub cond: OptionalGameCondition<'a>,
+    pub raw_a: u64,
+    pub lookup_a: u32,
+    pub lookup_b: u32,
+}
+
+impl<'a> BinaryRead<'a> for TrackChangeGimmick<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Self {
+            cond: OptionalGameCondition::read_from(data, offset)?,
+            raw_a: u64::read_from(data, offset)?,
+            lookup_a: u32::read_from(data, offset)?,
+            lookup_b: u32::read_from(data, offset)?,
+        })
+    }
+}
+
+impl<'a> BinaryWrite for TrackChangeGimmick<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.cond.write_to(w)?;
+        self.raw_a.write_to(w)?;
+        self.lookup_a.write_to(w)?;
+        self.lookup_b.write_to(w)?;
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for TrackChangeGimmick<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("cond".to_string(), self.cond.to_json_value());
+        m.insert("raw_a".to_string(), self.raw_a.to_json_value());
+        m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
+        m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for TrackChangeGimmick<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "TrackChangeGimmick: expected object",
+        ))?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        Ok(())
+    }
+}
+
+/// `SequencerStageTrackChangeData_Item` element (sub_1410F2B50, 32 mem
+/// bytes). Same wire shape as Gimmick — different runtime hash table.
+#[derive(Debug)]
+pub struct TrackChangeItem<'a> {
+    pub cond: OptionalGameCondition<'a>,
+    pub raw_a: u64,
+    pub lookup_a: u32,
+    pub lookup_b: u32,
+}
+
+impl<'a> BinaryRead<'a> for TrackChangeItem<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Self {
+            cond: OptionalGameCondition::read_from(data, offset)?,
+            raw_a: u64::read_from(data, offset)?,
+            lookup_a: u32::read_from(data, offset)?,
+            lookup_b: u32::read_from(data, offset)?,
+        })
+    }
+}
+
+impl<'a> BinaryWrite for TrackChangeItem<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.cond.write_to(w)?;
+        self.raw_a.write_to(w)?;
+        self.lookup_a.write_to(w)?;
+        self.lookup_b.write_to(w)?;
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for TrackChangeItem<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("cond".to_string(), self.cond.to_json_value());
+        m.insert("raw_a".to_string(), self.raw_a.to_json_value());
+        m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
+        m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for TrackChangeItem<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "TrackChangeItem: expected object",
+        ))?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        Ok(())
+    }
+}
+
+/// `sub_1410F2F90` per-element of field 19's outer CArray (56 mem
+/// bytes). Wire = OptionalGameCondition + 3 inner CArrays.
+#[derive(Debug)]
+pub struct ChartTrackChangeElement<'a> {
+    pub cond: OptionalGameCondition<'a>,
+    pub character_list: CArray<TrackChangeCharacter<'a>>,
+    pub gimmick_list: CArray<TrackChangeGimmick<'a>>,
+    pub item_list: CArray<TrackChangeItem<'a>>,
+}
+
+impl<'a> BinaryRead<'a> for ChartTrackChangeElement<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Self {
+            cond: OptionalGameCondition::read_from(data, offset)?,
+            character_list: CArray::<TrackChangeCharacter>::read_from(data, offset)?,
+            gimmick_list: CArray::<TrackChangeGimmick>::read_from(data, offset)?,
+            item_list: CArray::<TrackChangeItem>::read_from(data, offset)?,
+        })
+    }
+}
+
+impl<'a> BinaryWrite for ChartTrackChangeElement<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.cond.write_to(w)?;
+        self.character_list.write_to(w)?;
+        self.gimmick_list.write_to(w)?;
+        self.item_list.write_to(w)?;
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for ChartTrackChangeElement<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("cond".to_string(), self.cond.to_json_value());
+        m.insert("character_list".to_string(), self.character_list.to_json_value());
+        m.insert("gimmick_list".to_string(), self.gimmick_list.to_json_value());
+        m.insert("item_list".to_string(), self.item_list.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for ChartTrackChangeElement<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "ChartTrackChangeElement: expected object",
+        ))?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond")?)?;
+        <CArray<TrackChangeCharacter> as WriteJsonValue>::write_from_json(
+            w, json_get_field(obj, "character_list")?,
+        )?;
+        <CArray<TrackChangeGimmick> as WriteJsonValue>::write_from_json(
+            w, json_get_field(obj, "gimmick_list")?,
+        )?;
+        <CArray<TrackChangeItem> as WriteJsonValue>::write_from_json(
+            w, json_get_field(obj, "item_list")?,
+        )?;
+        Ok(())
     }
 }
 
@@ -69,15 +336,20 @@ pub struct SequencerStageChartDescPartial<'a> {
     pub cstring_a: CString<'a>,
     pub cstring_b: CString<'a>,
     pub string_pair_list: CArray<StringPair<'a>>,
-    /// Bytes 19-26 of the wire layout (2 polymorphic CArrays + 4
-    /// helper structs). Stays opaque until the
-    /// SequencerStageTrackChangeData family decoder is shipped.
+    /// `CArray<sub_1410F2F90 element>` — field 19. Each element is
+    /// OptionalGameCondition + 3 sub-CArrays of fixed-class
+    /// `SequencerStageTrackChangeData_*` elements (Character /
+    /// Gimmick / Item subclasses, all reverse-engineered).
+    pub track_change_list: CArray<ChartTrackChangeElement<'a>>,
+    /// Bytes 20-26 of the wire layout (1 helper CArray + 2× sub_1410FFAC0
+    /// CArray<u16> + 2× sub_1410FEF40 CArray<u32> + 2× sub_141102FF0
+    /// helper struct). Stays opaque until those helpers are typed.
     pub opaque_tail: Vec<u8>,
 }
 
 impl<'a> SequencerStageChartDescPartial<'a> {
     /// Read a SequencerStageChartDesc whose total wire size on disk is
-    /// known via `total_size`. The 18-field typed prefix is consumed
+    /// known via `total_size`. The 19-field typed prefix is consumed
     /// from `offset`, and the remaining `total_size - prefix_bytes`
     /// trail into `opaque_tail`.
     pub fn read_with_size(
@@ -120,6 +392,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         let cstring_a = CString::read_from(data, offset)?;
         let cstring_b = CString::read_from(data, offset)?;
         let string_pair_list = CArray::<StringPair>::read_from(data, offset)?;
+        let track_change_list = CArray::<ChartTrackChangeElement>::read_from(data, offset)?;
 
         if *offset > blob_end {
             return Err(io::Error::new(
@@ -137,7 +410,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
             name, raw_a, prefab_path, position, raw_b,
             flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h,
             lookup_a, cond_a, cstring_a, cstring_b, string_pair_list,
-            opaque_tail,
+            track_change_list, opaque_tail,
         })
     }
 
@@ -160,6 +433,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         self.cstring_a.write_to(w)?;
         self.cstring_b.write_to(w)?;
         self.string_pair_list.write_to(w)?;
+        self.track_change_list.write_to(w)?;
         w.write_all(&self.opaque_tail)?;
         Ok(())
     }
@@ -184,6 +458,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         m.insert("cstring_a".to_string(), self.cstring_a.to_json_value());
         m.insert("cstring_b".to_string(), self.cstring_b.to_json_value());
         m.insert("string_pair_list".to_string(), self.string_pair_list.to_json_value());
+        m.insert("track_change_list".to_string(), self.track_change_list.to_json_value());
         m.insert("_opaque_tail_b64".to_string(), Value::String(B64.encode(&self.opaque_tail)));
         Value::Object(m)
     }
@@ -211,6 +486,10 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_a")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_b")?)?;
         <CArray<StringPair> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_pair_list")?)?;
+        <CArray<ChartTrackChangeElement> as WriteJsonValue>::write_from_json(
+            w,
+            json_get_field(obj, "track_change_list")?,
+        )?;
         let b64 = json_get_field(obj, "_opaque_tail_b64")?
             .as_str()
             .ok_or_else(|| io::Error::new(
