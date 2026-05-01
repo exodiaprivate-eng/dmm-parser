@@ -540,6 +540,58 @@ fn serialize_paloc_impl(items: &Bound<'_, PyList>) -> PyResult<Vec<u8>> {
     Ok(buf)
 }
 
+// ── Localization (paloc) — category-based JSON form ──────────────────────
+//
+// These wrap `binary::paloc::parse_paloc_to_json` / `serialize_paloc_from_json`
+// and expose the cleaner `{category: u8, key, value}` form (vs the legacy
+// `unk_id` u64 form above). New callers should use these.
+
+#[pyfunction]
+pub fn parse_paloc_from_file(py: Python<'_>, path: &str) -> PyResult<Py<PyAny>> {
+    let data = std::fs::read(path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    parse_paloc_from_bytes(py, &data)
+}
+
+#[pyfunction]
+pub fn parse_paloc_from_bytes(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let json_array = crate::binary::paloc::parse_paloc_to_json(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let entries = PyList::empty(py);
+    for value in &json_array {
+        let obj = value.as_object().expect("parse_paloc_to_json returns objects");
+        let d = PyDict::new(py);
+        let category = obj.get("category").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+        let key = obj.get("key").and_then(|v| v.as_str()).unwrap_or("");
+        let value = obj.get("value").and_then(|v| v.as_str()).unwrap_or("");
+        d.set_item("category", category)?;
+        d.set_item("key", key)?;
+        d.set_item("value", value)?;
+        entries.append(d)?;
+    }
+    Ok(entries.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn serialize_paloc_to_bytes(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    // Convert PyList of dicts into Vec<serde_json::Value>, then call the
+    // canonical serializer in binary/paloc.rs.
+    let mut json_items: Vec<serde_json::Value> = Vec::with_capacity(items.len());
+    for item in items.iter() {
+        let d = item.cast::<PyDict>()?;
+        let category: u64 = get(d, "category")?;
+        let key: String = get(d, "key")?;
+        let value: String = get(d, "value")?;
+        let mut obj = serde_json::Map::new();
+        obj.insert("category".to_string(), serde_json::Value::Number(category.into()));
+        obj.insert("key".to_string(), serde_json::Value::String(key));
+        obj.insert("value".to_string(), serde_json::Value::String(value));
+        json_items.push(serde_json::Value::Object(obj));
+    }
+    let bytes = crate::binary::paloc::serialize_paloc_from_json(&json_items)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &bytes).into_any().unbind())
+}
+
 // ── Checksum ──────────────────────────────────────────────────────────────
 
 #[pyfunction]
@@ -921,6 +973,9 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paloc_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_paloc, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paloc_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paloc_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paloc_to_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(parse_skillinfo_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_skillinfo_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_skillinfo, m)?)?;
