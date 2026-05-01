@@ -136,13 +136,34 @@ This file is for collaborators picking up round-trip work. It's the
   alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
   + 4 tail_pad u8). post_blob avg **1118 → 108 bytes** (12.51M bytes
   recovered total over 12393 entries — **90% reduction from baseline**).
-  alt_body chain extended through 7 iterations: 640→768→896→1152→1280→1408→1536.
-  Smart-probe alt-chain methodology validated across all four chains.
-  Diminishing returns: each 128-field extension yields ~16-20K saved.
-  Remaining bytes concentrated in XML-payload outlier entries with
-  5K-49K residual bytes each. Further reduction requires structural
-  CString detection mid-chain (not just more u32 fields).
-  (loop session 2026-05-01)
+
+  **Loop session timeline (2026-04-30 → 2026-05-01):**
+  - Iters 61-63: f31/f39/f32 alt u32 chains added (smart-probe activation
+    when CArray<u32> read fails) — 64 fields each, ~480K bytes saved
+  - Iters 73-79: extended each alt chain 64→128→192→256
+  - Iter 80: tail_pad u8 chain (4 chained u8 reads) drained 1-3 trailing
+    pad bytes from 10500 entries (raised entries with zero residual to
+    11585/12393 = 93%)
+  - Iters 81-86: alt_body chain extended 640→768→896→1152→1280→1408→1536
+    (drained heaviest XML-payload outliers gradually; diminishing returns
+    from 56K → 16K per 128-field iteration)
+
+  **Known regression at 1536:** alt_post_cstr_a/b CString detection went
+  from 6 typed → 0 typed when chain extended past 1408. The chain now
+  consumes bytes that previously parsed as CString headers. Byte-perfect
+  roundtrip preserved (the bytes are still typed as u32s), but semantic
+  CString info lost for ~6 entries. **Future structural fix needed:**
+  add CString detection inside the chain (check if next u32 looks like
+  valid CString length with valid UTF-8 follow-up bytes; stop chain if
+  so). This would restore CString detection AND avoid further mechanical
+  chain extensions.
+
+  **Remaining bytes** concentrated in XML-payload outlier entries:
+  31 entries fully chain alt_body to 1536 with 392K residual bytes (avg
+  12.6K per entry, max 49K). Pure mechanical chain extension would need
+  ~3K more alt_body fields to drain these XML strings entirely — code
+  volume prohibitive. Structural CString detection is the right
+  approach for further reduction. (loop session 2026-05-01)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
