@@ -76,7 +76,7 @@ py_binary_struct! {
 
 // ── Sub-types for post-blob fields (F20-F179) ─────────────────────────────────
 
-/// sub_140F68E80: reads {u8 + u64 + CString} = 32 mem bytes (variable wire).
+// sub_140F68E80: reads {u8 + u64 + CString} = 32 mem bytes (variable wire).
 py_binary_struct! {
     pub struct GimmickBlock32<'a> {
         pub flag: u8,
@@ -85,8 +85,8 @@ py_binary_struct! {
     }
 }
 
-/// sub_1410DD140: composite reader for field 132's 264b element sub-struct.
-/// Wire: u32(DA48 lookup) + u32(EEE8) + u8 + u8 + u8 + u32 + u32 + CArray<u32>(DA48).
+// sub_1410DD140: composite reader for field 132's 264b element sub-struct.
+// Wire: u32(DA48 lookup) + u32(EEE8) + u8 + u8 + u8 + u32 + u32 + CArray<u32>(DA48).
 py_binary_struct! {
     pub struct GimmickDD140 {
         pub lookup_a: u32,
@@ -100,8 +100,8 @@ py_binary_struct! {
     }
 }
 
-/// sub_1410DD420: 264b-stride element for field 132 CArrays.
-/// Wire: 37 field reads (scalars + nested CArrays + CStrings).
+// sub_1410DD420: 264b-stride element for field 132 CArrays.
+// Wire: 37 field reads (scalars + nested CArrays + CStrings).
 py_binary_struct! {
     pub struct GimmickDD420Elem<'a> {
         pub f00: u8,
@@ -144,14 +144,14 @@ py_binary_struct! {
     }
 }
 
-/// F20 inner-inner element: 4× u32 (one "slot").
+// F20 inner-inner element: 4× u32 (one "slot").
 py_binary_struct! {
     pub struct GimmickF20SubElem {
         pub a: u32, pub b: u32, pub c: u32, pub d: u32,
     }
 }
 
-/// F20 outer element: u32 + CArray<GimmickF20SubElem> + u8.
+// F20 outer element: u32 + CArray<GimmickF20SubElem> + u8.
 py_binary_struct! {
     pub struct GimmickF20Elem {
         pub outer: u32,
@@ -160,7 +160,7 @@ py_binary_struct! {
     }
 }
 
-/// F24 element: u16 + u32.
+// F24 element: u16 + u32.
 py_binary_struct! {
     pub struct GimmickF24Elem {
         pub lookup: u16,
@@ -168,7 +168,7 @@ py_binary_struct! {
     }
 }
 
-/// F34 element: u8+u8+f32+u8+u32+u8+[u8;16].
+// F34 element: u8+u8+f32+u8+u32+u8+[u8;16].
 py_binary_struct! {
     pub struct GimmickF34Elem {
         pub a: u8,
@@ -181,7 +181,7 @@ py_binary_struct! {
     }
 }
 
-/// F35 element: u32×5+u8+u8.
+// F35 element: u32×5+u8+u8.
 py_binary_struct! {
     pub struct GimmickF35Elem {
         pub a: u32, pub b: u32, pub c: u32, pub d: u32, pub e: u32,
@@ -189,7 +189,7 @@ py_binary_struct! {
     }
 }
 
-/// F46 optional inner: GimmickHelperBlock(40b) + u8+u8+u32+u8+u8+u8.
+// F46 optional inner: GimmickHelperBlock(40b) + u8+u8+u32+u8+u8+u8.
 py_binary_struct! {
     pub struct GimmickF46Data {
         pub block: GimmickHelperBlock,
@@ -202,7 +202,7 @@ py_binary_struct! {
     }
 }
 
-/// F75 / F166 / F167 element: u32+u32.
+// F75 / F166 / F167 element: u32+u32.
 py_binary_struct! {
     pub struct GimmickF75Elem {
         pub a: u32,
@@ -210,7 +210,7 @@ py_binary_struct! {
     }
 }
 
-/// F78 inner element: u32+u32.
+// F78 inner element: u32+u32.
 py_binary_struct! {
     pub struct GimmickF78SubElem {
         pub a: u32,
@@ -218,7 +218,7 @@ py_binary_struct! {
     }
 }
 
-/// F78 outer element: u32 + CArray<GimmickF78SubElem>.
+// F78 outer element: u32 + CArray<GimmickF78SubElem>.
 py_binary_struct! {
     pub struct GimmickF78Elem {
         pub a: u32,
@@ -226,10 +226,10 @@ py_binary_struct! {
     }
 }
 
-/// F79 inner element (80-byte mem stride; variable wire): sub_1410E61F0.
-/// Wire: CArray<CString> + CArray<CString> + CBytes + CBytes
-///       + u8 + [u32;3] + u32 + u32 + u8 + u8.
-/// str0/str1 use CBytes (sub_1410A9B70 raw-byte reader, not UTF-8 guaranteed).
+// F79 inner element (80-byte mem stride; variable wire): sub_1410E61F0.
+// Wire: CArray<CString> + CArray<CString> + CBytes + CBytes
+//       + u8 + [u32;3] + u32 + u32 + u8 + u8.
+// str0/str1 use CBytes (sub_1410A9B70 raw-byte reader, not UTF-8 guaranteed).
 py_binary_struct! {
     pub struct GimmickF79Inner<'a> {
         pub arr0: CArray<CString<'a>>,
@@ -245,7 +245,7 @@ py_binary_struct! {
     }
 }
 
-/// F79 outer element: sub_141111CD0. Wire: u32 + u8×3 + CArray<GimmickF79Inner> + u8.
+// F79 outer element: sub_141111CD0. Wire: u32 + u8×3 + CArray<GimmickF79Inner> + u8.
 py_binary_struct! {
     pub struct GimmickF79Elem<'a> {
         pub f0:    u32,
@@ -257,8 +257,8 @@ py_binary_struct! {
     }
 }
 
-/// F87 sub-element (sub_141109D60 per-element).
-/// Wire: u64 + u8 + u8 (10 bytes; 16-byte memory stride).
+// F87 sub-element (sub_141109D60 per-element).
+// Wire: u64 + u8 + u8 (10 bytes; 16-byte memory stride).
 py_binary_struct! {
     pub struct GimmickF87Sub {
         pub f0: u64,
@@ -267,10 +267,10 @@ py_binary_struct! {
     }
 }
 
-/// F87 inner element (128-byte mem stride): sub_1410F7F20.
-/// Wire: u32×2 + [u32;3]×2 + CBytes×5 (hash strings via sub_1410A9D40)
-///       + CBytes (raw string via sub_1410A9B70) + [u32;4] (sub_141107700)
-///       + u32 + u8 + [u32;4] (sub_1410AA0D0) + u8×6 + CArray<GimmickF87Sub>.
+// F87 inner element (128-byte mem stride): sub_1410F7F20.
+// Wire: u32×2 + [u32;3]×2 + CBytes×5 (hash strings via sub_1410A9D40)
+//       + CBytes (raw string via sub_1410A9B70) + [u32;4] (sub_141107700)
+//       + u32 + u8 + [u32;4] (sub_1410AA0D0) + u8×6 + CArray<GimmickF87Sub>.
 py_binary_struct! {
     pub struct GimmickF87Inner<'a> {
         pub f0:    u32,
@@ -297,7 +297,7 @@ py_binary_struct! {
     }
 }
 
-/// F87 outer element: sub_141105260. Wire: GimmickF87Inner + u32 tail.
+// F87 outer element: sub_141105260. Wire: GimmickF87Inner + u32 tail.
 py_binary_struct! {
     pub struct GimmickF87Elem<'a> {
         pub inner: GimmickF87Inner<'a>,
@@ -305,9 +305,9 @@ py_binary_struct! {
     }
 }
 
-/// F88 sub-element for the initial CArray (sub_1411003E0 + sub_1410FF220).
-/// Each reads a u16 from wire and does an in-memory table lookup.
-/// Wire: u16 + u16.
+// F88 sub-element for the initial CArray (sub_1411003E0 + sub_1410FF220).
+// Each reads a u16 from wire and does an in-memory table lookup.
+// Wire: u16 + u16.
 py_binary_struct! {
     pub struct GimmickF88Sub1 {
         pub id0: u16,
@@ -315,8 +315,8 @@ py_binary_struct! {
     }
 }
 
-/// F88 optional-field content (sub_141103B30 / sub_141CEA810).
-/// Wire: u8×3 (after the COptional flag byte).
+// F88 optional-field content (sub_141103B30 / sub_141CEA810).
+// Wire: u8×3 (after the COptional flag byte).
 py_binary_struct! {
     pub struct GimmickF88COptContent {
         pub b0: u8,
@@ -325,8 +325,8 @@ py_binary_struct! {
     }
 }
 
-/// F88 sub-struct for sub_1410F6ED0 (memory offset 144 in GimmickF88Inner).
-/// Wire: u32 + CBytes (hash string) + u8 + u16 + u64.
+// F88 sub-struct for sub_1410F6ED0 (memory offset 144 in GimmickF88Inner).
+// Wire: u32 + CBytes (hash string) + u8 + u16 + u64.
 py_binary_struct! {
     pub struct GimmickF88Sub3<'a> {
         pub f0:   u32,
@@ -337,7 +337,7 @@ py_binary_struct! {
     }
 }
 
-/// F88 inner element (232-byte mem stride): sub_1410F7440.
+// F88 inner element (232-byte mem stride): sub_1410F7440.
 py_binary_struct! {
     pub struct GimmickF88Inner<'a> {
         // Initial CArray (sub_1411003E0 + sub_1410FF220 per element)
@@ -394,7 +394,7 @@ py_binary_struct! {
     }
 }
 
-/// F88 outer element: sub_141105390. Wire: GimmickF88Inner + u32 tail.
+// F88 outer element: sub_141105390. Wire: GimmickF88Inner + u32 tail.
 py_binary_struct! {
     pub struct GimmickF88Elem<'a> {
         pub inner: GimmickF88Inner<'a>,
@@ -402,7 +402,7 @@ py_binary_struct! {
     }
 }
 
-/// F81 element: u32×4 + CArray<u32> + u32.
+// F81 element: u32×4 + CArray<u32> + u32.
 py_binary_struct! {
     pub struct GimmickF81Elem {
         pub a: u32, pub b: u32, pub c: u32, pub d: u32,
@@ -411,7 +411,7 @@ py_binary_struct! {
     }
 }
 
-/// F89 element (complex). [u32;3] requires impls in arrays.rs (added).
+// F89 element (complex). [u32;3] requires impls in arrays.rs (added).
 py_binary_struct! {
     pub struct GimmickF89Elem {
         pub a: u32,
@@ -431,7 +431,7 @@ py_binary_struct! {
     }
 }
 
-/// F90 sub-element: u16+u16+u16+u64+u8+u32.
+// F90 sub-element: u16+u16+u16+u64+u8+u32.
 py_binary_struct! {
     pub struct GimmickF90SubElem {
         pub a: u16, pub b: u16, pub c: u16,
@@ -441,7 +441,7 @@ py_binary_struct! {
     }
 }
 
-/// F90 element: CString + CArray<GimmickF90SubElem> + u64+u8+u8+u32+u16.
+// F90 element: CString + CArray<GimmickF90SubElem> + u64+u8+u8+u32+u16.
 py_binary_struct! {
     pub struct GimmickF90Elem<'a> {
         pub name: CString<'a>,
@@ -454,7 +454,7 @@ py_binary_struct! {
     }
 }
 
-/// F92 element.
+// F92 element.
 py_binary_struct! {
     pub struct GimmickF92Elem<'a> {
         pub a: u16, pub b: u16, pub c: u16,
@@ -468,15 +468,15 @@ py_binary_struct! {
     }
 }
 
-/// F97 element: 260-byte fixed buffer (Windows MAX_PATH string).
+// F97 element: 260-byte fixed buffer (Windows MAX_PATH string).
 py_binary_struct! {
     pub struct GimmickF97Elem {
         pub data: [u8; 260],
     }
 }
 
-/// F117 sub-element: u32(→u16 lookup) + [u8;8] + u32 + u32(→u16 lookup).
-/// Wire = 20 bytes; memory stride = 24 bytes (alignment).
+// F117 sub-element: u32(→u16 lookup) + [u8;8] + u32 + u32(→u16 lookup).
+// Wire = 20 bytes; memory stride = 24 bytes (alignment).
 py_binary_struct! {
     pub struct GimmickF117SubElem {
         pub lookup_a: u32,
@@ -486,7 +486,7 @@ py_binary_struct! {
     }
 }
 
-/// F117 optional data: CArray<GimmickF117SubElem> + GimmickBlock32 + u32(→u16).
+// F117 optional data: CArray<GimmickF117SubElem> + GimmickBlock32 + u32(→u16).
 py_binary_struct! {
     pub struct GimmickF117Data<'a> {
         pub list: CArray<GimmickF117SubElem>,
@@ -495,7 +495,7 @@ py_binary_struct! {
     }
 }
 
-/// F119 sub-sub-element: u16 + GimmickBlock32.
+// F119 sub-sub-element: u16 + GimmickBlock32.
 py_binary_struct! {
     pub struct GimmickF119SubSubElem<'a> {
         pub val: u16,
@@ -503,7 +503,7 @@ py_binary_struct! {
     }
 }
 
-/// F119 element: CArray<GimmickF119SubSubElem> + u8.
+// F119 element: CArray<GimmickF119SubSubElem> + u8.
 py_binary_struct! {
     pub struct GimmickF119Elem<'a> {
         pub inner: CArray<GimmickF119SubSubElem<'a>>,
@@ -511,7 +511,7 @@ py_binary_struct! {
     }
 }
 
-/// F125 element: u32+u32+[u8;12]+[u8;12].
+// F125 element: u32+u32+[u8;12]+[u8;12].
 py_binary_struct! {
     pub struct GimmickF125Elem {
         pub a: u32, pub b: u32,
@@ -520,7 +520,7 @@ py_binary_struct! {
     }
 }
 
-/// 10 consecutive u32 values (used in F126/F127/F168).
+// 10 consecutive u32 values (used in F126/F127/F168).
 py_binary_struct! {
     pub struct U32x10 {
         pub v0: u32, pub v1: u32, pub v2: u32, pub v3: u32, pub v4: u32,
@@ -528,7 +528,7 @@ py_binary_struct! {
     }
 }
 
-/// F126/F127 element: u8+u32+u8+u8+U32x10+u64+u32+u8×5+u32+u32+u8+u32.
+// F126/F127 element: u8+u32+u8+u8+U32x10+u64+u32+u8×5+u32+u32+u8+u32.
 py_binary_struct! {
     pub struct GimmickF126Elem {
         pub a: u8,
@@ -546,7 +546,7 @@ py_binary_struct! {
     }
 }
 
-/// F128 element: CString + u32 + u32 + u32.
+// F128 element: CString + u32 + u32 + u32.
 py_binary_struct! {
     pub struct GimmickF128Elem<'a> {
         pub name: CString<'a>,
@@ -556,7 +556,7 @@ py_binary_struct! {
     }
 }
 
-/// F129 element: u32+u32+[u32;3]+[u32;4]+[u32;3].
+// F129 element: u32+u32+[u32;3]+[u32;4]+[u32;3].
 py_binary_struct! {
     pub struct GimmickF129Elem {
         pub a: u32, pub b: u32,
@@ -566,7 +566,7 @@ py_binary_struct! {
     }
 }
 
-/// F130 sub0 element (sub_141100E90): f32+[f32;2]+[f32;2]+[f32;2] = 28 bytes wire.
+// F130 sub0 element (sub_141100E90): f32+[f32;2]+[f32;2]+[f32;2] = 28 bytes wire.
 py_binary_struct! {
     pub struct GimmickF130Sub0Elem {
         pub v:  f32,
@@ -576,8 +576,8 @@ py_binary_struct! {
     }
 }
 
-/// F130 sub1 element (sub_1410F27B0):
-/// COptional<GimmickF88COptContent> + u64 + u16 + u16 + u16 + COptional<u64>.
+// F130 sub1 element (sub_1410F27B0):
+// COptional<GimmickF88COptContent> + u64 + u16 + u16 + u16 + COptional<u64>.
 py_binary_struct! {
     pub struct GimmickF130Sub1Elem {
         pub opt0: COptional<GimmickF88COptContent>,
@@ -589,8 +589,8 @@ py_binary_struct! {
     }
 }
 
-/// F130 sub2 element (sub_1410F2A30):
-/// COptional<GimmickF88COptContent> + u64 + u32 + u32.
+// F130 sub2 element (sub_1410F2A30):
+// COptional<GimmickF88COptContent> + u64 + u32 + u32.
 py_binary_struct! {
     pub struct GimmickF130Sub2Elem {
         pub opt0: COptional<GimmickF88COptContent>,
@@ -600,8 +600,8 @@ py_binary_struct! {
     }
 }
 
-/// F130 sub3 element (sub_1410F2B50):
-/// COptional<GimmickF88COptContent> + u64 + u32 + u32.
+// F130 sub3 element (sub_1410F2B50):
+// COptional<GimmickF88COptContent> + u64 + u32 + u32.
 py_binary_struct! {
     pub struct GimmickF130Sub3Elem {
         pub opt0: COptional<GimmickF88COptContent>,
@@ -611,8 +611,8 @@ py_binary_struct! {
     }
 }
 
-/// F130 optional body (sub_1410F2F90):
-/// COptional<GimmickF88COptContent> + CArray<sub1> + CArray<sub2> + CArray<sub3>.
+// F130 optional body (sub_1410F2F90):
+// COptional<GimmickF88COptContent> + CArray<sub1> + CArray<sub2> + CArray<sub3>.
 py_binary_struct! {
     pub struct GimmickF130Sub0Body {
         pub opt0: COptional<GimmickF88COptContent>,
@@ -622,8 +622,8 @@ py_binary_struct! {
     }
 }
 
-/// F130 outer element (sub_1410E5E40):
-/// CArray<sub0>×2 + u32 + COptional<GimmickF130Sub0Body> + u32.
+// F130 outer element (sub_1410E5E40):
+// CArray<sub0>×2 + u32 + COptional<GimmickF130Sub0Body> + u32.
 py_binary_struct! {
     pub struct GimmickF130Elem {
         pub arr0: CArray<GimmickF130Sub0Elem>,
@@ -634,7 +634,7 @@ py_binary_struct! {
     }
 }
 
-/// F168/F169 optional inner: u32+u32+U32x10.
+// F168/F169 optional inner: u32+u32+U32x10.
 py_binary_struct! {
     pub struct GimmickF168Inner {
         pub a: u32, pub b: u32,
@@ -642,7 +642,7 @@ py_binary_struct! {
     }
 }
 
-/// F170 sub-element: u64+u32.
+// F170 sub-element: u64+u32.
 py_binary_struct! {
     pub struct GimmickF170Elem {
         pub a: u64,
@@ -650,8 +650,8 @@ py_binary_struct! {
     }
 }
 
-/// F132 outer structure:
-/// GimmickBlock32×2 + u32 + u16 + (CArray<u32>+CArray<GimmickDD420Elem>)×2.
+// F132 outer structure:
+// GimmickBlock32×2 + u32 + u16 + (CArray<u32>+CArray<GimmickDD420Elem>)×2.
 py_binary_struct! {
     pub struct GimmickF132<'a> {
         pub block_a: GimmickBlock32<'a>,
@@ -662,118 +662,6 @@ py_binary_struct! {
         pub list_a_264b: CArray<GimmickDD420Elem<'a>>,
         pub list_b_u32: CArray<u32>,
         pub list_b_264b: CArray<GimmickDD420Elem<'a>>,
-    }
-}
-
-// ── Deferred types (complex sub-functions not yet fully mapped) ───────────────
-
-/// Placeholder for a CArray whose element wire format is not yet implemented.
-/// Succeeds only when count == 0; fails otherwise so the safe probe falls back.
-#[derive(Debug)]
-pub struct EmptyCArray;
-
-impl<'a> BinaryRead<'a> for EmptyCArray {
-    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let count = u32::read_from(data, offset)?;
-        if count != 0 {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("EmptyCArray: deferred field has count={}", count)));
-        }
-        Ok(EmptyCArray)
-    }
-}
-impl BinaryWrite for EmptyCArray {
-    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> { 0u32.write_to(w) }
-}
-impl BinaryReadTracked<'_> for EmptyCArray {
-    fn read_tracked(data: &[u8], offset: &mut usize,
-        _path: &mut String, _ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
-        Self::read_from(data, offset)
-    }
-}
-impl ToJsonValue for EmptyCArray {
-    fn to_json_value(&self) -> Value { Value::Array(vec![]) }
-}
-impl WriteJsonValue for EmptyCArray {
-    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
-        let arr = v.as_array().ok_or_else(|| io::Error::new(
-            io::ErrorKind::InvalidData, "EmptyCArray: expected array"))?;
-        if !arr.is_empty() {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("EmptyCArray: expected empty array, got {} elements", arr.len())));
-        }
-        0u32.write_to(w)
-    }
-}
-impl crate::python_traits::ToPyValue for EmptyCArray {
-    fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        use pyo3::IntoPyObjectExt;
-        Vec::<u32>::new().into_py_any(py)
-    }
-}
-impl crate::python_traits::WritePyValue for EmptyCArray {
-    fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
-        use pyo3::types::{PyList, PyListMethods};
-        let list = obj.cast::<PyList>()?;
-        if !list.is_empty() {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                format!("EmptyCArray: expected empty list, got {} elements", list.len())));
-        }
-        w.extend_from_slice(&0u32.to_le_bytes());
-        Ok(())
-    }
-}
-
-/// Placeholder for a COptional whose inner wire format is not yet implemented.
-/// Succeeds only when the presence flag == 0; fails otherwise.
-#[derive(Debug)]
-pub struct AbsentCOptional;
-
-impl<'a> BinaryRead<'a> for AbsentCOptional {
-    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let flag = u8::read_from(data, offset)?;
-        if flag != 0 {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("AbsentCOptional: deferred field has flag={}", flag)));
-        }
-        Ok(AbsentCOptional)
-    }
-}
-impl BinaryWrite for AbsentCOptional {
-    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> { 0u8.write_to(w) }
-}
-impl BinaryReadTracked<'_> for AbsentCOptional {
-    fn read_tracked(data: &[u8], offset: &mut usize,
-        _path: &mut String, _ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
-        Self::read_from(data, offset)
-    }
-}
-impl ToJsonValue for AbsentCOptional {
-    fn to_json_value(&self) -> Value { Value::Null }
-}
-impl WriteJsonValue for AbsentCOptional {
-    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
-        if !v.is_null() {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "AbsentCOptional: expected null in JSON"));
-        }
-        0u8.write_to(w)
-    }
-}
-impl crate::python_traits::ToPyValue for AbsentCOptional {
-    fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        use pyo3::IntoPyObjectExt;
-        py.None().into_py_any(py)
-    }
-}
-impl crate::python_traits::WritePyValue for AbsentCOptional {
-    fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
-        if !obj.is_none() {
-            return Err(pyo3::exceptions::PyValueError::new_err(
-                "AbsentCOptional: expected None"));
-        }
-        w.push(0u8);
-        Ok(())
     }
 }
 
@@ -912,9 +800,8 @@ impl WriteJsonValue for GimmickF76Inner {
 
 impl crate::python_traits::ToPyValue for GimmickF76Inner {
     fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
-        use pyo3::types::{PyDict, PyDictMethods};
+        use pyo3::types::PyDict;
         use pyo3::IntoPyObjectExt;
-        use crate::python_traits::ToPyValue;
         let d = PyDict::new(py);
         d.set_item("f120",     self.f120.to_py_value(py)?)?;
         d.set_item("type_tag", self.type_tag.to_py_value(py)?)?;
@@ -938,23 +825,23 @@ impl crate::python_traits::ToPyValue for GimmickF76Inner {
 
 impl crate::python_traits::WritePyValue for GimmickF76Inner {
     fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
-        use pyo3::types::{PyDict, PyDictMethods};
-        use crate::python_traits::{WritePyValue, get_field as py_get_field};
+        use pyo3::types::PyDict;
+        use crate::python_traits::get_field as py_get_field;
         let d = obj.cast::<PyDict>()?;
-        let type_tag: u8 = py_get_field(&d, "type_tag")?.extract()?;
-        u64::write_from_py(w, &py_get_field(&d, "f120")?)?;
-        u8::write_from_py(w,  &py_get_field(&d, "type_tag")?)?;
-        u32::write_from_py(w, &py_get_field(&d, "f4")?)?;
-        u32::write_from_py(w, &py_get_field(&d, "f6")?)?;
-        u32::write_from_py(w, &py_get_field(&d, "f8")?)?;
-        u32::write_from_py(w, &py_get_field(&d, "f12")?)?;
-        u64::write_from_py(w, &py_get_field(&d, "f16")?)?;
-        u32::write_from_py(w, &py_get_field(&d, "f24")?)?;
-        u64::write_from_py(w, &py_get_field(&d, "f32_val")?)?;
-        u64::write_from_py(w, &py_get_field(&d, "f40")?)?;
-        u64::write_from_py(w, &py_get_field(&d, "f48")?)?;
-        u16::write_from_py(w, &py_get_field(&d, "f56")?)?;
-        let hash_field = py_get_field(&d, "f64_hash")?;
+        let type_tag: u8 = py_get_field(d, "type_tag")?.extract()?;
+        u64::write_from_py(w, &py_get_field(d, "f120")?)?;
+        u8::write_from_py(w,  &py_get_field(d, "type_tag")?)?;
+        u32::write_from_py(w, &py_get_field(d, "f4")?)?;
+        u32::write_from_py(w, &py_get_field(d, "f6")?)?;
+        u32::write_from_py(w, &py_get_field(d, "f8")?)?;
+        u32::write_from_py(w, &py_get_field(d, "f12")?)?;
+        u64::write_from_py(w, &py_get_field(d, "f16")?)?;
+        u32::write_from_py(w, &py_get_field(d, "f24")?)?;
+        u64::write_from_py(w, &py_get_field(d, "f32_val")?)?;
+        u64::write_from_py(w, &py_get_field(d, "f40")?)?;
+        u64::write_from_py(w, &py_get_field(d, "f48")?)?;
+        u16::write_from_py(w, &py_get_field(d, "f56")?)?;
+        let hash_field = py_get_field(d, "f64_hash")?;
         match type_tag {
             0..=3 | 9 => u32::write_from_py(w, &hash_field)?,
             0xB       => {},
@@ -965,8 +852,8 @@ impl crate::python_traits::WritePyValue for GimmickF76Inner {
     }
 }
 
-/// One element of F76's CArray (`sub_141112050`).
-/// Wire: COptional<GimmickF76Inner> (1-byte flag + optional inner) + u32.
+// One element of F76's CArray (`sub_141112050`).
+// Wire: COptional<GimmickF76Inner> (1-byte flag + optional inner) + u32.
 py_binary_struct! {
     pub struct GimmickF76Elem {
         pub inner: COptional<GimmickF76Inner>,
@@ -979,8 +866,6 @@ py_binary_struct! {
 py_binary_struct! {
     /// All post-blob typed fields F20 through F179.
     /// Read via safe probe; on any failure the bytes stay in `post_blob`.
-    /// EmptyCArray/AbsentCOptional fields fail if the game data has a
-    /// non-zero count or flag (deferred implementation).
     pub struct GimmickPostBody<'a> {
         // F20: CArray<{u32+CArray<{u32,u32,u32,u32}>+u8}>
         pub f20: CArray<GimmickF20Elem>,
@@ -1234,6 +1119,7 @@ py_binary_struct! {
 /// rides as `post_blob`. On any decode failure the entire post-prefix
 /// region is captured as `Raw`.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum GimmickTail<'a> {
     Decoded {
         gimmick_interaction_override_list: GimmickInteractionOverrideCArray<'a>,
@@ -1668,23 +1554,6 @@ mod tests {
                         }
                     }};
                 }
-                macro_rules! rdarr {
-                    ($t:ty, $p:expr, $name:expr) => {{
-                        let cnt_pos = *$p;
-                        let cnt = match u32::read_from(&data, $p) {
-                            Ok(v) => v,
-                            Err(e) => { eprintln!("  {} count FAILED at off={}: {}", $name, cnt_pos, e); break 'outer; }
-                        };
-                        eprintln!("  {} count={} [cnt_pos={}]", $name, cnt, cnt_pos);
-                        for i in 0..cnt {
-                            match <$t>::read_from(&data, $p) {
-                                Ok(_) => {},
-                                Err(e) => { eprintln!("  {}[{}] FAILED: {}", $name, i, e); break 'outer; }
-                            }
-                        }
-                    }};
-                }
-
                 rd!(CArray<GimmickF20Elem>, p, "f20");
                 rd!(u8, p, "f21");
                 rd!(CArray<u32>, p, "f22");
