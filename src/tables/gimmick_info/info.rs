@@ -1009,6 +1009,11 @@ pub enum GimmickTail<'a> {
         alt_body_629: Option<u32>, alt_body_630: Option<u32>, alt_body_631: Option<u32>, alt_body_632: Option<u32>,
         alt_body_633: Option<u32>, alt_body_634: Option<u32>, alt_body_635: Option<u32>, alt_body_636: Option<u32>,
         alt_body_637: Option<u32>, alt_body_638: Option<u32>, alt_body_639: Option<u32>, alt_body_640: Option<u32>,
+        /// CString detected after alt_body_640 — usually file path or XML content
+        /// in the longest entries (e.g. "d:/bs/cd_alpha/cd/resource/...staticinfo.xml").
+        alt_post_cstr_a: Option<CString<'a>>,
+        /// Second CString detected (some entries have asset path after first).
+        alt_post_cstr_b: Option<CString<'a>>,
         /// Fields 665-728 — long-tail u32 sequence (64-field batch).
         field_665_u32: Option<u32>, field_666_u32: Option<u32>, field_667_u32: Option<u32>, field_668_u32: Option<u32>,
         field_669_u32: Option<u32>, field_670_u32: Option<u32>, field_671_u32: Option<u32>, field_672_u32: Option<u32>,
@@ -2992,6 +2997,42 @@ impl<'a> GimmickTail<'a> {
                 let alt_body_638 = read_u32_chained!(alt_body_637);
                 let alt_body_639 = read_u32_chained!(alt_body_638);
                 let alt_body_640 = read_u32_chained!(alt_body_639);
+                // Detect CString (file path or XML) at this position.
+                // Only succeeds when the next u32 is a sensible length (<1000)
+                // and the following bytes are valid UTF-8.
+                let alt_post_cstr_a = if alt_body_640.is_some() {
+                    let pre_ = probe;
+                    if probe + 4 <= entry_end {
+                        let len = u32::from_le_bytes(data[probe..probe+4].try_into().unwrap()) as usize;
+                        if len > 0 && len < 1000 && probe + 4 + len <= entry_end {
+                            // Check UTF-8 + printable
+                            let candidate = &data[probe+4..probe+4+len];
+                            if std::str::from_utf8(candidate).is_ok()
+                                && candidate.iter().filter(|&&b| b < 0x20 && b != 0).count() == 0 {
+                                match CString::read_from(data, &mut probe) {
+                                    Ok(s) if probe <= entry_end => Some(s),
+                                    _ => { probe = pre_; None }
+                                }
+                            } else { None }
+                        } else { None }
+                    } else { None }
+                } else { None };
+                let alt_post_cstr_b = if alt_post_cstr_a.is_some() {
+                    let pre_ = probe;
+                    if probe + 4 <= entry_end {
+                        let len = u32::from_le_bytes(data[probe..probe+4].try_into().unwrap()) as usize;
+                        if len > 0 && len < 1000 && probe + 4 + len <= entry_end {
+                            let candidate = &data[probe+4..probe+4+len];
+                            if std::str::from_utf8(candidate).is_ok()
+                                && candidate.iter().filter(|&&b| b < 0x20 && b != 0).count() == 0 {
+                                match CString::read_from(data, &mut probe) {
+                                    Ok(s) if probe <= entry_end => Some(s),
+                                    _ => { probe = pre_; None }
+                                }
+                            } else { None }
+                        } else { None }
+                    } else { None }
+                } else { None };
                 let field_665_u32 = read_u32_chained!(field_664_u32);
                 let field_666_u32 = read_u32_chained!(field_665_u32);
                 let field_667_u32 = read_u32_chained!(field_666_u32);
@@ -3787,6 +3828,8 @@ impl<'a> GimmickTail<'a> {
                     alt_body_629, alt_body_630, alt_body_631, alt_body_632,
                     alt_body_633, alt_body_634, alt_body_635, alt_body_636,
                     alt_body_637, alt_body_638, alt_body_639, alt_body_640,
+                    alt_post_cstr_a,
+                    alt_post_cstr_b,
                     field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                     field_669_u32, field_670_u32, field_671_u32, field_672_u32,
                     field_673_u32, field_674_u32, field_675_u32, field_676_u32,
@@ -4149,6 +4192,7 @@ impl<'a> GimmickTail<'a> {
                 alt_body_629, alt_body_630, alt_body_631, alt_body_632,
                 alt_body_633, alt_body_634, alt_body_635, alt_body_636,
                 alt_body_637, alt_body_638, alt_body_639, alt_body_640,
+                alt_post_cstr_a, alt_post_cstr_b,
                 field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                 field_669_u32, field_670_u32, field_671_u32, field_672_u32,
                 field_673_u32, field_674_u32, field_675_u32, field_676_u32,
@@ -5493,6 +5537,8 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = alt_body_638 { v.write_to(w)?; }
                 if let Some(v) = alt_body_639 { v.write_to(w)?; }
                 if let Some(v) = alt_body_640 { v.write_to(w)?; }
+                if let Some(s) = alt_post_cstr_a { s.write_to(w)?; }
+                if let Some(s) = alt_post_cstr_b { s.write_to(w)?; }
                 if let Some(v) = field_665_u32 { v.write_to(w)?; }
                 if let Some(v) = field_666_u32 { v.write_to(w)?; }
                 if let Some(v) = field_667_u32 { v.write_to(w)?; }
@@ -5898,6 +5944,7 @@ impl<'a> GimmickTail<'a> {
                 alt_body_629, alt_body_630, alt_body_631, alt_body_632,
                 alt_body_633, alt_body_634, alt_body_635, alt_body_636,
                 alt_body_637, alt_body_638, alt_body_639, alt_body_640,
+                alt_post_cstr_a, alt_post_cstr_b,
                 field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                 field_669_u32, field_670_u32, field_671_u32, field_672_u32,
                 field_673_u32, field_674_u32, field_675_u32, field_676_u32,
@@ -7018,6 +7065,16 @@ impl<'a> GimmickTail<'a> {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
                 }
+                m.insert("alt_post_cstr_a".to_string(), match alt_post_cstr_a {
+                    Some(s) => s.to_json_value(), None => Value::Null });
+                m.insert("alt_post_cstr_b".to_string(), match alt_post_cstr_b {
+                    Some(s) => s.to_json_value(), None => Value::Null });
+                for (k, v) in [
+                    ("__dummy_unused_a", None as Option<u32>), ("__dummy_unused_b", None as Option<u32>),
+                ] {
+                    m.insert(k.to_string(), match v {
+                        Some(val) => val.to_json_value(), None => Value::Null });
+                }
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
                 Value::Object(m)
             }
@@ -7601,6 +7658,14 @@ impl<'a> GimmickTail<'a> {
                     if !v.is_null() {
                         <u32 as WriteJsonValue>::write_from_json(w, v)?;
                     }
+                }
+                let acsa = json_get_field(obj, "alt_post_cstr_a")?;
+                if !acsa.is_null() {
+                    <CString as WriteJsonValue>::write_from_json(w, acsa)?;
+                }
+                let acsb = json_get_field(obj, "alt_post_cstr_b")?;
+                if !acsb.is_null() {
+                    <CString as WriteJsonValue>::write_from_json(w, acsb)?;
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
