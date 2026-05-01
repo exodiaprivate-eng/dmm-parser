@@ -2,11 +2,19 @@
 
 pub mod binary;
 pub mod crypto;
+pub mod dispatch;
 pub mod item_info;
 pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;
 pub mod tables;
+
+// Re-export the most commonly-used dispatch entry points so callers can
+// `use dmm_parser::{parse_table_to_json, serialize_table_from_json};` directly.
+pub use dispatch::{
+    is_supported_table, parse_table_to_json, serialize_table_from_json,
+    supported_tables,
+};
 
 use pyo3::prelude::*;
 
