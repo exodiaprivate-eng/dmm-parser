@@ -353,6 +353,240 @@ impl<'a> TriggerGamePlayEventHandlerData<'a> {
     }
 }
 
+// ── TriggerEventHandlerList: outer format (sub_1411125E0 / sub_141D7FF30) ──
+//
+// The "tag-16" fallback entries are NOT a separate TGPEHD tag. sub_1411125E0
+// calls sub_141D7FF30 per present element — a complex struct reader with no
+// tag-dispatch at the outer level. The existing Rust decoder misread the low
+// byte of a u32 BString length (typically 0x10 = 16-char trigger names) as a
+// tag byte; sub_141D80A90 (standard tag dispatcher) is only used internally
+// inside sub_141D881B0 nested within sub_141D7FF30.
+//
+// Wire layout for each present outer element (sub_141D7FF30):
+//   CString trigger_name (u32 len + bytes, sub_1410A9D40)
+//   CArray<CString> hide_list (sub_14106BAC0)
+//   CArray<TriggerEventEntry> event_list (sub_141D879F0)
+//   CArray<COptional<InnerTriggerEventWrapper>> handler_list
+//   u8 byte_a, u8 byte_b, u8 byte_c, u8 byte_d
+
+py_binary_struct! {
+    /// One element of `event_list` (sub_141D879F0 per-element reader). Wire:
+    ///   u8 flag_a
+    ///   GimmickHelperBlock (40 bytes, sub_1410AA1B0)
+    ///   CString hash_name (u32 len + bytes, sub_1410A9D40)
+    ///   CString cstring_name (u32 len + bytes, sub_1410A9B70)
+    ///   u8 flag_b
+    ///   3× u32 block_a (12 bytes)
+    ///   3× u32 block_b (12 bytes)
+    ///   u8 flag_c
+    ///   u8 flag_d
+    pub struct TriggerEventEntry<'a> {
+        pub flag_a: u8,
+        pub helper: GimmickHelperBlock,
+        pub hash_name: CString<'a>,
+        pub cstring_name: CString<'a>,
+        pub flag_b: u8,
+        pub block_a_0: u32,
+        pub block_a_1: u32,
+        pub block_a_2: u32,
+        pub block_b_0: u32,
+        pub block_b_1: u32,
+        pub block_b_2: u32,
+        pub flag_c: u8,
+        pub flag_d: u8,
+    }
+}
+
+/// Inner optional TGPEHD wrapper element (sub_141D881B0). Wire when present:
+///   CArray<CString> list (sub_14106BAC0)
+///   u8 flag_a
+///   u8 tgpehd_presence
+///   if tgpehd_presence != 0: TriggerGamePlayEventHandlerData (sub_141D80A90)
+///   [u8; 8] tail
+#[derive(Debug)]
+pub struct InnerTriggerEventWrapper<'a> {
+    pub list: CArray<CString<'a>>,
+    pub flag_a: u8,
+    pub tgpehd: Option<TriggerGamePlayEventHandlerData<'a>>,
+    pub tail: [u8; 8],
+}
+
+impl<'a> BinaryRead<'a> for InnerTriggerEventWrapper<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let list = CArray::<CString>::read_from(data, offset)?;
+        let flag_a = u8::read_from(data, offset)?;
+        let presence = u8::read_from(data, offset)?;
+        let tgpehd = if presence != 0 {
+            Some(TriggerGamePlayEventHandlerData::read_from(data, offset)?)
+        } else {
+            None
+        };
+        let tail = <[u8; 8]>::read_from(data, offset)?;
+        Ok(Self { list, flag_a, tgpehd, tail })
+    }
+}
+
+impl BinaryWrite for InnerTriggerEventWrapper<'_> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.list.write_to(w)?;
+        self.flag_a.write_to(w)?;
+        match &self.tgpehd {
+            Some(t) => { 1u8.write_to(w)?; t.write_to(w)?; }
+            None => 0u8.write_to(w)?,
+        }
+        self.tail.write_to(w)
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for InnerTriggerEventWrapper<'a> {
+    fn read_tracked(data: &'a [u8], offset: &mut usize, _path: &mut String, _ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
+        Self::read_from(data, offset)
+    }
+}
+
+impl ToJsonValue for InnerTriggerEventWrapper<'_> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("list".into(), self.list.to_json_value());
+        m.insert("flag_a".into(), self.flag_a.to_json_value());
+        m.insert("tgpehd".into(), match &self.tgpehd {
+            Some(t) => t.to_json_value(),
+            None => Value::Null,
+        });
+        m.insert("tail".into(), self.tail.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl WriteJsonValue for InnerTriggerEventWrapper<'_> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "InnerTriggerEventWrapper: expected object"))?;
+        <CArray<CString> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+        let tgpehd_v = json_get_field(obj, "tgpehd")?;
+        if tgpehd_v.is_null() {
+            0u8.write_to(w)?;
+        } else {
+            1u8.write_to(w)?;
+            TriggerGamePlayEventHandlerData::write_from_json(w, tgpehd_v)?;
+        }
+        <[u8; 8] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail")?)?;
+        Ok(())
+    }
+}
+
+impl crate::python_traits::ToPyValue for InnerTriggerEventWrapper<'_> {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "InnerTriggerEventWrapper: use JSON path"))
+    }
+}
+
+impl crate::python_traits::WritePyValue for InnerTriggerEventWrapper<'_> {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "InnerTriggerEventWrapper: use JSON path"))
+    }
+}
+
+/// Full element read by sub_141D7FF30. Wire:
+///   CString trigger_name (u32 len + bytes, sub_1410A9D40)
+///   CArray<CString> hide_list (sub_14106BAC0)
+///   CArray<TriggerEventEntry> event_list (sub_141D879F0)
+///   CArray<COptional<InnerTriggerEventWrapper>> handler_list
+///   u8 byte_a, u8 byte_b, u8 byte_c, u8 byte_d
+///   (wire order: a b c d; c is stored at mem+0x3B, d at mem+0x3A — order matters)
+#[derive(Debug)]
+pub struct TriggerEventHandlerDataElement<'a> {
+    pub trigger_name: CString<'a>,
+    pub hide_list: CArray<CString<'a>>,
+    pub event_list: CArray<TriggerEventEntry<'a>>,
+    pub handler_list: CArray<COptional<InnerTriggerEventWrapper<'a>>>,
+    pub byte_a: u8,
+    pub byte_b: u8,
+    pub byte_c: u8,
+    pub byte_d: u8,
+}
+
+impl<'a> BinaryRead<'a> for TriggerEventHandlerDataElement<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let trigger_name = CString::read_from(data, offset)?;
+        let hide_list = CArray::<CString>::read_from(data, offset)?;
+        let event_list = CArray::<TriggerEventEntry>::read_from(data, offset)?;
+        let handler_list = CArray::<COptional<InnerTriggerEventWrapper>>::read_from(data, offset)?;
+        let byte_a = u8::read_from(data, offset)?;
+        let byte_b = u8::read_from(data, offset)?;
+        let byte_c = u8::read_from(data, offset)?;
+        let byte_d = u8::read_from(data, offset)?;
+        Ok(Self { trigger_name, hide_list, event_list, handler_list, byte_a, byte_b, byte_c, byte_d })
+    }
+}
+
+impl BinaryWrite for TriggerEventHandlerDataElement<'_> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.trigger_name.write_to(w)?;
+        self.hide_list.write_to(w)?;
+        self.event_list.write_to(w)?;
+        self.handler_list.write_to(w)?;
+        self.byte_a.write_to(w)?;
+        self.byte_b.write_to(w)?;
+        self.byte_c.write_to(w)?;
+        self.byte_d.write_to(w)
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for TriggerEventHandlerDataElement<'a> {
+    fn read_tracked(data: &'a [u8], offset: &mut usize, _path: &mut String, _ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
+        Self::read_from(data, offset)
+    }
+}
+
+impl ToJsonValue for TriggerEventHandlerDataElement<'_> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("trigger_name".into(), self.trigger_name.to_json_value());
+        m.insert("hide_list".into(), self.hide_list.to_json_value());
+        m.insert("event_list".into(), self.event_list.to_json_value());
+        m.insert("handler_list".into(), self.handler_list.to_json_value());
+        m.insert("byte_a".into(), self.byte_a.to_json_value());
+        m.insert("byte_b".into(), self.byte_b.to_json_value());
+        m.insert("byte_c".into(), self.byte_c.to_json_value());
+        m.insert("byte_d".into(), self.byte_d.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl WriteJsonValue for TriggerEventHandlerDataElement<'_> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "TriggerEventHandlerDataElement: expected object"))?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trigger_name")?)?;
+        <CArray<CString> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hide_list")?)?;
+        <CArray<TriggerEventEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "event_list")?)?;
+        <CArray<COptional<InnerTriggerEventWrapper>> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "handler_list")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_b")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_c")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_d")?)?;
+        Ok(())
+    }
+}
+
+impl crate::python_traits::ToPyValue for TriggerEventHandlerDataElement<'_> {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "TriggerEventHandlerDataElement: use JSON path"))
+    }
+}
+
+impl crate::python_traits::WritePyValue for TriggerEventHandlerDataElement<'_> {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "TriggerEventHandlerDataElement: use JSON path"))
+    }
+}
+
 // ── COptional wrapper used by sub_1411125E0's CArray ──────────────────────
 
 #[derive(Debug)]
