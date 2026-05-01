@@ -9,6 +9,24 @@
 
 ---
 
+## Contents
+
+- [At a glance](#at-a-glance)
+- [1. PAPGT — pack group tree](#1-papgt--pack-group-tree)
+- [2. PAMT — pack metadata](#2-pamt--pack-metadata)
+- [3. PAZ — pack-zone blocks](#3-paz--pack-zone-blocks)
+- [4. Trie buffer](#4-trie-buffer)
+- [5. PAOC / PALOC — localization](#5-paoc--paloc--localization)
+- [6. PABGB / PABGH — tabular game data](#6-pabgb--pabgh--tabular-game-data)
+- [7. DDS — DirectDraw Surface (Crimson flavor)](#7-dds--directdraw-surface-crimson-flavor)
+- [8. WEM — Wwise audio clip](#8-wem--wwise-audio-clip)
+- [9. BNK — Wwise soundbank](#9-bnk--wwise-soundbank)
+- [10. SAVE — save file envelope](#10-save--save-file-envelope)
+- [11. Hexpat conventions](#11-hexpat-conventions)
+- [12. Adding a new format](#12-adding-a-new-format)
+
+---
+
 ## At a glance
 
 | Format         | Role                              | Notes ref                  | Hexpat                        | Rust module                  |

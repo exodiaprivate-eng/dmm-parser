@@ -9,6 +9,30 @@
 
 ---
 
+## Contents
+
+- [0. The big picture](#0-the-big-picture)
+- [1. Picking a mod type](#1-picking-a-mod-type)
+- [2. Data mods (table targets)](#2-data-mods-table-targets)
+- [3. Texture mods (DDS asset targets)](#3-texture-mods-dds-asset-targets)
+- [4. Audio mods (WEM / BNK asset targets)](#4-audio-mods-wem--bnk-asset-targets)
+- [5. Paloc mods (localization)](#5-paloc-mods-localization)
+- [6. Custom items](#6-custom-items)
+- [7. Mixed mods](#7-mixed-mods)
+- [8. The author workflow](#8-the-author-workflow)
+- [9. Distribution](#9-distribution)
+- [10. Common pitfalls](#10-common-pitfalls)
+- [11. Where to look next](#11-where-to-look-next)
+
+**Companion docs:**
+
+- [`docs/FORMATS.md`](FORMATS.md) — every binary format reference in one place
+- [`docs/api.md`](api.md) — Python API surface (classify_dds / parse_bnk / paloc / save / etc.)
+- [`docs/CUSTOM_ITEM_CREATOR_V3_1.md`](CUSTOM_ITEM_CREATOR_V3_1.md) — end-to-end custom-item walkthrough
+- [`samples/`](../samples/) — five runnable example mods (data, texture, audio, custom item, mixed)
+
+---
+
 ## 0. The big picture
 
 A Crimson Desert mod is a single **manifest** (`*.field.json`) that
