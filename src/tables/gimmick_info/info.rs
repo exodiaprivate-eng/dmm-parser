@@ -360,6 +360,22 @@ pub enum GimmickTail<'a> {
         f39_alt_117: Option<u32>, f39_alt_118: Option<u32>, f39_alt_119: Option<u32>, f39_alt_120: Option<u32>,
         f39_alt_121: Option<u32>, f39_alt_122: Option<u32>, f39_alt_123: Option<u32>, f39_alt_124: Option<u32>,
         f39_alt_125: Option<u32>, f39_alt_126: Option<u32>, f39_alt_127: Option<u32>, f39_alt_128: Option<u32>,
+        f39_alt_129: Option<u32>, f39_alt_130: Option<u32>, f39_alt_131: Option<u32>, f39_alt_132: Option<u32>,
+        f39_alt_133: Option<u32>, f39_alt_134: Option<u32>, f39_alt_135: Option<u32>, f39_alt_136: Option<u32>,
+        f39_alt_137: Option<u32>, f39_alt_138: Option<u32>, f39_alt_139: Option<u32>, f39_alt_140: Option<u32>,
+        f39_alt_141: Option<u32>, f39_alt_142: Option<u32>, f39_alt_143: Option<u32>, f39_alt_144: Option<u32>,
+        f39_alt_145: Option<u32>, f39_alt_146: Option<u32>, f39_alt_147: Option<u32>, f39_alt_148: Option<u32>,
+        f39_alt_149: Option<u32>, f39_alt_150: Option<u32>, f39_alt_151: Option<u32>, f39_alt_152: Option<u32>,
+        f39_alt_153: Option<u32>, f39_alt_154: Option<u32>, f39_alt_155: Option<u32>, f39_alt_156: Option<u32>,
+        f39_alt_157: Option<u32>, f39_alt_158: Option<u32>, f39_alt_159: Option<u32>, f39_alt_160: Option<u32>,
+        f39_alt_161: Option<u32>, f39_alt_162: Option<u32>, f39_alt_163: Option<u32>, f39_alt_164: Option<u32>,
+        f39_alt_165: Option<u32>, f39_alt_166: Option<u32>, f39_alt_167: Option<u32>, f39_alt_168: Option<u32>,
+        f39_alt_169: Option<u32>, f39_alt_170: Option<u32>, f39_alt_171: Option<u32>, f39_alt_172: Option<u32>,
+        f39_alt_173: Option<u32>, f39_alt_174: Option<u32>, f39_alt_175: Option<u32>, f39_alt_176: Option<u32>,
+        f39_alt_177: Option<u32>, f39_alt_178: Option<u32>, f39_alt_179: Option<u32>, f39_alt_180: Option<u32>,
+        f39_alt_181: Option<u32>, f39_alt_182: Option<u32>, f39_alt_183: Option<u32>, f39_alt_184: Option<u32>,
+        f39_alt_185: Option<u32>, f39_alt_186: Option<u32>, f39_alt_187: Option<u32>, f39_alt_188: Option<u32>,
+        f39_alt_189: Option<u32>, f39_alt_190: Option<u32>, f39_alt_191: Option<u32>, f39_alt_192: Option<u32>,
         /// Field 40 — empirically `CArray<u32>` continuation.
         field_40_u32_list: Option<CArray<u32>>,
         /// Field 41 — single u32 (6242 entries share `0x00008000` = flag bit 1<<15).
@@ -2021,6 +2037,70 @@ impl<'a> GimmickTail<'a> {
                 let f39_alt_126 = f31_alt_read!(f39_alt_125.is_some());
                 let f39_alt_127 = f31_alt_read!(f39_alt_126.is_some());
                 let f39_alt_128 = f31_alt_read!(f39_alt_127.is_some());
+                let f39_alt_129 = f31_alt_read!(f39_alt_128.is_some());
+                let f39_alt_130 = f31_alt_read!(f39_alt_129.is_some());
+                let f39_alt_131 = f31_alt_read!(f39_alt_130.is_some());
+                let f39_alt_132 = f31_alt_read!(f39_alt_131.is_some());
+                let f39_alt_133 = f31_alt_read!(f39_alt_132.is_some());
+                let f39_alt_134 = f31_alt_read!(f39_alt_133.is_some());
+                let f39_alt_135 = f31_alt_read!(f39_alt_134.is_some());
+                let f39_alt_136 = f31_alt_read!(f39_alt_135.is_some());
+                let f39_alt_137 = f31_alt_read!(f39_alt_136.is_some());
+                let f39_alt_138 = f31_alt_read!(f39_alt_137.is_some());
+                let f39_alt_139 = f31_alt_read!(f39_alt_138.is_some());
+                let f39_alt_140 = f31_alt_read!(f39_alt_139.is_some());
+                let f39_alt_141 = f31_alt_read!(f39_alt_140.is_some());
+                let f39_alt_142 = f31_alt_read!(f39_alt_141.is_some());
+                let f39_alt_143 = f31_alt_read!(f39_alt_142.is_some());
+                let f39_alt_144 = f31_alt_read!(f39_alt_143.is_some());
+                let f39_alt_145 = f31_alt_read!(f39_alt_144.is_some());
+                let f39_alt_146 = f31_alt_read!(f39_alt_145.is_some());
+                let f39_alt_147 = f31_alt_read!(f39_alt_146.is_some());
+                let f39_alt_148 = f31_alt_read!(f39_alt_147.is_some());
+                let f39_alt_149 = f31_alt_read!(f39_alt_148.is_some());
+                let f39_alt_150 = f31_alt_read!(f39_alt_149.is_some());
+                let f39_alt_151 = f31_alt_read!(f39_alt_150.is_some());
+                let f39_alt_152 = f31_alt_read!(f39_alt_151.is_some());
+                let f39_alt_153 = f31_alt_read!(f39_alt_152.is_some());
+                let f39_alt_154 = f31_alt_read!(f39_alt_153.is_some());
+                let f39_alt_155 = f31_alt_read!(f39_alt_154.is_some());
+                let f39_alt_156 = f31_alt_read!(f39_alt_155.is_some());
+                let f39_alt_157 = f31_alt_read!(f39_alt_156.is_some());
+                let f39_alt_158 = f31_alt_read!(f39_alt_157.is_some());
+                let f39_alt_159 = f31_alt_read!(f39_alt_158.is_some());
+                let f39_alt_160 = f31_alt_read!(f39_alt_159.is_some());
+                let f39_alt_161 = f31_alt_read!(f39_alt_160.is_some());
+                let f39_alt_162 = f31_alt_read!(f39_alt_161.is_some());
+                let f39_alt_163 = f31_alt_read!(f39_alt_162.is_some());
+                let f39_alt_164 = f31_alt_read!(f39_alt_163.is_some());
+                let f39_alt_165 = f31_alt_read!(f39_alt_164.is_some());
+                let f39_alt_166 = f31_alt_read!(f39_alt_165.is_some());
+                let f39_alt_167 = f31_alt_read!(f39_alt_166.is_some());
+                let f39_alt_168 = f31_alt_read!(f39_alt_167.is_some());
+                let f39_alt_169 = f31_alt_read!(f39_alt_168.is_some());
+                let f39_alt_170 = f31_alt_read!(f39_alt_169.is_some());
+                let f39_alt_171 = f31_alt_read!(f39_alt_170.is_some());
+                let f39_alt_172 = f31_alt_read!(f39_alt_171.is_some());
+                let f39_alt_173 = f31_alt_read!(f39_alt_172.is_some());
+                let f39_alt_174 = f31_alt_read!(f39_alt_173.is_some());
+                let f39_alt_175 = f31_alt_read!(f39_alt_174.is_some());
+                let f39_alt_176 = f31_alt_read!(f39_alt_175.is_some());
+                let f39_alt_177 = f31_alt_read!(f39_alt_176.is_some());
+                let f39_alt_178 = f31_alt_read!(f39_alt_177.is_some());
+                let f39_alt_179 = f31_alt_read!(f39_alt_178.is_some());
+                let f39_alt_180 = f31_alt_read!(f39_alt_179.is_some());
+                let f39_alt_181 = f31_alt_read!(f39_alt_180.is_some());
+                let f39_alt_182 = f31_alt_read!(f39_alt_181.is_some());
+                let f39_alt_183 = f31_alt_read!(f39_alt_182.is_some());
+                let f39_alt_184 = f31_alt_read!(f39_alt_183.is_some());
+                let f39_alt_185 = f31_alt_read!(f39_alt_184.is_some());
+                let f39_alt_186 = f31_alt_read!(f39_alt_185.is_some());
+                let f39_alt_187 = f31_alt_read!(f39_alt_186.is_some());
+                let f39_alt_188 = f31_alt_read!(f39_alt_187.is_some());
+                let f39_alt_189 = f31_alt_read!(f39_alt_188.is_some());
+                let f39_alt_190 = f31_alt_read!(f39_alt_189.is_some());
+                let f39_alt_191 = f31_alt_read!(f39_alt_190.is_some());
+                let f39_alt_192 = f31_alt_read!(f39_alt_191.is_some());
                 let field_40_u32_list = if field_39_u32_list.is_some() || f39_alt_001.is_some() {
                     let pre_ = probe;
                     match <CArray<u32>>::read_from(data, &mut probe) {
@@ -4073,6 +4153,22 @@ impl<'a> GimmickTail<'a> {
                     f39_alt_117, f39_alt_118, f39_alt_119, f39_alt_120,
                     f39_alt_121, f39_alt_122, f39_alt_123, f39_alt_124,
                     f39_alt_125, f39_alt_126, f39_alt_127, f39_alt_128,
+                    f39_alt_129, f39_alt_130, f39_alt_131, f39_alt_132,
+                    f39_alt_133, f39_alt_134, f39_alt_135, f39_alt_136,
+                    f39_alt_137, f39_alt_138, f39_alt_139, f39_alt_140,
+                    f39_alt_141, f39_alt_142, f39_alt_143, f39_alt_144,
+                    f39_alt_145, f39_alt_146, f39_alt_147, f39_alt_148,
+                    f39_alt_149, f39_alt_150, f39_alt_151, f39_alt_152,
+                    f39_alt_153, f39_alt_154, f39_alt_155, f39_alt_156,
+                    f39_alt_157, f39_alt_158, f39_alt_159, f39_alt_160,
+                    f39_alt_161, f39_alt_162, f39_alt_163, f39_alt_164,
+                    f39_alt_165, f39_alt_166, f39_alt_167, f39_alt_168,
+                    f39_alt_169, f39_alt_170, f39_alt_171, f39_alt_172,
+                    f39_alt_173, f39_alt_174, f39_alt_175, f39_alt_176,
+                    f39_alt_177, f39_alt_178, f39_alt_179, f39_alt_180,
+                    f39_alt_181, f39_alt_182, f39_alt_183, f39_alt_184,
+                    f39_alt_185, f39_alt_186, f39_alt_187, f39_alt_188,
+                    f39_alt_189, f39_alt_190, f39_alt_191, f39_alt_192,
                     field_40_u32_list,
                     field_41_u32,
                     field_42_u32,
@@ -4963,6 +5059,22 @@ impl<'a> GimmickTail<'a> {
                 f39_alt_117, f39_alt_118, f39_alt_119, f39_alt_120,
                 f39_alt_121, f39_alt_122, f39_alt_123, f39_alt_124,
                 f39_alt_125, f39_alt_126, f39_alt_127, f39_alt_128,
+                f39_alt_129, f39_alt_130, f39_alt_131, f39_alt_132,
+                f39_alt_133, f39_alt_134, f39_alt_135, f39_alt_136,
+                f39_alt_137, f39_alt_138, f39_alt_139, f39_alt_140,
+                f39_alt_141, f39_alt_142, f39_alt_143, f39_alt_144,
+                f39_alt_145, f39_alt_146, f39_alt_147, f39_alt_148,
+                f39_alt_149, f39_alt_150, f39_alt_151, f39_alt_152,
+                f39_alt_153, f39_alt_154, f39_alt_155, f39_alt_156,
+                f39_alt_157, f39_alt_158, f39_alt_159, f39_alt_160,
+                f39_alt_161, f39_alt_162, f39_alt_163, f39_alt_164,
+                f39_alt_165, f39_alt_166, f39_alt_167, f39_alt_168,
+                f39_alt_169, f39_alt_170, f39_alt_171, f39_alt_172,
+                f39_alt_173, f39_alt_174, f39_alt_175, f39_alt_176,
+                f39_alt_177, f39_alt_178, f39_alt_179, f39_alt_180,
+                f39_alt_181, f39_alt_182, f39_alt_183, f39_alt_184,
+                f39_alt_185, f39_alt_186, f39_alt_187, f39_alt_188,
+                f39_alt_189, f39_alt_190, f39_alt_191, f39_alt_192,
                 field_40_u32_list,
                 field_41_u32, field_42_u32, field_43_u32, field_44_u32, field_45_u32, field_46_u32, field_47_u32, field_48_u32, field_49_u32_list, field_50_u32_list,
                 field_51_u32_list, field_52_u32_list, field_53_u32_list, field_54_u32_list,
@@ -5937,6 +6049,70 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = f39_alt_126 { v.write_to(w)?; }
                 if let Some(v) = f39_alt_127 { v.write_to(w)?; }
                 if let Some(v) = f39_alt_128 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_129 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_130 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_131 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_132 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_133 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_134 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_135 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_136 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_137 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_138 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_139 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_140 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_141 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_142 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_143 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_144 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_145 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_146 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_147 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_148 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_149 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_150 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_151 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_152 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_153 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_154 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_155 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_156 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_157 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_158 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_159 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_160 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_161 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_162 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_163 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_164 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_165 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_166 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_167 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_168 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_169 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_170 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_171 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_172 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_173 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_174 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_175 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_176 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_177 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_178 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_179 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_180 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_181 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_182 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_183 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_184 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_185 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_186 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_187 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_188 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_189 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_190 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_191 { v.write_to(w)?; }
+                if let Some(v) = f39_alt_192 { v.write_to(w)?; }
                 if let Some(arr) = field_40_u32_list { arr.write_to(w)?; }
                 if let Some(v) = field_41_u32 { v.write_to(w)?; }
                 if let Some(v) = field_42_u32 { v.write_to(w)?; }
@@ -7446,6 +7622,22 @@ impl<'a> GimmickTail<'a> {
                 f39_alt_117, f39_alt_118, f39_alt_119, f39_alt_120,
                 f39_alt_121, f39_alt_122, f39_alt_123, f39_alt_124,
                 f39_alt_125, f39_alt_126, f39_alt_127, f39_alt_128,
+                f39_alt_129, f39_alt_130, f39_alt_131, f39_alt_132,
+                f39_alt_133, f39_alt_134, f39_alt_135, f39_alt_136,
+                f39_alt_137, f39_alt_138, f39_alt_139, f39_alt_140,
+                f39_alt_141, f39_alt_142, f39_alt_143, f39_alt_144,
+                f39_alt_145, f39_alt_146, f39_alt_147, f39_alt_148,
+                f39_alt_149, f39_alt_150, f39_alt_151, f39_alt_152,
+                f39_alt_153, f39_alt_154, f39_alt_155, f39_alt_156,
+                f39_alt_157, f39_alt_158, f39_alt_159, f39_alt_160,
+                f39_alt_161, f39_alt_162, f39_alt_163, f39_alt_164,
+                f39_alt_165, f39_alt_166, f39_alt_167, f39_alt_168,
+                f39_alt_169, f39_alt_170, f39_alt_171, f39_alt_172,
+                f39_alt_173, f39_alt_174, f39_alt_175, f39_alt_176,
+                f39_alt_177, f39_alt_178, f39_alt_179, f39_alt_180,
+                f39_alt_181, f39_alt_182, f39_alt_183, f39_alt_184,
+                f39_alt_185, f39_alt_186, f39_alt_187, f39_alt_188,
+                f39_alt_189, f39_alt_190, f39_alt_191, f39_alt_192,
                 field_40_u32_list,
                 field_41_u32, field_42_u32, field_43_u32, field_44_u32, field_45_u32, field_46_u32, field_47_u32, field_48_u32, field_49_u32_list, field_50_u32_list,
                 field_51_u32_list, field_52_u32_list, field_53_u32_list, field_54_u32_list,
@@ -8173,6 +8365,38 @@ impl<'a> GimmickTail<'a> {
                     ("f39_alt_123", f39_alt_123), ("f39_alt_124", f39_alt_124),
                     ("f39_alt_125", f39_alt_125), ("f39_alt_126", f39_alt_126),
                     ("f39_alt_127", f39_alt_127), ("f39_alt_128", f39_alt_128),
+                    ("f39_alt_129", f39_alt_129), ("f39_alt_130", f39_alt_130),
+                    ("f39_alt_131", f39_alt_131), ("f39_alt_132", f39_alt_132),
+                    ("f39_alt_133", f39_alt_133), ("f39_alt_134", f39_alt_134),
+                    ("f39_alt_135", f39_alt_135), ("f39_alt_136", f39_alt_136),
+                    ("f39_alt_137", f39_alt_137), ("f39_alt_138", f39_alt_138),
+                    ("f39_alt_139", f39_alt_139), ("f39_alt_140", f39_alt_140),
+                    ("f39_alt_141", f39_alt_141), ("f39_alt_142", f39_alt_142),
+                    ("f39_alt_143", f39_alt_143), ("f39_alt_144", f39_alt_144),
+                    ("f39_alt_145", f39_alt_145), ("f39_alt_146", f39_alt_146),
+                    ("f39_alt_147", f39_alt_147), ("f39_alt_148", f39_alt_148),
+                    ("f39_alt_149", f39_alt_149), ("f39_alt_150", f39_alt_150),
+                    ("f39_alt_151", f39_alt_151), ("f39_alt_152", f39_alt_152),
+                    ("f39_alt_153", f39_alt_153), ("f39_alt_154", f39_alt_154),
+                    ("f39_alt_155", f39_alt_155), ("f39_alt_156", f39_alt_156),
+                    ("f39_alt_157", f39_alt_157), ("f39_alt_158", f39_alt_158),
+                    ("f39_alt_159", f39_alt_159), ("f39_alt_160", f39_alt_160),
+                    ("f39_alt_161", f39_alt_161), ("f39_alt_162", f39_alt_162),
+                    ("f39_alt_163", f39_alt_163), ("f39_alt_164", f39_alt_164),
+                    ("f39_alt_165", f39_alt_165), ("f39_alt_166", f39_alt_166),
+                    ("f39_alt_167", f39_alt_167), ("f39_alt_168", f39_alt_168),
+                    ("f39_alt_169", f39_alt_169), ("f39_alt_170", f39_alt_170),
+                    ("f39_alt_171", f39_alt_171), ("f39_alt_172", f39_alt_172),
+                    ("f39_alt_173", f39_alt_173), ("f39_alt_174", f39_alt_174),
+                    ("f39_alt_175", f39_alt_175), ("f39_alt_176", f39_alt_176),
+                    ("f39_alt_177", f39_alt_177), ("f39_alt_178", f39_alt_178),
+                    ("f39_alt_179", f39_alt_179), ("f39_alt_180", f39_alt_180),
+                    ("f39_alt_181", f39_alt_181), ("f39_alt_182", f39_alt_182),
+                    ("f39_alt_183", f39_alt_183), ("f39_alt_184", f39_alt_184),
+                    ("f39_alt_185", f39_alt_185), ("f39_alt_186", f39_alt_186),
+                    ("f39_alt_187", f39_alt_187), ("f39_alt_188", f39_alt_188),
+                    ("f39_alt_189", f39_alt_189), ("f39_alt_190", f39_alt_190),
+                    ("f39_alt_191", f39_alt_191), ("f39_alt_192", f39_alt_192),
                 ] {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
@@ -9508,6 +9732,22 @@ impl<'a> GimmickTail<'a> {
                     "f39_alt_117", "f39_alt_118", "f39_alt_119", "f39_alt_120",
                     "f39_alt_121", "f39_alt_122", "f39_alt_123", "f39_alt_124",
                     "f39_alt_125", "f39_alt_126", "f39_alt_127", "f39_alt_128",
+                    "f39_alt_129", "f39_alt_130", "f39_alt_131", "f39_alt_132",
+                    "f39_alt_133", "f39_alt_134", "f39_alt_135", "f39_alt_136",
+                    "f39_alt_137", "f39_alt_138", "f39_alt_139", "f39_alt_140",
+                    "f39_alt_141", "f39_alt_142", "f39_alt_143", "f39_alt_144",
+                    "f39_alt_145", "f39_alt_146", "f39_alt_147", "f39_alt_148",
+                    "f39_alt_149", "f39_alt_150", "f39_alt_151", "f39_alt_152",
+                    "f39_alt_153", "f39_alt_154", "f39_alt_155", "f39_alt_156",
+                    "f39_alt_157", "f39_alt_158", "f39_alt_159", "f39_alt_160",
+                    "f39_alt_161", "f39_alt_162", "f39_alt_163", "f39_alt_164",
+                    "f39_alt_165", "f39_alt_166", "f39_alt_167", "f39_alt_168",
+                    "f39_alt_169", "f39_alt_170", "f39_alt_171", "f39_alt_172",
+                    "f39_alt_173", "f39_alt_174", "f39_alt_175", "f39_alt_176",
+                    "f39_alt_177", "f39_alt_178", "f39_alt_179", "f39_alt_180",
+                    "f39_alt_181", "f39_alt_182", "f39_alt_183", "f39_alt_184",
+                    "f39_alt_185", "f39_alt_186", "f39_alt_187", "f39_alt_188",
+                    "f39_alt_189", "f39_alt_190", "f39_alt_191", "f39_alt_192",
                 ] {
                     let v = json_get_field(obj, k)?;
                     if !v.is_null() {
