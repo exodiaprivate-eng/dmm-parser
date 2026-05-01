@@ -131,16 +131,16 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
-- `GimmickInfo` — Decoded tail extended to **1376 typed fields**
+- `GimmickInfo` — Decoded tail extended to **1770 typed fields**
   (1-16 prefix + 712 tail u32 + 6 alt-header + 640 alt-body + 2
-  alt-cstr + 5 emissive + 64 f31_alt + 64 f39_alt + 64 f32_alt).
-  post_blob avg **1118 → 152 bytes** (11.96M bytes recovered total
-  over 12393 entries — **86% reduction from baseline**). Iters
+  alt-cstr + 5 emissive + 128 f31_alt + 128 f39_alt + 128 f32_alt).
+  post_blob avg **1118 → 138 bytes** (12.16M bytes recovered total
+  over 12393 entries — **88% reduction from baseline**). Iters
   61-63 added f31/f39/f32 alt u32 chains that activate when
-  CArray<u32> fails — total ~2100 entry-slots unlocked, saved
-  ~480K bytes in three iterations. Smart-probe methodology proven
-  repeatable across multiple failing fields. (loop session
-  2026-04-30)
+  CArray<u32> fails (64 fields each). Iters 73-75 extended each
+  alt chain from 64 → 128 fields, draining residual tails from
+  saturated entries (saved 181K more bytes total). Smart-probe
+  methodology proven repeatable. (loop session 2026-04-30)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
