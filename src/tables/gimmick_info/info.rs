@@ -563,6 +563,203 @@ impl crate::python_traits::WritePyValue for AbsentCOptional {
     }
 }
 
+// ── F76 / F77: 128-byte tagged optional struct ────────────────────────────────
+
+/// Inner 128-byte struct populated by `sub_141600210` (via `sub_141D03AA0`
+/// COptional wrapper; CArray loop via `sub_141112050`).
+/// Wire order (diverges from struct mem-layout):
+///   u64(→+120) · u8 type_tag(→+112) · u32(→+4) · u32(→+6) · u32(→+8) ·
+///   u32(→+12)  · u64(→+16) · u32(→+24) · u64(→+32) · u64(→+40) ·
+///   u64(→+48)  · u16(→+56) · variant(→+64):
+///     type ∈ {0,1,2,3,9}: u32 hash (4 bytes)
+///     type 0xB           : nothing (0 bytes)
+///     other              : unimplemented (parse fails → falls back to post_blob)
+#[derive(Debug)]
+pub struct GimmickF76Inner {
+    pub f120:     u64,
+    pub type_tag: u8,
+    pub f4:       u32,
+    pub f6:       u32,
+    pub f8:       u32,
+    pub f12:      u32,
+    pub f16:      u64,
+    pub f24:      u32,
+    pub f32_val:  u64,
+    pub f40:      u64,
+    pub f48:      u64,
+    pub f56:      u16,
+    /// Some(hash u32) for types 0-3 and 9; None for type 0xB.
+    pub f64_hash: Option<u32>,
+}
+
+impl<'a> BinaryRead<'a> for GimmickF76Inner {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let f120     = u64::read_from(data, offset)?;
+        let type_tag = u8::read_from(data, offset)?;
+        let f4       = u32::read_from(data, offset)?;
+        let f6       = u32::read_from(data, offset)?;
+        let f8       = u32::read_from(data, offset)?;
+        let f12      = u32::read_from(data, offset)?;
+        let f16      = u64::read_from(data, offset)?;
+        let f24      = u32::read_from(data, offset)?;
+        let f32_val  = u64::read_from(data, offset)?;
+        let f40      = u64::read_from(data, offset)?;
+        let f48      = u64::read_from(data, offset)?;
+        let f56      = u16::read_from(data, offset)?;
+        let f64_hash = match type_tag {
+            0..=3 | 9 => Some(u32::read_from(data, offset)?),
+            0xB       => None,
+            t => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("GimmickF76Inner: unknown type_tag=0x{:02X}", t))),
+        };
+        Ok(GimmickF76Inner { f120, type_tag, f4, f6, f8, f12, f16, f24, f32_val, f40, f48, f56, f64_hash })
+    }
+}
+
+impl BinaryWrite for GimmickF76Inner {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.f120.write_to(w)?;
+        self.type_tag.write_to(w)?;
+        self.f4.write_to(w)?;
+        self.f6.write_to(w)?;
+        self.f8.write_to(w)?;
+        self.f12.write_to(w)?;
+        self.f16.write_to(w)?;
+        self.f24.write_to(w)?;
+        self.f32_val.write_to(w)?;
+        self.f40.write_to(w)?;
+        self.f48.write_to(w)?;
+        self.f56.write_to(w)?;
+        if let Some(h) = self.f64_hash { h.write_to(w)?; }
+        Ok(())
+    }
+}
+
+impl BinaryReadTracked<'_> for GimmickF76Inner {
+    fn read_tracked(data: &[u8], offset: &mut usize,
+        _path: &mut String, _ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
+        Self::read_from(data, offset)
+    }
+}
+
+impl ToJsonValue for GimmickF76Inner {
+    fn to_json_value(&self) -> Value {
+        let mut m = serde_json::Map::new();
+        m.insert("f120".into(),    self.f120.to_json_value());
+        m.insert("type_tag".into(), self.type_tag.to_json_value());
+        m.insert("f4".into(),      self.f4.to_json_value());
+        m.insert("f6".into(),      self.f6.to_json_value());
+        m.insert("f8".into(),      self.f8.to_json_value());
+        m.insert("f12".into(),     self.f12.to_json_value());
+        m.insert("f16".into(),     self.f16.to_json_value());
+        m.insert("f24".into(),     self.f24.to_json_value());
+        m.insert("f32_val".into(), self.f32_val.to_json_value());
+        m.insert("f40".into(),     self.f40.to_json_value());
+        m.insert("f48".into(),     self.f48.to_json_value());
+        m.insert("f56".into(),     self.f56.to_json_value());
+        m.insert("f64_hash".into(), match self.f64_hash {
+            Some(h) => h.to_json_value(),
+            None    => Value::Null,
+        });
+        Value::Object(m)
+    }
+}
+
+impl WriteJsonValue for GimmickF76Inner {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "GimmickF76Inner: expected JSON object"))?;
+        let type_tag_v = json_get_field(obj, "type_tag")?;
+        let type_tag = type_tag_v.as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "GimmickF76Inner.type_tag: expected integer"))? as u8;
+        u64::write_from_json(w, json_get_field(obj, "f120")?)?;
+        u8::write_from_json(w,  type_tag_v)?;
+        u32::write_from_json(w, json_get_field(obj, "f4")?)?;
+        u32::write_from_json(w, json_get_field(obj, "f6")?)?;
+        u32::write_from_json(w, json_get_field(obj, "f8")?)?;
+        u32::write_from_json(w, json_get_field(obj, "f12")?)?;
+        u64::write_from_json(w, json_get_field(obj, "f16")?)?;
+        u32::write_from_json(w, json_get_field(obj, "f24")?)?;
+        u64::write_from_json(w, json_get_field(obj, "f32_val")?)?;
+        u64::write_from_json(w, json_get_field(obj, "f40")?)?;
+        u64::write_from_json(w, json_get_field(obj, "f48")?)?;
+        u16::write_from_json(w, json_get_field(obj, "f56")?)?;
+        let hash_v = json_get_field(obj, "f64_hash")?;
+        match type_tag {
+            0..=3 | 9 => u32::write_from_json(w, hash_v)?,
+            0xB       => {},
+            t => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("GimmickF76Inner: unknown type_tag=0x{:02X}", t))),
+        }
+        Ok(())
+    }
+}
+
+impl crate::python_traits::ToPyValue for GimmickF76Inner {
+    fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        use pyo3::types::{PyDict, PyDictMethods};
+        use pyo3::IntoPyObjectExt;
+        use crate::python_traits::ToPyValue;
+        let d = PyDict::new(py);
+        d.set_item("f120",     self.f120.to_py_value(py)?)?;
+        d.set_item("type_tag", self.type_tag.to_py_value(py)?)?;
+        d.set_item("f4",       self.f4.to_py_value(py)?)?;
+        d.set_item("f6",       self.f6.to_py_value(py)?)?;
+        d.set_item("f8",       self.f8.to_py_value(py)?)?;
+        d.set_item("f12",      self.f12.to_py_value(py)?)?;
+        d.set_item("f16",      self.f16.to_py_value(py)?)?;
+        d.set_item("f24",      self.f24.to_py_value(py)?)?;
+        d.set_item("f32_val",  self.f32_val.to_py_value(py)?)?;
+        d.set_item("f40",      self.f40.to_py_value(py)?)?;
+        d.set_item("f48",      self.f48.to_py_value(py)?)?;
+        d.set_item("f56",      self.f56.to_py_value(py)?)?;
+        d.set_item("f64_hash", match self.f64_hash {
+            Some(h) => h.to_py_value(py)?,
+            None    => py.None().into_py_any(py)?,
+        })?;
+        d.into_py_any(py)
+    }
+}
+
+impl crate::python_traits::WritePyValue for GimmickF76Inner {
+    fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        use pyo3::types::{PyDict, PyDictMethods};
+        use crate::python_traits::{WritePyValue, get_field as py_get_field};
+        let d = obj.cast::<PyDict>()?;
+        let type_tag: u8 = py_get_field(&d, "type_tag")?.extract()?;
+        u64::write_from_py(w, &py_get_field(&d, "f120")?)?;
+        u8::write_from_py(w,  &py_get_field(&d, "type_tag")?)?;
+        u32::write_from_py(w, &py_get_field(&d, "f4")?)?;
+        u32::write_from_py(w, &py_get_field(&d, "f6")?)?;
+        u32::write_from_py(w, &py_get_field(&d, "f8")?)?;
+        u32::write_from_py(w, &py_get_field(&d, "f12")?)?;
+        u64::write_from_py(w, &py_get_field(&d, "f16")?)?;
+        u32::write_from_py(w, &py_get_field(&d, "f24")?)?;
+        u64::write_from_py(w, &py_get_field(&d, "f32_val")?)?;
+        u64::write_from_py(w, &py_get_field(&d, "f40")?)?;
+        u64::write_from_py(w, &py_get_field(&d, "f48")?)?;
+        u16::write_from_py(w, &py_get_field(&d, "f56")?)?;
+        let hash_field = py_get_field(&d, "f64_hash")?;
+        match type_tag {
+            0..=3 | 9 => u32::write_from_py(w, &hash_field)?,
+            0xB       => {},
+            t => return Err(pyo3::exceptions::PyValueError::new_err(
+                format!("GimmickF76Inner: unknown type_tag=0x{:02X}", t))),
+        }
+        Ok(())
+    }
+}
+
+/// One element of F76's CArray (`sub_141112050`).
+/// Wire: COptional<GimmickF76Inner> (1-byte flag + optional inner) + u32.
+py_binary_struct! {
+    pub struct GimmickF76Elem {
+        pub inner: COptional<GimmickF76Inner>,
+        pub tag:   u32,
+    }
+}
+
 // ── GimmickPostBody: fields F20-F179 ─────────────────────────────────────────
 
 py_binary_struct! {
@@ -655,10 +852,10 @@ py_binary_struct! {
         pub f74: u32,
         // F75: CArray<{u32+u32}> (DA 113C8 lookup per element)
         pub f75: CArray<GimmickF75Elem>,
-        // F76: DEFERRED — CArray<{COptional<128b tagged>+u32}> (sub_141600210)
-        pub f76: EmptyCArray,
-        // F77: DEFERRED — COptional<128b tagged> (sub_141600210)
-        pub f77: AbsentCOptional,
+        // F76: CArray<{COptional<GimmickF76Inner>+u32}> (sub_141112050)
+        pub f76: CArray<GimmickF76Elem>,
+        // F77: COptional<GimmickF76Inner> (sub_141D03AA0 → sub_141600210)
+        pub f77: COptional<GimmickF76Inner>,
         // F78: CArray<{u32+CArray<{u32+u32}>}>
         pub f78: CArray<GimmickF78Elem>,
         // F79: DEFERRED — CArray<{u32+u8+u8+u8+CArray<80b>+u8}> (80b element unknown)
@@ -777,8 +974,8 @@ py_binary_struct! {
         pub f150: u16,
         // F151: u16
         pub f151: u16,
-        // F152-F153: [u8;2]
-        pub f152_153: [u8; 2],
+        // F152-F153 + 2 uncharted bytes before CString
+        pub f152_155: [u8; 4],
         // F154: CString
         pub f154: CString<'a>,
         // F155-F163: [u8;9]
@@ -795,9 +992,9 @@ py_binary_struct! {
         pub f168: CArray<COptional<GimmickF168Inner>>,
         // F169: CArray<COptional<{u32+u32+U32x10}>>
         pub f169: CArray<COptional<GimmickF168Inner>>,
-        // F170: u32+u64+u32+CArray<{u64+u32}>
+        // F170: u32+u32+u32+CArray<{u64+u32}>
         pub f170_a: u32,
-        pub f170_b: u64,
+        pub f170_b: u32,
         pub f170_c: u32,
         pub f170_list: CArray<GimmickF170Elem>,
         // F171: u32
@@ -810,7 +1007,7 @@ py_binary_struct! {
         pub f177: u8,
         // F178: u32
         pub f178: u32,
-        // F179: u32 (→u16 DA28 lookup)
+        // F179: u32
         pub f179: u32,
     }
 }
@@ -898,11 +1095,26 @@ impl<'a> GimmickTail<'a> {
                     None
                 };
                 // F20-F179: GimmickPostBody; only attempted when F19 decoded.
+                static DIAG_CNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
                 let post_body = if alt_trigger_list.is_some() {
                     let pre_body = probe;
-                    match GimmickPostBody::read_from(data, &mut probe) {
+                    let result = GimmickPostBody::read_from(data, &mut probe);
+                    match result {
                         Ok(body) if probe <= entry_end => Some(Box::new(body)),
-                        _ => { probe = pre_body; None }
+                        Ok(_) => {
+                            let n = DIAG_CNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            if n < 10 {
+                                eprintln!("DIAG[{}] overshot: probe={} entry_end={} blob_remaining={} delta={}", n, probe, entry_end, entry_end.saturating_sub(pre_body), probe.saturating_sub(entry_end));
+                            }
+                            probe = pre_body; None
+                        }
+                        Err(e) => {
+                            let n = DIAG_CNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            if n < 10 {
+                                eprintln!("DIAG[{}] error: probe={} entry_end={} blob_remaining={}: {}", n, probe, entry_end, entry_end.saturating_sub(pre_body), e);
+                            }
+                            probe = pre_body; None
+                        }
                     }
                 } else {
                     None
@@ -1161,9 +1373,10 @@ mod tests {
                 .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
             assert_eq!(c, *e);
             match &item.tail {
-                GimmickTail::Decoded { post_body, .. } => {
+                GimmickTail::Decoded { trigger_event_handler_list, gimmick_chart_parameter_list, alt_trigger_list, post_body, .. } => {
                     decoded += 1;
                     if post_body.is_some() { with_body += 1; }
+                    let _ = (trigger_event_handler_list, gimmick_chart_parameter_list, alt_trigger_list);
                 }
                 GimmickTail::Raw(_) => raw += 1,
             }
@@ -1174,6 +1387,417 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "gimmickinfo roundtrip mismatch");
+    }
+
+    #[test]
+    fn post_body_diag() {
+        let (data, pabgh_data) = load_or_skip!();
+        let Some(entries) = load_pabgh_offsets_from_bytes(&pabgh_data) else { return; };
+        let ranges = entry_ranges(&entries, data.len());
+        use crate::binary::{BinaryRead, CArray, COptional, CString};
+        'outer: for (_k, s, e) in &ranges {
+            let mut probe = *s;
+            let item = GimmickInfo::read_with_size(&data, &mut probe, e - s).unwrap();
+            if let GimmickTail::Decoded { alt_trigger_list: Some(_), post_body: None, post_blob, .. } = &item.tail {
+                let post_start = e - post_blob.len();
+                eprintln!("post_start={} entry_end={} blob_len={}", post_start, e, post_blob.len());
+                let p = &mut { post_start };
+                macro_rules! rd {
+                    ($t:ty, $p:expr, $name:expr) => {{
+                        let lp = *$p;
+                        let v = match <$t>::read_from(&data, $p) {
+                            Ok(v) => v,
+                            Err(e) => { eprintln!("  {} FAILED at off={}: {}", $name, lp, e); break 'outer; }
+                        };
+                        eprintln!("  {} [off={}]", $name, *$p);
+                        v
+                    }};
+                }
+                macro_rules! rdc {
+                    ($p:expr, $name:expr) => {{
+                        let len_pos = *$p;
+                        match CString::read_from(&data, $p) {
+                            Ok(s) => { eprintln!("  {} len={} [off={}]", $name, s.length, *$p); }
+                            Err(e) => { eprintln!("  {} FAILED at len_pos={}: {}", $name, len_pos, e); break 'outer; }
+                        }
+                    }};
+                }
+                macro_rules! rdarr {
+                    ($t:ty, $p:expr, $name:expr) => {{
+                        let cnt_pos = *$p;
+                        let cnt = match u32::read_from(&data, $p) {
+                            Ok(v) => v,
+                            Err(e) => { eprintln!("  {} count FAILED at off={}: {}", $name, cnt_pos, e); break 'outer; }
+                        };
+                        eprintln!("  {} count={} [cnt_pos={}]", $name, cnt, cnt_pos);
+                        for i in 0..cnt {
+                            match <$t>::read_from(&data, $p) {
+                                Ok(_) => {},
+                                Err(e) => { eprintln!("  {}[{}] FAILED: {}", $name, i, e); break 'outer; }
+                            }
+                        }
+                    }};
+                }
+
+                rd!(CArray<GimmickF20Elem>, p, "f20");
+                rd!(u8, p, "f21");
+                rd!(CArray<u32>, p, "f22");
+                rd!(CArray<u32>, p, "f23");
+                rd!(CArray<GimmickF24Elem>, p, "f24");
+                rd!(u64, p, "f25");
+                rd!([u8;7], p, "f26_32");
+                rd!(u32, p, "f33_a");
+                rd!(u8, p, "f33_b");
+                rd!(u8, p, "f33_c");
+                rd!(CArray<GimmickF34Elem>, p, "f34");
+                rd!(CArray<GimmickF35Elem>, p, "f35");
+                rd!(u8, p, "f36");
+                rd!(u32, p, "f37");
+                rd!(u32, p, "f38");
+                rd!(u32, p, "f39");
+                rd!([u8;2], p, "f40_41");
+                rd!(u32, p, "f42");
+                rd!(u8, p, "f43_flag");
+                rd!(CArray<u64>, p, "f43_list");
+                rd!(u64, p, "f44");
+                rd!(u64, p, "f45");
+                rd!(COptional<GimmickF46Data>, p, "f46");
+                rd!([u32;3], p, "f47");
+                rd!(u32, p, "f48");
+                rd!(u32, p, "f49");
+                rd!(u32, p, "f50");
+                rd!(u8, p, "f51");
+                rd!(u32, p, "f52");
+                rd!(u32, p, "f53");
+                rd!(u32, p, "f54");
+                rd!(u32, p, "f55");
+                rd!(u32, p, "f56");
+                rd!([u32;3], p, "f57");
+                rd!(u32, p, "f58");
+                rd!(u32, p, "f59");
+                rd!(u32, p, "f60");
+                rd!(u32, p, "f61");
+                rd!(u8, p, "f61b");
+                rd!(u8, p, "f62");
+                rd!(u32, p, "f63");
+                rd!(u32, p, "f64");
+                rd!(u32, p, "f65");
+                rd!(u32, p, "f66");
+                rd!(u32, p, "f67");
+                rd!([u8;3], p, "f68_70");
+                rd!(u32, p, "f71");
+                rd!([u32;3], p, "f72");
+                rd!(u32, p, "f73");
+                rd!(u32, p, "f74");
+                rd!(CArray<GimmickF75Elem>, p, "f75");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f76(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f76 non-zero"); return; } }
+                { let fl_pos=*p; let fl=u8::read_from(&data,p).unwrap(); eprintln!("  f77(absent) flag={} [pos={}]",fl,fl_pos); if fl!=0 { eprintln!("  STOP: f77 non-zero"); return; } }
+                rd!(CArray<GimmickF78Elem>, p, "f78");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f79(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f79 non-zero"); return; } }
+                rd!(CArray<u32>, p, "f80");
+                rd!(CArray<GimmickF81Elem>, p, "f81");
+                rd!(u32, p, "f82");
+                rd!(u32, p, "f83");
+                rd!([u8;2], p, "f84_85");
+                rdc!(p, "f86_str_a");
+                rdc!(p, "f86_str_b");
+                rd!(u32, p, "f86_a");
+                rd!(u32, p, "f86_b");
+                rd!(u32, p, "f86_c");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f87(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f87 non-zero"); return; } }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f88(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f88 non-zero"); return; } }
+                rd!(CArray<GimmickF89Elem>, p, "f89");
+                rd!(CArray<GimmickF90Elem>, p, "f90");
+                rd!(u32, p, "f91");
+                rd!(CArray<GimmickF92Elem>, p, "f92");
+                rd!(u32, p, "f93");
+                rd!(u32, p, "f94");
+                rd!(u32, p, "f95");
+                rd!(u32, p, "f96");
+                rd!(CArray<GimmickF97Elem>, p, "f97");
+                rd!(u8, p, "f98");
+                rd!(u32, p, "f99");
+                rd!(CArray<u32>, p, "f100");
+                rd!(CArray<u32>, p, "f101");
+                rd!([u8;2], p, "f102_103");
+                rd!(u16, p, "f104");
+                rd!(u16, p, "f105");
+                rd!([u8;10], p, "f106_115");
+                rd!(u32, p, "f116");
+                rd!(COptional<GimmickF117Data>, p, "f117");
+                rd!(u8, p, "f118");
+                rd!(CArray<GimmickF119Elem>, p, "f119");
+                rd!(u32, p, "f120");
+                rd!(u32, p, "f121");
+                rd!(u32, p, "f122");
+                rd!(u8, p, "f123");
+                rdc!(p, "f124");
+                rd!(CArray<GimmickF125Elem>, p, "f125");
+                rd!(CArray<GimmickF126Elem>, p, "f126");
+                rd!(CArray<GimmickF126Elem>, p, "f127");
+                rd!(CArray<GimmickF128Elem>, p, "f128");
+                rd!(CArray<GimmickF129Elem>, p, "f129");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f130(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f130 non-zero"); return; } }
+                rd!(u32, p, "f131");
+                // f132 manually
+                { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_a flag={} val={} [off_before={}]",fl,fv,fp); rdc!(p, "f132.block_a.name"); }
+                { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_b flag={} val={} [off_before={}]",fl,fv,fp); rdc!(p, "f132.block_b.name"); }
+                rd!(u32, p, "f132.hash");
+                rd!(u16, p, "f132.val");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_u32 count={} [cnt_pos={}]",cnt,cnt_pos); for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } eprintln!("  f132.list_a_u32 done [off={}]", *p); }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_264b count={} [cnt_pos={}]",cnt,cnt_pos); for i in 0..cnt { GimmickDD420Elem::read_from(&data,p).unwrap_or_else(|e| panic!("list_a_264b[{}]: {}", i, e)); } eprintln!("  f132.list_a_264b done [off={}]", *p); }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_b_u32 count={} [cnt_pos={}]",cnt,cnt_pos); for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } eprintln!("  f132.list_b_u32 done [off={}]", *p); }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_b_264b count={} [cnt_pos={}]",cnt,cnt_pos); for i in 0..cnt { GimmickDD420Elem::read_from(&data,p).unwrap_or_else(|e| panic!("list_b_264b[{}]: {}", i, e)); } eprintln!("  f132.list_b_264b done [off={}]", *p); }
+                eprintln!("  ALL fields through f132 OK at off={}", *p);
+                rd!(u32, p, "f133");
+                rd!(u8, p, "f134");
+                rd!(u32, p, "f135");
+                rd!([u8;3], p, "f136_138");
+                rd!(u32, p, "f139");
+                rd!(u32, p, "f140");
+                rd!(u32, p, "f141");
+                rd!([u8;3], p, "f142_144");
+                rd!(u32, p, "f145");
+                rd!(u32, p, "f146_a");
+                rd!(u32, p, "f146_b");
+                rd!(u32, p, "f146_c");
+                rd!(u8, p, "f146_d");
+                rd!(u8, p, "f146_e");
+                rd!(u16, p, "f147");
+                rd!(CArray<u16>, p, "f148");
+                rd!(u8, p, "f149");
+                rd!(u16, p, "f150");
+                rd!(u16, p, "f151");
+                rd!([u8;4], p, "f152_155");
+                // Dump next 8 bytes before attempting f154
+                if *p + 8 <= data.len() {
+                    let peek: [u8;8] = data[*p..*p+8].try_into().unwrap();
+                    eprintln!("  bytes at off={}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
+                        *p, peek[0],peek[1],peek[2],peek[3],peek[4],peek[5],peek[6],peek[7]);
+                }
+                rdc!(p, "f154");
+                eprintln!("  ALL fields through f154 OK at off={}", *p);
+                rd!([u8;9], p, "f155_163");
+                rd!(u32, p, "f164");
+                rd!(u64, p, "f165");
+                rd!(CArray<GimmickF75Elem>, p, "f166");
+                rd!(CArray<GimmickF75Elem>, p, "f167");
+                rd!(CArray<COptional<GimmickF168Inner>>, p, "f168");
+                rd!(CArray<COptional<GimmickF168Inner>>, p, "f169");
+                rd!(u32, p, "f170_a");
+                rd!(u32, p, "f170_b");
+                rd!(u32, p, "f170_c");
+                rd!(CArray<GimmickF170Elem>, p, "f170_list");
+                rd!(u32, p, "f171");
+                rd!([u8;4], p, "f172_175");
+                rd!(u32, p, "f176");
+                rd!(u8, p, "f177");
+                rd!(u32, p, "f178");
+                eprintln!("  ALL fields through f178 at off={}, entry_end={}", *p, e);
+                break;
+            }
+        }
+
+        // Second pass: trace a 692-byte blob entry
+        eprintln!("\n--- 692-byte blob trace ---");
+        'outer2: for (_k, s, e) in &ranges {
+            let mut probe = *s;
+            let item = GimmickInfo::read_with_size(&data, &mut probe, e - s).unwrap();
+            if let GimmickTail::Decoded { alt_trigger_list: Some(_), post_body: None, post_blob, .. } = &item.tail {
+                if post_blob.len() != 692 { continue; }
+                let post_start = e - post_blob.len();
+                eprintln!("post_start={} entry_end={} blob_len={}", post_start, e, post_blob.len());
+                let p = &mut { post_start };
+                macro_rules! rd2 {
+                    ($t:ty, $p:expr, $name:expr) => {{
+                        let lp = *$p;
+                        let v = match <$t>::read_from(&data, $p) {
+                            Ok(v) => v,
+                            Err(e) => { eprintln!("  {} FAILED at off={}: {}", $name, lp, e); break 'outer2; }
+                        };
+                        eprintln!("  {} [off={}]", $name, *$p);
+                        v
+                    }};
+                }
+                macro_rules! rdc2 {
+                    ($p:expr, $name:expr) => {{
+                        let lp = *$p;
+                        match CString::read_from(&data, $p) {
+                            Ok(s) => { eprintln!("  {} len={} [off={}]", $name, s.length, *$p); }
+                            Err(e) => { eprintln!("  {} FAILED at len_pos={}: {}", $name, lp, e); break 'outer2; }
+                        }
+                    }};
+                }
+                macro_rules! rdarr2 {
+                    ($t:ty, $p:expr, $name:expr) => {{
+                        let cnt_pos = *$p;
+                        let cnt = u32::read_from(&data, $p).unwrap();
+                        eprintln!("  {} count={} [cnt_pos={}]", $name, cnt, cnt_pos);
+                        if cnt > 10000 { eprintln!("  {} STOP: count too large", $name); break 'outer2; }
+                        for i in 0..cnt {
+                            <$t>::read_from(&data, $p).unwrap_or_else(|e| panic!("{}[{}]: {}", $name, i, e));
+                        }
+                    }};
+                }
+                rd2!(CArray<GimmickF20Elem>, p, "f20");
+                rd2!(u8, p, "f21");
+                rd2!(CArray<u32>, p, "f22");
+                rd2!(CArray<u32>, p, "f23");
+                rd2!(CArray<GimmickF24Elem>, p, "f24");
+                rd2!(u64, p, "f25");
+                rd2!([u8;7], p, "f26_32");
+                rd2!(u32, p, "f33_a");
+                rd2!(u8, p, "f33_b");
+                rd2!(u8, p, "f33_c");
+                rd2!(CArray<GimmickF34Elem>, p, "f34");
+                rd2!(CArray<GimmickF35Elem>, p, "f35");
+                rd2!(u8, p, "f36");
+                rd2!(u32, p, "f37");
+                rd2!(u32, p, "f38");
+                rd2!(u32, p, "f39");
+                rd2!([u8;2], p, "f40_41");
+                rd2!(u32, p, "f42");
+                rd2!(u8, p, "f43_flag");
+                rdarr2!(u64, p, "f43_list");
+                rd2!(u64, p, "f44");
+                rd2!(u64, p, "f45");
+                rd2!(COptional<GimmickF46Data>, p, "f46");
+                rd2!([u32;3], p, "f47");
+                rd2!(u32, p, "f48");
+                rd2!(u32, p, "f49");
+                rd2!(u32, p, "f50");
+                rd2!(u8, p, "f51");
+                rd2!(u32, p, "f52");
+                rd2!(u32, p, "f53");
+                rd2!(u32, p, "f54");
+                rd2!(u32, p, "f55");
+                rd2!(u32, p, "f56");
+                rd2!([u32;3], p, "f57");
+                rd2!(u32, p, "f58");
+                rd2!(u32, p, "f59");
+                rd2!(u32, p, "f60");
+                rd2!(u32, p, "f61");
+                rd2!(u8, p, "f61b");
+                rd2!(u8, p, "f62");
+                rd2!(u32, p, "f63");
+                rd2!(u32, p, "f64");
+                rd2!(u32, p, "f65");
+                rd2!(u32, p, "f66");
+                rd2!(u32, p, "f67");
+                rd2!([u8;3], p, "f68_70");
+                rd2!(u32, p, "f71");
+                rd2!([u32;3], p, "f72");
+                rd2!(u32, p, "f73");
+                rd2!(u32, p, "f74");
+                rdarr2!(GimmickF75Elem, p, "f75");
+                rdarr2!(GimmickF76Elem, p, "f76");
+                rd2!(COptional<GimmickF76Inner>, p, "f77");
+                rd2!(CArray<GimmickF78Elem>, p, "f78");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f79 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f79 STOP"); break 'outer2; } for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } }
+                rd2!(CArray<u32>, p, "f80");
+                rd2!(CArray<GimmickF81Elem>, p, "f81");
+                rd2!(u32, p, "f82");
+                rd2!(u32, p, "f83");
+                rd2!([u8;2], p, "f84_85");
+                rdc2!(p, "f86_str_a");
+                rdc2!(p, "f86_str_b");
+                rd2!(u32, p, "f86_a");
+                rd2!(u32, p, "f86_b");
+                rd2!(u32, p, "f86_c");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f87 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f87 STOP"); break 'outer2; } }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f88 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f88 STOP"); break 'outer2; } }
+                rd2!(CArray<GimmickF89Elem>, p, "f89");
+                rd2!(CArray<GimmickF90Elem>, p, "f90");
+                rd2!(u32, p, "f91");
+                rd2!(CArray<GimmickF92Elem>, p, "f92");
+                rd2!(u32, p, "f93");
+                rd2!(u32, p, "f94");
+                rd2!(u32, p, "f95");
+                rd2!(u32, p, "f96");
+                rd2!(CArray<GimmickF97Elem>, p, "f97");
+                rd2!(u8, p, "f98");
+                rd2!(u32, p, "f99");
+                rd2!(CArray<u32>, p, "f100");
+                rd2!(CArray<u32>, p, "f101");
+                rd2!([u8;2], p, "f102_103");
+                rd2!(u16, p, "f104");
+                rd2!(u16, p, "f105");
+                rd2!([u8;10], p, "f106_115");
+                rd2!(u32, p, "f116");
+                rd2!(COptional<GimmickF117Data>, p, "f117");
+                rd2!(u8, p, "f118");
+                rd2!(CArray<GimmickF119Elem>, p, "f119");
+                rd2!(u32, p, "f120");
+                rd2!(u32, p, "f121");
+                rd2!(u32, p, "f122");
+                rd2!(u8, p, "f123");
+                rdc2!(p, "f124");
+                rd2!(CArray<GimmickF125Elem>, p, "f125");
+                rd2!(CArray<GimmickF126Elem>, p, "f126");
+                rd2!(CArray<GimmickF126Elem>, p, "f127");
+                rd2!(CArray<GimmickF128Elem>, p, "f128");
+                rd2!(CArray<GimmickF129Elem>, p, "f129");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f130 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f130 STOP"); break 'outer2; } }
+                rd2!(u32, p, "f131");
+                { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_a flag={} val={} [off_before={}]",fl,fv,fp); rdc2!(p, "f132.block_a.name"); }
+                { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_b flag={} val={} [off_before={}]",fl,fv,fp); rdc2!(p, "f132.block_b.name"); }
+                rd2!(u32, p, "f132.hash");
+                rd2!(u16, p, "f132.val");
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_u32 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  STOP"); break 'outer2; } for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_264b count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  STOP"); break 'outer2; } for i in 0..cnt { GimmickDD420Elem::read_from(&data,p).unwrap_or_else(|e| panic!("list_a_264b[{}]: {}", i, e)); } }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_b_u32 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  STOP"); break 'outer2; } for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } }
+                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_b_264b count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  STOP"); break 'outer2; } for i in 0..cnt { GimmickDD420Elem::read_from(&data,p).unwrap_or_else(|e| panic!("list_b_264b[{}]: {}", i, e)); } }
+                eprintln!("  f132 done [off={}]", *p);
+                rd2!(u32, p, "f133");
+                rd2!(u8, p, "f134");
+                rd2!(u32, p, "f135");
+                rd2!([u8;3], p, "f136_138");
+                rd2!(u32, p, "f139");
+                rd2!(u32, p, "f140");
+                rd2!(u32, p, "f141");
+                rd2!([u8;3], p, "f142_144");
+                rd2!(u32, p, "f145");
+                rd2!(u32, p, "f146_a");
+                rd2!(u32, p, "f146_b");
+                rd2!(u32, p, "f146_c");
+                rd2!(u8, p, "f146_d");
+                rd2!(u8, p, "f146_e");
+                rd2!(u16, p, "f147");
+                rdarr2!(u16, p, "f148");
+                rd2!(u8, p, "f149");
+                rd2!(u16, p, "f150");
+                rd2!(u16, p, "f151");
+                rd2!([u8;4], p, "f152_155");
+                let peek8: [u8;8] = data[*p..*p+8].try_into().unwrap();
+                eprintln!("  bytes at off={}: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}", *p, peek8[0],peek8[1],peek8[2],peek8[3],peek8[4],peek8[5],peek8[6],peek8[7]);
+                rdc2!(p, "f154");
+                rd2!([u8;9], p, "f155_163");
+                rd2!(u32, p, "f164");
+                rd2!(u64, p, "f165");
+                rdarr2!(GimmickF75Elem, p, "f166");
+                rdarr2!(GimmickF75Elem, p, "f167");
+                rdarr2!(COptional<GimmickF168Inner>, p, "f168");
+                rdarr2!(COptional<GimmickF168Inner>, p, "f169");
+                // Dump 61 bytes after f169 for wire layout analysis
+                let tail_start = *p;
+                let tail_end = e;
+                let tail_len = tail_end - tail_start;
+                eprint!("  tail bytes[{}] at off={}: ", tail_len, tail_start);
+                for i in 0..tail_len.min(61) { eprint!("{:02x} ", data[tail_start+i]); }
+                eprintln!();
+                rd2!(u32, p, "f170_a");
+                rd2!(u64, p, "f170_b");
+                rd2!(u32, p, "f170_c");
+                rdarr2!(GimmickF170Elem, p, "f170_list");
+                rd2!(u32, p, "f171");
+                rd2!([u8;4], p, "f172_175");
+                rd2!(u32, p, "f176");
+                rd2!(u8, p, "f177");
+                rd2!(u32, p, "f178");
+                eprintln!("  ALL fields at off={}, entry_end={}", *p, e);
+                break 'outer2;
+            }
+        }
     }
 
     #[test]
