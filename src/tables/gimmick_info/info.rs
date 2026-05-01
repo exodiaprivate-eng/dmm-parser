@@ -1212,6 +1212,9 @@ pub enum GimmickTail<'a> {
         field_717_u32: Option<u32>, field_718_u32: Option<u32>, field_719_u32: Option<u32>, field_720_u32: Option<u32>,
         field_721_u32: Option<u32>, field_722_u32: Option<u32>, field_723_u32: Option<u32>, field_724_u32: Option<u32>,
         field_725_u32: Option<u32>, field_726_u32: Option<u32>, field_727_u32: Option<u32>, field_728_u32: Option<u32>,
+        /// Trailing pad bytes — drained as chained `Option<u8>` until probe runs out.
+        /// Captures the 1-3 trailing zero bytes seen in ~10500 entries (mostly 0x00 padding).
+        tail_pad_001: Option<u8>, tail_pad_002: Option<u8>, tail_pad_003: Option<u8>, tail_pad_004: Option<u8>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -3968,6 +3971,24 @@ impl<'a> GimmickTail<'a> {
                 let field_726_u32 = read_u32_chained!(field_725_u32);
                 let field_727_u32 = read_u32_chained!(field_726_u32);
                 let field_728_u32 = read_u32_chained!(field_727_u32);
+                macro_rules! read_u8_tail {
+                    ($prev:expr) => {{
+                        if $prev && probe + 1 <= entry_end {
+                            let pre_ = probe;
+                            match u8::read_from(data, &mut probe) {
+                                Ok(v) => Some(v), _ => { probe = pre_; None }
+                            }
+                        } else { None }
+                    }};
+                }
+                // Drain trailing pad bytes (most entries have 1-3 trailing 0x00).
+                // Activate unconditionally — write_to and write_from_json both
+                // place tail_pad after alt_post_cstr_b/field_728, so the order
+                // is consistent for both alt and non-alt entry formats.
+                let tail_pad_001 = read_u8_tail!(true);
+                let tail_pad_002 = read_u8_tail!(tail_pad_001.is_some());
+                let tail_pad_003 = read_u8_tail!(tail_pad_002.is_some());
+                let tail_pad_004 = read_u8_tail!(tail_pad_003.is_some());
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -4882,6 +4903,7 @@ impl<'a> GimmickTail<'a> {
                     field_717_u32, field_718_u32, field_719_u32, field_720_u32,
                     field_721_u32, field_722_u32, field_723_u32, field_724_u32,
                     field_725_u32, field_726_u32, field_727_u32, field_728_u32,
+                    tail_pad_001, tail_pad_002, tail_pad_003, tail_pad_004,
                     post_blob,
                 })
             }
@@ -5409,7 +5431,9 @@ impl<'a> GimmickTail<'a> {
                 field_713_u32, field_714_u32, field_715_u32, field_716_u32,
                 field_717_u32, field_718_u32, field_719_u32, field_720_u32,
                 field_721_u32, field_722_u32, field_723_u32, field_724_u32,
-                field_725_u32, field_726_u32, field_727_u32, field_728_u32, post_blob } => {
+                field_725_u32, field_726_u32, field_727_u32, field_728_u32,
+                tail_pad_001, tail_pad_002, tail_pad_003, tail_pad_004,
+                post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -7450,6 +7474,10 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = field_726_u32 { v.write_to(w)?; }
                 if let Some(v) = field_727_u32 { v.write_to(w)?; }
                 if let Some(v) = field_728_u32 { v.write_to(w)?; }
+                if let Some(v) = tail_pad_001 { v.write_to(w)?; }
+                if let Some(v) = tail_pad_002 { v.write_to(w)?; }
+                if let Some(v) = tail_pad_003 { v.write_to(w)?; }
+                if let Some(v) = tail_pad_004 { v.write_to(w)?; }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -7972,7 +8000,9 @@ impl<'a> GimmickTail<'a> {
                 field_713_u32, field_714_u32, field_715_u32, field_716_u32,
                 field_717_u32, field_718_u32, field_719_u32, field_720_u32,
                 field_721_u32, field_722_u32, field_723_u32, field_724_u32,
-                field_725_u32, field_726_u32, field_727_u32, field_728_u32, post_blob } => {
+                field_725_u32, field_726_u32, field_727_u32, field_728_u32,
+                tail_pad_001, tail_pad_002, tail_pad_003, tail_pad_004,
+                post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -9087,6 +9117,14 @@ impl<'a> GimmickTail<'a> {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
                 }
+                m.insert("tail_pad_001".to_string(), match tail_pad_001 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("tail_pad_002".to_string(), match tail_pad_002 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("tail_pad_003".to_string(), match tail_pad_003 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("tail_pad_004".to_string(), match tail_pad_004 {
+                    Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("alt_trigger_flag".to_string(), match alt_trigger_flag {
                     Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("alt_trigger_name".to_string(), match alt_trigger_name {
@@ -10230,6 +10268,12 @@ impl<'a> GimmickTail<'a> {
                 let acsb = json_get_field(obj, "alt_post_cstr_b")?;
                 if !acsb.is_null() {
                     <CString as WriteJsonValue>::write_from_json(w, acsb)?;
+                }
+                for k in &["tail_pad_001", "tail_pad_002", "tail_pad_003", "tail_pad_004"] {
+                    let v = json_get_field(obj, k)?;
+                    if !v.is_null() {
+                        <u8 as WriteJsonValue>::write_from_json(w, v)?;
+                    }
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
