@@ -133,14 +133,12 @@ This file is for collaborators picking up round-trip work. It's the
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
 - `GimmickInfo` — Decoded tail extended to **1376 typed fields**
   (1-16 prefix + 712 tail u32 + 6 alt-header + 640 alt-body + 2
-  alt-cstr). post_blob average **1118 → 191 bytes** (11.49M bytes
-  recovered total over 12393 entries — **83% reduction from
-  baseline**). PRACTICAL CEILING REACHED. Dropoff analysis (iter 59)
-  reveals: 1.26M of remaining 2.37M is locked in 1402 NON-alt-format
-  entries that fall off in fields 18-49 due to non-standard
-  CArray<u32> count semantics. The remaining 660K is in alt-format
-  entries needing a recursive trigger parser. Both require targeted
-  RE on individual gimmick types. (loop session 2026-04-30)
+  alt-cstr + 5 emissive-record). post_blob average **1118 → 191
+  bytes** (11.49M bytes recovered total over 12393 entries —
+  **83% reduction from baseline**). Iter 60 decoded structured
+  emissive bind record at field_24 (51 entries, 3.7K bytes saved)
+  — exposes material parameter binding names like
+  `_emissiveProgressGauge` for mod editing. (loop session 2026-04-30)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
