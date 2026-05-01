@@ -1222,6 +1222,38 @@ pub enum GimmickTail<'a> {
         alt_body_757: Option<u32>, alt_body_758: Option<u32>, alt_body_759: Option<u32>, alt_body_760: Option<u32>,
         alt_body_761: Option<u32>, alt_body_762: Option<u32>, alt_body_763: Option<u32>, alt_body_764: Option<u32>,
         alt_body_765: Option<u32>, alt_body_766: Option<u32>, alt_body_767: Option<u32>, alt_body_768: Option<u32>,
+        alt_body_769: Option<u32>, alt_body_770: Option<u32>, alt_body_771: Option<u32>, alt_body_772: Option<u32>,
+        alt_body_773: Option<u32>, alt_body_774: Option<u32>, alt_body_775: Option<u32>, alt_body_776: Option<u32>,
+        alt_body_777: Option<u32>, alt_body_778: Option<u32>, alt_body_779: Option<u32>, alt_body_780: Option<u32>,
+        alt_body_781: Option<u32>, alt_body_782: Option<u32>, alt_body_783: Option<u32>, alt_body_784: Option<u32>,
+        alt_body_785: Option<u32>, alt_body_786: Option<u32>, alt_body_787: Option<u32>, alt_body_788: Option<u32>,
+        alt_body_789: Option<u32>, alt_body_790: Option<u32>, alt_body_791: Option<u32>, alt_body_792: Option<u32>,
+        alt_body_793: Option<u32>, alt_body_794: Option<u32>, alt_body_795: Option<u32>, alt_body_796: Option<u32>,
+        alt_body_797: Option<u32>, alt_body_798: Option<u32>, alt_body_799: Option<u32>, alt_body_800: Option<u32>,
+        alt_body_801: Option<u32>, alt_body_802: Option<u32>, alt_body_803: Option<u32>, alt_body_804: Option<u32>,
+        alt_body_805: Option<u32>, alt_body_806: Option<u32>, alt_body_807: Option<u32>, alt_body_808: Option<u32>,
+        alt_body_809: Option<u32>, alt_body_810: Option<u32>, alt_body_811: Option<u32>, alt_body_812: Option<u32>,
+        alt_body_813: Option<u32>, alt_body_814: Option<u32>, alt_body_815: Option<u32>, alt_body_816: Option<u32>,
+        alt_body_817: Option<u32>, alt_body_818: Option<u32>, alt_body_819: Option<u32>, alt_body_820: Option<u32>,
+        alt_body_821: Option<u32>, alt_body_822: Option<u32>, alt_body_823: Option<u32>, alt_body_824: Option<u32>,
+        alt_body_825: Option<u32>, alt_body_826: Option<u32>, alt_body_827: Option<u32>, alt_body_828: Option<u32>,
+        alt_body_829: Option<u32>, alt_body_830: Option<u32>, alt_body_831: Option<u32>, alt_body_832: Option<u32>,
+        alt_body_833: Option<u32>, alt_body_834: Option<u32>, alt_body_835: Option<u32>, alt_body_836: Option<u32>,
+        alt_body_837: Option<u32>, alt_body_838: Option<u32>, alt_body_839: Option<u32>, alt_body_840: Option<u32>,
+        alt_body_841: Option<u32>, alt_body_842: Option<u32>, alt_body_843: Option<u32>, alt_body_844: Option<u32>,
+        alt_body_845: Option<u32>, alt_body_846: Option<u32>, alt_body_847: Option<u32>, alt_body_848: Option<u32>,
+        alt_body_849: Option<u32>, alt_body_850: Option<u32>, alt_body_851: Option<u32>, alt_body_852: Option<u32>,
+        alt_body_853: Option<u32>, alt_body_854: Option<u32>, alt_body_855: Option<u32>, alt_body_856: Option<u32>,
+        alt_body_857: Option<u32>, alt_body_858: Option<u32>, alt_body_859: Option<u32>, alt_body_860: Option<u32>,
+        alt_body_861: Option<u32>, alt_body_862: Option<u32>, alt_body_863: Option<u32>, alt_body_864: Option<u32>,
+        alt_body_865: Option<u32>, alt_body_866: Option<u32>, alt_body_867: Option<u32>, alt_body_868: Option<u32>,
+        alt_body_869: Option<u32>, alt_body_870: Option<u32>, alt_body_871: Option<u32>, alt_body_872: Option<u32>,
+        alt_body_873: Option<u32>, alt_body_874: Option<u32>, alt_body_875: Option<u32>, alt_body_876: Option<u32>,
+        alt_body_877: Option<u32>, alt_body_878: Option<u32>, alt_body_879: Option<u32>, alt_body_880: Option<u32>,
+        alt_body_881: Option<u32>, alt_body_882: Option<u32>, alt_body_883: Option<u32>, alt_body_884: Option<u32>,
+        alt_body_885: Option<u32>, alt_body_886: Option<u32>, alt_body_887: Option<u32>, alt_body_888: Option<u32>,
+        alt_body_889: Option<u32>, alt_body_890: Option<u32>, alt_body_891: Option<u32>, alt_body_892: Option<u32>,
+        alt_body_893: Option<u32>, alt_body_894: Option<u32>, alt_body_895: Option<u32>, alt_body_896: Option<u32>,
         /// CString detected after alt_body_640 — usually file path or XML content
         /// in the longest entries (e.g. "d:/bs/cd_alpha/cd/resource/...staticinfo.xml").
         alt_post_cstr_a: Option<CString<'a>>,
@@ -4031,10 +4063,138 @@ impl<'a> GimmickTail<'a> {
                 let alt_body_766 = read_u32_chained!(alt_body_765);
                 let alt_body_767 = read_u32_chained!(alt_body_766);
                 let alt_body_768 = read_u32_chained!(alt_body_767);
+                let alt_body_769 = read_u32_chained!(alt_body_768);
+                let alt_body_770 = read_u32_chained!(alt_body_769);
+                let alt_body_771 = read_u32_chained!(alt_body_770);
+                let alt_body_772 = read_u32_chained!(alt_body_771);
+                let alt_body_773 = read_u32_chained!(alt_body_772);
+                let alt_body_774 = read_u32_chained!(alt_body_773);
+                let alt_body_775 = read_u32_chained!(alt_body_774);
+                let alt_body_776 = read_u32_chained!(alt_body_775);
+                let alt_body_777 = read_u32_chained!(alt_body_776);
+                let alt_body_778 = read_u32_chained!(alt_body_777);
+                let alt_body_779 = read_u32_chained!(alt_body_778);
+                let alt_body_780 = read_u32_chained!(alt_body_779);
+                let alt_body_781 = read_u32_chained!(alt_body_780);
+                let alt_body_782 = read_u32_chained!(alt_body_781);
+                let alt_body_783 = read_u32_chained!(alt_body_782);
+                let alt_body_784 = read_u32_chained!(alt_body_783);
+                let alt_body_785 = read_u32_chained!(alt_body_784);
+                let alt_body_786 = read_u32_chained!(alt_body_785);
+                let alt_body_787 = read_u32_chained!(alt_body_786);
+                let alt_body_788 = read_u32_chained!(alt_body_787);
+                let alt_body_789 = read_u32_chained!(alt_body_788);
+                let alt_body_790 = read_u32_chained!(alt_body_789);
+                let alt_body_791 = read_u32_chained!(alt_body_790);
+                let alt_body_792 = read_u32_chained!(alt_body_791);
+                let alt_body_793 = read_u32_chained!(alt_body_792);
+                let alt_body_794 = read_u32_chained!(alt_body_793);
+                let alt_body_795 = read_u32_chained!(alt_body_794);
+                let alt_body_796 = read_u32_chained!(alt_body_795);
+                let alt_body_797 = read_u32_chained!(alt_body_796);
+                let alt_body_798 = read_u32_chained!(alt_body_797);
+                let alt_body_799 = read_u32_chained!(alt_body_798);
+                let alt_body_800 = read_u32_chained!(alt_body_799);
+                let alt_body_801 = read_u32_chained!(alt_body_800);
+                let alt_body_802 = read_u32_chained!(alt_body_801);
+                let alt_body_803 = read_u32_chained!(alt_body_802);
+                let alt_body_804 = read_u32_chained!(alt_body_803);
+                let alt_body_805 = read_u32_chained!(alt_body_804);
+                let alt_body_806 = read_u32_chained!(alt_body_805);
+                let alt_body_807 = read_u32_chained!(alt_body_806);
+                let alt_body_808 = read_u32_chained!(alt_body_807);
+                let alt_body_809 = read_u32_chained!(alt_body_808);
+                let alt_body_810 = read_u32_chained!(alt_body_809);
+                let alt_body_811 = read_u32_chained!(alt_body_810);
+                let alt_body_812 = read_u32_chained!(alt_body_811);
+                let alt_body_813 = read_u32_chained!(alt_body_812);
+                let alt_body_814 = read_u32_chained!(alt_body_813);
+                let alt_body_815 = read_u32_chained!(alt_body_814);
+                let alt_body_816 = read_u32_chained!(alt_body_815);
+                let alt_body_817 = read_u32_chained!(alt_body_816);
+                let alt_body_818 = read_u32_chained!(alt_body_817);
+                let alt_body_819 = read_u32_chained!(alt_body_818);
+                let alt_body_820 = read_u32_chained!(alt_body_819);
+                let alt_body_821 = read_u32_chained!(alt_body_820);
+                let alt_body_822 = read_u32_chained!(alt_body_821);
+                let alt_body_823 = read_u32_chained!(alt_body_822);
+                let alt_body_824 = read_u32_chained!(alt_body_823);
+                let alt_body_825 = read_u32_chained!(alt_body_824);
+                let alt_body_826 = read_u32_chained!(alt_body_825);
+                let alt_body_827 = read_u32_chained!(alt_body_826);
+                let alt_body_828 = read_u32_chained!(alt_body_827);
+                let alt_body_829 = read_u32_chained!(alt_body_828);
+                let alt_body_830 = read_u32_chained!(alt_body_829);
+                let alt_body_831 = read_u32_chained!(alt_body_830);
+                let alt_body_832 = read_u32_chained!(alt_body_831);
+                let alt_body_833 = read_u32_chained!(alt_body_832);
+                let alt_body_834 = read_u32_chained!(alt_body_833);
+                let alt_body_835 = read_u32_chained!(alt_body_834);
+                let alt_body_836 = read_u32_chained!(alt_body_835);
+                let alt_body_837 = read_u32_chained!(alt_body_836);
+                let alt_body_838 = read_u32_chained!(alt_body_837);
+                let alt_body_839 = read_u32_chained!(alt_body_838);
+                let alt_body_840 = read_u32_chained!(alt_body_839);
+                let alt_body_841 = read_u32_chained!(alt_body_840);
+                let alt_body_842 = read_u32_chained!(alt_body_841);
+                let alt_body_843 = read_u32_chained!(alt_body_842);
+                let alt_body_844 = read_u32_chained!(alt_body_843);
+                let alt_body_845 = read_u32_chained!(alt_body_844);
+                let alt_body_846 = read_u32_chained!(alt_body_845);
+                let alt_body_847 = read_u32_chained!(alt_body_846);
+                let alt_body_848 = read_u32_chained!(alt_body_847);
+                let alt_body_849 = read_u32_chained!(alt_body_848);
+                let alt_body_850 = read_u32_chained!(alt_body_849);
+                let alt_body_851 = read_u32_chained!(alt_body_850);
+                let alt_body_852 = read_u32_chained!(alt_body_851);
+                let alt_body_853 = read_u32_chained!(alt_body_852);
+                let alt_body_854 = read_u32_chained!(alt_body_853);
+                let alt_body_855 = read_u32_chained!(alt_body_854);
+                let alt_body_856 = read_u32_chained!(alt_body_855);
+                let alt_body_857 = read_u32_chained!(alt_body_856);
+                let alt_body_858 = read_u32_chained!(alt_body_857);
+                let alt_body_859 = read_u32_chained!(alt_body_858);
+                let alt_body_860 = read_u32_chained!(alt_body_859);
+                let alt_body_861 = read_u32_chained!(alt_body_860);
+                let alt_body_862 = read_u32_chained!(alt_body_861);
+                let alt_body_863 = read_u32_chained!(alt_body_862);
+                let alt_body_864 = read_u32_chained!(alt_body_863);
+                let alt_body_865 = read_u32_chained!(alt_body_864);
+                let alt_body_866 = read_u32_chained!(alt_body_865);
+                let alt_body_867 = read_u32_chained!(alt_body_866);
+                let alt_body_868 = read_u32_chained!(alt_body_867);
+                let alt_body_869 = read_u32_chained!(alt_body_868);
+                let alt_body_870 = read_u32_chained!(alt_body_869);
+                let alt_body_871 = read_u32_chained!(alt_body_870);
+                let alt_body_872 = read_u32_chained!(alt_body_871);
+                let alt_body_873 = read_u32_chained!(alt_body_872);
+                let alt_body_874 = read_u32_chained!(alt_body_873);
+                let alt_body_875 = read_u32_chained!(alt_body_874);
+                let alt_body_876 = read_u32_chained!(alt_body_875);
+                let alt_body_877 = read_u32_chained!(alt_body_876);
+                let alt_body_878 = read_u32_chained!(alt_body_877);
+                let alt_body_879 = read_u32_chained!(alt_body_878);
+                let alt_body_880 = read_u32_chained!(alt_body_879);
+                let alt_body_881 = read_u32_chained!(alt_body_880);
+                let alt_body_882 = read_u32_chained!(alt_body_881);
+                let alt_body_883 = read_u32_chained!(alt_body_882);
+                let alt_body_884 = read_u32_chained!(alt_body_883);
+                let alt_body_885 = read_u32_chained!(alt_body_884);
+                let alt_body_886 = read_u32_chained!(alt_body_885);
+                let alt_body_887 = read_u32_chained!(alt_body_886);
+                let alt_body_888 = read_u32_chained!(alt_body_887);
+                let alt_body_889 = read_u32_chained!(alt_body_888);
+                let alt_body_890 = read_u32_chained!(alt_body_889);
+                let alt_body_891 = read_u32_chained!(alt_body_890);
+                let alt_body_892 = read_u32_chained!(alt_body_891);
+                let alt_body_893 = read_u32_chained!(alt_body_892);
+                let alt_body_894 = read_u32_chained!(alt_body_893);
+                let alt_body_895 = read_u32_chained!(alt_body_894);
+                let alt_body_896 = read_u32_chained!(alt_body_895);
                 // Detect CString (file path or XML) at this position.
                 // Only succeeds when the next u32 is a sensible length (<1000)
                 // and the following bytes are valid UTF-8.
-                let alt_post_cstr_a = if alt_body_768.is_some() || alt_body_640.is_some() {
+                let alt_post_cstr_a = if alt_body_896.is_some() || alt_body_768.is_some() || alt_body_640.is_some() {
                     let pre_ = probe;
                     if probe + 4 <= entry_end {
                         let len = u32::from_le_bytes(data[probe..probe+4].try_into().unwrap()) as usize;
@@ -5077,6 +5237,38 @@ impl<'a> GimmickTail<'a> {
                     alt_body_757, alt_body_758, alt_body_759, alt_body_760,
                     alt_body_761, alt_body_762, alt_body_763, alt_body_764,
                     alt_body_765, alt_body_766, alt_body_767, alt_body_768,
+                    alt_body_769, alt_body_770, alt_body_771, alt_body_772,
+                    alt_body_773, alt_body_774, alt_body_775, alt_body_776,
+                    alt_body_777, alt_body_778, alt_body_779, alt_body_780,
+                    alt_body_781, alt_body_782, alt_body_783, alt_body_784,
+                    alt_body_785, alt_body_786, alt_body_787, alt_body_788,
+                    alt_body_789, alt_body_790, alt_body_791, alt_body_792,
+                    alt_body_793, alt_body_794, alt_body_795, alt_body_796,
+                    alt_body_797, alt_body_798, alt_body_799, alt_body_800,
+                    alt_body_801, alt_body_802, alt_body_803, alt_body_804,
+                    alt_body_805, alt_body_806, alt_body_807, alt_body_808,
+                    alt_body_809, alt_body_810, alt_body_811, alt_body_812,
+                    alt_body_813, alt_body_814, alt_body_815, alt_body_816,
+                    alt_body_817, alt_body_818, alt_body_819, alt_body_820,
+                    alt_body_821, alt_body_822, alt_body_823, alt_body_824,
+                    alt_body_825, alt_body_826, alt_body_827, alt_body_828,
+                    alt_body_829, alt_body_830, alt_body_831, alt_body_832,
+                    alt_body_833, alt_body_834, alt_body_835, alt_body_836,
+                    alt_body_837, alt_body_838, alt_body_839, alt_body_840,
+                    alt_body_841, alt_body_842, alt_body_843, alt_body_844,
+                    alt_body_845, alt_body_846, alt_body_847, alt_body_848,
+                    alt_body_849, alt_body_850, alt_body_851, alt_body_852,
+                    alt_body_853, alt_body_854, alt_body_855, alt_body_856,
+                    alt_body_857, alt_body_858, alt_body_859, alt_body_860,
+                    alt_body_861, alt_body_862, alt_body_863, alt_body_864,
+                    alt_body_865, alt_body_866, alt_body_867, alt_body_868,
+                    alt_body_869, alt_body_870, alt_body_871, alt_body_872,
+                    alt_body_873, alt_body_874, alt_body_875, alt_body_876,
+                    alt_body_877, alt_body_878, alt_body_879, alt_body_880,
+                    alt_body_881, alt_body_882, alt_body_883, alt_body_884,
+                    alt_body_885, alt_body_886, alt_body_887, alt_body_888,
+                    alt_body_889, alt_body_890, alt_body_891, alt_body_892,
+                    alt_body_893, alt_body_894, alt_body_895, alt_body_896,
                     alt_post_cstr_a,
                     alt_post_cstr_b,
                     field_665_u32, field_666_u32, field_667_u32, field_668_u32,
@@ -5639,6 +5831,38 @@ impl<'a> GimmickTail<'a> {
                 alt_body_757, alt_body_758, alt_body_759, alt_body_760,
                 alt_body_761, alt_body_762, alt_body_763, alt_body_764,
                 alt_body_765, alt_body_766, alt_body_767, alt_body_768,
+                alt_body_769, alt_body_770, alt_body_771, alt_body_772,
+                alt_body_773, alt_body_774, alt_body_775, alt_body_776,
+                alt_body_777, alt_body_778, alt_body_779, alt_body_780,
+                alt_body_781, alt_body_782, alt_body_783, alt_body_784,
+                alt_body_785, alt_body_786, alt_body_787, alt_body_788,
+                alt_body_789, alt_body_790, alt_body_791, alt_body_792,
+                alt_body_793, alt_body_794, alt_body_795, alt_body_796,
+                alt_body_797, alt_body_798, alt_body_799, alt_body_800,
+                alt_body_801, alt_body_802, alt_body_803, alt_body_804,
+                alt_body_805, alt_body_806, alt_body_807, alt_body_808,
+                alt_body_809, alt_body_810, alt_body_811, alt_body_812,
+                alt_body_813, alt_body_814, alt_body_815, alt_body_816,
+                alt_body_817, alt_body_818, alt_body_819, alt_body_820,
+                alt_body_821, alt_body_822, alt_body_823, alt_body_824,
+                alt_body_825, alt_body_826, alt_body_827, alt_body_828,
+                alt_body_829, alt_body_830, alt_body_831, alt_body_832,
+                alt_body_833, alt_body_834, alt_body_835, alt_body_836,
+                alt_body_837, alt_body_838, alt_body_839, alt_body_840,
+                alt_body_841, alt_body_842, alt_body_843, alt_body_844,
+                alt_body_845, alt_body_846, alt_body_847, alt_body_848,
+                alt_body_849, alt_body_850, alt_body_851, alt_body_852,
+                alt_body_853, alt_body_854, alt_body_855, alt_body_856,
+                alt_body_857, alt_body_858, alt_body_859, alt_body_860,
+                alt_body_861, alt_body_862, alt_body_863, alt_body_864,
+                alt_body_865, alt_body_866, alt_body_867, alt_body_868,
+                alt_body_869, alt_body_870, alt_body_871, alt_body_872,
+                alt_body_873, alt_body_874, alt_body_875, alt_body_876,
+                alt_body_877, alt_body_878, alt_body_879, alt_body_880,
+                alt_body_881, alt_body_882, alt_body_883, alt_body_884,
+                alt_body_885, alt_body_886, alt_body_887, alt_body_888,
+                alt_body_889, alt_body_890, alt_body_891, alt_body_892,
+                alt_body_893, alt_body_894, alt_body_895, alt_body_896,
                 alt_post_cstr_a, alt_post_cstr_b,
                 field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                 field_669_u32, field_670_u32, field_671_u32, field_672_u32,
@@ -7760,6 +7984,134 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = alt_body_766 { v.write_to(w)?; }
                 if let Some(v) = alt_body_767 { v.write_to(w)?; }
                 if let Some(v) = alt_body_768 { v.write_to(w)?; }
+                if let Some(v) = alt_body_769 { v.write_to(w)?; }
+                if let Some(v) = alt_body_770 { v.write_to(w)?; }
+                if let Some(v) = alt_body_771 { v.write_to(w)?; }
+                if let Some(v) = alt_body_772 { v.write_to(w)?; }
+                if let Some(v) = alt_body_773 { v.write_to(w)?; }
+                if let Some(v) = alt_body_774 { v.write_to(w)?; }
+                if let Some(v) = alt_body_775 { v.write_to(w)?; }
+                if let Some(v) = alt_body_776 { v.write_to(w)?; }
+                if let Some(v) = alt_body_777 { v.write_to(w)?; }
+                if let Some(v) = alt_body_778 { v.write_to(w)?; }
+                if let Some(v) = alt_body_779 { v.write_to(w)?; }
+                if let Some(v) = alt_body_780 { v.write_to(w)?; }
+                if let Some(v) = alt_body_781 { v.write_to(w)?; }
+                if let Some(v) = alt_body_782 { v.write_to(w)?; }
+                if let Some(v) = alt_body_783 { v.write_to(w)?; }
+                if let Some(v) = alt_body_784 { v.write_to(w)?; }
+                if let Some(v) = alt_body_785 { v.write_to(w)?; }
+                if let Some(v) = alt_body_786 { v.write_to(w)?; }
+                if let Some(v) = alt_body_787 { v.write_to(w)?; }
+                if let Some(v) = alt_body_788 { v.write_to(w)?; }
+                if let Some(v) = alt_body_789 { v.write_to(w)?; }
+                if let Some(v) = alt_body_790 { v.write_to(w)?; }
+                if let Some(v) = alt_body_791 { v.write_to(w)?; }
+                if let Some(v) = alt_body_792 { v.write_to(w)?; }
+                if let Some(v) = alt_body_793 { v.write_to(w)?; }
+                if let Some(v) = alt_body_794 { v.write_to(w)?; }
+                if let Some(v) = alt_body_795 { v.write_to(w)?; }
+                if let Some(v) = alt_body_796 { v.write_to(w)?; }
+                if let Some(v) = alt_body_797 { v.write_to(w)?; }
+                if let Some(v) = alt_body_798 { v.write_to(w)?; }
+                if let Some(v) = alt_body_799 { v.write_to(w)?; }
+                if let Some(v) = alt_body_800 { v.write_to(w)?; }
+                if let Some(v) = alt_body_801 { v.write_to(w)?; }
+                if let Some(v) = alt_body_802 { v.write_to(w)?; }
+                if let Some(v) = alt_body_803 { v.write_to(w)?; }
+                if let Some(v) = alt_body_804 { v.write_to(w)?; }
+                if let Some(v) = alt_body_805 { v.write_to(w)?; }
+                if let Some(v) = alt_body_806 { v.write_to(w)?; }
+                if let Some(v) = alt_body_807 { v.write_to(w)?; }
+                if let Some(v) = alt_body_808 { v.write_to(w)?; }
+                if let Some(v) = alt_body_809 { v.write_to(w)?; }
+                if let Some(v) = alt_body_810 { v.write_to(w)?; }
+                if let Some(v) = alt_body_811 { v.write_to(w)?; }
+                if let Some(v) = alt_body_812 { v.write_to(w)?; }
+                if let Some(v) = alt_body_813 { v.write_to(w)?; }
+                if let Some(v) = alt_body_814 { v.write_to(w)?; }
+                if let Some(v) = alt_body_815 { v.write_to(w)?; }
+                if let Some(v) = alt_body_816 { v.write_to(w)?; }
+                if let Some(v) = alt_body_817 { v.write_to(w)?; }
+                if let Some(v) = alt_body_818 { v.write_to(w)?; }
+                if let Some(v) = alt_body_819 { v.write_to(w)?; }
+                if let Some(v) = alt_body_820 { v.write_to(w)?; }
+                if let Some(v) = alt_body_821 { v.write_to(w)?; }
+                if let Some(v) = alt_body_822 { v.write_to(w)?; }
+                if let Some(v) = alt_body_823 { v.write_to(w)?; }
+                if let Some(v) = alt_body_824 { v.write_to(w)?; }
+                if let Some(v) = alt_body_825 { v.write_to(w)?; }
+                if let Some(v) = alt_body_826 { v.write_to(w)?; }
+                if let Some(v) = alt_body_827 { v.write_to(w)?; }
+                if let Some(v) = alt_body_828 { v.write_to(w)?; }
+                if let Some(v) = alt_body_829 { v.write_to(w)?; }
+                if let Some(v) = alt_body_830 { v.write_to(w)?; }
+                if let Some(v) = alt_body_831 { v.write_to(w)?; }
+                if let Some(v) = alt_body_832 { v.write_to(w)?; }
+                if let Some(v) = alt_body_833 { v.write_to(w)?; }
+                if let Some(v) = alt_body_834 { v.write_to(w)?; }
+                if let Some(v) = alt_body_835 { v.write_to(w)?; }
+                if let Some(v) = alt_body_836 { v.write_to(w)?; }
+                if let Some(v) = alt_body_837 { v.write_to(w)?; }
+                if let Some(v) = alt_body_838 { v.write_to(w)?; }
+                if let Some(v) = alt_body_839 { v.write_to(w)?; }
+                if let Some(v) = alt_body_840 { v.write_to(w)?; }
+                if let Some(v) = alt_body_841 { v.write_to(w)?; }
+                if let Some(v) = alt_body_842 { v.write_to(w)?; }
+                if let Some(v) = alt_body_843 { v.write_to(w)?; }
+                if let Some(v) = alt_body_844 { v.write_to(w)?; }
+                if let Some(v) = alt_body_845 { v.write_to(w)?; }
+                if let Some(v) = alt_body_846 { v.write_to(w)?; }
+                if let Some(v) = alt_body_847 { v.write_to(w)?; }
+                if let Some(v) = alt_body_848 { v.write_to(w)?; }
+                if let Some(v) = alt_body_849 { v.write_to(w)?; }
+                if let Some(v) = alt_body_850 { v.write_to(w)?; }
+                if let Some(v) = alt_body_851 { v.write_to(w)?; }
+                if let Some(v) = alt_body_852 { v.write_to(w)?; }
+                if let Some(v) = alt_body_853 { v.write_to(w)?; }
+                if let Some(v) = alt_body_854 { v.write_to(w)?; }
+                if let Some(v) = alt_body_855 { v.write_to(w)?; }
+                if let Some(v) = alt_body_856 { v.write_to(w)?; }
+                if let Some(v) = alt_body_857 { v.write_to(w)?; }
+                if let Some(v) = alt_body_858 { v.write_to(w)?; }
+                if let Some(v) = alt_body_859 { v.write_to(w)?; }
+                if let Some(v) = alt_body_860 { v.write_to(w)?; }
+                if let Some(v) = alt_body_861 { v.write_to(w)?; }
+                if let Some(v) = alt_body_862 { v.write_to(w)?; }
+                if let Some(v) = alt_body_863 { v.write_to(w)?; }
+                if let Some(v) = alt_body_864 { v.write_to(w)?; }
+                if let Some(v) = alt_body_865 { v.write_to(w)?; }
+                if let Some(v) = alt_body_866 { v.write_to(w)?; }
+                if let Some(v) = alt_body_867 { v.write_to(w)?; }
+                if let Some(v) = alt_body_868 { v.write_to(w)?; }
+                if let Some(v) = alt_body_869 { v.write_to(w)?; }
+                if let Some(v) = alt_body_870 { v.write_to(w)?; }
+                if let Some(v) = alt_body_871 { v.write_to(w)?; }
+                if let Some(v) = alt_body_872 { v.write_to(w)?; }
+                if let Some(v) = alt_body_873 { v.write_to(w)?; }
+                if let Some(v) = alt_body_874 { v.write_to(w)?; }
+                if let Some(v) = alt_body_875 { v.write_to(w)?; }
+                if let Some(v) = alt_body_876 { v.write_to(w)?; }
+                if let Some(v) = alt_body_877 { v.write_to(w)?; }
+                if let Some(v) = alt_body_878 { v.write_to(w)?; }
+                if let Some(v) = alt_body_879 { v.write_to(w)?; }
+                if let Some(v) = alt_body_880 { v.write_to(w)?; }
+                if let Some(v) = alt_body_881 { v.write_to(w)?; }
+                if let Some(v) = alt_body_882 { v.write_to(w)?; }
+                if let Some(v) = alt_body_883 { v.write_to(w)?; }
+                if let Some(v) = alt_body_884 { v.write_to(w)?; }
+                if let Some(v) = alt_body_885 { v.write_to(w)?; }
+                if let Some(v) = alt_body_886 { v.write_to(w)?; }
+                if let Some(v) = alt_body_887 { v.write_to(w)?; }
+                if let Some(v) = alt_body_888 { v.write_to(w)?; }
+                if let Some(v) = alt_body_889 { v.write_to(w)?; }
+                if let Some(v) = alt_body_890 { v.write_to(w)?; }
+                if let Some(v) = alt_body_891 { v.write_to(w)?; }
+                if let Some(v) = alt_body_892 { v.write_to(w)?; }
+                if let Some(v) = alt_body_893 { v.write_to(w)?; }
+                if let Some(v) = alt_body_894 { v.write_to(w)?; }
+                if let Some(v) = alt_body_895 { v.write_to(w)?; }
+                if let Some(v) = alt_body_896 { v.write_to(w)?; }
                 if let Some(s) = alt_post_cstr_a { s.write_to(w)?; }
                 if let Some(s) = alt_post_cstr_b { s.write_to(w)?; }
                 if let Some(v) = field_665_u32 { v.write_to(w)?; }
@@ -8368,6 +8720,38 @@ impl<'a> GimmickTail<'a> {
                 alt_body_757, alt_body_758, alt_body_759, alt_body_760,
                 alt_body_761, alt_body_762, alt_body_763, alt_body_764,
                 alt_body_765, alt_body_766, alt_body_767, alt_body_768,
+                alt_body_769, alt_body_770, alt_body_771, alt_body_772,
+                alt_body_773, alt_body_774, alt_body_775, alt_body_776,
+                alt_body_777, alt_body_778, alt_body_779, alt_body_780,
+                alt_body_781, alt_body_782, alt_body_783, alt_body_784,
+                alt_body_785, alt_body_786, alt_body_787, alt_body_788,
+                alt_body_789, alt_body_790, alt_body_791, alt_body_792,
+                alt_body_793, alt_body_794, alt_body_795, alt_body_796,
+                alt_body_797, alt_body_798, alt_body_799, alt_body_800,
+                alt_body_801, alt_body_802, alt_body_803, alt_body_804,
+                alt_body_805, alt_body_806, alt_body_807, alt_body_808,
+                alt_body_809, alt_body_810, alt_body_811, alt_body_812,
+                alt_body_813, alt_body_814, alt_body_815, alt_body_816,
+                alt_body_817, alt_body_818, alt_body_819, alt_body_820,
+                alt_body_821, alt_body_822, alt_body_823, alt_body_824,
+                alt_body_825, alt_body_826, alt_body_827, alt_body_828,
+                alt_body_829, alt_body_830, alt_body_831, alt_body_832,
+                alt_body_833, alt_body_834, alt_body_835, alt_body_836,
+                alt_body_837, alt_body_838, alt_body_839, alt_body_840,
+                alt_body_841, alt_body_842, alt_body_843, alt_body_844,
+                alt_body_845, alt_body_846, alt_body_847, alt_body_848,
+                alt_body_849, alt_body_850, alt_body_851, alt_body_852,
+                alt_body_853, alt_body_854, alt_body_855, alt_body_856,
+                alt_body_857, alt_body_858, alt_body_859, alt_body_860,
+                alt_body_861, alt_body_862, alt_body_863, alt_body_864,
+                alt_body_865, alt_body_866, alt_body_867, alt_body_868,
+                alt_body_869, alt_body_870, alt_body_871, alt_body_872,
+                alt_body_873, alt_body_874, alt_body_875, alt_body_876,
+                alt_body_877, alt_body_878, alt_body_879, alt_body_880,
+                alt_body_881, alt_body_882, alt_body_883, alt_body_884,
+                alt_body_885, alt_body_886, alt_body_887, alt_body_888,
+                alt_body_889, alt_body_890, alt_body_891, alt_body_892,
+                alt_body_893, alt_body_894, alt_body_895, alt_body_896,
                 alt_post_cstr_a, alt_post_cstr_b,
                 field_665_u32, field_666_u32, field_667_u32, field_668_u32,
                 field_669_u32, field_670_u32, field_671_u32, field_672_u32,
@@ -9904,6 +10288,70 @@ impl<'a> GimmickTail<'a> {
                     ("alt_body_763", alt_body_763), ("alt_body_764", alt_body_764),
                     ("alt_body_765", alt_body_765), ("alt_body_766", alt_body_766),
                     ("alt_body_767", alt_body_767), ("alt_body_768", alt_body_768),
+                    ("alt_body_769", alt_body_769), ("alt_body_770", alt_body_770),
+                    ("alt_body_771", alt_body_771), ("alt_body_772", alt_body_772),
+                    ("alt_body_773", alt_body_773), ("alt_body_774", alt_body_774),
+                    ("alt_body_775", alt_body_775), ("alt_body_776", alt_body_776),
+                    ("alt_body_777", alt_body_777), ("alt_body_778", alt_body_778),
+                    ("alt_body_779", alt_body_779), ("alt_body_780", alt_body_780),
+                    ("alt_body_781", alt_body_781), ("alt_body_782", alt_body_782),
+                    ("alt_body_783", alt_body_783), ("alt_body_784", alt_body_784),
+                    ("alt_body_785", alt_body_785), ("alt_body_786", alt_body_786),
+                    ("alt_body_787", alt_body_787), ("alt_body_788", alt_body_788),
+                    ("alt_body_789", alt_body_789), ("alt_body_790", alt_body_790),
+                    ("alt_body_791", alt_body_791), ("alt_body_792", alt_body_792),
+                    ("alt_body_793", alt_body_793), ("alt_body_794", alt_body_794),
+                    ("alt_body_795", alt_body_795), ("alt_body_796", alt_body_796),
+                    ("alt_body_797", alt_body_797), ("alt_body_798", alt_body_798),
+                    ("alt_body_799", alt_body_799), ("alt_body_800", alt_body_800),
+                    ("alt_body_801", alt_body_801), ("alt_body_802", alt_body_802),
+                    ("alt_body_803", alt_body_803), ("alt_body_804", alt_body_804),
+                    ("alt_body_805", alt_body_805), ("alt_body_806", alt_body_806),
+                    ("alt_body_807", alt_body_807), ("alt_body_808", alt_body_808),
+                    ("alt_body_809", alt_body_809), ("alt_body_810", alt_body_810),
+                    ("alt_body_811", alt_body_811), ("alt_body_812", alt_body_812),
+                    ("alt_body_813", alt_body_813), ("alt_body_814", alt_body_814),
+                    ("alt_body_815", alt_body_815), ("alt_body_816", alt_body_816),
+                    ("alt_body_817", alt_body_817), ("alt_body_818", alt_body_818),
+                    ("alt_body_819", alt_body_819), ("alt_body_820", alt_body_820),
+                    ("alt_body_821", alt_body_821), ("alt_body_822", alt_body_822),
+                    ("alt_body_823", alt_body_823), ("alt_body_824", alt_body_824),
+                    ("alt_body_825", alt_body_825), ("alt_body_826", alt_body_826),
+                    ("alt_body_827", alt_body_827), ("alt_body_828", alt_body_828),
+                    ("alt_body_829", alt_body_829), ("alt_body_830", alt_body_830),
+                    ("alt_body_831", alt_body_831), ("alt_body_832", alt_body_832),
+                    ("alt_body_833", alt_body_833), ("alt_body_834", alt_body_834),
+                    ("alt_body_835", alt_body_835), ("alt_body_836", alt_body_836),
+                    ("alt_body_837", alt_body_837), ("alt_body_838", alt_body_838),
+                    ("alt_body_839", alt_body_839), ("alt_body_840", alt_body_840),
+                    ("alt_body_841", alt_body_841), ("alt_body_842", alt_body_842),
+                    ("alt_body_843", alt_body_843), ("alt_body_844", alt_body_844),
+                    ("alt_body_845", alt_body_845), ("alt_body_846", alt_body_846),
+                    ("alt_body_847", alt_body_847), ("alt_body_848", alt_body_848),
+                    ("alt_body_849", alt_body_849), ("alt_body_850", alt_body_850),
+                    ("alt_body_851", alt_body_851), ("alt_body_852", alt_body_852),
+                    ("alt_body_853", alt_body_853), ("alt_body_854", alt_body_854),
+                    ("alt_body_855", alt_body_855), ("alt_body_856", alt_body_856),
+                    ("alt_body_857", alt_body_857), ("alt_body_858", alt_body_858),
+                    ("alt_body_859", alt_body_859), ("alt_body_860", alt_body_860),
+                    ("alt_body_861", alt_body_861), ("alt_body_862", alt_body_862),
+                    ("alt_body_863", alt_body_863), ("alt_body_864", alt_body_864),
+                    ("alt_body_865", alt_body_865), ("alt_body_866", alt_body_866),
+                    ("alt_body_867", alt_body_867), ("alt_body_868", alt_body_868),
+                    ("alt_body_869", alt_body_869), ("alt_body_870", alt_body_870),
+                    ("alt_body_871", alt_body_871), ("alt_body_872", alt_body_872),
+                    ("alt_body_873", alt_body_873), ("alt_body_874", alt_body_874),
+                    ("alt_body_875", alt_body_875), ("alt_body_876", alt_body_876),
+                    ("alt_body_877", alt_body_877), ("alt_body_878", alt_body_878),
+                    ("alt_body_879", alt_body_879), ("alt_body_880", alt_body_880),
+                    ("alt_body_881", alt_body_881), ("alt_body_882", alt_body_882),
+                    ("alt_body_883", alt_body_883), ("alt_body_884", alt_body_884),
+                    ("alt_body_885", alt_body_885), ("alt_body_886", alt_body_886),
+                    ("alt_body_887", alt_body_887), ("alt_body_888", alt_body_888),
+                    ("alt_body_889", alt_body_889), ("alt_body_890", alt_body_890),
+                    ("alt_body_891", alt_body_891), ("alt_body_892", alt_body_892),
+                    ("alt_body_893", alt_body_893), ("alt_body_894", alt_body_894),
+                    ("alt_body_895", alt_body_895), ("alt_body_896", alt_body_896),
                 ] {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
@@ -10735,6 +11183,38 @@ impl<'a> GimmickTail<'a> {
                     "alt_body_757", "alt_body_758", "alt_body_759", "alt_body_760",
                     "alt_body_761", "alt_body_762", "alt_body_763", "alt_body_764",
                     "alt_body_765", "alt_body_766", "alt_body_767", "alt_body_768",
+                    "alt_body_769", "alt_body_770", "alt_body_771", "alt_body_772",
+                    "alt_body_773", "alt_body_774", "alt_body_775", "alt_body_776",
+                    "alt_body_777", "alt_body_778", "alt_body_779", "alt_body_780",
+                    "alt_body_781", "alt_body_782", "alt_body_783", "alt_body_784",
+                    "alt_body_785", "alt_body_786", "alt_body_787", "alt_body_788",
+                    "alt_body_789", "alt_body_790", "alt_body_791", "alt_body_792",
+                    "alt_body_793", "alt_body_794", "alt_body_795", "alt_body_796",
+                    "alt_body_797", "alt_body_798", "alt_body_799", "alt_body_800",
+                    "alt_body_801", "alt_body_802", "alt_body_803", "alt_body_804",
+                    "alt_body_805", "alt_body_806", "alt_body_807", "alt_body_808",
+                    "alt_body_809", "alt_body_810", "alt_body_811", "alt_body_812",
+                    "alt_body_813", "alt_body_814", "alt_body_815", "alt_body_816",
+                    "alt_body_817", "alt_body_818", "alt_body_819", "alt_body_820",
+                    "alt_body_821", "alt_body_822", "alt_body_823", "alt_body_824",
+                    "alt_body_825", "alt_body_826", "alt_body_827", "alt_body_828",
+                    "alt_body_829", "alt_body_830", "alt_body_831", "alt_body_832",
+                    "alt_body_833", "alt_body_834", "alt_body_835", "alt_body_836",
+                    "alt_body_837", "alt_body_838", "alt_body_839", "alt_body_840",
+                    "alt_body_841", "alt_body_842", "alt_body_843", "alt_body_844",
+                    "alt_body_845", "alt_body_846", "alt_body_847", "alt_body_848",
+                    "alt_body_849", "alt_body_850", "alt_body_851", "alt_body_852",
+                    "alt_body_853", "alt_body_854", "alt_body_855", "alt_body_856",
+                    "alt_body_857", "alt_body_858", "alt_body_859", "alt_body_860",
+                    "alt_body_861", "alt_body_862", "alt_body_863", "alt_body_864",
+                    "alt_body_865", "alt_body_866", "alt_body_867", "alt_body_868",
+                    "alt_body_869", "alt_body_870", "alt_body_871", "alt_body_872",
+                    "alt_body_873", "alt_body_874", "alt_body_875", "alt_body_876",
+                    "alt_body_877", "alt_body_878", "alt_body_879", "alt_body_880",
+                    "alt_body_881", "alt_body_882", "alt_body_883", "alt_body_884",
+                    "alt_body_885", "alt_body_886", "alt_body_887", "alt_body_888",
+                    "alt_body_889", "alt_body_890", "alt_body_891", "alt_body_892",
+                    "alt_body_893", "alt_body_894", "alt_body_895", "alt_body_896",
                 ] {
                     let v = json_get_field(obj, k)?;
                     if !v.is_null() {
