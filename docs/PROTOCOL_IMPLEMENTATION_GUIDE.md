@@ -273,10 +273,10 @@ use super::canonical::canonical_bytes;
 use super::trust_roots::{lookup, TrustRoot};
 
 /// Mod formats that REQUIRE a valid signature. Per spec §2.5.
-const SIGNING_REQUIRED_FORMATS: &[&str] = &["v3.1"];
+const SIGNING_REQUIRED_FORMATS: &[&str] = &["v3", "v3.1"];
 
 /// Mod formats that may be present but never need a signature.
-const LEGACY_FORMATS: &[&str] = &["v1", "v2", "legacy", "v3"];
+const LEGACY_FORMATS: &[&str] = &["v1", "v2", "legacy"];
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VerifyResult {
@@ -511,8 +511,8 @@ impl StateFile {
     }
 
     /// Return entries that should be honored:
-    ///   - Valid (signed v3.1 entry, signature verified)
-    ///   - LegacyUnsigned (v1/v2/legacy/v3 entry, no verification needed)
+    ///   - Valid (signed v3/v3.1 entry, signature verified)
+    ///   - LegacyUnsigned (v1/v2/legacy entry, no verification needed)
     ///
     /// Rejected: SignatureRequired (v3.1 missing sig), UnknownKey (v3.1 with unknown
     /// signer), OwnerMismatch (key signed for wrong owner), InvalidSignature
@@ -535,11 +535,11 @@ impl StateFile {
 
 ### 1.8 Wire Into Existing Mount Paths (Per-Format Signing)
 
-**Critical scope rule**: Sign ONLY for v3.1 mounts. v1/v2/legacy mounts continue to use unsigned entries indefinitely so DMM can keep loading old mods.
+**Critical scope rule**: Sign ONLY for v3 and v3.1 mounts. v1/v2/legacy mounts continue to use unsigned entries indefinitely so DMM can keep loading old mods.
 
-#### 1.8.1 v3.1 Mount Path — `iteminfo/v3_overlay.rs`
+#### 1.8.1 v3 / v3.1 Mount Path — `iteminfo/v3_overlay.rs`
 
-After a successful v3.1 mount, write a SIGNED entry:
+After a successful v3 or v3.1 mount, write a SIGNED entry:
 
 ```rust
 use crate::protocol::{StateFile, OverlayEntry, sign::sign_entry};
@@ -558,7 +558,7 @@ let mut entry = OverlayEntry {
     key_id: None,
 };
 
-// Sign it (v3.1 requires it)
+// Sign it (v3 and v3.1 require it)
 let entry_json = serde_json::to_value(&entry).unwrap();
 let dmm_priv = include_bytes!("../../../../keys/dmm-2026-05.priv");
 let (sig, kid) = sign_entry(dmm_priv, "dmm-2026-05", &entry_json);
@@ -605,7 +605,7 @@ To keep the signing decision in one place, add a small helper:
 
 /// Returns true if a mount of this format must be signed per spec §2.5.
 pub fn signing_required(mod_format: &str) -> bool {
-    matches!(mod_format, "v3.1")
+    matches!(mod_format, "v3" | "v3.1")
 }
 
 /// Build a state file entry, signing only if the format requires it.
@@ -629,7 +629,7 @@ pub fn build_entry(
     };
 
     if signing_required(mod_format) {
-        let (priv_key, key_id) = sign_with.expect("v3.1 mount requires signing key");
+        let (priv_key, key_id) = sign_with.expect("v3/v3.1 mount requires signing key");
         let val = serde_json::to_value(&entry).unwrap();
         let (sig, kid) = super::sign::sign_entry(priv_key, key_id, &val);
         entry.signature = Some(sig);
@@ -640,11 +640,11 @@ pub fn build_entry(
 }
 ```
 
-Then both v3.1 and legacy mount paths call `build_entry` with the appropriate `mod_format` string, and signing is automatically applied or skipped.
+Then v3, v3.1, and legacy mount paths all call `build_entry` with the appropriate `mod_format` string, and signing is automatically applied or skipped.
 
 > ⚠ **Build-time secret**: `include_bytes!("keys/dmm-2026-05.priv")` requires the priv file at build time. Set up a CI/build secrets injection step that places the file before `cargo build`, then deletes it after. Never commit the priv file. Alternative: load from environment variable at runtime.
 
-> ⚠ **No-key fallback**: If the dev/release build is missing the priv key (e.g., contributor PR build), v3.1 mounts can either (a) fail with a clear error, or (b) write `mod_format: "v3"` (the soft-trust variant) instead. Recommendation: option (a) with a build-time check that errors if the priv key is missing for `--features rps-sign` builds.
+> ⚠ **No-key fallback**: If the dev/release build is missing the priv key (e.g., contributor PR build), v3/v3.1 mounts will fail with a clear error. Recommended: a build-time check that errors if the priv key is missing for `--features rps-sign` builds. Contributor PR builds without the key cannot produce signed mounts and SHOULD NOT be distributed as official releases.
 
 ---
 
@@ -800,9 +800,9 @@ from .trust_roots import lookup
 
 log = logging.getLogger(__name__)
 
-# Per spec §2.5 — only v3.1 mounts MUST be signed.
-SIGNING_REQUIRED_FORMATS = {"v3.1"}
-LEGACY_FORMATS = {"v1", "v2", "legacy", "v3"}
+# Per spec §2.5 — v3 and v3.1 mounts MUST be signed.
+SIGNING_REQUIRED_FORMATS = {"v3", "v3.1"}
+LEGACY_FORMATS = {"v1", "v2", "legacy"}
 
 
 class VerifyResult(Enum):
@@ -895,7 +895,7 @@ class OverlayEntry:
     owner_version: str
     content: str
     updated: str
-    mod_format: str = "legacy"          # "v1"|"v2"|"legacy"|"v3"|"v3.1" — signing required only for "v3.1"
+    mod_format: str = "legacy"          # "v1"|"v2"|"legacy"|"v3"|"v3.1" — signing required for "v3" and "v3.1"
     files: list[str] = field(default_factory=list)
     signature: Optional[str] = None
     key_id: Optional[str] = None
@@ -976,7 +976,7 @@ def _asdict_compact(obj) -> dict:
 
 ### 2.8 Wire Into Existing overlay_coordinator.py
 
-**Critical scope rule**: Sign ONLY for v3.1 mounts. Stacker output (v3.1) signs; legacy mod paths (v1/v2/byte-replace exports) write unsigned entries.
+**Critical scope rule**: Sign ONLY for v3 and v3.1 mounts. Stacker output (v3/v3.1) signs; legacy mod paths (v1/v2/byte-replace exports) write unsigned entries.
 
 ```python
 from dataclasses import asdict
@@ -1003,7 +1003,7 @@ def post_write(
 ) -> None:
     """Record a successful overlay mount in the State File.
 
-    Per spec §2.5: only v3.1 mounts are signed. Legacy mod formats
+    Per spec §2.5: v3 and v3.1 mounts are signed. Legacy mod formats
     (v1/v2/byte-replace) write unsigned entries indefinitely so existing
     mods continue to mount.
     """
@@ -1019,13 +1019,13 @@ def post_write(
         files=files,
     )
 
-    # Sign only for v3.1
+    # Sign for v3 and v3.1
     if _signing_required(mod_format):
         priv_path = Path(__file__).parent / "keys" / "swiss-2026-05.priv"
         if not priv_path.exists():
             raise RuntimeError(
-                f"v3.1 mount requires signing key at {priv_path}, but it was not found. "
-                f"Either install the key or downgrade this export to mod_format='v3'."
+                f"v3/v3.1 mount requires signing key at {priv_path}, but it was not found. "
+                f"Either install the key or downgrade this export to a legacy mod_format."
             )
         priv = priv_path.read_bytes()
         entry_dict = asdict(entry)
@@ -1073,45 +1073,47 @@ Roll out signed v3.1 entries without breaking existing v1/v2/legacy mod mounts.
 
 ### Strategy — No Hard Cutoff for Legacy Formats
 
-Per spec §2.5, **v1/v2/legacy/v3 mounts are PERMANENTLY exempt from signing**. The rollout only changes behavior for v3.1 mounts:
+Per spec §2.5, **v1/v2/legacy mounts are PERMANENTLY exempt from signing**. The rollout only changes behavior for v3 and v3.1 mounts:
 
 **Stage 1 — Initial Release (Week 1):**
 - DMM and SWISS releases ship with the protocol module + embedded Trust Roots
-- v3.1 mounts → SIGNED entries written to State File
-- v1/v2/legacy/v3 mounts → UNSIGNED entries (no behavior change vs current)
+- v3 / v3.1 mounts → SIGNED entries written to State File
+- v1 / v2 / legacy mounts → UNSIGNED entries (no behavior change vs current)
 - All entries (signed or unsigned) read and honored as before
-- State File `protocol_version` field upgrades to 2 the first time a v3.1 entry is written
+- State File `protocol_version` field upgrades to 2 the first time a v3+ entry is written
 
 **Stage 2 — Forgery Detection (Week 1+, ongoing):**
-- A v3.1 entry with missing/invalid signature is REJECTED
+- A v3 or v3.1 entry with missing/invalid signature is REJECTED
 - The slot is treated as if no entry exists for it (foreign tool conflict path)
 - Logged so user can see what happened
 
 **Stage 3 — Future Optional Tightening (Not Currently Planned):**
 - If RicePaddySoftware later decides to deprecate v1 or v2 mod formats, the spec will be amended to require signing on those formats too
 - Until that explicit Protocol amendment, v1/v2/legacy mounts continue to work indefinitely
-- This addresses the user's concern: legacy mods are NOT subject to signing requirements
 
 ### What This Means For Existing Installations
 
 | Scenario | Behavior |
 |---|---|
-| User has only legacy mods mounted | No change. State file stays unsigned, mods load normally. |
-| User installs a v3.1 mod via DMM | New v3.1 entry is signed. Existing legacy entries stay as-is. |
-| User has both legacy and v3.1 mods mounted | State file mixes signed v3.1 entries with unsigned legacy entries. Both honored. |
-| User downgrades DMM to a pre-protocol version | Old DMM ignores new fields (`mod_format`, `signature`, `key_id`); legacy entries continue to work. v3.1 entries become orphaned but harmless. |
-| Forgery: external tool writes "owner: DMM, mod_format: v3.1" with bad sig | Rejected during read. User sees warning in log. |
-| Forgery: external tool writes "owner: DMM, mod_format: v2" without sig | Treated as legacy entry (soft-trust). This is a known gap — legacy mounts are intentionally trust-on-faith. |
+| User has only legacy mods (v1/v2) mounted | No change. State file stays unsigned, mods load normally. |
+| User has v3 mods mounted from a pre-Protocol-v2 DMM (no `mod_format` field in state) | Treated as `legacy` (default). Soft-trust accepted. Mounts continue to work. Re-mounting via Protocol-v2 DMM upgrades them to signed entries. |
+| User installs a v3.1 mod via Protocol-v2 DMM | New v3.1 entry is signed. Existing legacy entries stay as-is. |
+| User has both legacy and v3+ mods mounted | State file mixes signed v3/v3.1 entries with unsigned legacy entries. Both honored. |
+| User downgrades DMM to a pre-protocol version | Old DMM ignores new fields (`mod_format`, `signature`, `key_id`); legacy entries continue to work. v3/v3.1 entries become orphaned but harmless. |
+| Forgery: external tool writes `"owner": "DMM", "mod_format": "v3.1"` with bad sig | Rejected during read. User sees warning in log. |
+| Forgery: external tool writes `"owner": "DMM", "mod_format": "v2"` without sig | Treated as legacy entry (soft-trust). This is a known gap — legacy mounts are intentionally trust-on-faith. |
 
 ### User-Facing Communication
 
 In release notes:
 
-> **DMM v1.4 / SWISS v3.2 — Protocol v2 (v3.1 signing only).**
+> **DMM v1.4 / SWISS v3.2 — Protocol v2 (Field JSON v3 + v3.1 signing).**
 >
-> v3.1 mods now use cryptographic signing for cross-tool coordination between DMM and SWISS. This prevents unauthorized tools from impersonating DMM or SWISS in your game directory.
+> Field JSON v3 and v3.1 mods now use cryptographic signing for cross-tool coordination between DMM and SWISS. This prevents unauthorized tools from impersonating DMM or SWISS in your game directory.
 >
-> **Existing v1/v2/legacy mods are unaffected.** They continue to mount and load exactly as before. Only new v3.1 mods are subject to the signing requirement, and only RicePaddySoftware's official DMM and SWISS builds can produce them.
+> **Existing v1/v2/legacy mods are unaffected.** They continue to mount and load exactly as before. Existing v3 mounts from older DMM versions also continue to work — they're treated as legacy until you re-mount them with the new DMM, at which point they upgrade to signed entries automatically.
+>
+> Only RicePaddySoftware's official DMM and SWISS builds can produce signed v3/v3.1 entries.
 
 ---
 
