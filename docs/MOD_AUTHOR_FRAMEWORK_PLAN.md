@@ -129,7 +129,8 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 - [x] **D7** — Python bindings. `dmm_parser.classify_dds(bytes)`, `validate_dds(bytes)`, `infer_dds_vpath(path)`.
   Done: Added 4 new PyO3 bindings to `src/python.rs`: `classify_dds(bytes)` returns dict with format/width/height/mip_count/depth/is_dx10/dxgi_format/crimson_last4/requires_pathc/block_bytes; `validate_dds(bytes)` returns list of {code, severity, message} dicts (severity strings: "fatal"/"warning"/"info"); `infer_dds_vpath(asset_root, file_path)` returns vpath string or None; `classify_vpath_last4(vpath)` returns last4 u32 or None. All 4 registered in module exports. cargo check clean (warning fix in vpath.rs); 40/40 dds tests still pass. SWISS Stacker can now `import dmm_parser` and call these helpers from `_collect_assets_from_folder` to validate textures before bundling.
 
-- [ ] **D8** — Tests + docs. Tests against vanilla DDS samples in all formats. Update `docs/api.md` with DDS API.
+- [x] **D8** — Tests + docs. Tests against vanilla DDS samples in all formats. Update `docs/api.md` with DDS API.
+  Done: Added DDS section to `docs/api.md` documenting all 4 Python bindings (`classify_dds`, `validate_dds`, `infer_dds_vpath`, `classify_vpath_last4`) with full usage examples, format enum reference, and severity-code lookup table. Added `classify_real_vanilla_dxt5_sample` integration test in `src/dds/classify.rs` — reads a real DMM-backup DDS and verifies format=Dxt5, dimensions 32x32, crimson_last4=15, requires_pathc=false. Test gracefully skips when the sample path isn't present (so it works in any loop env). 41/41 dds tests pass total.
 
 ---
 

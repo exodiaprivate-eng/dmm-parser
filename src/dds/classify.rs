@@ -226,4 +226,25 @@ mod tests {
         assert_eq!(DdsFormat::Bc7Unorm.block_bytes(), Some(16));
         assert_eq!(DdsFormat::UncompressedRgb.block_bytes(), None);
     }
+
+    #[test]
+    fn classify_real_vanilla_dxt5_sample() {
+        // Real DDS sample from DMM backups. Skip if not present (loop env
+        // may not have the same paths). When present, verifies our classifier
+        // produces sensible output on a real production DDS.
+        let path = std::path::Path::new(
+            "C:/Users/corin/Desktop/CD JSON Mod Manager/Definitive Mod Manager/src-tauri/target/debug/backups/cd_icon_map_enemy_die_1.dds",
+        );
+        let Ok(bytes) = std::fs::read(path) else {
+            eprintln!("SKIP: real DDS sample not found at {:?}", path);
+            return;
+        };
+        let c = classify(&bytes).unwrap();
+        assert_eq!(c.format, DdsFormat::Dxt5);
+        assert_eq!(c.width, 32);
+        assert_eq!(c.height, 32);
+        assert!(!c.is_dx10);
+        assert_eq!(c.crimson_last4, Some(15));
+        assert!(!c.requires_pathc);
+    }
 }

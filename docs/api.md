@@ -305,6 +305,121 @@ new_bytes = dmm_parser.serialize_paloc_to_bytes(entries)
 
 ---
 
+## DDS Textures
+
+dmm-parser exposes a small DDS (DirectDraw Surface) toolkit so SWISS Stacker
+and CLI tools can validate texture mods before they ship. It does NOT
+decompress pixel data — header inspection + format classification + path
+inference + Crimson-specific quirk surfacing only.
+
+See [Archive Format](archive-format.md) and `references/dds_notes.md` for
+the format spec; `references/dds.hexpat` for the binary layout.
+
+### `classify_dds(data: bytes) -> dict`
+
+Parse a DDS file's header and return a classification dict.
+
+```python
+with open("diffuse.dds", "rb") as f:
+    info = dmm_parser.classify_dds(f.read())
+
+print(info)
+# {
+#   'format': 'Dxt5',                 # str — DdsFormat enum variant
+#   'width': 256, 'height': 256,
+#   'mip_count': 8,
+#   'depth': 1,
+#   'is_dx10': False,
+#   'dxgi_format': None,              # int when is_dx10, else None
+#   'crimson_last4': 15,              # game-specific overlay format ID
+#   'requires_pathc': False,          # True for BC6H/BC7
+#   'block_bytes': 16,                # 8 or 16 for BC formats; None for uncompressed
+# }
+```
+
+`format` is one of: `"Dxt1"`, `"Dxt3"`, `"Dxt5"`, `"Bc4Unorm"`, `"Bc4Snorm"`,
+`"Bc5Unorm"`, `"Bc5Snorm"`, `"Bc6hUf16"`, `"Bc6hSf16"`, `"Bc7Unorm"`,
+`"UncompressedRgb"`, `"Unknown"`.
+
+### `validate_dds(data: bytes) -> list[dict]`
+
+Run all validation checks and return findings. Returns `[]` for a clean DDS.
+
+```python
+findings = dmm_parser.validate_dds(dds_bytes)
+for f in findings:
+    print(f"[{f['severity']}] {f['code']}: {f['message']}")
+
+# [warning] non_power_of_two_dims: Non-POW2 dimensions 100x100; ...
+# [warning] missing_mips: 512x512 texture has only 1 mip; ...
+# [info] requires_pathc: Bc7Unorm needs PATHC template registration ...
+```
+
+Each finding has:
+- `code` — stable identifier (e.g. `"bad_magic"`, `"unknown_fourcc"`,
+  `"non_power_of_two_dims"`, `"requires_pathc"`)
+- `severity` — `"fatal"`, `"warning"`, or `"info"`
+- `message` — human-readable description
+
+Codes UI/scripts should switch on:
+
+| Severity | Code | Meaning |
+|---|---|---|
+| fatal | `header_too_short` | File < 128 bytes |
+| fatal | `bad_magic` | Not `b"DDS "` at offset 0 |
+| fatal | `dx10_header_too_short` | DX10 fourcc but file < 148 bytes |
+| fatal | `header_parse_error` | Generic header parse failure |
+| fatal | `classify_error` | Generic classifier failure |
+| warning | `unknown_fourcc` | FOURCC not in dispatch table |
+| warning | `unknown_dxgi_format` | DX10 with unknown DXGI value |
+| warning | `depth_zero` | dwDepth == 0 (auto-fixed at apply time) |
+| warning | `mip_count_zero` | mipMapCount == 0 (auto-fixed) |
+| warning | `non_power_of_two_dims` | Width/height not POW2 |
+| warning | `missing_mips` | Large textures with only 1 mip |
+| info | `requires_pathc` | BC6H/BC7 needs PATHC registration |
+| info | `overlay_patched` | crimson_last4 already set (already patched) |
+
+### `infer_dds_vpath(asset_root: str, file_path: str) -> str | None`
+
+Infer the in-game vpath for a DDS file under a mod's asset folder. Returns
+`None` if the file isn't under `asset_root` or the first segment isn't a
+4-digit PAZ group prefix.
+
+```python
+vpath = dmm_parser.infer_dds_vpath(
+    "/mods/MyMod/assets",
+    "/mods/MyMod/assets/0009/character/texture/macduff/diffuse.dds",
+)
+# "0009/character/texture/macduff/diffuse.dds"
+```
+
+Used by SWISS Stacker's asset-folder scan to auto-fill v3.1 asset target
+entries.
+
+### `classify_vpath_last4(vpath: str) -> int | None`
+
+Path-prefix → Crimson-specific "last4" overlay class lookup. Mirrors the
+DMM mount-time classifier so SWISS can predict the same value.
+
+```python
+dmm_parser.classify_vpath_last4("/ui/icon/sword.dds")
+# 0x1580
+
+dmm_parser.classify_vpath_last4("/character/texture/macduff/diffuse_n.dds")
+# 0x0480 (normal map)
+
+dmm_parser.classify_vpath_last4("/character/texture/macduff/tattoo_dragon.dds")
+# 0x1380 (tattoo)
+
+dmm_parser.classify_vpath_last4("/character/texture/macduff/diffuse.dds")
+# 0x1280 (default character texture)
+
+dmm_parser.classify_vpath_last4("/level/world/foo.dds")
+# None — caller falls back to format-derived last4 from classify_dds
+```
+
+---
+
 ## SkillInfo (pabgb + pabgh)
 
 ### `parse_skillinfo_from_file(pabgb_path: str, pabgh_path: str) -> list[dict]`
