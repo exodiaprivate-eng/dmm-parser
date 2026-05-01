@@ -1,9 +1,19 @@
-# Field JSON v3.1 — Recommendation Memo
+# Field JSON v3.1 — Recommendation Memo (PROMOTED TO SPEC)
 
-**Author**: dmm-parser team
+**Author**: dmm-parser team (exodiaprivate-eng)
 **Date**: 2026-05-01
 **Audience**: NattKh (CrimsonGameMods), modders, mod managers
-**Status**: Proposal — backward-compatible v3 → v3.1 evolution
+**Status**: ✅ Implemented — see formal spec at
+[CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS / FIELD_JSON_V3_1_SPEC.md](https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/blob/main/CrimsonGameMods/FIELD_JSON_V3_1_SPEC.md)
+**License**: This memo is MPL 2.0; the v3.1 marks ("Field JSON v3.1",
+"Multi-Target Field Patching") are RicePaddySoftware unregistered
+trademarks per the formal spec.
+
+> **Note**: This document is the original recommendation memo that led to
+> the formal v3.1 specification. The authoritative spec is now
+> `FIELD_JSON_V3_1_SPEC.md` in the CrimsonGameMods repo. This memo is
+> retained for historical context — implementation status is current as
+> of 2026-05-01.
 
 ---
 
