@@ -163,7 +163,8 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 - [x] **A8** — Python bindings. `dmm_parser.classify_wem(bytes)`, `parse_bnk(bytes)`, `infer_audio_vpath(path)`.
   Done: 4 new PyO3 wrappers in `src/python.rs` — `classify_wem(data: bytes) -> dict` (file_size, format_tag/format_tag_label, channels, sample_rate, byte_rate, block_align, bits_per_sample, has_wwise_hash_chunk, data_offset, data_size), `parse_bnk(data: bytes) -> dict` (file_size, bank_version, bank_id, data_payload_offset, has_hirc, sections list[{id,header_offset,size}], embedded_wems list[{wem_id,wem_offset,wem_size}]), `infer_audio_vpath(vpath: str) -> Optional[str]` (returns AudioPathClass label or None), `validate_audio(data: bytes) -> list[dict]` (auto-dispatches WEM/BNK by magic, returns findings with code/severity/message). All 4 registered in module init alongside DDS bindings. cargo check clean. Mirrors DDS binding shape so SWISS Stacker can use one validation/scan pattern across both formats.
 
-- [ ] **A9** — Tests + docs. Tests against vanilla WEM/BNK samples. Update `docs/api.md`.
+- [x] **A9** — Tests + docs. Tests against vanilla WEM/BNK samples. Update `docs/api.md`.
+  Done: 36/36 audio Rust tests pass — including `classify_real_vanilla_wem_sample`, `parse_real_vanilla_bnk_sample`, plus full WEM/BNK header/validator/vpath coverage. Added new `## Wwise Audio (WEM + BNK)` section to `docs/api.md` with full reference for `classify_wem`, `parse_bnk`, `validate_audio`, `infer_audio_vpath` — sample dicts, severity codes, AudioPathClass labels, and SWISS-side use cases. Phase A complete.
 
 ---
 

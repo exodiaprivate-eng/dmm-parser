@@ -420,6 +420,118 @@ dmm_parser.classify_vpath_last4("/level/world/foo.dds")
 
 ---
 
+## Wwise Audio (WEM + BNK)
+
+Header-only metadata + structure validation for Wwise audio files. We do
+NOT decode audio payloads — these helpers exist so SWISS Stacker can
+validate audio mods (voice clips, soundbanks) and pre-fill v3.1 asset
+target entries during the asset-folder scan.
+
+### `classify_wem(data: bytes) -> dict`
+
+Parse a WEM (Wwise-flavored RIFF-WAVE) header and return its
+WAVEFORMATEX-style metadata + Wwise-specific markers.
+
+```python
+with open("1045272379.wem", "rb") as f:
+    info = dmm_parser.classify_wem(f.read())
+# {
+#   "file_size": 433152,
+#   "format_tag": 0xFFFF,
+#   "format_tag_label": "WwiseVorbis",   # or "WaveformatExtensible" / "Other"
+#   "channels": 1,
+#   "sample_rate": 44100,
+#   "byte_rate": 16000,
+#   "block_align": 0,
+#   "bits_per_sample": 0,
+#   "has_wwise_hash_chunk": True,        # `hash` chunk = Wwise origin marker
+#   "data_offset": 1024,
+#   "data_size": 432128,
+# }
+```
+
+Raises `ValueError` if the buffer isn't a parseable RIFF-WAVE.
+
+### `parse_bnk(data: bytes) -> dict`
+
+Parse a Wwise BNK (soundbank) section index. Returns the section table
++ embedded WEM index (DIDX entries pointing into the DATA chunk). Does
+not parse HIRC/STID/FXPR contents — only their headers.
+
+```python
+with open("2498340951.bnk", "rb") as f:
+    bank = dmm_parser.parse_bnk(f.read())
+# {
+#   "file_size": 141557760,
+#   "bank_version": 150,                  # Crimson uses 150
+#   "bank_id": 2498340951,
+#   "data_payload_offset": 384,
+#   "has_hirc": True,
+#   "sections": [
+#     {"id": "BKHD", "header_offset": 0,   "size": 28},
+#     {"id": "DIDX", "header_offset": 36,  "size": 36},
+#     {"id": "DATA", "header_offset": 80,  "size": 141500000},
+#     {"id": "HIRC", "header_offset": ...,  "size": ...},
+#   ],
+#   "embedded_wems": [
+#     {"wem_id": 113958244, "wem_offset": 0, "wem_size": 65000000},
+#     ...
+#   ],
+# }
+```
+
+Raises `ValueError` if the buffer doesn't begin with a valid BKHD section.
+
+### `validate_audio(data: bytes) -> list[dict]`
+
+Auto-dispatching validator. Inspects the magic bytes (`RIFF` → WEM
+rules, `BKHD` → BNK rules, anything else → fatal) and returns SWISS
+findings using the same shape as `validate_dds`:
+
+```python
+findings = dmm_parser.validate_audio(audio_bytes)
+# [
+#   {"code": "wem_unusual_sample_rate", "severity": "warning",
+#    "message": "sample_rate=192000 outside expected 8000-96000 range"},
+#   {"code": "bnk_embedded_wems", "severity": "info",
+#    "message": "DIDX index references 3 embedded WEMs"},
+# ]
+```
+
+Severity values: `"fatal"`, `"warning"`, `"info"`. WEM rule codes:
+`wem_parse_error`, `wem_missing_hash_chunk`, `wem_unknown_format_tag`,
+`wem_unusual_channel_count`, `wem_unusual_sample_rate`, `wem_empty_data`.
+BNK rule codes: `bnk_parse_error`, `bnk_unknown_version`,
+`bnk_didx_without_data`, `bnk_didx_offset_oob`, `bnk_has_hirc`,
+`bnk_embedded_wems`.
+
+### `infer_audio_vpath(vpath: str) -> str | None`
+
+Map a Crimson Desert audio vpath to its semantic class. Returns one of:
+`"LocalizedVoiceBank"`, `"LocalizedVoiceClip"`, `"CommonSoundBank"`,
+`"CommonSoundClip"`, `"OtherAudio"`, or `None` if the path doesn't end
+in `.bnk` / `.wem`.
+
+```python
+dmm_parser.infer_audio_vpath("0006/sound/windows/english(us)/3684722581.bnk")
+# "LocalizedVoiceBank"
+
+dmm_parser.infer_audio_vpath("soundcommon/windows/113958244.wem")
+# "CommonSoundClip"
+
+dmm_parser.infer_audio_vpath("0014/sound/character/macduff/voice.wem")
+# "OtherAudio"
+
+dmm_parser.infer_audio_vpath("paloc.pamt")
+# None
+```
+
+Used by SWISS Stacker's asset-folder scan to populate the v3.1 asset
+target metadata for audio bundles (and to refuse non-audio files when
+the user drops a folder into an "audio" slot).
+
+---
+
 ## SkillInfo (pabgb + pabgh)
 
 ### `parse_skillinfo_from_file(pabgb_path: str, pabgh_path: str) -> list[dict]`
