@@ -131,16 +131,15 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
-- `GimmickInfo` — Decoded tail extended to **2286 typed fields**
-  (1-16 prefix + 712 tail u32 + 6 alt-header + **896 alt-body** + 2
+- `GimmickInfo` — Decoded tail extended to **2542 typed fields**
+  (1-16 prefix + 712 tail u32 + 6 alt-header + **1152 alt-body** + 2
   alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
-  + 4 tail_pad u8). post_blob avg **1118 → 117 bytes** (12.41M bytes
+  + 4 tail_pad u8). post_blob avg **1118 → 113 bytes** (12.46M bytes
   recovered total over 12393 entries — **90% reduction from baseline**).
-  Iter 81 (alt_body 640→768): drained 56K bytes. Iter 82 (alt_body
-  768→896): drained 40K more from 94 entries still saturated at 768.
+  Iter 81 (alt_body 640→768): drained 56K. Iter 82 (768→896): 40K.
+  Iter 83 (896→1152): 56K from 67 entries still saturated at 896.
   Smart-probe alt-chain extension methodology continues to deliver
-  consistent byte savings across all four chains (f31_alt, f32_alt,
-  f39_alt, alt_body). (loop session 2026-05-01)
+  consistent byte savings. (loop session 2026-05-01)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
