@@ -150,6 +150,19 @@ impl BinaryWrite for [u32; 4] {
     }
 }
 
+impl<'a> BinaryRead<'a> for [u32; 3] {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok([u32::read_from(data, offset)?, u32::read_from(data, offset)?, u32::read_from(data, offset)?])
+    }
+}
+
+impl BinaryWrite for [u32; 3] {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        for v in self { v.write_to(w)?; }
+        Ok(())
+    }
+}
+
 // [u8; 3] specific impls removed — covered by generic [u8; N] above.
 
 // ── Fixed-size array tracked reads ──────────────────────────────────────────
@@ -200,6 +213,23 @@ impl<'a> BinaryReadTracked<'a> for [f32; 4] {
         for (i, elem) in out.iter_mut().enumerate() {
             let saved = push_index(path, i);
             *elem = f32::read_tracked(data, offset, path, ranges)?;
+            pop_path(path, saved);
+        }
+        Ok(out)
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for [u32; 3] {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let mut out = [0u32; 3];
+        for (i, elem) in out.iter_mut().enumerate() {
+            let saved = push_index(path, i);
+            *elem = u32::read_tracked(data, offset, path, ranges)?;
             pop_path(path, saved);
         }
         Ok(out)
