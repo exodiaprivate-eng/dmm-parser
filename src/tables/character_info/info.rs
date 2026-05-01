@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 //! Tier 1 — fully typed parser. All 174 wire fields editable; tail blob
 //! is empty for every vanilla entry (see `roundtrip` test which prints
 //! `0 nonempty tails`). The `pabgh_typed_blob_table!` macro now omits
