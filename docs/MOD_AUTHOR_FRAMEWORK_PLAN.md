@@ -179,19 +179,19 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 - [x] **S2** — Save envelope module. Port DMM's save crypto (ChaCha20, HMAC-SHA256, LZ4) into `dmm-parser/src/save/envelope.rs`. `decrypt_save(bytes, key)` + inverse. Verify against DMM's existing test vectors.
   Done: New `src/save/{mod,envelope}.rs`. `SaveHeader` round-trips bytes ↔ struct. `decrypt_envelope(bytes, &key32, hmac_fn)` returns `SaveEnvelope { header, body, warnings }`; `encrypt_envelope(body, &key32, nonce16, template_header, hmac_fn)` produces a complete SAVE file. ChaCha20 uses the existing `chacha20_crate` with the 16→4+12 nonce split (counter via `seek(counter*64)`, matching the OpenSSL/`cryptography` ChaCha20 primitive convention used by upstream Python). LZ4 via `lz4_flex` (already a dep). HMAC is a caller-supplied closure (`Fn(&[u8]) -> [u8; 32]`) so dmm-parser doesn't pull in `sha2`/`hmac` and doesn't bake save keys into the public crate. HMAC mismatch returns body + `EnvelopeWarning::HmacMismatch` rather than failing — SWISS picks the policy. 7/7 unit tests pass: header round-trip, too-small/bad-magic/payload-overflow rejection, full encrypt+decrypt round-trip with body integrity, HMAC mismatch warning path, template-header prefix preservation. No new Cargo deps added.
 
-- [ ] **S3** — Save body structure recon. Identify section layout inside decrypted body. Inventory, equipment, quest progress, etc. Use SWISS save editor as reference.
+- [~] **S3** — Save body structure recon. **DEFERRED**: requires a real v2 save fixture + the derived save key, neither of which is in this autonomous-loop workspace. Upstream `save_parser.py` (1,590 LOC) uses a signature-walk strategy rather than fixed offsets, so a typed Rust port is a ground-up reverse-engineering pass that needs interactive sessions with real saves. The S2 envelope is the right place to stop in this loop — it's the load-bearing piece SWISS needs first.
 
-- [ ] **S4** — Inventory typed parser. `SaveItem { item_key, count, enchant_level, sharpness, sockets, ... }`. Round-trip on real save. Mirror DMM's `save_engine/scanner.rs`.
+- [~] **S4** — Inventory typed parser. **DEFERRED**: gated on S3 recon.
 
-- [ ] **S5** — Equipment / sockets parser. Equipment slot data, socket entries (5-fill range).
+- [~] **S5** — Equipment / sockets parser. **DEFERRED**: gated on S3 recon.
 
-- [ ] **S6** — Quest / knowledge / dye parsers. Quest progress, knowledge unlocked list, dye palette/slot data. Each gets typed structs + round-trip tests.
+- [~] **S6** — Quest / knowledge / dye parsers. **DEFERRED**: gated on S3 recon.
 
-- [ ] **S7** — Save dispatch + JSON surface. Add `"save"` to `dispatch.rs`. `parse_save_to_json` / `serialize_save_from_json`.
+- [~] **S7** — Save dispatch + JSON surface. **DEFERRED**: gated on S3-S6.
 
-- [ ] **S8** — v3.1 save target intents. Define ops: `swap_item`, `add_item`, `set_quest_state`, `unlock_knowledge`. Document in v3.1 spec extension.
+- [~] **S8** — v3.1 save target intents. **DEFERRED**: gated on S3-S6 (intents need typed body fields to reference).
 
-- [ ] **S9** — Python bindings + tests. PyO3 bindings for save parse/serialize. Tests on real save files.
+- [~] **S9** — Python bindings + tests. **DEFERRED**: envelope already PyO3-able once the body parser lands; deferred together with the rest of S3-S8 so the binding surface is consistent.
 
 - [~] **S10** — ~~Migration coordination with DMM~~ — **SKIPPED**: DMM work is out of scope per user direction. The dmm-parser save module (S0-S9) stands alone for SWISS save editor consumption.
 
@@ -199,15 +199,20 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 
 ## Phase T — Mod Author CLI Toolkit
 
-- [ ] **T0** — `dmm-mod-validate` CLI. Takes a .field.json + assets folder. Validates JSON schema, each asset (DDS/WEM/paloc), SHA-256 hashes. Reports errors and warnings.
+- [x] **T0** — `dmm-mod-validate` CLI. Takes a .field.json + assets folder. Validates JSON schema, each asset (DDS/WEM/paloc), SHA-256 hashes. Reports errors and warnings.
+  Done: `python/dmm_parser/tools/validate.py`. Loads manifest, walks targets, dispatches asset-type-specific validation: DDS → `dmm_parser.validate_dds`, WEM/BNK/audio → `dmm_parser.validate_audio`, paloc → file-existence + (S0-blocked) inline entries, table → `dmm_parser.is_supported_table` + ops sanity. Computes SHA-256 per asset and compares against manifest. Emits findings as text (default) or JSON (`--json`) using the unified {code, severity, message, context} shape so SWISS renders the same list shape from validate_dds, validate_audio, and the manifest-level checks. Exit code 0 when no fatals/errors, 1 otherwise.
 
-- [ ] **T1** — `dmm-mod-pack` CLI. Takes folder + manifest. Produces complete v3.1 mod package (zip with .field.json + assets/). Auto-computes SHA-256s, auto-infers vpaths.
+- [x] **T1** — `dmm-mod-pack` CLI. Takes folder + manifest. Produces complete v3.1 mod package (zip with .field.json + assets/). Auto-computes SHA-256s, auto-infers vpaths.
+  Done: `python/dmm_parser/tools/pack.py`. For each asset target: opens the file, computes SHA-256, fills missing `sha256`/`size`/`vpath` fields (DDS vpath via `dmm_parser.infer_dds_vpath`; audio vpath inference is class-only, so we leave it to the author), and refuses to pack on hash mismatch. Writes a `ZIP_DEFLATED` archive with the .field.json at root and `assets/<file>` for every asset. `--no-fill` flag preserves manifest-as-is for reproducibility.
 
-- [ ] **T2** — `dmm-mod-inspect` CLI. Takes .field.json mod. Prints what it does (tables touched, assets, fields changed). For users vetting third-party mods.
+- [x] **T2** — `dmm-mod-inspect` CLI. Takes .field.json mod. Prints what it does (tables touched, assets, fields changed). For users vetting third-party mods.
+  Done: `python/dmm_parser/tools/inspect.py`. Accepts either a `.field.json` or a packed `.zip` (extracts the inner `*.field.json`). Prints mod identity (name/author/version/format), groups targets by kind, and shows compact per-target summaries: `<table> (N ops)` for table targets, `[type] file → vpath SIZE bytes` for assets, inline-vs-file count for paloc. `--json` flag emits a structured object for tooling consumers.
 
-- [ ] **T3** — `dmm-mod-diff` CLI. Compares two mods for compatibility. Flags conflicts (both touch same field). For SWISS Stacker conflict resolution.
+- [x] **T3** — `dmm-mod-diff` CLI. Compares two mods for compatibility. Flags conflicts (both touch same field). For SWISS Stacker conflict resolution.
+  Done: `python/dmm_parser/tools/diff.py`. Three conflict classes: (1) table-row collisions (`(table, key)` pairs that appear in both manifests' ops, where `key` is permissively read from `key`/`id`/`row`/`target_key`/`name`/`keys[]`); (2) asset-vpath collisions (case-insensitive); (3) paloc-key collisions. Returns 0 only when all three sets are empty. JSON output for SWISS Stacker integration.
 
-- [ ] **T4** — Python equivalents. All CLIs available as `python -m dmm_parser.tools.<name>`. SWISS can invoke programmatically.
+- [x] **T4** — Python equivalents. All CLIs available as `python -m dmm_parser.tools.<name>`. SWISS can invoke programmatically.
+  Done: `python/dmm_parser/tools/__init__.py` re-exports all four modules, each defines a `main(argv)` entry point, and each is `python -m dmm_parser.tools.<name>` invocable. `python/dmm_parser/__init__.py` made tolerant of missing native bindings (`ModuleNotFoundError` no longer breaks pure-python tooling) — the tools that need `validate_dds`/`validate_audio` will only fail at the call site, so `inspect`/`diff` and the manifest-level checks in `validate` work even on machines where `maturin develop` hasn't run yet. 12/12 tools smoke tests pass (`_test_smoke.py` covers iter_targets v3.0/v3.1, format-version detection, finding emission, inspect text + JSON output, all three diff conflict classes).
 
 ---
 
