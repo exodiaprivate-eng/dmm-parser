@@ -17,10 +17,11 @@
 //! serde_json::Number's full integer range (it stores them losslessly even
 //! though JSON proper has no integer type).
 
+use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{json, Map, Value};
 use std::io;
 
-use crate::binary::{CArray, COptional, CString, LocalizableString};
+use crate::binary::{CArray, CBytes, COptional, CString, LocalizableString};
 
 // ── Traits ────────────────────────────────────────────────────────────────────
 
@@ -335,6 +336,28 @@ impl WriteJsonValue for CString<'_> {
         }
         w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
         w.extend_from_slice(bytes);
+        Ok(())
+    }
+}
+
+// ── CBytes ────────────────────────────────────────────────────────────────────
+
+impl ToJsonValue for CBytes<'_> {
+    fn to_json_value(&self) -> Value {
+        Value::String(B64.encode(self.data))
+    }
+}
+impl WriteJsonValue for CBytes<'_> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let s = v.as_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            "expected base64 string for CBytes"))?;
+        let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("CBytes base64 decode: {}", e)))?;
+        if bytes.len() > u32::MAX as usize {
+            return err(format!("CBytes too long ({} bytes)", bytes.len()));
+        }
+        w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+        w.extend_from_slice(&bytes);
         Ok(())
     }
 }
