@@ -421,8 +421,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\equipslotinfo.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\equipslotinfo.pabgh";
+    const PABGB: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipslotinfo.pabgb";
+    const PABGH: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipslotinfo.pabgh";
 
 
     #[test]

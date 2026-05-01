@@ -13,9 +13,9 @@ use crate::binary::*;
 use std::collections::BTreeMap;
 
 const PABGB_PATH: &str =
-    r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\buffinfo.pabgb";
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/buffinfo.pabgb";
 const PABGH_PATH: &str =
-    r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\buffinfo.pabgh";
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/buffinfo.pabgh";
 
 /// Tail layout (post buff_data_list) per sub_1410D6510:
 ///   u32 min_level (4) + u32 max_level (4) + CString sequencer_file_name +

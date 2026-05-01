@@ -103,7 +103,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\fieldinfo.pabgb";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/fieldinfo.pabgb";
 
 
     #[test]

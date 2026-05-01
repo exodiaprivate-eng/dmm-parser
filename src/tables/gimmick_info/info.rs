@@ -415,14 +415,46 @@ impl<'a> GimmickInfo<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\gimmickinfo.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\gimmickinfo.pabgh";
+    use crate::binary::variant::{entry_ranges, load_pabgh_offsets_from_bytes};
+
+    fn find_fixture() -> Option<(Vec<u8>, Vec<u8>)> {
+        let candidates: &[(&str, &str)] = &[
+            (
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/gimmickinfo.pabgb",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/gimmickinfo.pabgh",
+            ),
+            (
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\gimmickinfo.pabgb",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\gimmickinfo.pabgh",
+            ),
+        ];
+        if let Ok(p) = std::env::var("DMM_PARSER_GIMMICKINFO_PABGB") {
+            let q = std::env::var("DMM_PARSER_GIMMICKINFO_PABGH").ok()?;
+            if let (Ok(d), Some(e)) = (std::fs::read(&p), std::fs::read(&q).ok()) {
+                return Some((d, e));
+            }
+        }
+        for (pb, pg) in candidates {
+            if let (Ok(d), Ok(e)) = (std::fs::read(pb), std::fs::read(pg)) {
+                return Some((d, e));
+            }
+        }
+        None
+    }
+
+    macro_rules! load_or_skip {
+        () => {
+            match find_fixture() {
+                Some(pair) => pair,
+                None => { eprintln!("SKIP: gimmickinfo fixture not found"); return; }
+            }
+        };
+    }
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let (data, pabgh_data) = load_or_skip!();
+        let Some(entries) = load_pabgh_offsets_from_bytes(&pabgh_data) else { eprintln!("SKIP: bad pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         let mut decoded = 0usize;
@@ -446,15 +478,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
-            return;
-        };
+        let (data, pabgh_data) = load_or_skip!();
+        let Some(entries) = load_pabgh_offsets_from_bytes(&pabgh_data) else { eprintln!("SKIP: bad pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;

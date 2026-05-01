@@ -58,9 +58,8 @@ mod tests {
         first_existing(
             "DMM_PARSER_ITEMINFO_PATH",
             &[
-                "/mnt/e/OpensourceGame/CrimsonDesert/Godmod/backups/iteminfo_1.0.4.0.pabgb",
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\1.0.4 PABGB_PABGH\iteminfo.pabgb",
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\iteminfo.pabgb",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\iteminfo.pabgb",
             ],
         )
     }

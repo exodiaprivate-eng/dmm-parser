@@ -156,12 +156,12 @@ mod tests {
     fn find_fixture() -> Option<(Vec<u8>, Vec<u8>)> {
         let candidates: &[(&str, &str)] = &[
             (
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-12/reviepointinfo.pabgb",
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-12/reviepointinfo.pabgh",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/reviepointinfo.pabgb",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/reviepointinfo.pabgh",
             ),
             (
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\reviepointinfo.pabgb",
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\reviepointinfo.pabgh",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\reviepointinfo.pabgb",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\reviepointinfo.pabgh",
             ),
         ];
         if let Ok(p) = std::env::var("DMM_PARSER_REVIEPOINTINFO_PABGB") {

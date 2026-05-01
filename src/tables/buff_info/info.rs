@@ -236,9 +236,9 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
     const PABGB_PATH: &str =
-        r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\buffinfo.pabgb";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/buffinfo.pabgb";
     const PABGH_PATH: &str =
-        r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\buffinfo.pabgh";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/buffinfo.pabgh";
 
     #[test]
     fn roundtrip() {

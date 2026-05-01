@@ -105,9 +105,9 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
     const PABGB: &str =
-        r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\characterchange.pabgb";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/characterchange.pabgb";
     const PABGH: &str =
-        r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\characterchange.pabgh";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/characterchange.pabgh";
 
     #[test]
     fn roundtrip() {
