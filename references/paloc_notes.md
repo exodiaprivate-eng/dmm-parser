@@ -220,7 +220,100 @@ Verify roundtrip against real paloc samples (Phase P1 work). If our implementati
 
 ---
 
-## Next Steps (Phase P1 — Hexpat Patterns)
+## Phase P1 Findings — Format Verified Against Real Sample
+
+### Sample File
+
+`C:/Users/corin/Desktop/CD JSON Mod Manager/Unpacked/0020/gamedata/localizationstring_eng.paloc`
+- 15,464,086 bytes (~15 MB)
+- 172,152 entries
+- PLAIN format (already decompressed/decrypted, extracted from PAZ archive 0020)
+
+### Verification (Python walk vs documented format)
+
+```
+File size: 15,464,086 bytes
+Trailing count (last u32): 172,152
+Walked entries: 172,152
+Trailing count matches walked count: True
+Final offset: 0xebf692 (file_size - 4 = 0xebf692)
+```
+
+**Format confirmed exactly as documented in P0.** No 16-byte trailer (the IDA `v19 - 16*v11` line was memory allocation arithmetic, not file layout).
+
+### First 5 Entries — Format Examples
+
+| # | cat | key | value |
+|---|---|---|---|
+| 0 | 0x2f (47) | "262897" | "Unavailable during combat." |
+| 1 | 0x03 (3) | "4294967344" | "Kliff" |
+| 2 | 0x03 (3) | "4294967345" | "PHM_Description_Player_Kliff" |
+| 3 | 0x07 (7) | "4294967408" | "Copper" |
+| 4 | 0x07 (7) | "4294967409" | "The most common copper currency..." |
+
+### Category Codes Observed (additional discovery)
+
+Beyond 0x07 / 0x70 / 0x71 from the original spec:
+
+| Code | Meaning |
+|---|---|
+| 0x03 | Character names + descriptions ("Kliff", "PHM_Description_Player_Kliff") |
+| 0x07 | Items (currencies, materials) and their descriptions |
+| 0x2F | UI / general game text |
+| 0x70 | Item name (Benreuveni's mapping) |
+| 0x71 | Item description (Benreuveni's mapping) |
+
+Many more codes likely exist — full enumeration requires scanning all 172k entries.
+
+### Key String Pattern — Confirms Benreuveni's Formula
+
+Item entry "Copper" has key `"4294967408"`. Decode:
+- `4294967408` = `0x100000070` = `(0x1 << 32) | 0x70` — item key 1, name tag 0x70
+
+Item entry for Copper description has key `"4294967409"`:
+- `4294967409` = `0x100000071` = `(0x1 << 32) | 0x71` — item key 1, desc tag 0x71
+
+**Benreuveni's `(item_key << 32) | 0x70/0x71` formula validates exactly.** The paloc `key` field is the **decimal string** of that 64-bit value. Custom items at item_key=999001 would use:
+- name key string: `"4290772592"` (= `(999001 << 32) | 0x70`)
+- desc key string: `"4290772593"` (= `(999001 << 32) | 0x71`)
+
+### Existing Rust Parser Status
+
+dmm-parser **already has** a working plain-format paloc parser at `src/binary/paloc.rs`:
+
+```rust
+pub struct LocalizationEntry<'a> {
+    pub unk_id: u64,          // ← we now know: low byte = category
+    pub string_key: CString<'a>,    // u32 len + bytes (no null terminator)
+    pub string_value: CString<'a>,  // u32 len + bytes
+}
+
+pub struct LocalizationFile<'a> {
+    pub entries: Vec<LocalizationEntry<'a>>,
+}
+
+LocalizationFile::parse(data) -> Result<Self>
+LocalizationFile::to_bytes() -> Result<Vec<u8>>
+```
+
+Roundtrip tests `test_paloc_parse` and `test_paloc_roundtrip` already exist in `lib.rs` — they extract from PAZ 0020 and verify byte-perfect roundtrip.
+
+**P2-P3 work is largely already done** for the plain format. What remains:
+- Rename `unk_id` → `category` (cosmetic, captures meaning)
+- Add ChaCha20+LZ4 envelope handling for encrypted production paloc files (P4-P5)
+- Add to `dispatch.rs` for v3.1 integration (P6)
+- JSON surface (P6)
+- Python bindings (P8)
+- Docs (P9)
+- DMM apply integration (P10)
+
+### Hexpat File
+
+Written to `dmm-parser/references/paloc.hexpat`. Documents the format authoritatively. plcli not installed locally, but format verified via Python walk against sample.
+
+---
+
+## Next Steps (Phase P2 — Rust Module Skeleton, mostly done)
 
 1. **Locate sample paloc files** — find a real `_<lang>.paloc` file on disk (probably under the game install's data folder or 0012/0008 PAZ extract)
 2. **Write hexpat for plain format** — start with the body structure (entries + trailer + count)
