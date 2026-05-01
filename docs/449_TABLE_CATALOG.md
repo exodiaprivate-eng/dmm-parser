@@ -12,9 +12,9 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 | Status | Count |
 |---|---|
-| **On-disk + Tier 1 (fully field-decoded)** | 92 |
+| **On-disk + Tier 1 (fully field-decoded)** | 119 |
 | **On-disk + Tier 2 (blob-tail, partial decode)** | 0 |
-| **Parser exists but not in current dump** | 28 |
+| **Parser exists but not in current dump** | 2 |
 | **In-memory only (C++ struct, no pabgb file)** | 328 |
 | **TOTAL** | 449 |
 
@@ -51,7 +51,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | ✅ T1 | `AIDialogStringInfo` | 11 | records for ai dialog string (records can be individually blocked via is_blocked) |
 | ✅ T1 | `AIDialogTypeInfo` | 7 | type/enum definitions for ai dialog (records can be individually blocked via is_blocked) |
 | ✅ T1 | `AIEventTableInfo` | 12 | lookup table for ai event (records can be individually blocked via is_blocked) |
-| 📚 P | `AIMemoryInfo` | 3 | records for ai memory (records can be individually blocked via is_blocked) |
+| ✅ T1 | `AIMemoryInfo` | 3 | records for ai memory (records can be individually blocked via is_blocked) |
 | 🧠 — | `AIMemoryOfTarget` | 2 | records for ai memory of target |
 | 🧠 — | `AIMoveSpeedData` | 20 | records for ai move speed data |
 | ✅ T1 | `AIMoveSpeedInfo` | 4 | records for ai move speed (records can be individually blocked via is_blocked) |
@@ -94,7 +94,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `AutoSpawnCharacterData` | 6 | records for auto spawn character data (NPC/character references) |
 | 🧠 — | `CharacterAdditionalPartsData` | 3 | records for character additional parts data |
 | ✅ T1 | `CharacterAppearanceIndexInfo` | 7 | records for character appearance index (records can be individually blocked via is_blocked; NPC/character references) |
-| 📚 P | `CharacterChangeInfo` | 4 | records for character change (records can be individually blocked via is_blocked) |
+| ✅ T1 | `CharacterChangeInfo` | 4 | records for character change (records can be individually blocked via is_blocked) |
 | 🧠 — | `CharacterCloneInfo` | 1 | records for character clone |
 | 🧠 — | `CharacterDialogGroupData` | 1 | records for character dialog group data |
 | 🧠 — | `CharacterEquipmentData` | 9 | records for character equipment data |
@@ -155,14 +155,14 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `FactionEventData` | 36 | records for faction event data (spawn-related) |
 | 🧠 — | `FactionEventProcessInfo` | 5 | records for faction event process (records can be individually blocked via is_blocked) |
 | 🧠 — | `FactionGimmickActorSpawnInfo` | 3 | spawn rules for faction gimmick actor |
-| 📚 P | `FactionGroupInfo` | 8 | grouping/categorization for faction (records can be individually blocked via is_blocked) |
-| 📚 P | `FactionInfo` | 19 | records for faction (records can be individually blocked via is_blocked) |
-| 📚 P | `FactionNodeInfo` | 31 | records for faction node (records can be individually blocked via is_blocked; skill references) |
+| ✅ T1 | `FactionGroupInfo` | 8 | grouping/categorization for faction (records can be individually blocked via is_blocked) |
+| ✅ T1 | `FactionInfo` | 19 | records for faction (records can be individually blocked via is_blocked) |
+| ✅ T1 | `FactionNodeInfo` | 31 | records for faction node (records can be individually blocked via is_blocked; skill references) |
 | 🧠 — | `FactionNodeInfo_ObserveData` | 5 | records for faction node info observe data |
 | ✅ T1 | `FactionNodeSpawnInfo` | 6 | spawn rules for faction node (records can be individually blocked via is_blocked) |
 | 🧠 — | `FactionNodeSpawnPatrolSplineData` | 2 | records for faction node spawn patrol spline data |
 | 🧠 — | `FactionPatrolData` | 2 | records for faction patrol data (spawn-related) |
-| 📚 P | `FactionRelationGroupInfo` | 4 | grouping/categorization for faction relation (records can be individually blocked via is_blocked) |
+| ✅ T1 | `FactionRelationGroupInfo` | 4 | grouping/categorization for faction relation (records can be individually blocked via is_blocked) |
 | 🧠 — | `FactionResearchData` | 10 | records for faction research data |
 | 🧠 — | `FactionResearchProgressData` | 2 | records for faction research progress data |
 | 🧠 — | `FactionResourceData` | 5 | records for faction resource data |
@@ -180,23 +180,23 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | ✅ T1 | `FieldInfo` | 24 | records for field (records can be individually blocked via is_blocked; spawn-related) |
 | ✅ T1 | `FieldLevelNameTableInfo` | 5 | lookup table for field level name (records can be individually blocked via is_blocked) |
 | ✅ T1 | `FieldReviveInfo` | 10 | records for field revive (records can be individually blocked via is_blocked; positional); pabgb is `reviepointinfo.pabgb` (game typo) |
-| 📚 P | `GameEventHandlerInfo` | 9 | records for game event handler (records can be individually blocked via is_blocked) |
-| 📚 P | `GameLevelInfo` | 6 | records for game level (records can be individually blocked via is_blocked) |
-| 📚 P | `GamePlayTriggerInfo` | 13 | records for game play trigger (records can be individually blocked via is_blocked; positional) |
+| ✅ T1 | `GameEventHandlerInfo` | 9 | records for game event handler (records can be individually blocked via is_blocked) |
+| ✅ T1 | `GameLevelInfo` | 6 | records for game level (records can be individually blocked via is_blocked) |
+| ✅ T1 | `GamePlayTriggerInfo` | 13 | records for game play trigger (records can be individually blocked via is_blocked; positional) |
 | ✅ T1 | `GamePlayVariableInfo` | 5 | records for game play variable (records can be individually blocked via is_blocked) |
 | 🧠 — | `GimmickGameEventHandlerData` | 3 | records for gimmick game event handler data |
 | 🧠 — | `GimmickInfo_FactionStructure` | 5 | records for gimmick info faction structure |
 | 🧠 — | `GimmickInfo_FactionStructureEvent` | 2 | records for gimmick info faction structure event |
-| 📚 P | `GlobalGameEventGroupInfo` | 5 | grouping/categorization for global game event (records can be individually blocked via is_blocked) |
-| 📚 P | `GlobalGameEventInfo` | 5 | records for global game event (records can be individually blocked via is_blocked) |
+| ✅ T1 | `GlobalGameEventGroupInfo` | 5 | grouping/categorization for global game event (records can be individually blocked via is_blocked) |
+| ✅ T1 | `GlobalGameEventInfo` | 5 | records for global game event (records can be individually blocked via is_blocked) |
 | ✅ T1 | `GlobalStageSequencerInfo` | 14 | records for global stage sequencer (records can be individually blocked via is_blocked) |
-| 📚 P | `HouseInfo` | 6 | records for house (records can be individually blocked via is_blocked) |
+| ✅ T1 | `HouseInfo` | 6 | records for house (records can be individually blocked via is_blocked) |
 | 🧠 — | `HouseRegionData` | 3 | records for house region data |
 | 🧠 — | `RegionDomainFactionData` | 3 | records for region domain faction data |
 | ✅ T1 | `RegionInfo` | 23 | records for region (records can be individually blocked via is_blocked) |
-| 📚 P | `ReserveSlotInfo` | 17 | records for reserve slot (records can be individually blocked via is_blocked) |
+| ✅ T1 | `ReserveSlotInfo` | 17 | records for reserve slot (records can be individually blocked via is_blocked) |
 | 🧠 — | `ReserveSlotTargetData` | 2 | records for reserve slot target data |
-| 📚 P | `RoyalSupplyInfo` | 7 | records for royal supply (records can be individually blocked via is_blocked) |
+| ✅ T1 | `RoyalSupplyInfo` | 7 | records for royal supply (records can be individually blocked via is_blocked) |
 | 🧠 — | `RoyalSupplyRandomData` | 4 | records for royal supply random data |
 | 🧠 — | `ScheduleStageCompleteAIEventDesc` | 2 | records for schedule stage complete ai event desc |
 | 🧠 — | `SequencerStageBoundaryData` | 13 | records for sequencer stage boundary data (spawn-related) |
@@ -281,7 +281,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `GimmickConstraintData` | 7 | records for gimmick constraint data |
 | 🧠 — | `GimmickEventHandlerEventTargetData` | 4 | records for gimmick event handler event target data |
 | ✅ T1 | `GimmickEventTableInfo` | 7 | lookup table for gimmick event (records can be individually blocked via is_blocked; spawn-related) |
-| 📚 P | `GimmickGateConnectionInfo` | 9 | records for gimmick gate connection (records can be individually blocked via is_blocked) |
+| ✅ T1 | `GimmickGateConnectionInfo` | 9 | records for gimmick gate connection (records can be individually blocked via is_blocked) |
 | ✅ T1 | `GimmickGateInfo` | 6 | records for gimmick gate (records can be individually blocked via is_blocked; positional) |
 | ✅ T1 | `GimmickGroupInfo` | 70 | grouping/categorization for gimmick (records can be individually blocked via is_blocked; spawn-related) |
 | ✅ T1 | `GimmickInfo` | 162 | records for gimmick (records can be individually blocked via is_blocked; spawn-related) |
@@ -330,12 +330,12 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | ✅ T1 | `EquipTypeInfo` | 20 | type/enum definitions for equip (records can be individually blocked via is_blocked) |
 | 🧠 — | `GimmickAttachTargetSocketData` | 10 | records for gimmick attach target socket data |
 | 🧠 — | `InventoryChangeData` | 2 | records for inventory change data |
-| 📚 P | `InventoryInfo` | 17 | records for inventory (records can be individually blocked via is_blocked) |
+| ✅ T1 | `InventoryInfo` | 17 | records for inventory (records can be individually blocked via is_blocked) |
 | 🧠 — | `InventoryMoveData` | 10 | records for inventory move data |
 | 🧠 — | `InventoryPushableData` | 2 | records for inventory pushable data |
 | ✅ T1 | `ItemGroupInfo` | 14 | grouping/categorization for item (records can be individually blocked via is_blocked; UI icon) |
 | 🧠 — | `ItemIconData` | 3 | records for item icon data (UI icon) |
-| 📚 P | `ItemInfo` | 111 | records for item (records can be individually blocked via is_blocked) |
+| ✅ T1 | `ItemInfo` | 111 | records for item (records can be individually blocked via is_blocked) |
 | 🧠 — | `ItemInfo_PatternDescriptionData` | 2 | records for item info pattern description data |
 | 🧠 — | `ItemInfo_SharpnessData` | 3 | records for item info sharpness data |
 | 🧠 — | `ItemMeshGroupData` | 1 | records for item mesh group data |
@@ -367,7 +367,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `MiniGameParam` | 1 | records for mini game param |
 | 🧠 — | `MiniGameSpawnDesc` | 2 | records for mini game spawn desc |
 | ✅ T1 | `MultiChangeInfo` | 26 | records for multi change (records can be individually blocked via is_blocked) |
-| 📚 P | `SpecialModeInfo` | 24 | records for special mode (records can be individually blocked via is_blocked; skill references) |
+| ✅ T1 | `SpecialModeInfo` | 24 | records for special mode (records can be individually blocked via is_blocked; skill references) |
 | 🧠 — | `SpecialModeOptionData` | 32 | records for special mode option data |
 
 ## Misc
@@ -379,7 +379,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `BloodDecalData` | 3 | records for blood decal data |
 | 🧠 — | `BoardData` | 3 | records for board data (spawn-related) |
 | 🧠 — | `BoardDataGroup` | 7 | records for board data group (spawn-related) |
-| 📚 P | `BoardInfo` | 5 | records for board (records can be individually blocked via is_blocked) |
+| ✅ T1 | `BoardInfo` | 5 | records for board (records can be individually blocked via is_blocked) |
 | 🧠 — | `CampGuestData` | 1 | records for camp guest data |
 | 🧠 — | `CatchSpawnData` | 3 | records for catch spawn data |
 | ✅ T1 | `CategoryGroupInfo` | 4 | grouping/categorization for category (records can be individually blocked via is_blocked) |
@@ -454,12 +454,12 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 | Status | Class | Fields | Purpose |
 |---|---|---:|---|
-| 📚 P | `KeyMapSettingListInfo` | 4 | records for key map setting list (records can be individually blocked via is_blocked) |
+| ✅ T1 | `KeyMapSettingListInfo` | 4 | records for key map setting list (records can be individually blocked via is_blocked) |
 | ✅ T1 | `PartPrefabDyeSlotInfo` | 5 | records for part prefab dye slot (records can be individually blocked via is_blocked) |
 | ✅ T1 | `PartPrefabDyeTexturePalleteInfo` | 5 | records for part prefab dye texture pallete (records can be individually blocked via is_blocked) |
 | 🧠 — | `PartPrefabDyeTextureSet` | 5 | records for part prefab dye texture set (UI icon) |
 | ✅ T1 | `PlatformAchievementInfo` | 10 | records for platform achievement (records can be individually blocked via is_blocked; quest references) |
-| 📚 P | `PlatformEntitlementInfo` | 9 | records for platform entitlement (records can be individually blocked via is_blocked; UI icon) |
+| ✅ T1 | `PlatformEntitlementInfo` | 9 | records for platform entitlement (records can be individually blocked via is_blocked; UI icon) |
 
 ## Quest/Mission/Knowledge
 
@@ -523,14 +523,14 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | ✅ T1 | `QuickTimeEventInfo` | 4 | records for quick time event (records can be individually blocked via is_blocked) |
 | 🧠 — | `QuickTimeEventInfoData` | 12 | records for quick time event info data (positional) |
 | ✅ T1 | `SkillGroupInfo` | 5 | grouping/categorization for skill (records can be individually blocked via is_blocked; skill references) |
-| 📚 P | `SkillInfo` | 34 | records for skill (records can be individually blocked via is_blocked; carries buff data; skill references; UI icon) |
+| ✅ T1 | `SkillInfo` | 34 | records for skill (records can be individually blocked via is_blocked; carries buff data; skill references; UI icon) |
 | 🧠 — | `SkillNode` | 17 | records for skill node (skill references) |
 | ✅ T1 | `SkillTreeGroupInfo` | 9 | grouping/categorization for skill tree (records can be individually blocked via is_blocked; skill references; NPC/character references) |
 | ✅ T1 | `SkillTreeInfo` | 16 | records for skill tree (records can be individually blocked via is_blocked; skill references; NPC/character references) |
 | 🧠 — | `StageChart_Function_PassiveSkill` | 2 | records for stage chart function passive skill (skill references) |
 | 🧠 — | `StageChart_PassiveSkill` | 3 | records for stage chart passive skill (skill references) |
-| 📚 P | `UISocialActionInfo` | 7 | records for ui social action (records can be individually blocked via is_blocked) |
-| 📚 P | `ValidScheduleActionInfo` | 7 | records for valid schedule action (records can be individually blocked via is_blocked) |
+| ✅ T1 | `UISocialActionInfo` | 7 | records for ui social action (records can be individually blocked via is_blocked) |
+| ✅ T1 | `ValidScheduleActionInfo` | 7 | records for valid schedule action (records can be individually blocked via is_blocked) |
 
 ## UI/Audio/Localization
 
@@ -538,7 +538,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 |---|---|---:|---|
 | 🧠 — | `AiDialogTextData` | 5 | records for ai dialog text data |
 | 🧠 — | `BitmapColorKey` | 2 | records for bitmap color key |
-| 📚 P | `BitmapPositionInfo` | 11 | records for bitmap position (records can be individually blocked via is_blocked) |
+| ✅ T1 | `BitmapPositionInfo` | 11 | records for bitmap position (records can be individually blocked via is_blocked) |
 | 🧠 — | `DialogSetInfo` | 4 | records for dialog set (records can be individually blocked via is_blocked) |
 | 🧠 — | `DialogSpeaker` | 4 | records for dialog speaker |
 | 🧠 — | `DialogTextData` | 2 | records for dialog text data |
@@ -553,7 +553,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `PatternDescriptionParam` | 2 | records for pattern description param |
 | ✅ T1 | `StringInfo` | 4 | records for string (records can be individually blocked via is_blocked; carries buff data) |
 | 🧠 — | `UIFilterData` | 5 | records for ui filter data |
-| 📚 P | `UIFilterGroupInfo` | 7 | grouping/categorization for ui filter (records can be individually blocked via is_blocked) |
+| ✅ T1 | `UIFilterGroupInfo` | 7 | grouping/categorization for ui filter (records can be individually blocked via is_blocked) |
 | 🧠 — | `UIFilterIconData` | 3 | records for ui filter icon data |
 | ✅ T1 | `UIMapTextureInfo` | 50 | records for ui map texture (records can be individually blocked via is_blocked) |
 
@@ -625,7 +625,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_isTargetMustExist`
 - `_isMustHandled`
 
-### AIMemoryInfo 📚 P
+### AIMemoryInfo ✅ T1
 
 **Category**: AI  
 **Purpose**: records for ai memory (records can be individually blocked via is_blocked)  
@@ -963,7 +963,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_r`
 - `_g`
 
-### BitmapPositionInfo 📚 P
+### BitmapPositionInfo ✅ T1
 
 **Category**: UI/Audio/Localization  
 **Purpose**: records for bitmap position (records can be individually blocked via is_blocked)  
@@ -1019,7 +1019,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_playerCondition`
 - `_boardDataList`
 
-### BoardInfo 📚 P
+### BoardInfo ✅ T1
 
 **Category**: Misc  
 **Purpose**: records for board (records can be individually blocked via is_blocked)  
@@ -1164,7 +1164,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_characterScale`
 - `_characterInfo`
 
-### CharacterChangeInfo 📚 P
+### CharacterChangeInfo ✅ T1
 
 **Category**: Character/NPC  
 **Purpose**: records for character change (records can be individually blocked via is_blocked)  
@@ -2334,7 +2334,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_characterGroupInfo`
 - `_condition`
 
-### FactionGroupInfo 📚 P
+### FactionGroupInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: grouping/categorization for faction (records can be individually blocked via is_blocked)  
@@ -2350,7 +2350,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_uiIconPath`
 - `_uiDailyQuestImagePath`
 
-### FactionInfo 📚 P
+### FactionInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for faction (records can be individually blocked via is_blocked)  
@@ -2377,7 +2377,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_isEmptyMisc`
 - `_factionColor`
 
-### FactionNodeInfo 📚 P
+### FactionNodeInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for faction node (records can be individually blocked via is_blocked; skill references)  
@@ -2488,7 +2488,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_spawnOptionTagList`
 - `_patrolPartyDataList`
 
-### FactionRelationGroupInfo 📚 P
+### FactionRelationGroupInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: grouping/categorization for faction relation (records can be individually blocked via is_blocked)  
@@ -2955,7 +2955,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_targetCondition`
 - `_eventCondition`
 
-### GameEventHandlerInfo 📚 P
+### GameEventHandlerInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for game event handler (records can be individually blocked via is_blocked)  
@@ -3096,7 +3096,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_rayleighScatteringColor`
 - `_enableClimateTexture`
 
-### GameLevelInfo 📚 P
+### GameLevelInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for game level (records can be individually blocked via is_blocked)  
@@ -3123,7 +3123,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_useKeyColor`
 - `_isKillJammedTarget`
 
-### GamePlayTriggerInfo 📚 P
+### GamePlayTriggerInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for game play trigger (records can be individually blocked via is_blocked; positional)  
@@ -3300,7 +3300,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_conditionInfo`
 - `_gimmickEventKey`
 
-### GimmickGateConnectionInfo 📚 P
+### GimmickGateConnectionInfo ✅ T1
 
 **Category**: Gimmick/Trigger  
 **Purpose**: records for gimmick gate connection (records can be individually blocked via is_blocked)  
@@ -3904,7 +3904,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_animationPathList`
 - `_useGimmickPrefab`
 
-### GlobalGameEventGroupInfo 📚 P
+### GlobalGameEventGroupInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: grouping/categorization for global game event (records can be individually blocked via is_blocked)  
@@ -3917,7 +3917,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_globalGameEventInfoList`
 - `_executePercent`
 
-### GlobalGameEventInfo 📚 P
+### GlobalGameEventInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for global game event (records can be individually blocked via is_blocked)  
@@ -3990,7 +3990,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_waitInteraction`
 - `_setMercenary`
 
-### HouseInfo 📚 P
+### HouseInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for house (records can be individually blocked via is_blocked)  
@@ -4175,7 +4175,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_gameEventExecuteData`
 - `_toInventoryInfo`
 
-### InventoryInfo 📚 P
+### InventoryInfo ✅ T1
 
 **Category**: Item/Inventory  
 **Purpose**: records for inventory (records can be individually blocked via is_blocked)  
@@ -4271,7 +4271,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_checkExistSealedData`
 - `_gimmickStateList`
 
-### ItemInfo 📚 P
+### ItemInfo ✅ T1
 
 **Category**: Item/Inventory  
 **Purpose**: records for item (records can be individually blocked via is_blocked)  
@@ -4471,7 +4471,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_hasChild`
 - `_name`
 
-### KeyMapSettingListInfo 📚 P
+### KeyMapSettingListInfo ✅ T1
 
 **Category**: Platform/System  
 **Purpose**: records for key map setting list (records can be individually blocked via is_blocked)  
@@ -5477,7 +5477,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_questGroupPlatformId`
 - `_questLinkInfoList`
 
-### PlatformEntitlementInfo 📚 P
+### PlatformEntitlementInfo ✅ T1
 
 **Category**: Platform/System  
 **Purpose**: records for platform entitlement (records can be individually blocked via is_blocked; UI icon)  
@@ -5955,7 +5955,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_repairStyle`
 - `_resourceItemCount`
 
-### ReserveSlotInfo 📚 P
+### ReserveSlotInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for reserve slot (records can be individually blocked via is_blocked)  
@@ -5990,7 +5990,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_reserveSlotInfo`
 - `_conditionInfo`
 
-### RoyalSupplyInfo 📚 P
+### RoyalSupplyInfo ✅ T1
 
 **Category**: Faction/Field/World  
 **Purpose**: records for royal supply (records can be individually blocked via is_blocked)  
@@ -6193,7 +6193,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_groupName`
 - `_skillKeyList`
 
-### SkillInfo 📚 P
+### SkillInfo ✅ T1
 
 **Category**: Skill/Action  
 **Purpose**: records for skill (records can be individually blocked via is_blocked; carries buff data; skill references; UI icon)  
@@ -6360,7 +6360,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_isExistIndoorType`
 - `_collectFilter_Dev`
 
-### SpecialModeInfo 📚 P
+### SpecialModeInfo ✅ T1
 
 **Category**: Mini-game / Special  
 **Purpose**: records for special mode (records can be individually blocked via is_blocked; skill references)  
@@ -7683,7 +7683,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_uiIconName`
 - `_isIconVisible`
 
-### UIFilterGroupInfo 📚 P
+### UIFilterGroupInfo ✅ T1
 
 **Category**: UI/Audio/Localization  
 **Purpose**: grouping/categorization for ui filter (records can be individually blocked via is_blocked)  
@@ -7767,7 +7767,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_isDiscoverGimmickIcon`
 - `_uiFilterGroupByInfo`
 
-### UISocialActionInfo 📚 P
+### UISocialActionInfo ✅ T1
 
 **Category**: Skill/Action  
 **Purpose**: records for ui social action (records can be individually blocked via is_blocked)  
@@ -7829,7 +7829,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_increaseStatusInfo`
 - `_decreaseStatusInfo`
 
-### ValidScheduleActionInfo 📚 P
+### ValidScheduleActionInfo ✅ T1
 
 **Category**: Skill/Action  
 **Purpose**: records for valid schedule action (records can be individually blocked via is_blocked)  

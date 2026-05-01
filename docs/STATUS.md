@@ -1,73 +1,40 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-04-30 (instance A working session, loop active)
+**Last updated**: 2026-04-30 (catalog sync pass)
 **Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
 
-> **Active work (instance A, lane-A — `dmm-parser/`):** ConditionData
-> per-tag recipe verification against Win-IDA, driven by the
-> `interaction_info::diag_raw_entries` failure histogram. Original
-> goal was to eliminate the 50-ish Raw-fallback entries on
-> interaction_info; **achieved and exceeded**: down to **0 / 363 Raw
-> (100% Decoded)** as of `171a00e` — tag 54 promoted to
-> `TwoU32BodyPayload` and tag 214 to a new
-> `ConditionData_CheckExistStealItemPayload` struct, clearing the
-> remaining anti-disasm entries. Continuing with doc-drift cleanup
-> across STATUS.md, PARALLEL_LANES.md, condition_data.rs comments,
-> and module docstrings.
+> **Current state (2026-04-30 end-of-session):**
+> - **119 T1 / 0 T2 / 0 T1.5** — all 121 on-disk tables in the
+>   2026-4-24 dump have byte-perfect round-trip parsers.
+> - `interaction_info` 100% Decoded (363/363). `gimmick_info`
+>   field-19 alt_trigger prefix extracted; `post_blob` residual
+>   (fields 20–162) requires IDA for `sub_1410E6FC0`.
+> - Catalog synced 2026-04-30: 26 stale 📚 P entries corrected to
+>   ✅ T1. Only EquipInfo and MercenaryGroupInfo remain as P (not in
+>   the current game dump).
+> - Push policy: push when user asks (`git push origin main`).
+> - No active multi-lane parallelism. Next IDA target: TriggerEventHandler
+>   family (`pa::ReflectObject` reflection layer) — see "What's next".
 >
-> **Local-only commits** — per user directive, do NOT push until all
-> tables are field-level parsed. The remote `origin/main` is currently
-> behind local `main`. Other instances (B, C) should rebase against
-> local main only when explicitly synced; do not pull from origin until
-> the user gives the go-ahead.
+> **2026-04-30 session results:**
+> - `interaction_info`: Decoded 248 → **363** (+115), Raw 115 → **0** (100% drop). **100% typed.**
+> - `condition_info`: 8918 / 8934 Decoded (99.82%). (Bumped from 99.78% by Mac-IDA recipe fixes for tags 54/214.)
+> - `gimmick_info`: field-19 `alt_trigger_count/flag/name` prefix extracted; 12399 entries, all round-trip.
+> - 13 ConditionData tag recipes touched: 7, 19, 27, 29, 54, 99, 116,
+>   135, 174, 358, 360, 370, 393.
+> - **QuestInfo Tier 1.5 → Tier 1** via `6cdc22c` (FilterCondition family decoder).
+> - **5 family decoders restructured** from `src/binary/` into `src/binary/variants/` (`12dd29e`).
+> - `[u8; N]` audit complete (1 remaining is genuinely opaque single 16-byte xmmword read per IDA).
+> - ~~Remaining 3 interaction_info Raw entries~~ — ✅ all cleared via `171a00e`.
+> - **Methodology breakthrough**: tag 54/214 vtables are anti-disasm stripped in the Win binary but intact in the Mac binary. Itanium ABI shifts vtable slots by +1 vs MSVC: Mac `vfn[17]` = body reader (vs Win `vfn[16]`). Details in `5fa0b06`.
+> - **No remaining internal-Tier-1.5 sub-fields**: GimmickInfo `post_blob` unblocked when TGPEHD decoder shipped (`1fc44e8`). QuestInfo's `quest_dialog_filter_data_list_blob` unblocked earlier via FilterCondition family (`6cdc22c`).
 >
-> Per-tag verification template (Win-IDA derived), see commits
-> `8f01078` tag 174, `47c1697` tag 19, prior tag 27 reapply. Lookup
-> pattern (vtable starts at the matching `??_7ConditionData_<Name>@pa@@6B@`
-> RTTI symbol):
+> ConditionData vtable lookup pattern for future tag verification:
 >   - `vtable[16] = 0x141C9A550 → sub_14F18E780` reads 1 byte → `OneByteBodyPayload`
 >   - `vtable[16] = 0x1402D3A80` is no-op `return 1` → unit variant
 >   - `vtable[19] = 0x141C8D560` is standard option_block reader → NOT in skip-list
 >   - `vtable[19] = 0x1402D3A80` is no-op → IS in skip-list
->
-> Empirical guard: each fix must keep `cargo test --lib` at 308 pass
-> (was 304 before lane-b's diagnostic modules merged) AND not REDUCE
-> `interaction_info::roundtrip` decoded count. Tag 135
-> initially regressed in isolation (313 → 294 decoded); resolved by
-> retrying AFTER upstream tags (174, 99, 27, etc.) had cleaned up tree
-> alignment. **Final state: tag 135 with 1-byte body + standard option,
-> matches IDA.** Lesson: tag fixes have ordering dependencies because
-> upstream over/under-consumption corrupts downstream alignment.
->
-> **Session results (2026-04-30):**
-> - `interaction_info`: Decoded 248 → **363** (+115), Raw 115 → **0** (100% drop). **100% typed.**
-> - `condition_info`: 8918 / 8934 Decoded (99.82%); diagnostic counter added. (Bumped from 99.78% by the Mac-IDA recipe fixes for tags 54/214.)
-> - `gimmick_info`: 12393 / 12399 Decoded (99.95%).
-> - 13 ConditionData tag recipes touched: 7, 19, 27, 29, 54, 99, 116,
->   135, 174, 358, 360, 370, 393. Tag 54 was a best-effort u32-body
->   upgrade (`19d370c`) — byte-perfect but doesn't reduce the histogram.
-> - Catalog: **92 T1 / 0 T2** (3 stale T2s promoted).
-> - **QuestInfo Tier 1.5 → Tier 1** via `6cdc22c` (lane-c wired
->   FilterCondition family decoder shipped by lane-b in `2e416b4`).
-> - **5 family decoders restructured** from `src/binary/` into
->   `src/binary/variants/` for consistency (`12dd29e`).
-> - `[u8; N]` audit complete (1 remaining is genuinely opaque single 16-byte xmmword read per IDA).
-> - ~~Remaining 3 interaction_info Raw entries~~ — ✅ all cleared via
->   `171a00e` (tag 54 → TwoU32BodyPayload, tag 214 → new
->   CheckExistStealItemPayload struct). interaction_info is now 100%
->   Decoded.
-> - **Methodology breakthrough**: tag 54/214 vtables are anti-disasm
->   stripped in the Win binary but **intact in the Mac binary**
->   (CrimsonDesert_Steam.app). Itanium ABI uses TWO destructor slots
->   vs MSVC's one, shifting virtual slots by 1: Mac `vfn[17]` = body
->   reader (vs Win `vfn[16]`). Verified against tag 7 (Win-known)
->   matching Mac's vfn[17]. Recipe details landed in `5fa0b06`.
-> - **No remaining internal-Tier-1.5 sub-fields**: GimmickInfo `post_blob`
->   was unblocked when TGPEHD decoder shipped (`1fc44e8`); GimmickInfo
->   wires `trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`.
->   QuestInfo's `quest_dialog_filter_data_list_blob` was unblocked
->   earlier (`6cdc22c`) via the FilterCondition family decoder.
 
 This file is for collaborators picking up round-trip work. It's the
 "where are we, what's next" snapshot. For per-table specs see
@@ -91,6 +58,15 @@ This file is for collaborators picking up round-trip work. It's the
 - Catalog count: T1 88 → 91, T2 4 → 1 (only MiniGameDataInfo remains, blocked by spawn_data_list fallback)
 - `FieldReviveInfo` (pabgb: `reviepointinfo.pabgb`) — fixture gap closed. Tests updated to use 4-12 dump;
   full byte-perfect roundtrip on 1109 entries confirmed. Catalog: 📚 P → ✅ T1. T1 count: 92 → 93.
+- **Catalog sync (2026-04-30)** — 26 stale 📚 P entries corrected to ✅ T1. These tables all had working
+  parsers and byte-perfect roundtrip tests against the 2026-4-24 dump; the P label was drift from the
+  catalog generator not tracking the live code state. Promoted: AIMemoryInfo, CharacterChangeInfo,
+  FactionGroupInfo, FactionInfo, FactionNodeInfo, FactionRelationGroupInfo, GameEventHandlerInfo,
+  GameLevelInfo, GamePlayTriggerInfo, GlobalGameEventGroupInfo, GlobalGameEventInfo, HouseInfo,
+  ReserveSlotInfo, RoyalSupplyInfo, GimmickGateConnectionInfo, InventoryInfo, ItemInfo, SpecialModeInfo,
+  BoardInfo, KeyMapSettingListInfo, PlatformEntitlementInfo, SkillInfo, UISocialActionInfo,
+  ValidScheduleActionInfo, BitmapPositionInfo, UIFilterGroupInfo. T1 count: 93 → **119**. Remaining
+  P entries: EquipInfo and MercenaryGroupInfo (no file in current dump).
 
 ### Recent Tier 1 promotions (lane-c)
 - `FilterConditionBlock.raw_block` — `[u8; 12]` → 3× named u32
@@ -171,13 +147,11 @@ spawn_data_list is now a `Decoded|Raw` enum (`SpawnDataList`) with
 pattern as ConditionInfo's GameCondition wrapper.)
 
 ### Unresolved format mysteries
-- `levelinfo.pabgb` (134 entries) — empirical analysis shows the file uses the
-  `pa::ReflectObject` reflection pattern. Every entry starts `e2 e0 51 1f 00 00
-  [count] 00 00 00` (hash 0x1f51e0e2 + u16 + outer count), then outer elements
-  each begin with the same hash. Sub-element structure has variable sizes determined
-  by nested inner counts. Class name hashes 0xa19e44b1 and 0x66be15a8 appear as
-  element type tags. **Deferred — needs IDA decompile of the LevelInfo reader to
-  identify concrete field layout.**
+**None remaining** for the 121 on-disk tables in the 2026-4-24 dump. The previous
+entry (`levelinfo.pabgb`) was resolved by the `GameLevelInfo` parser
+(`src/tables/game_level_info/info.rs`, 6 wire fields), which round-trips all
+entries byte-perfect. The "ReflectObject pattern" hypothesis was incorrect — the
+file is a standard fixed-shape table with 6 scalar fields.
 
 ### Recently cracked (was previously labeled DEFERRED ReflectObject)
 - `DropSetInfo._list` — sub_141600210 turned out fixed-shape with a
@@ -321,11 +295,11 @@ variants typed (dispatch_tag u8 + per-tag body), wrapped in
 | **FilterCondition** family | ✅ FULLY SHIPPED — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). QuestInfo wired via `6cdc22c` (lane-c, 2026-04-30). | QuestInfo `_questDialogFilterDataList` — Tier 1 |
 
 ### Tables by tier
-- **Tier 1** (typed, all fields editable through JSON): all 92 on-disk
+- **Tier 1** (typed, all fields editable through JSON): all 119 on-disk
   tables in the catalog — see `docs/449_TABLE_CATALOG.md` for the
-  per-table list. ConditionInfo (commit `9f1be1d`), then EffectInfo,
-  CharacterInfo, MiniGameDataInfo, EquipSlotInfo and others have all
-  joined this tier in 2026-04-30 work.
+  per-table list. All 121 tables in the 2026-4-24 dump have byte-perfect
+  round-trip parsers (119 fully T1 in catalog; 2 absent from catalog
+  because their pabgb files are not in the current dump).
 - **Tier 1.5** (sub-field opacities inside otherwise-T1 tables):
   **None remaining.** Both prior blockers resolved on 2026-04-30:
   QuestInfo's `quest_dialog_filter_data_list` via FilterCondition
@@ -444,49 +418,38 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 
 ## What's next, in priority order
 
-### Big wins (each enables a polymorphic family)
-1. ~~**EffectData family**~~ — ✅ SHIPPED. Per-element typed with 47-field
-   `core_block`; `inner_map` typed as `Vec<EffectDataInnerMapEntry>`.
-   See `binary::variants::effect_data` and `tables::effect_info` (Tier 1).
-2. ~~**Per-sub_tag typed payloads inside GameEventHandlerData**~~ — ✅
-   SHIPPED. sub_tag 2 (SetUIPlayGuideParameter) is 12-byte body, sub_tag
-   3 (SetUIFullscreenGuideParameter) is 6-byte body, sub_tag 4 in-place,
-   sub_tags 0/1 unobserved (Raw fallback). ~~**GlobalGameEventExecuteData
-   per-sub_tag bodies**~~ — ✅ SHIPPED also: typed `GlobalGameEventExecuteDataBody`
-   enum with VaryTradeItemPrice (sub_tag 0, full payload typed),
-   OpenRoyalSupply (sub_tag 1), InPlace (sub_tag 2, no body); Raw fallback
-   for unknown sub_tags.
-3. **TriggerEventHandler family** (task #95). DEFERRED — uses
-   `pa::ReflectObject` reflection-driven serialization (sub_14055F190
-   constructor reveals the inheritance chain through `ReflectDerive
-   <ITriggerEventHandler, ReflectObjectExtension>`). Different pattern
-   from the bespoke dispatchers; needs the reflection layer reversed
-   first. Worth tackling because cracking it unlocks ALL reflection-
-   serialized tables at once.
+### Big win (IDA required)
+1. **TriggerEventHandler family** — uses `pa::ReflectObject` reflection-driven
+   serialization (sub_14055F190 constructor: `ReflectDerive<ITriggerEventHandler,
+   ReflectObjectExtension>`). Different pattern from bespoke dispatchers; needs the
+   reflection layer reversed first. Worth tackling because cracking it would unlock
+   ALL reflection-serialized tables at once (affects TriggerRegionInfo and others).
 
-### Smaller wins
-4. ~~**Wire JSON tree exposure for GameCondition's Decoded variant**~~
-   — ✅ SHIPPED. `GameConditionNode::to_json_value` (9 cases) plus
-   `ConditionData::to_json_dict` (per-variant typed body dict) emit the
-   tree directly; only the `Raw` fallback ships as `raw_b64`.
-5. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — needs a check
-   in DMM-BETA's mod-loader to route conditioninfo edits through the
-   new typed parser. Small CLAUDE.md change in the consuming repo.
-6. **Promote remaining internal-Tier-1.5 sub-fields to fully typed** —
-   see "Remaining Tier 1.5" section above (QuestInfo FilterCondition
-   variant family, GimmickInfo post_blob). EquipSlotInfo was just
-   promoted to Tier 1 by lane-c (commit `338dfa0`). Catalog-level T2
-   count is already 0; these are sub-field opacities inside otherwise-T1
-   tables, blocked on family decoder reverse engineering.
+### Smaller wins (no IDA)
+2. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — needs a check in DMM-BETA's
+   mod-loader to route conditioninfo edits through the new typed parser.
+   Small CLAUDE.md change in the consuming repo.
+3. **GimmickInfo post_blob fields 20–162** — ~8.4M bytes still opaque after field-19
+   prefix extraction. Requires IDA decompile of `sub_1410E6FC0` (7205-byte function).
+   GimmickOn element bodies (82-byte geometry) and sub-element bodies remain in
+   `post_blob`. Not actionable without IDA.
 
 ### Deferred (need runtime debugger or are non-blocking)
-- ConditionData tags 54/286 — anti-disassembly obfuscated readers
-  (sub_14D3012D0 family). Currently round-trip via the Raw fallback,
-  which is fine. Recoverable later if anyone runs the game in a
-  debugger and observes the obfuscated reader's actual byte
-  consumption.
-- ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated
-  debug entries in the source data; not worth chasing.
+- ConditionData tags 54/286 — anti-disassembly obfuscated readers (sub_14D3012D0
+  family). Round-trip via the Raw fallback, which is fine. Recoverable later if
+  anyone debugs the game at runtime.
+- ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated debug entries
+  in the source data; not worth chasing.
+- condition_info 16 Raw entries — data-truncation bugs in the source .pabgb files
+  themselves; not a parser issue.
+
+### Previously listed, now done
+- ~~EffectData family~~ ✅ — `binary::variants::effect_data`, EffectInfo Tier 1
+- ~~GameEventHandlerData/GlobalGameEventExecuteData per-sub_tag bodies~~ ✅
+- ~~GameCondition JSON tree exposure~~ ✅ — `GameConditionNode::to_json_value`
+- ~~QuestInfo FilterCondition family~~ ✅ — `6cdc22c`
+- ~~GimmickInfo TGPEHD post_blob~~ ✅ — `1fc44e8`
+- ~~Catalog sync (26 stale P entries)~~ ✅ — 2026-04-30, T1 count 93 → 119
 
 ### Stream-mode GameCondition (mostly unblocked, 99.2% interaction_info)
 **Root cause identified**: The `variant_skips_option_block` list in
