@@ -31,7 +31,9 @@
 pub mod header;
 pub mod classify;
 pub mod vpath;
+pub mod metadata;
 
 pub use header::{DdsHeader, DdsPixelFormat, Dx10Header};
 pub use classify::{DdsFormat, DdsClassification, classify};
 pub use vpath::{classify_vpath_last4, infer_vpath_from_disk_path};
+pub use metadata::DdsAssetMetadata;

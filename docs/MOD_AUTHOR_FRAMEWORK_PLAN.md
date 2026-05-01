@@ -120,7 +120,8 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
     2. `infer_vpath_from_disk_path(asset_root, file_path) -> Option<String>` — for SWISS-style folder→vpath inference. Strips asset_root prefix, validates first segment is a 4-digit PAZ group, returns forward-slash vpath.
   11 new unit tests pass (all 4 path-prefix categories, case-insensitivity, 4 negative cases for vpath inference). Total dds module test count: 21/21 pass.
 
-- [ ] **D5** — DDS metadata struct for v3.1 packaging. `DdsAssetMetadata { vpath_hint, format, dimensions, mip_count, sha256, requires_pathc: bool }`. DX10/BC7 sets `requires_pathc: true`.
+- [x] **D5** — DDS metadata struct for v3.1 packaging. `DdsAssetMetadata { vpath_hint, format, dimensions, mip_count, sha256, requires_pathc: bool }`. DX10/BC7 sets `requires_pathc: true`.
+  Done: New `src/dds/metadata.rs` with `DdsAssetMetadata { vpath_hint, format, dimensions, mip_count, size, sha256, requires_pathc, classification }`. Constructors: `from_bytes(bytes, sha256)`, `from_path(path, asset_root, sha256)`. Renderer: `to_v3_1_asset_entry(source_relative)` produces ready-to-drop v3.1 asset target JSON. SHA-256 is provided by the caller (SWISS uses Python hashlib; CLI tools use any impl) — we don't bundle a SHA-256 dependency just for this struct, per CLAUDE.md "ask before adding deps". 5 new unit tests pass: metadata_from_dxt5_bytes, metadata_from_bc7_bytes_requires_pathc, renders_v3_1_asset_entry_with_inferred_vpath, renders_v3_1_entry_falls_back_to_source_when_vpath_missing, from_path_reads_file_and_records_size. Total dds module: 26/26 pass.
 
 - [ ] **D6** — Validation library. `validate_dds_for_game(bytes) -> Vec<Validation>` returning warnings/errors. Used by SWISS UI to warn modders before they ship a broken texture.
 
