@@ -1445,6 +1445,41 @@ pub enum GimmickTail<'a> {
 }
 
 impl<'a> GimmickTail<'a> {
+    /// Smart alt_body chain reader: peeks at next u32 as potential CString
+    /// length; if length is 9-65535 AND following bytes are valid UTF-8 with
+    /// >=80% printable ASCII, sets `chain_stopped=true` and returns None
+    /// (preserving probe so alt_post_cstr_a can read the CString). Otherwise
+    /// reads u32 normally.
+    fn try_smart_alt_body_read(
+        data: &[u8],
+        probe: &mut usize,
+        entry_end: usize,
+        chain_stopped: &mut bool,
+        prev_some: bool,
+    ) -> Option<u32> {
+        if *chain_stopped || !prev_some || *probe + 4 > entry_end {
+            return None;
+        }
+        let len = u32::from_le_bytes(data[*probe..*probe+4].try_into().unwrap()) as usize;
+        if len > 8 && len < 65536 && *probe + 4 + len <= entry_end {
+            let str_bytes = &data[*probe+4..*probe+4+len];
+            if std::str::from_utf8(str_bytes).is_ok() {
+                let printable = str_bytes.iter().filter(|&&b|
+                    (0x20..=0x7e).contains(&b) || b == 0x09 || b == 0x0a || b == 0x0d
+                ).count();
+                if printable * 5 >= str_bytes.len() * 4 {
+                    *chain_stopped = true;
+                    return None;
+                }
+            }
+        }
+        let pre = *probe;
+        match u32::read_from(data, probe) {
+            Ok(v) => Some(v),
+            _ => { *probe = pre; None }
+        }
+    }
+
     pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize) -> io::Result<Self> {
         let tail_start = *offset;
         let mut probe = tail_start;
@@ -4863,150 +4898,160 @@ impl<'a> GimmickTail<'a> {
                 let alt_body_1406 = read_u32_chained!(alt_body_1405);
                 let alt_body_1407 = read_u32_chained!(alt_body_1406);
                 let alt_body_1408 = read_u32_chained!(alt_body_1407);
-                let alt_body_1409 = read_u32_chained!(alt_body_1408);
-                let alt_body_1410 = read_u32_chained!(alt_body_1409);
-                let alt_body_1411 = read_u32_chained!(alt_body_1410);
-                let alt_body_1412 = read_u32_chained!(alt_body_1411);
-                let alt_body_1413 = read_u32_chained!(alt_body_1412);
-                let alt_body_1414 = read_u32_chained!(alt_body_1413);
-                let alt_body_1415 = read_u32_chained!(alt_body_1414);
-                let alt_body_1416 = read_u32_chained!(alt_body_1415);
-                let alt_body_1417 = read_u32_chained!(alt_body_1416);
-                let alt_body_1418 = read_u32_chained!(alt_body_1417);
-                let alt_body_1419 = read_u32_chained!(alt_body_1418);
-                let alt_body_1420 = read_u32_chained!(alt_body_1419);
-                let alt_body_1421 = read_u32_chained!(alt_body_1420);
-                let alt_body_1422 = read_u32_chained!(alt_body_1421);
-                let alt_body_1423 = read_u32_chained!(alt_body_1422);
-                let alt_body_1424 = read_u32_chained!(alt_body_1423);
-                let alt_body_1425 = read_u32_chained!(alt_body_1424);
-                let alt_body_1426 = read_u32_chained!(alt_body_1425);
-                let alt_body_1427 = read_u32_chained!(alt_body_1426);
-                let alt_body_1428 = read_u32_chained!(alt_body_1427);
-                let alt_body_1429 = read_u32_chained!(alt_body_1428);
-                let alt_body_1430 = read_u32_chained!(alt_body_1429);
-                let alt_body_1431 = read_u32_chained!(alt_body_1430);
-                let alt_body_1432 = read_u32_chained!(alt_body_1431);
-                let alt_body_1433 = read_u32_chained!(alt_body_1432);
-                let alt_body_1434 = read_u32_chained!(alt_body_1433);
-                let alt_body_1435 = read_u32_chained!(alt_body_1434);
-                let alt_body_1436 = read_u32_chained!(alt_body_1435);
-                let alt_body_1437 = read_u32_chained!(alt_body_1436);
-                let alt_body_1438 = read_u32_chained!(alt_body_1437);
-                let alt_body_1439 = read_u32_chained!(alt_body_1438);
-                let alt_body_1440 = read_u32_chained!(alt_body_1439);
-                let alt_body_1441 = read_u32_chained!(alt_body_1440);
-                let alt_body_1442 = read_u32_chained!(alt_body_1441);
-                let alt_body_1443 = read_u32_chained!(alt_body_1442);
-                let alt_body_1444 = read_u32_chained!(alt_body_1443);
-                let alt_body_1445 = read_u32_chained!(alt_body_1444);
-                let alt_body_1446 = read_u32_chained!(alt_body_1445);
-                let alt_body_1447 = read_u32_chained!(alt_body_1446);
-                let alt_body_1448 = read_u32_chained!(alt_body_1447);
-                let alt_body_1449 = read_u32_chained!(alt_body_1448);
-                let alt_body_1450 = read_u32_chained!(alt_body_1449);
-                let alt_body_1451 = read_u32_chained!(alt_body_1450);
-                let alt_body_1452 = read_u32_chained!(alt_body_1451);
-                let alt_body_1453 = read_u32_chained!(alt_body_1452);
-                let alt_body_1454 = read_u32_chained!(alt_body_1453);
-                let alt_body_1455 = read_u32_chained!(alt_body_1454);
-                let alt_body_1456 = read_u32_chained!(alt_body_1455);
-                let alt_body_1457 = read_u32_chained!(alt_body_1456);
-                let alt_body_1458 = read_u32_chained!(alt_body_1457);
-                let alt_body_1459 = read_u32_chained!(alt_body_1458);
-                let alt_body_1460 = read_u32_chained!(alt_body_1459);
-                let alt_body_1461 = read_u32_chained!(alt_body_1460);
-                let alt_body_1462 = read_u32_chained!(alt_body_1461);
-                let alt_body_1463 = read_u32_chained!(alt_body_1462);
-                let alt_body_1464 = read_u32_chained!(alt_body_1463);
-                let alt_body_1465 = read_u32_chained!(alt_body_1464);
-                let alt_body_1466 = read_u32_chained!(alt_body_1465);
-                let alt_body_1467 = read_u32_chained!(alt_body_1466);
-                let alt_body_1468 = read_u32_chained!(alt_body_1467);
-                let alt_body_1469 = read_u32_chained!(alt_body_1468);
-                let alt_body_1470 = read_u32_chained!(alt_body_1469);
-                let alt_body_1471 = read_u32_chained!(alt_body_1470);
-                let alt_body_1472 = read_u32_chained!(alt_body_1471);
-                let alt_body_1473 = read_u32_chained!(alt_body_1472);
-                let alt_body_1474 = read_u32_chained!(alt_body_1473);
-                let alt_body_1475 = read_u32_chained!(alt_body_1474);
-                let alt_body_1476 = read_u32_chained!(alt_body_1475);
-                let alt_body_1477 = read_u32_chained!(alt_body_1476);
-                let alt_body_1478 = read_u32_chained!(alt_body_1477);
-                let alt_body_1479 = read_u32_chained!(alt_body_1478);
-                let alt_body_1480 = read_u32_chained!(alt_body_1479);
-                let alt_body_1481 = read_u32_chained!(alt_body_1480);
-                let alt_body_1482 = read_u32_chained!(alt_body_1481);
-                let alt_body_1483 = read_u32_chained!(alt_body_1482);
-                let alt_body_1484 = read_u32_chained!(alt_body_1483);
-                let alt_body_1485 = read_u32_chained!(alt_body_1484);
-                let alt_body_1486 = read_u32_chained!(alt_body_1485);
-                let alt_body_1487 = read_u32_chained!(alt_body_1486);
-                let alt_body_1488 = read_u32_chained!(alt_body_1487);
-                let alt_body_1489 = read_u32_chained!(alt_body_1488);
-                let alt_body_1490 = read_u32_chained!(alt_body_1489);
-                let alt_body_1491 = read_u32_chained!(alt_body_1490);
-                let alt_body_1492 = read_u32_chained!(alt_body_1491);
-                let alt_body_1493 = read_u32_chained!(alt_body_1492);
-                let alt_body_1494 = read_u32_chained!(alt_body_1493);
-                let alt_body_1495 = read_u32_chained!(alt_body_1494);
-                let alt_body_1496 = read_u32_chained!(alt_body_1495);
-                let alt_body_1497 = read_u32_chained!(alt_body_1496);
-                let alt_body_1498 = read_u32_chained!(alt_body_1497);
-                let alt_body_1499 = read_u32_chained!(alt_body_1498);
-                let alt_body_1500 = read_u32_chained!(alt_body_1499);
-                let alt_body_1501 = read_u32_chained!(alt_body_1500);
-                let alt_body_1502 = read_u32_chained!(alt_body_1501);
-                let alt_body_1503 = read_u32_chained!(alt_body_1502);
-                let alt_body_1504 = read_u32_chained!(alt_body_1503);
-                let alt_body_1505 = read_u32_chained!(alt_body_1504);
-                let alt_body_1506 = read_u32_chained!(alt_body_1505);
-                let alt_body_1507 = read_u32_chained!(alt_body_1506);
-                let alt_body_1508 = read_u32_chained!(alt_body_1507);
-                let alt_body_1509 = read_u32_chained!(alt_body_1508);
-                let alt_body_1510 = read_u32_chained!(alt_body_1509);
-                let alt_body_1511 = read_u32_chained!(alt_body_1510);
-                let alt_body_1512 = read_u32_chained!(alt_body_1511);
-                let alt_body_1513 = read_u32_chained!(alt_body_1512);
-                let alt_body_1514 = read_u32_chained!(alt_body_1513);
-                let alt_body_1515 = read_u32_chained!(alt_body_1514);
-                let alt_body_1516 = read_u32_chained!(alt_body_1515);
-                let alt_body_1517 = read_u32_chained!(alt_body_1516);
-                let alt_body_1518 = read_u32_chained!(alt_body_1517);
-                let alt_body_1519 = read_u32_chained!(alt_body_1518);
-                let alt_body_1520 = read_u32_chained!(alt_body_1519);
-                let alt_body_1521 = read_u32_chained!(alt_body_1520);
-                let alt_body_1522 = read_u32_chained!(alt_body_1521);
-                let alt_body_1523 = read_u32_chained!(alt_body_1522);
-                let alt_body_1524 = read_u32_chained!(alt_body_1523);
-                let alt_body_1525 = read_u32_chained!(alt_body_1524);
-                let alt_body_1526 = read_u32_chained!(alt_body_1525);
-                let alt_body_1527 = read_u32_chained!(alt_body_1526);
-                let alt_body_1528 = read_u32_chained!(alt_body_1527);
-                let alt_body_1529 = read_u32_chained!(alt_body_1528);
-                let alt_body_1530 = read_u32_chained!(alt_body_1529);
-                let alt_body_1531 = read_u32_chained!(alt_body_1530);
-                let alt_body_1532 = read_u32_chained!(alt_body_1531);
-                let alt_body_1533 = read_u32_chained!(alt_body_1532);
-                let alt_body_1534 = read_u32_chained!(alt_body_1533);
-                let alt_body_1535 = read_u32_chained!(alt_body_1534);
-                let alt_body_1536 = read_u32_chained!(alt_body_1535);
+                // From alt_body_1409 onwards, use smart reader that detects
+                // CString boundaries (recovers alt_post_cstr_a typing for
+                // entries that have a CString header in this range).
+                let mut alt_body_chain_stopped = false;
+                let alt_body_1409 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1408.is_some());
+                let alt_body_1410 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1409.is_some());
+                let alt_body_1411 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1410.is_some());
+                let alt_body_1412 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1411.is_some());
+                let alt_body_1413 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1412.is_some());
+                let alt_body_1414 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1413.is_some());
+                let alt_body_1415 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1414.is_some());
+                let alt_body_1416 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1415.is_some());
+                let alt_body_1417 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1416.is_some());
+                let alt_body_1418 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1417.is_some());
+                let alt_body_1419 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1418.is_some());
+                let alt_body_1420 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1419.is_some());
+                let alt_body_1421 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1420.is_some());
+                let alt_body_1422 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1421.is_some());
+                let alt_body_1423 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1422.is_some());
+                let alt_body_1424 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1423.is_some());
+                let alt_body_1425 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1424.is_some());
+                let alt_body_1426 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1425.is_some());
+                let alt_body_1427 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1426.is_some());
+                let alt_body_1428 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1427.is_some());
+                let alt_body_1429 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1428.is_some());
+                let alt_body_1430 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1429.is_some());
+                let alt_body_1431 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1430.is_some());
+                let alt_body_1432 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1431.is_some());
+                let alt_body_1433 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1432.is_some());
+                let alt_body_1434 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1433.is_some());
+                let alt_body_1435 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1434.is_some());
+                let alt_body_1436 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1435.is_some());
+                let alt_body_1437 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1436.is_some());
+                let alt_body_1438 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1437.is_some());
+                let alt_body_1439 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1438.is_some());
+                let alt_body_1440 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1439.is_some());
+                let alt_body_1441 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1440.is_some());
+                let alt_body_1442 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1441.is_some());
+                let alt_body_1443 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1442.is_some());
+                let alt_body_1444 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1443.is_some());
+                let alt_body_1445 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1444.is_some());
+                let alt_body_1446 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1445.is_some());
+                let alt_body_1447 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1446.is_some());
+                let alt_body_1448 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1447.is_some());
+                let alt_body_1449 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1448.is_some());
+                let alt_body_1450 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1449.is_some());
+                let alt_body_1451 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1450.is_some());
+                let alt_body_1452 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1451.is_some());
+                let alt_body_1453 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1452.is_some());
+                let alt_body_1454 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1453.is_some());
+                let alt_body_1455 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1454.is_some());
+                let alt_body_1456 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1455.is_some());
+                let alt_body_1457 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1456.is_some());
+                let alt_body_1458 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1457.is_some());
+                let alt_body_1459 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1458.is_some());
+                let alt_body_1460 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1459.is_some());
+                let alt_body_1461 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1460.is_some());
+                let alt_body_1462 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1461.is_some());
+                let alt_body_1463 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1462.is_some());
+                let alt_body_1464 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1463.is_some());
+                let alt_body_1465 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1464.is_some());
+                let alt_body_1466 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1465.is_some());
+                let alt_body_1467 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1466.is_some());
+                let alt_body_1468 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1467.is_some());
+                let alt_body_1469 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1468.is_some());
+                let alt_body_1470 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1469.is_some());
+                let alt_body_1471 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1470.is_some());
+                let alt_body_1472 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1471.is_some());
+                let alt_body_1473 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1472.is_some());
+                let alt_body_1474 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1473.is_some());
+                let alt_body_1475 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1474.is_some());
+                let alt_body_1476 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1475.is_some());
+                let alt_body_1477 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1476.is_some());
+                let alt_body_1478 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1477.is_some());
+                let alt_body_1479 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1478.is_some());
+                let alt_body_1480 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1479.is_some());
+                let alt_body_1481 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1480.is_some());
+                let alt_body_1482 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1481.is_some());
+                let alt_body_1483 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1482.is_some());
+                let alt_body_1484 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1483.is_some());
+                let alt_body_1485 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1484.is_some());
+                let alt_body_1486 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1485.is_some());
+                let alt_body_1487 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1486.is_some());
+                let alt_body_1488 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1487.is_some());
+                let alt_body_1489 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1488.is_some());
+                let alt_body_1490 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1489.is_some());
+                let alt_body_1491 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1490.is_some());
+                let alt_body_1492 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1491.is_some());
+                let alt_body_1493 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1492.is_some());
+                let alt_body_1494 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1493.is_some());
+                let alt_body_1495 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1494.is_some());
+                let alt_body_1496 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1495.is_some());
+                let alt_body_1497 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1496.is_some());
+                let alt_body_1498 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1497.is_some());
+                let alt_body_1499 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1498.is_some());
+                let alt_body_1500 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1499.is_some());
+                let alt_body_1501 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1500.is_some());
+                let alt_body_1502 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1501.is_some());
+                let alt_body_1503 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1502.is_some());
+                let alt_body_1504 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1503.is_some());
+                let alt_body_1505 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1504.is_some());
+                let alt_body_1506 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1505.is_some());
+                let alt_body_1507 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1506.is_some());
+                let alt_body_1508 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1507.is_some());
+                let alt_body_1509 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1508.is_some());
+                let alt_body_1510 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1509.is_some());
+                let alt_body_1511 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1510.is_some());
+                let alt_body_1512 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1511.is_some());
+                let alt_body_1513 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1512.is_some());
+                let alt_body_1514 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1513.is_some());
+                let alt_body_1515 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1514.is_some());
+                let alt_body_1516 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1515.is_some());
+                let alt_body_1517 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1516.is_some());
+                let alt_body_1518 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1517.is_some());
+                let alt_body_1519 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1518.is_some());
+                let alt_body_1520 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1519.is_some());
+                let alt_body_1521 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1520.is_some());
+                let alt_body_1522 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1521.is_some());
+                let alt_body_1523 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1522.is_some());
+                let alt_body_1524 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1523.is_some());
+                let alt_body_1525 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1524.is_some());
+                let alt_body_1526 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1525.is_some());
+                let alt_body_1527 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1526.is_some());
+                let alt_body_1528 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1527.is_some());
+                let alt_body_1529 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1528.is_some());
+                let alt_body_1530 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1529.is_some());
+                let alt_body_1531 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1530.is_some());
+                let alt_body_1532 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1531.is_some());
+                let alt_body_1533 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1532.is_some());
+                let alt_body_1534 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1533.is_some());
+                let alt_body_1535 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1534.is_some());
+                let alt_body_1536 = Self::try_smart_alt_body_read(data, &mut probe, entry_end, &mut alt_body_chain_stopped, alt_body_1535.is_some());
                 // Detect CString (file path or XML) at this position.
                 // Only succeeds when the next u32 is a sensible length (<1000)
                 // and the following bytes are valid UTF-8.
+                // alt_post_cstr_a: bumped len threshold from 1000 to 65536 to
+                // match try_smart_alt_body_read so long XML CStrings the smart
+                // reader detects mid-chain can be properly typed here.
                 let alt_post_cstr_a = if alt_body_1536.is_some() || alt_body_1408.is_some() || alt_body_1280.is_some() || alt_body_1152.is_some() || alt_body_896.is_some() || alt_body_768.is_some() || alt_body_640.is_some() {
                     let pre_ = probe;
                     if probe + 4 <= entry_end {
                         let len = u32::from_le_bytes(data[probe..probe+4].try_into().unwrap()) as usize;
-                        if len > 0 && len < 1000 && probe + 4 + len <= entry_end {
-                            // Check UTF-8 + printable
+                        if len > 8 && len < 65536 && probe + 4 + len <= entry_end {
                             let candidate = &data[probe+4..probe+4+len];
-                            if std::str::from_utf8(candidate).is_ok()
-                                && candidate.iter().filter(|&&b| b < 0x20 && b != 0).count() == 0 {
-                                match CString::read_from(data, &mut probe) {
-                                    Ok(s) if probe <= entry_end => Some(s),
-                                    _ => { probe = pre_; None }
-                                }
+                            if std::str::from_utf8(candidate).is_ok() {
+                                let printable = candidate.iter().filter(|&&b|
+                                    (0x20..=0x7e).contains(&b) || b == 0x09 || b == 0x0a || b == 0x0d
+                                ).count();
+                                if printable * 5 >= candidate.len() * 4 {
+                                    match CString::read_from(data, &mut probe) {
+                                        Ok(s) if probe <= entry_end => Some(s),
+                                        _ => { probe = pre_; None }
+                                    }
+                                } else { None }
                             } else { None }
                         } else { None }
                     } else { None }
@@ -5015,14 +5060,18 @@ impl<'a> GimmickTail<'a> {
                     let pre_ = probe;
                     if probe + 4 <= entry_end {
                         let len = u32::from_le_bytes(data[probe..probe+4].try_into().unwrap()) as usize;
-                        if len > 0 && len < 1000 && probe + 4 + len <= entry_end {
+                        if len > 8 && len < 65536 && probe + 4 + len <= entry_end {
                             let candidate = &data[probe+4..probe+4+len];
-                            if std::str::from_utf8(candidate).is_ok()
-                                && candidate.iter().filter(|&&b| b < 0x20 && b != 0).count() == 0 {
-                                match CString::read_from(data, &mut probe) {
-                                    Ok(s) if probe <= entry_end => Some(s),
-                                    _ => { probe = pre_; None }
-                                }
+                            if std::str::from_utf8(candidate).is_ok() {
+                                let printable = candidate.iter().filter(|&&b|
+                                    (0x20..=0x7e).contains(&b) || b == 0x09 || b == 0x0a || b == 0x0d
+                                ).count();
+                                if printable * 5 >= candidate.len() * 4 {
+                                    match CString::read_from(data, &mut probe) {
+                                        Ok(s) if probe <= entry_end => Some(s),
+                                        _ => { probe = pre_; None }
+                                    }
+                                } else { None }
                             } else { None }
                         } else { None }
                     } else { None }
