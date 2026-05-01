@@ -105,7 +105,8 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 - [x] **D0** — Recon. Read DMM's existing DDS handling at `dmm-api-test/src-tauri/src/commands.rs:11654-12622` and `add_dds_to_pathc` at `:19098+`. List DDS quirks (Reserved1 mip sizes, dwReserved2 class index, last4 format ID). Document in `references/dds_notes.md`.
   Done: 10-section reference doc covering the standard DDS header layout + Crimson-specific quirks (Reserved1 mip sizes, last4 format-ID mapping by FOURCC + DXGI, three-tier resolution PATHC→prefix→format, path-prefix classifier from `/ui/`, `/character/texture/*_n.dds`/`_tattoo`/default, mip computation formulas, validation rules, key DMM function references). Read DMM's commands.rs as REFERENCE only — no modifications. dmm-parser implementation plan for D2-D8 included.
 
-- [ ] **D1** — Hexpat for DDS. Write `references/dds.hexpat` covering DDS header (124 bytes) + DX10 extension + body. Test against vanilla DDS samples (DXT1, DXT5, DX10/BC7).
+- [x] **D1** — Hexpat for DDS. Write `references/dds.hexpat` covering DDS header (124 bytes) + DX10 extension + body. Test against vanilla DDS samples (DXT1, DXT5, DX10/BC7).
+  Done: Wrote `references/dds.hexpat` with DDS_PIXELFORMAT (32 bytes) + DdsPixelFormatFlags bitfield + DdsHeader (124 bytes) including Crimson-specific `crimson_mip_sizes` struct (Reserved1[0..4]) and `crimson_last4` (dwReserved2 at offset 124) + Dx10Header (20 bytes, conditional) + body region. Verified against real DDS samples: `cd_icon_map_enemy_die_1.dds` and `cd_icon_map_enemy_die_normal.dds` both show header size=124, pf_fourcc="DXT5" at offset 84, reserved1 all-zero in vanilla, crimson_last4=0 in vanilla (confirms game writes it during overlay patching, not at rest). plcli not installed locally; format verified programmatically.
 
 - [ ] **D2** — Rust module skeleton. Create `dmm-parser/src/dds/` with `mod.rs`, `header.rs`, `classify.rs`. Define `DdsHeader`, `DdsFormat` enum.
 
