@@ -131,17 +131,18 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
-- `GimmickInfo` — Decoded tail extended to **2798 typed fields**
-  (1-16 prefix + 712 tail u32 + 6 alt-header + **1408 alt-body** + 2
+- `GimmickInfo` — Decoded tail extended to **2926 typed fields**
+  (1-16 prefix + 712 tail u32 + 6 alt-header + **1536 alt-body** + 2
   alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
-  + 4 tail_pad u8). post_blob avg **1118 → 109 bytes** (12.50M bytes
+  + 4 tail_pad u8). post_blob avg **1118 → 108 bytes** (12.51M bytes
   recovered total over 12393 entries — **90% reduction from baseline**).
-  alt_body chain extended through 6 iterations: 640→768→896→1152→1280→1408.
-  Smart-probe alt-chain methodology validated across all four chains
-  (f31_alt, f32_alt, f39_alt, alt_body). Diminishing returns as residual
-  bytes concentrate in ~30-40 XML-payload outlier entries with 5K-49K
-  residual bytes each (would require ~2K more alt_body fields to fully
-  drain via mechanical extension). (loop session 2026-05-01)
+  alt_body chain extended through 7 iterations: 640→768→896→1152→1280→1408→1536.
+  Smart-probe alt-chain methodology validated across all four chains.
+  Diminishing returns: each 128-field extension yields ~16-20K saved.
+  Remaining bytes concentrated in XML-payload outlier entries with
+  5K-49K residual bytes each. Further reduction requires structural
+  CString detection mid-chain (not just more u32 fields).
+  (loop session 2026-05-01)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
