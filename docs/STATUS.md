@@ -165,6 +165,25 @@ This file is for collaborators picking up round-trip work. It's the
   volume prohibitive. Structural CString detection is the right
   approach for further reduction. (loop session 2026-05-01)
 
+  **Final post_blob size distribution (this session):**
+  - 11676 entries (94%): 0 bytes — perfect drain
+  - 0 entries: 1-3 bytes (drained by tail_pad u8 chain in iter 80)
+  - 7 entries: 4-15 bytes (40 total)
+  - 9 entries: 16-63 bytes (279 total)
+  - 72 entries: 64-255 bytes (12K total)
+  - 367 entries: 256-1023 bytes (227K total)
+  - 210 entries: 1024-4095 bytes (381K total)
+  - 52 entries: 4096+ bytes (725K total — XML payload outliers, 54% of remaining)
+
+  **Structural CString detection design (deferred to future work):**
+  Each alt_body_X read in the chain currently consumes u32s greedily
+  through XML payload bytes. To preserve CString detection, peek at
+  next 4 bytes as potential u32 length, check if 0 < len < 65536 AND
+  next len bytes are valid printable-ASCII UTF-8. If yes, stop chain
+  and let alt_post_cstr_a read the CString. Implementation needs ~128
+  line edits per checkpoint OR a helper-function refactor; deferred
+  to keep this loop session focused on byte-savings results.
+
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
 - ~~`QuestInfo.quest_dialog_filter_data_list_blob`~~ — wired via
