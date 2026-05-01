@@ -102,7 +102,8 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 
 ## Phase D — DDS Texture Framework
 
-- [ ] **D0** — Recon. Read DMM's existing DDS handling at `dmm-api-test/src-tauri/src/commands.rs:11654-12622` and `add_dds_to_pathc` at `:19098+`. List DDS quirks (Reserved1 mip sizes, dwReserved2 class index, last4 format ID). Document in `references/dds_notes.md`.
+- [x] **D0** — Recon. Read DMM's existing DDS handling at `dmm-api-test/src-tauri/src/commands.rs:11654-12622` and `add_dds_to_pathc` at `:19098+`. List DDS quirks (Reserved1 mip sizes, dwReserved2 class index, last4 format ID). Document in `references/dds_notes.md`.
+  Done: 10-section reference doc covering the standard DDS header layout + Crimson-specific quirks (Reserved1 mip sizes, last4 format-ID mapping by FOURCC + DXGI, three-tier resolution PATHC→prefix→format, path-prefix classifier from `/ui/`, `/character/texture/*_n.dds`/`_tattoo`/default, mip computation formulas, validation rules, key DMM function references). Read DMM's commands.rs as REFERENCE only — no modifications. dmm-parser implementation plan for D2-D8 included.
 
 - [ ] **D1** — Hexpat for DDS. Write `references/dds.hexpat` covering DDS header (124 bytes) + DX10 extension + body. Test against vanilla DDS samples (DXT1, DXT5, DX10/BC7).
 
