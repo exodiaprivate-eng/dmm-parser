@@ -243,6 +243,22 @@ pub enum GimmickTail<'a> {
         f32_alt_053: Option<u32>, f32_alt_054: Option<u32>, f32_alt_055: Option<u32>, f32_alt_056: Option<u32>,
         f32_alt_057: Option<u32>, f32_alt_058: Option<u32>, f32_alt_059: Option<u32>, f32_alt_060: Option<u32>,
         f32_alt_061: Option<u32>, f32_alt_062: Option<u32>, f32_alt_063: Option<u32>, f32_alt_064: Option<u32>,
+        f32_alt_065: Option<u32>, f32_alt_066: Option<u32>, f32_alt_067: Option<u32>, f32_alt_068: Option<u32>,
+        f32_alt_069: Option<u32>, f32_alt_070: Option<u32>, f32_alt_071: Option<u32>, f32_alt_072: Option<u32>,
+        f32_alt_073: Option<u32>, f32_alt_074: Option<u32>, f32_alt_075: Option<u32>, f32_alt_076: Option<u32>,
+        f32_alt_077: Option<u32>, f32_alt_078: Option<u32>, f32_alt_079: Option<u32>, f32_alt_080: Option<u32>,
+        f32_alt_081: Option<u32>, f32_alt_082: Option<u32>, f32_alt_083: Option<u32>, f32_alt_084: Option<u32>,
+        f32_alt_085: Option<u32>, f32_alt_086: Option<u32>, f32_alt_087: Option<u32>, f32_alt_088: Option<u32>,
+        f32_alt_089: Option<u32>, f32_alt_090: Option<u32>, f32_alt_091: Option<u32>, f32_alt_092: Option<u32>,
+        f32_alt_093: Option<u32>, f32_alt_094: Option<u32>, f32_alt_095: Option<u32>, f32_alt_096: Option<u32>,
+        f32_alt_097: Option<u32>, f32_alt_098: Option<u32>, f32_alt_099: Option<u32>, f32_alt_100: Option<u32>,
+        f32_alt_101: Option<u32>, f32_alt_102: Option<u32>, f32_alt_103: Option<u32>, f32_alt_104: Option<u32>,
+        f32_alt_105: Option<u32>, f32_alt_106: Option<u32>, f32_alt_107: Option<u32>, f32_alt_108: Option<u32>,
+        f32_alt_109: Option<u32>, f32_alt_110: Option<u32>, f32_alt_111: Option<u32>, f32_alt_112: Option<u32>,
+        f32_alt_113: Option<u32>, f32_alt_114: Option<u32>, f32_alt_115: Option<u32>, f32_alt_116: Option<u32>,
+        f32_alt_117: Option<u32>, f32_alt_118: Option<u32>, f32_alt_119: Option<u32>, f32_alt_120: Option<u32>,
+        f32_alt_121: Option<u32>, f32_alt_122: Option<u32>, f32_alt_123: Option<u32>, f32_alt_124: Option<u32>,
+        f32_alt_125: Option<u32>, f32_alt_126: Option<u32>, f32_alt_127: Option<u32>, f32_alt_128: Option<u32>,
         /// Field 32 — empirically `CArray<u32>` continuation.
         field_32_u32_list: Option<CArray<u32>>,
         /// Field 33 — single u32 hash (6492 entries share 0x6c000000).
@@ -1521,6 +1537,70 @@ impl<'a> GimmickTail<'a> {
                 let f32_alt_062 = f31_alt_read!(f32_alt_061.is_some());
                 let f32_alt_063 = f31_alt_read!(f32_alt_062.is_some());
                 let f32_alt_064 = f31_alt_read!(f32_alt_063.is_some());
+                let f32_alt_065 = f31_alt_read!(f32_alt_064.is_some());
+                let f32_alt_066 = f31_alt_read!(f32_alt_065.is_some());
+                let f32_alt_067 = f31_alt_read!(f32_alt_066.is_some());
+                let f32_alt_068 = f31_alt_read!(f32_alt_067.is_some());
+                let f32_alt_069 = f31_alt_read!(f32_alt_068.is_some());
+                let f32_alt_070 = f31_alt_read!(f32_alt_069.is_some());
+                let f32_alt_071 = f31_alt_read!(f32_alt_070.is_some());
+                let f32_alt_072 = f31_alt_read!(f32_alt_071.is_some());
+                let f32_alt_073 = f31_alt_read!(f32_alt_072.is_some());
+                let f32_alt_074 = f31_alt_read!(f32_alt_073.is_some());
+                let f32_alt_075 = f31_alt_read!(f32_alt_074.is_some());
+                let f32_alt_076 = f31_alt_read!(f32_alt_075.is_some());
+                let f32_alt_077 = f31_alt_read!(f32_alt_076.is_some());
+                let f32_alt_078 = f31_alt_read!(f32_alt_077.is_some());
+                let f32_alt_079 = f31_alt_read!(f32_alt_078.is_some());
+                let f32_alt_080 = f31_alt_read!(f32_alt_079.is_some());
+                let f32_alt_081 = f31_alt_read!(f32_alt_080.is_some());
+                let f32_alt_082 = f31_alt_read!(f32_alt_081.is_some());
+                let f32_alt_083 = f31_alt_read!(f32_alt_082.is_some());
+                let f32_alt_084 = f31_alt_read!(f32_alt_083.is_some());
+                let f32_alt_085 = f31_alt_read!(f32_alt_084.is_some());
+                let f32_alt_086 = f31_alt_read!(f32_alt_085.is_some());
+                let f32_alt_087 = f31_alt_read!(f32_alt_086.is_some());
+                let f32_alt_088 = f31_alt_read!(f32_alt_087.is_some());
+                let f32_alt_089 = f31_alt_read!(f32_alt_088.is_some());
+                let f32_alt_090 = f31_alt_read!(f32_alt_089.is_some());
+                let f32_alt_091 = f31_alt_read!(f32_alt_090.is_some());
+                let f32_alt_092 = f31_alt_read!(f32_alt_091.is_some());
+                let f32_alt_093 = f31_alt_read!(f32_alt_092.is_some());
+                let f32_alt_094 = f31_alt_read!(f32_alt_093.is_some());
+                let f32_alt_095 = f31_alt_read!(f32_alt_094.is_some());
+                let f32_alt_096 = f31_alt_read!(f32_alt_095.is_some());
+                let f32_alt_097 = f31_alt_read!(f32_alt_096.is_some());
+                let f32_alt_098 = f31_alt_read!(f32_alt_097.is_some());
+                let f32_alt_099 = f31_alt_read!(f32_alt_098.is_some());
+                let f32_alt_100 = f31_alt_read!(f32_alt_099.is_some());
+                let f32_alt_101 = f31_alt_read!(f32_alt_100.is_some());
+                let f32_alt_102 = f31_alt_read!(f32_alt_101.is_some());
+                let f32_alt_103 = f31_alt_read!(f32_alt_102.is_some());
+                let f32_alt_104 = f31_alt_read!(f32_alt_103.is_some());
+                let f32_alt_105 = f31_alt_read!(f32_alt_104.is_some());
+                let f32_alt_106 = f31_alt_read!(f32_alt_105.is_some());
+                let f32_alt_107 = f31_alt_read!(f32_alt_106.is_some());
+                let f32_alt_108 = f31_alt_read!(f32_alt_107.is_some());
+                let f32_alt_109 = f31_alt_read!(f32_alt_108.is_some());
+                let f32_alt_110 = f31_alt_read!(f32_alt_109.is_some());
+                let f32_alt_111 = f31_alt_read!(f32_alt_110.is_some());
+                let f32_alt_112 = f31_alt_read!(f32_alt_111.is_some());
+                let f32_alt_113 = f31_alt_read!(f32_alt_112.is_some());
+                let f32_alt_114 = f31_alt_read!(f32_alt_113.is_some());
+                let f32_alt_115 = f31_alt_read!(f32_alt_114.is_some());
+                let f32_alt_116 = f31_alt_read!(f32_alt_115.is_some());
+                let f32_alt_117 = f31_alt_read!(f32_alt_116.is_some());
+                let f32_alt_118 = f31_alt_read!(f32_alt_117.is_some());
+                let f32_alt_119 = f31_alt_read!(f32_alt_118.is_some());
+                let f32_alt_120 = f31_alt_read!(f32_alt_119.is_some());
+                let f32_alt_121 = f31_alt_read!(f32_alt_120.is_some());
+                let f32_alt_122 = f31_alt_read!(f32_alt_121.is_some());
+                let f32_alt_123 = f31_alt_read!(f32_alt_122.is_some());
+                let f32_alt_124 = f31_alt_read!(f32_alt_123.is_some());
+                let f32_alt_125 = f31_alt_read!(f32_alt_124.is_some());
+                let f32_alt_126 = f31_alt_read!(f32_alt_125.is_some());
+                let f32_alt_127 = f31_alt_read!(f32_alt_126.is_some());
+                let f32_alt_128 = f31_alt_read!(f32_alt_127.is_some());
                 let field_33_u32 = if (field_32_u32_list.is_some() || f32_alt_001.is_some()) && probe + 4 <= entry_end {
                     let pre_ = probe;
                     match u32::read_from(data, &mut probe) {
@@ -3650,6 +3730,22 @@ impl<'a> GimmickTail<'a> {
                     f32_alt_053, f32_alt_054, f32_alt_055, f32_alt_056,
                     f32_alt_057, f32_alt_058, f32_alt_059, f32_alt_060,
                     f32_alt_061, f32_alt_062, f32_alt_063, f32_alt_064,
+                    f32_alt_065, f32_alt_066, f32_alt_067, f32_alt_068,
+                    f32_alt_069, f32_alt_070, f32_alt_071, f32_alt_072,
+                    f32_alt_073, f32_alt_074, f32_alt_075, f32_alt_076,
+                    f32_alt_077, f32_alt_078, f32_alt_079, f32_alt_080,
+                    f32_alt_081, f32_alt_082, f32_alt_083, f32_alt_084,
+                    f32_alt_085, f32_alt_086, f32_alt_087, f32_alt_088,
+                    f32_alt_089, f32_alt_090, f32_alt_091, f32_alt_092,
+                    f32_alt_093, f32_alt_094, f32_alt_095, f32_alt_096,
+                    f32_alt_097, f32_alt_098, f32_alt_099, f32_alt_100,
+                    f32_alt_101, f32_alt_102, f32_alt_103, f32_alt_104,
+                    f32_alt_105, f32_alt_106, f32_alt_107, f32_alt_108,
+                    f32_alt_109, f32_alt_110, f32_alt_111, f32_alt_112,
+                    f32_alt_113, f32_alt_114, f32_alt_115, f32_alt_116,
+                    f32_alt_117, f32_alt_118, f32_alt_119, f32_alt_120,
+                    f32_alt_121, f32_alt_122, f32_alt_123, f32_alt_124,
+                    f32_alt_125, f32_alt_126, f32_alt_127, f32_alt_128,
                     field_33_u32,
                     field_34_u32,
                     field_35_u32_list,
@@ -4479,6 +4575,22 @@ impl<'a> GimmickTail<'a> {
                 f32_alt_053, f32_alt_054, f32_alt_055, f32_alt_056,
                 f32_alt_057, f32_alt_058, f32_alt_059, f32_alt_060,
                 f32_alt_061, f32_alt_062, f32_alt_063, f32_alt_064,
+                f32_alt_065, f32_alt_066, f32_alt_067, f32_alt_068,
+                f32_alt_069, f32_alt_070, f32_alt_071, f32_alt_072,
+                f32_alt_073, f32_alt_074, f32_alt_075, f32_alt_076,
+                f32_alt_077, f32_alt_078, f32_alt_079, f32_alt_080,
+                f32_alt_081, f32_alt_082, f32_alt_083, f32_alt_084,
+                f32_alt_085, f32_alt_086, f32_alt_087, f32_alt_088,
+                f32_alt_089, f32_alt_090, f32_alt_091, f32_alt_092,
+                f32_alt_093, f32_alt_094, f32_alt_095, f32_alt_096,
+                f32_alt_097, f32_alt_098, f32_alt_099, f32_alt_100,
+                f32_alt_101, f32_alt_102, f32_alt_103, f32_alt_104,
+                f32_alt_105, f32_alt_106, f32_alt_107, f32_alt_108,
+                f32_alt_109, f32_alt_110, f32_alt_111, f32_alt_112,
+                f32_alt_113, f32_alt_114, f32_alt_115, f32_alt_116,
+                f32_alt_117, f32_alt_118, f32_alt_119, f32_alt_120,
+                f32_alt_121, f32_alt_122, f32_alt_123, f32_alt_124,
+                f32_alt_125, f32_alt_126, f32_alt_127, f32_alt_128,
                 field_33_u32, field_34_u32,
                 field_35_u32_list, field_36_u32,
                 field_37_u32, field_38_u32,
@@ -5098,6 +5210,70 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = f32_alt_062 { v.write_to(w)?; }
                 if let Some(v) = f32_alt_063 { v.write_to(w)?; }
                 if let Some(v) = f32_alt_064 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_065 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_066 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_067 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_068 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_069 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_070 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_071 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_072 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_073 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_074 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_075 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_076 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_077 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_078 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_079 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_080 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_081 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_082 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_083 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_084 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_085 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_086 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_087 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_088 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_089 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_090 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_091 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_092 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_093 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_094 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_095 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_096 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_097 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_098 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_099 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_100 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_101 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_102 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_103 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_104 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_105 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_106 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_107 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_108 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_109 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_110 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_111 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_112 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_113 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_114 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_115 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_116 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_117 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_118 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_119 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_120 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_121 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_122 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_123 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_124 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_125 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_126 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_127 { v.write_to(w)?; }
+                if let Some(v) = f32_alt_128 { v.write_to(w)?; }
                 if let Some(v) = field_33_u32 { v.write_to(w)?; }
                 if let Some(v) = field_34_u32 { v.write_to(w)?; }
                 if let Some(arr) = field_35_u32_list { arr.write_to(w)?; }
@@ -6642,6 +6818,22 @@ impl<'a> GimmickTail<'a> {
                 f32_alt_053, f32_alt_054, f32_alt_055, f32_alt_056,
                 f32_alt_057, f32_alt_058, f32_alt_059, f32_alt_060,
                 f32_alt_061, f32_alt_062, f32_alt_063, f32_alt_064,
+                f32_alt_065, f32_alt_066, f32_alt_067, f32_alt_068,
+                f32_alt_069, f32_alt_070, f32_alt_071, f32_alt_072,
+                f32_alt_073, f32_alt_074, f32_alt_075, f32_alt_076,
+                f32_alt_077, f32_alt_078, f32_alt_079, f32_alt_080,
+                f32_alt_081, f32_alt_082, f32_alt_083, f32_alt_084,
+                f32_alt_085, f32_alt_086, f32_alt_087, f32_alt_088,
+                f32_alt_089, f32_alt_090, f32_alt_091, f32_alt_092,
+                f32_alt_093, f32_alt_094, f32_alt_095, f32_alt_096,
+                f32_alt_097, f32_alt_098, f32_alt_099, f32_alt_100,
+                f32_alt_101, f32_alt_102, f32_alt_103, f32_alt_104,
+                f32_alt_105, f32_alt_106, f32_alt_107, f32_alt_108,
+                f32_alt_109, f32_alt_110, f32_alt_111, f32_alt_112,
+                f32_alt_113, f32_alt_114, f32_alt_115, f32_alt_116,
+                f32_alt_117, f32_alt_118, f32_alt_119, f32_alt_120,
+                f32_alt_121, f32_alt_122, f32_alt_123, f32_alt_124,
+                f32_alt_125, f32_alt_126, f32_alt_127, f32_alt_128,
                 field_33_u32, field_34_u32,
                 field_35_u32_list, field_36_u32,
                 field_37_u32, field_38_u32,
@@ -7194,6 +7386,38 @@ impl<'a> GimmickTail<'a> {
                     ("f32_alt_059", f32_alt_059), ("f32_alt_060", f32_alt_060),
                     ("f32_alt_061", f32_alt_061), ("f32_alt_062", f32_alt_062),
                     ("f32_alt_063", f32_alt_063), ("f32_alt_064", f32_alt_064),
+                    ("f32_alt_065", f32_alt_065), ("f32_alt_066", f32_alt_066),
+                    ("f32_alt_067", f32_alt_067), ("f32_alt_068", f32_alt_068),
+                    ("f32_alt_069", f32_alt_069), ("f32_alt_070", f32_alt_070),
+                    ("f32_alt_071", f32_alt_071), ("f32_alt_072", f32_alt_072),
+                    ("f32_alt_073", f32_alt_073), ("f32_alt_074", f32_alt_074),
+                    ("f32_alt_075", f32_alt_075), ("f32_alt_076", f32_alt_076),
+                    ("f32_alt_077", f32_alt_077), ("f32_alt_078", f32_alt_078),
+                    ("f32_alt_079", f32_alt_079), ("f32_alt_080", f32_alt_080),
+                    ("f32_alt_081", f32_alt_081), ("f32_alt_082", f32_alt_082),
+                    ("f32_alt_083", f32_alt_083), ("f32_alt_084", f32_alt_084),
+                    ("f32_alt_085", f32_alt_085), ("f32_alt_086", f32_alt_086),
+                    ("f32_alt_087", f32_alt_087), ("f32_alt_088", f32_alt_088),
+                    ("f32_alt_089", f32_alt_089), ("f32_alt_090", f32_alt_090),
+                    ("f32_alt_091", f32_alt_091), ("f32_alt_092", f32_alt_092),
+                    ("f32_alt_093", f32_alt_093), ("f32_alt_094", f32_alt_094),
+                    ("f32_alt_095", f32_alt_095), ("f32_alt_096", f32_alt_096),
+                    ("f32_alt_097", f32_alt_097), ("f32_alt_098", f32_alt_098),
+                    ("f32_alt_099", f32_alt_099), ("f32_alt_100", f32_alt_100),
+                    ("f32_alt_101", f32_alt_101), ("f32_alt_102", f32_alt_102),
+                    ("f32_alt_103", f32_alt_103), ("f32_alt_104", f32_alt_104),
+                    ("f32_alt_105", f32_alt_105), ("f32_alt_106", f32_alt_106),
+                    ("f32_alt_107", f32_alt_107), ("f32_alt_108", f32_alt_108),
+                    ("f32_alt_109", f32_alt_109), ("f32_alt_110", f32_alt_110),
+                    ("f32_alt_111", f32_alt_111), ("f32_alt_112", f32_alt_112),
+                    ("f32_alt_113", f32_alt_113), ("f32_alt_114", f32_alt_114),
+                    ("f32_alt_115", f32_alt_115), ("f32_alt_116", f32_alt_116),
+                    ("f32_alt_117", f32_alt_117), ("f32_alt_118", f32_alt_118),
+                    ("f32_alt_119", f32_alt_119), ("f32_alt_120", f32_alt_120),
+                    ("f32_alt_121", f32_alt_121), ("f32_alt_122", f32_alt_122),
+                    ("f32_alt_123", f32_alt_123), ("f32_alt_124", f32_alt_124),
+                    ("f32_alt_125", f32_alt_125), ("f32_alt_126", f32_alt_126),
+                    ("f32_alt_127", f32_alt_127), ("f32_alt_128", f32_alt_128),
                 ] {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
@@ -8481,6 +8705,22 @@ impl<'a> GimmickTail<'a> {
                     "f32_alt_053", "f32_alt_054", "f32_alt_055", "f32_alt_056",
                     "f32_alt_057", "f32_alt_058", "f32_alt_059", "f32_alt_060",
                     "f32_alt_061", "f32_alt_062", "f32_alt_063", "f32_alt_064",
+                    "f32_alt_065", "f32_alt_066", "f32_alt_067", "f32_alt_068",
+                    "f32_alt_069", "f32_alt_070", "f32_alt_071", "f32_alt_072",
+                    "f32_alt_073", "f32_alt_074", "f32_alt_075", "f32_alt_076",
+                    "f32_alt_077", "f32_alt_078", "f32_alt_079", "f32_alt_080",
+                    "f32_alt_081", "f32_alt_082", "f32_alt_083", "f32_alt_084",
+                    "f32_alt_085", "f32_alt_086", "f32_alt_087", "f32_alt_088",
+                    "f32_alt_089", "f32_alt_090", "f32_alt_091", "f32_alt_092",
+                    "f32_alt_093", "f32_alt_094", "f32_alt_095", "f32_alt_096",
+                    "f32_alt_097", "f32_alt_098", "f32_alt_099", "f32_alt_100",
+                    "f32_alt_101", "f32_alt_102", "f32_alt_103", "f32_alt_104",
+                    "f32_alt_105", "f32_alt_106", "f32_alt_107", "f32_alt_108",
+                    "f32_alt_109", "f32_alt_110", "f32_alt_111", "f32_alt_112",
+                    "f32_alt_113", "f32_alt_114", "f32_alt_115", "f32_alt_116",
+                    "f32_alt_117", "f32_alt_118", "f32_alt_119", "f32_alt_120",
+                    "f32_alt_121", "f32_alt_122", "f32_alt_123", "f32_alt_124",
+                    "f32_alt_125", "f32_alt_126", "f32_alt_127", "f32_alt_128",
                 ] {
                     let v = json_get_field(obj, k)?;
                     if !v.is_null() {
