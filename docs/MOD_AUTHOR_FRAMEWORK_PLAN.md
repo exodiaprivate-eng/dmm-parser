@@ -136,7 +136,8 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 
 ## Phase A — Audio Framework (WEM + BNK)
 
-- [ ] **A0** — Recon. Read DMM's WEM/BNK handling at `commands.rs:11654-11665`. Find Wwise WEM format references. Document in `references/wwise_notes.md`.
+- [x] **A0** — Recon. Read DMM's WEM/BNK handling at `commands.rs:11654-11665`. Find Wwise WEM format references. Document in `references/wwise_notes.md`.
+  Done: 7-section reference doc covering WEM (RIFF-WAVE wrapper + Wwise-specific `hash`/`junk` chunks + WAVEFORMATEX layout with format_tag values 0xFFFE/0xFFFF), BNK (section header envelope + BKHD/DIDX/DATA/HIRC/STID structure with field offsets), Crimson direct-PAZ-injection mounting (vs overlay for DDS), Wwise path conventions (`0006/sound/windows/<lang>/<id>.{wem,bnk}`, `soundcommon/windows/<id>.{wem,bnk}`), validation rules for A7, real sample paths for A4/A5 integration tests, A1-A9 implementation targets, 4 open questions. Verified against real samples: `1045272379.wem` (433KB, Wwise Vorbis), `113958244.wem` (62MB, WAVEFORMATEXTENSIBLE), `2498340951.bnk` (135MB, bank_version=150, 3 embedded WEMs).
 
 - [ ] **A1** — WEM hexpat. Write `references/wem.hexpat` for RIFF + Wwise extension chunks. Test against vanilla WEM samples.
 
