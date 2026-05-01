@@ -30,6 +30,8 @@
 
 pub mod header;
 pub mod classify;
+pub mod vpath;
 
 pub use header::{DdsHeader, DdsPixelFormat, Dx10Header};
 pub use classify::{DdsFormat, DdsClassification, classify};
+pub use vpath::{classify_vpath_last4, infer_vpath_from_disk_path};

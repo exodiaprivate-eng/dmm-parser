@@ -114,7 +114,11 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 - [x] **D3** — DDS classifier. Implement format detection from header bytes. Mip-count + dimension extraction. Sanity validation. Public API: `dmm_parser::dds::classify(bytes) -> Result<DdsClassification>`.
   Done: `dmm_parser::dds::classify(bytes)` returns `DdsClassification { format, width, height, mip_count, depth, is_dx10, dxgi_format, crimson_last4, requires_pathc }`. Format dispatch via FOURCC table (DXT1/3/5, ATI1/2, BC4U/S, BC5U/S, BC4U/BC4S, DX10) with fallback to DX10/DXGI lookup (71/72→DXT1, 74/75→DXT3, 77/78→DXT5, 80→BC4U, 81→BC4S, 83→BC5U, 84→BC5S, 95→BC6Hu, 96→BC6Hs, 98/99→BC7U). `DdsFormat::crimson_last4` returns the format-derived game ID (12/15/4/None per the D0 reference table). `DdsFormat::block_bytes` returns 8 or 16 for BC formats. `DdsFormat::requires_pathc` returns true for BC6H/BC7. 10 unit tests pass: parse_dxt5_header, parse_dx10_header, detects_overlay_patched, rejects_bad_magic, rejects_truncated, classify_dxt5, classify_dxt1, classify_dx10_bc7, classify_unknown_fourcc, block_bytes_table.
 
-- [ ] **D4** — Vpath inference helper. Path-prefix table (`/character/texture/...`, `/ui/icon/...`) ported from DMM's `classify_overlay_last4`. Public API: `dmm_parser::dds::infer_vpath(path) -> Option<String>`.
+- [x] **D4** — Vpath inference helper. Path-prefix table (`/character/texture/...`, `/ui/icon/...`) ported from DMM's `classify_overlay_last4`. Public API: `dmm_parser::dds::infer_vpath(path) -> Option<String>`.
+  Done: New `src/dds/vpath.rs` module with TWO complementary helpers:
+    1. `classify_vpath_last4(vpath) -> Option<u32>` — port of DMM's `classify_overlay_last4`. Returns 0x1580 for `/ui/*`, 0x0480 for `/character/texture/*_n.dds`, 0x1380 for `/character/texture/*tattoo*`, 0x1280 default. Case-insensitive.
+    2. `infer_vpath_from_disk_path(asset_root, file_path) -> Option<String>` — for SWISS-style folder→vpath inference. Strips asset_root prefix, validates first segment is a 4-digit PAZ group, returns forward-slash vpath.
+  11 new unit tests pass (all 4 path-prefix categories, case-insensitivity, 4 negative cases for vpath inference). Total dds module test count: 21/21 pass.
 
 - [ ] **D5** — DDS metadata struct for v3.1 packaging. `DdsAssetMetadata { vpath_hint, format, dimensions, mip_count, sha256, requires_pathc: bool }`. DX10/BC7 sets `requires_pathc: true`.
 
