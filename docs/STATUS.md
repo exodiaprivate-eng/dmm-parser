@@ -131,18 +131,19 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
-- `GimmickInfo` — Decoded tail extended to **2026 typed fields**
+- `GimmickInfo` — Decoded tail extended to **2030 typed fields**
   (1-16 prefix + 712 tail u32 + 6 alt-header + 640 alt-body + 2
-  alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt).
-  post_blob avg **1118 → 127 bytes** (12.29M bytes recovered total
-  over 12393 entries — **89% reduction from baseline**). Iters
-  61-63 added f31/f39/f32 alt u32 chains (64 fields each). Iters
-  73-75 extended each alt chain from 64 → 128. Iters 76-79 extended
-  f31_alt → 256, f32_alt → 192, f39_alt → 192. Diminishing returns
-  approaching at avg=127 — remaining bytes concentrated in 61
-  entries with 4096+ byte XML payloads (~51% of remaining 1.58M
-  bytes). Smart-probe methodology proven repeatable.
-  (loop session 2026-05-01)
+  alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
+  + 4 tail_pad u8). post_blob avg **1118 → 125 bytes** (12.31M bytes
+  recovered total over 12393 entries — **89% reduction from baseline**).
+  Iters 61-63 added f31/f39/f32 alt u32 chains (64 fields each).
+  Iters 73-75 extended each alt chain from 64 → 128. Iters 76-79
+  extended f31_alt → 256, f32_alt → 192, f39_alt → 192. Iter 80
+  added 4× chained `Option<u8>` for trailing pad bytes (drains
+  the 1-3 trailing zero bytes seen in ~10500 entries). Remaining
+  bytes concentrated in 61 entries with 4096+ byte XML payloads
+  (~51% of remaining 1.55M bytes). Smart-probe methodology proven
+  repeatable. (loop session 2026-05-01)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
