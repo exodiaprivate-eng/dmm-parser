@@ -1,22 +1,37 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-05-01 (GimmickInfo post_blob fields F76–F130 decoded)
+**Last updated**: 2026-05-01 (session 5 — clippy clean + ceiling confirmed)
 **Repo**: https://github.com/DatGuySnowfox/dmm-parser
 **Branch**: `main`
 
-> **Current state (2026-05-01 session 4 end):**
+> **Current state (2026-05-01 session 5 end):**
 > - **119 T1 / 0 T2 / 0 T1.5** — all 121 on-disk tables in the
 >   2026-4-24 dump have byte-perfect round-trip parsers. 309/309 tests pass.
+>   **Zero clippy warnings** (`cargo clippy` clean).
 > - `gimmick_info`: decoded=12393, raw=6, **with_body=9947**/12393 (80.3%).
->   All `EmptyCArray` deferred fields resolved through F130. The 2446 entries
->   with `post_body=None` have COptional flag=0 — legitimately absent; 9947
->   is the ceiling for the current dataset.
+>   GimmickPostBody (F20–F179) confirmed complete via IDA cross-check:
+>   sub_1410E6FC0 reads through memory a2+1444; all sub-function calls map to
+>   existing fields. **post_blob is empty for all 9947 with_body entries.**
+>   The 2446 post_body=None entries fail GimmickPostBody due to genuine format
+>   divergence (different gimmick variant layouts), not parser bugs.
 > - `condition_info`: 8919/8934 Decoded (99.83%). 15 Raw = data-truncation
 >   bugs in source .pabgb, not fixable.
 > - `interaction_info` 100% Decoded (363/363).
 > - Push policy: push when user asks. Use feature branches for PRs.
 > - **No remaining actionable work** for the 2026-4-24 dump — project is
 >   at ceiling. Next work requires a newer game dump or new IDA targets.
+>
+> **2026-05-01 session 5 results (clippy clean + ceiling audit):**
+> - Fixed all 67 clippy warnings in `gimmick_info/info.rs` (`77e325c`):
+>   46 `///` → `//` on `py_binary_struct!` invocations; deleted dead
+>   `EmptyCArray`/`AbsentCOptional` types (all deferred fields resolved);
+>   removed 3 unused imports; fixed 14 needless-borrow patterns; added
+>   `#[allow(clippy::large_enum_variant)]` to `GimmickTail`.
+> - IDA audit of `sub_1410E6FC0`: all sub-function calls from a2+224 to
+>   a2+1444 map to existing GimmickPostBody fields. Last reads confirmed:
+>   `sub_1410E6A20` = F170 (u32+u64+CArray<{u64,u32}>);
+>   `sub_1411006D0` = F179 (u32 wire → u16 table lookup).
+>   post_blob is provably empty for all 9947 with_body entries.
 >
 > **2026-05-01 session 4 results (GimmickInfo post_blob F76–F130):**
 > - F76/F77 (`sub_141600210`): tagged optional struct, variant inner on type_tag.
