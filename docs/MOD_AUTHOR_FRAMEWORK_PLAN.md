@@ -92,7 +92,8 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 
 - [~] **X1** — ~~DMM apply integration~~ — **SKIPPED**: DMM work is out of scope per user direction. SWISS exporter (X2) and dmm-parser validators (Phase D/A) cover the framework's needs. If DMM work resumes later, dispatch can be added then; the spec doc (X0) and validators (D/A) are designed to support it without re-spec.
 
-- [ ] **X2** — SWISS export integration. Extend `_export_field_json` in `stacker.py` to scan an asset folder. Use dmm-parser's vpath inference for auto-targeting. Compute SHA-256 for integrity.
+- [x] **X2** — SWISS export integration. Extend `_export_field_json` in `stacker.py` to scan an asset folder. Use dmm-parser's vpath inference for auto-targeting. Compute SHA-256 for integrity.
+  Done: Added `_compute_sha256_hex`, `_infer_asset_vpath`, `_collect_assets_from_folder` helper methods (extension allowlist .dds/.wem/.bnk/.ttf/.otf/.fx/.fxh/.ini, 4-digit group prefix heuristic for vpath, streaming SHA-256). Wired into `_export_field_json`: when `self._asset_export_folder` is set, the export scans + emits `type:"asset"` target entries (per X0 spec) + copies binaries to `<output_dir>/assets/<vpath>` next to the JSON. Multi-target shape activates when assets are present even without non-iteminfo intents. Empty-export check updated. Python AST parse clean. UI dialog for setting `_asset_export_folder` is a follow-up; data path is complete.
 
 - [ ] **X3** — End-to-end test: v3.1 mod with DDS + WEM + paloc string + iteminfo clone. Mount in DMM, verify all four target types apply correctly. Verify SWISS round-trip (export → re-import).
 
