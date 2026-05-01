@@ -566,6 +566,74 @@ py_binary_struct! {
     }
 }
 
+/// F130 sub0 element (sub_141100E90): f32+[f32;2]+[f32;2]+[f32;2] = 28 bytes wire.
+py_binary_struct! {
+    pub struct GimmickF130Sub0Elem {
+        pub v:  f32,
+        pub a:  [f32; 2],
+        pub b:  [f32; 2],
+        pub c:  [f32; 2],
+    }
+}
+
+/// F130 sub1 element (sub_1410F27B0):
+/// COptional<GimmickF88COptContent> + u64 + u16 + u16 + u16 + COptional<u64>.
+py_binary_struct! {
+    pub struct GimmickF130Sub1Elem {
+        pub opt0: COptional<GimmickF88COptContent>,
+        pub t:    u64,
+        pub a:    u16,
+        pub b:    u16,
+        pub c:    u16,
+        pub opt1: COptional<u64>,
+    }
+}
+
+/// F130 sub2 element (sub_1410F2A30):
+/// COptional<GimmickF88COptContent> + u64 + u32 + u32.
+py_binary_struct! {
+    pub struct GimmickF130Sub2Elem {
+        pub opt0: COptional<GimmickF88COptContent>,
+        pub t:    u64,
+        pub a:    u32,
+        pub b:    u32,
+    }
+}
+
+/// F130 sub3 element (sub_1410F2B50):
+/// COptional<GimmickF88COptContent> + u64 + u32 + u32.
+py_binary_struct! {
+    pub struct GimmickF130Sub3Elem {
+        pub opt0: COptional<GimmickF88COptContent>,
+        pub t:    u64,
+        pub a:    u32,
+        pub b:    u32,
+    }
+}
+
+/// F130 optional body (sub_1410F2F90):
+/// COptional<GimmickF88COptContent> + CArray<sub1> + CArray<sub2> + CArray<sub3>.
+py_binary_struct! {
+    pub struct GimmickF130Sub0Body {
+        pub opt0: COptional<GimmickF88COptContent>,
+        pub arr1: CArray<GimmickF130Sub1Elem>,
+        pub arr2: CArray<GimmickF130Sub2Elem>,
+        pub arr3: CArray<GimmickF130Sub3Elem>,
+    }
+}
+
+/// F130 outer element (sub_1410E5E40):
+/// CArray<sub0>×2 + u32 + COptional<GimmickF130Sub0Body> + u32.
+py_binary_struct! {
+    pub struct GimmickF130Elem {
+        pub arr0: CArray<GimmickF130Sub0Elem>,
+        pub arr1: CArray<GimmickF130Sub0Elem>,
+        pub hash: u32,
+        pub body: COptional<GimmickF130Sub0Body>,
+        pub tail: u32,
+    }
+}
+
 /// F168/F169 optional inner: u32+u32+U32x10.
 py_binary_struct! {
     pub struct GimmickF168Inner {
@@ -1082,8 +1150,8 @@ py_binary_struct! {
         pub f128: CArray<GimmickF128Elem<'a>>,
         // F129: CArray<{u32+u32+[u32;3]+[u32;4]+[u32;3]}>
         pub f129: CArray<GimmickF129Elem>,
-        // F130: DEFERRED — CArray<{u32+u8+if≠0: polymorphic inner (sub_1410F2F90)}>
-        pub f130: EmptyCArray,
+        // F130: CArray<GimmickF130Elem> (sub_1410E5E40)
+        pub f130: CArray<GimmickF130Elem>,
         // F131: u32
         pub f131: u32,
         // F132: GimmickBlock32×2+u32+u16+(CArray<u32>+CArray<264b>)×2
@@ -1715,7 +1783,7 @@ mod tests {
                 rd!(CArray<GimmickF126Elem>, p, "f127");
                 rd!(CArray<GimmickF128Elem>, p, "f128");
                 rd!(CArray<GimmickF129Elem>, p, "f129");
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f130(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f130 non-zero"); return; } }
+                rd!(CArray<GimmickF130Elem>, p, "f130");
                 rd!(u32, p, "f131");
                 // f132 manually
                 { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_a flag={} val={} [off_before={}]",fl,fv,fp); rdc!(p, "f132.block_a.name"); }
@@ -1915,7 +1983,7 @@ mod tests {
                 rd2!(CArray<GimmickF126Elem>, p, "f127");
                 rd2!(CArray<GimmickF128Elem>, p, "f128");
                 rd2!(CArray<GimmickF129Elem>, p, "f129");
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f130 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f130 STOP"); break 'outer2; } }
+                rd2!(CArray<GimmickF130Elem>, p, "f130");
                 rd2!(u32, p, "f131");
                 { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_a flag={} val={} [off_before={}]",fl,fv,fp); rdc2!(p, "f132.block_a.name"); }
                 { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_b flag={} val={} [off_before={}]",fl,fv,fp); rdc2!(p, "f132.block_b.name"); }
