@@ -9,6 +9,7 @@
 // (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
 
 
+pub mod audio;
 pub mod binary;
 pub mod crypto;
 pub mod dds;
