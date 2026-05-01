@@ -191,9 +191,20 @@ To enable v3.1 in mod managers, the parser library needs:
 - 308 passing tests
 
 ### Gap 1: Python bindings expose only ~13 of 125 tables
-**Action**: Add `parse_X_from_bytes` / `serialize_X` for the remaining ~112 tables. Mechanical work, mostly copy-paste from existing patterns in `src/python.rs`.
+**RESOLVED** (PR #5, merged 2026-04-30 / locally merged 2026-05-01).
+The PR adds three generic dispatch functions:
 
-**Priority**: HIGH. Without this, modders can't use new tables even with v3.1.
+```python
+items = dmm_parser.parse_table("gimmick_info", pabgb_bytes, pabgh_bytes)
+binary = dmm_parser.serialize_table("gimmick_info", items)
+dmm_parser.write_table_to_file("gimmick_info", items, "out.pabgb")
+```
+
+`parse_table(table_name, pabgb, pabgh=None)` dispatches to the correct
+typed parser by string name. ~120 tables wired up: 47 pabgh-bounded
+tables (those that need both files) + 73 sequential tables.
+
+This makes v3.1 multi-table support directly buildable on top.
 
 ### Gap 2: No `describe_table()` API
 **Action**: Each table's parser already has all the type info. Add a static schema dump:
