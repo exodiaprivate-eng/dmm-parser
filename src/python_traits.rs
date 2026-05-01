@@ -1,8 +1,8 @@
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::{PyBytes, PyDict, PyList};
 
-use crate::binary::{CArray, COptional, CString, LocalizableString};
+use crate::binary::{CArray, CBytes, COptional, CString, LocalizableString};
 
 // ── Traits ────────────────────────────────────────────────────────────────────
 
@@ -200,6 +200,23 @@ impl WritePyValue for CString<'_> {
         let s: String = obj.extract()?;
         w.extend_from_slice(&(s.len() as u32).to_le_bytes());
         w.extend_from_slice(s.as_bytes());
+        Ok(())
+    }
+}
+
+// ── CBytes ────────────────────────────────────────────────────────────────────
+
+impl ToPyValue for CBytes<'_> {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(PyBytes::new(py, self.data).into_any().unbind())
+    }
+}
+
+impl WritePyValue for CBytes<'_> {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let bytes: Vec<u8> = obj.extract()?;
+        w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+        w.extend_from_slice(&bytes);
         Ok(())
     }
 }

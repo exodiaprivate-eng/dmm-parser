@@ -226,6 +226,37 @@ py_binary_struct! {
     }
 }
 
+/// F79 inner element (80-byte mem stride; variable wire): sub_1410E61F0.
+/// Wire: CArray<CString> + CArray<CString> + CBytes + CBytes
+///       + u8 + [u32;3] + u32 + u32 + u8 + u8.
+/// str0/str1 use CBytes (sub_1410A9B70 raw-byte reader, not UTF-8 guaranteed).
+py_binary_struct! {
+    pub struct GimmickF79Inner<'a> {
+        pub arr0: CArray<CString<'a>>,
+        pub arr1: CArray<CString<'a>>,
+        pub str0: CBytes<'a>,
+        pub str1: CBytes<'a>,
+        pub f48:  u8,
+        pub f52:  [u32; 3],
+        pub f64v: u32,
+        pub f68v: u32,
+        pub f72:  u8,
+        pub f73:  u8,
+    }
+}
+
+/// F79 outer element: sub_141111CD0. Wire: u32 + u8×3 + CArray<GimmickF79Inner> + u8.
+py_binary_struct! {
+    pub struct GimmickF79Elem<'a> {
+        pub f0:    u32,
+        pub f4:    u8,
+        pub f5:    u8,
+        pub f6:    u8,
+        pub inner: CArray<GimmickF79Inner<'a>>,
+        pub tail:  u8,
+    }
+}
+
 /// F81 element: u32×4 + CArray<u32> + u32.
 py_binary_struct! {
     pub struct GimmickF81Elem {
@@ -828,8 +859,8 @@ py_binary_struct! {
         pub f77: COptional<GimmickF76Inner>,
         // F78: CArray<{u32+CArray<{u32+u32}>}>
         pub f78: CArray<GimmickF78Elem>,
-        // F79: DEFERRED — CArray<{u32+u8+u8+u8+CArray<80b>+u8}> (80b element unknown)
-        pub f79: EmptyCArray,
+        // F79: CArray<{u32+u8×3+CArray<GimmickF79Inner>+u8}> (sub_141111CD0 / sub_1410E61F0)
+        pub f79: CArray<GimmickF79Elem<'a>>,
         // F80: CArray<u32> (same as F22)
         pub f80: CArray<u32>,
         // F81: CArray<{u32×4+CArray<u32>+u32}>
@@ -1495,7 +1526,7 @@ mod tests {
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f76(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f76 non-zero"); return; } }
                 { let fl_pos=*p; let fl=u8::read_from(&data,p).unwrap(); eprintln!("  f77(absent) flag={} [pos={}]",fl,fl_pos); if fl!=0 { eprintln!("  STOP: f77 non-zero"); return; } }
                 rd!(CArray<GimmickF78Elem>, p, "f78");
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f79(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f79 non-zero"); return; } }
+                rd!(CArray<GimmickF79Elem>, p, "f79");
                 rd!(CArray<u32>, p, "f80");
                 rd!(CArray<GimmickF81Elem>, p, "f81");
                 rd!(u32, p, "f82");
@@ -1695,7 +1726,7 @@ mod tests {
                 rdarr2!(GimmickF76Elem, p, "f76");
                 rd2!(COptional<GimmickF76Inner>, p, "f77");
                 rd2!(CArray<GimmickF78Elem>, p, "f78");
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f79 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f79 STOP"); break 'outer2; } for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } }
+                rd2!(CArray<GimmickF79Elem>, p, "f79");
                 rd2!(CArray<u32>, p, "f80");
                 rd2!(CArray<GimmickF81Elem>, p, "f81");
                 rd2!(u32, p, "f82");
