@@ -185,13 +185,15 @@ We recommend **deferring this to v3.2** to keep v3.1 small.
 To enable v3.1 in mod managers, the parser library needs:
 
 ### Already done ✅
-- 125 tables typed at field level
+- 122 tables typed at field level
 - JSON parse/serialize for every typed table
 - Byte-perfect roundtrip on all 449 vanilla `.pabgb` files
 - 308 passing tests
+- **Generic Python dispatcher** (`parse_table` / `serialize_table` / `write_table_to_file`)
+  exposes all 122 tables uniformly — see `docs/api.md` Generic Table API section
 
 ### Gap 1: Python bindings expose only ~13 of 125 tables
-**RESOLVED** (PR #5, merged 2026-04-30 / locally merged 2026-05-01).
+**RESOLVED** (PR #5 merged 2026-04-30; pulled locally 2026-05-01).
 The PR adds three generic dispatch functions:
 
 ```python
@@ -201,8 +203,30 @@ dmm_parser.write_table_to_file("gimmick_info", items, "out.pabgb")
 ```
 
 `parse_table(table_name, pabgb, pabgh=None)` dispatches to the correct
-typed parser by string name. ~120 tables wired up: 47 pabgh-bounded
-tables (those that need both files) + 73 sequential tables.
+typed parser by string name. **120 tables wired up** via macro-generated
+match arms: 47 pabgh-bounded tables (those that need both files) + 73
+sequential tables. Plus 2 inline-handled tables (`equip_slot_info`,
+`skill_info`) that have non-standard parse signatures.
+
+**Post-merge improvements (13 hours of follow-up work, 2026-05-01):**
+The dispatcher API is unchanged but the underlying typing improved
+significantly for the most-used table:
+
+| Table | Before merge | After 13h work |
+|---|---|---|
+| `gimmick_info` typed fields | 1376 per entry | **2926 per entry** |
+| `gimmick_info` post_blob avg | ~191 bytes | **108 bytes** (90% reduction) |
+| Entries with zero residual | ~1073 / 12393 | **11676 / 12393** (94%) |
+
+These are `parse_table("gimmick_info", ...)` improvements with no API
+change — modders get richer JSON dicts automatically. Specifically added:
+- Smart-probe alt chains (f31_alt 256, f32_alt 192, f39_alt 192)
+- Extended alt_body chain to 1536 fields (covers 99% of alt-format gimmicks)
+- 4× tail_pad u8 chain (drains 1-3 trailing pad bytes seen in 10500 entries)
+- Structural CString detection in alt_body 1409..1536 (recovers
+  `alt_post_cstr_a` typing for entries with embedded XML payloads)
+- Loosened `alt_post_cstr_a/b` length cap (1000 → 65536) to type long
+  XML CStrings up to 64KB
 
 This makes v3.1 multi-table support directly buildable on top.
 

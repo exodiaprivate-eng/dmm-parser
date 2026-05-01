@@ -459,6 +459,74 @@ dmm_parser.write_table_to_file("vehicle_info", items, "vehicle_info.pabgb")
 `uifilter_group_info`, `uimap_texture_info`, `valid_schedule_action_info`, `vehicle_info`,
 `vibrate_pattern_info`, `wanted_info`
 
+### High-impact tables for modders
+
+These tables have rich field-level typing and are the most useful for mods:
+
+| Table | Entries | Typed fields/entry | Decoded ratio | Modder use case |
+|---|---|---|---|---|
+| `iteminfo` | ~6000 | full | 100% | Items: damage, cooltime, stack, enchants, drops |
+| `gimmick_info` | 12393 | **2926** | 100% (90% bytes typed) | Environmental gimmicks, weapon FX, scene triggers |
+| `character_info` | 6966 | 174 | 100% | NPC/mob stats, AI, faction, behavior |
+| `skill_info` | thousands | full | 100% | Skill behavior, damage, cooldowns, ranges |
+| `buff_info` | thousands | full | 100% | Buffs/debuffs, stat modifiers, stacking |
+| `condition_info` | 8934 | full | 99.83% | Combat triggers (15 entries have truncated source data) |
+| `interaction_info` | 363 | full | 100% | NPC dialogue/interaction triggers |
+| `drop_set_info` | thousands | full | 100% | Loot tables — high modder demand |
+| `effect_info` | typed | full | 100% | VFX definitions |
+| `faction_node_spawn_info` | typed | full | 100% | Mob spawn placement, patrol paths |
+
+`gimmick_info` is the most field-typed table at the moment: 12393 entries × 2926 named
+fields = **~36M field paths** addressable by name. The Decoded tail captures field 1-728
+plus alt-format scene gimmicks (768-1408 alt-body fields), making complex gimmick edits
+possible by field name without touching binary offsets.
+
+For tables with `Decoded | Raw` enums (`gimmick_info`, `condition_info`, `mini_game_data_info`,
+`quest_info`), inspect `item["tail"]["_kind"]` (or equivalent) to confirm an entry is in
+the `Decoded` branch before editing fields. Entries in the `Raw` branch must be replaced
+wholesale (rare, < 0.2% of vanilla entries).
+
+### End-to-end mod workflow (any table)
+
+```python
+import dmm_parser
+
+# 1. Extract vanilla bytes from PAZ archives
+pabgb = dmm_parser.extract_file(game_dir, "0008",
+    "gamedata/binary__/client/bin", "drop_set_info.pabgb")
+pabgh = dmm_parser.extract_file(game_dir, "0008",
+    "gamedata/binary__/client/bin", "drop_set_info.pabgh")
+
+# 2. Parse to typed list of dicts
+items = dmm_parser.parse_table("drop_set_info", pabgb, pabgh)
+
+# 3. Look up by entry name (string_key) — survives game updates
+for item in items:
+    if item.get("string_key") == "DropSet_FinalBoss":
+        item["drop_count_min"] = 5  # field-level edit
+        item["drop_count_max"] = 10
+
+# 4. Serialize back to bytes
+modified = dmm_parser.serialize_table("drop_set_info", items)
+
+# 5. Pack into mod overlay
+import os
+mod_dir = "/path/to/my_mod"
+target_path = os.path.join(mod_dir, "gamedata/binary__/client/bin/drop_set_info.pabgb")
+os.makedirs(os.path.dirname(target_path), exist_ok=True)
+with open(target_path, "wb") as f:
+    f.write(modified)
+
+dmm_parser.pack_mod.pack_mod(
+    game_dir=game_dir,
+    mod_folder=mod_dir,
+    output_dir="/path/to/output",
+    group_name="0058",
+)
+```
+
+The same workflow applies to all 122 supported tables — only the table name string changes.
+
 ---
 
 ## Data Types
