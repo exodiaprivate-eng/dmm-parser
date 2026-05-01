@@ -135,11 +135,12 @@ This file is for collaborators picking up round-trip work. It's the
   (1-16 prefix + 712 tail u32 + 6 alt-header + 640 alt-body + 2
   alt-cstr). post_blob average **1118 → 191 bytes** (11.49M bytes
   recovered total over 12393 entries — **83% reduction from
-  baseline**). PRACTICAL CEILING REACHED. CString detection
-  attempted at alt_body_640 boundary but bytes there are mid-string
-  XML continuation (0 entries matched). Remaining 2.37M bytes is in
-  entries with unique nested structures requiring proper recursive
-  trigger parser. (loop session 2026-04-30)
+  baseline**). PRACTICAL CEILING REACHED. Dropoff analysis (iter 59)
+  reveals: 1.26M of remaining 2.37M is locked in 1402 NON-alt-format
+  entries that fall off in fields 18-49 due to non-standard
+  CArray<u32> count semantics. The remaining 660K is in alt-format
+  entries needing a recursive trigger parser. Both require targeted
+  RE on individual gimmick types. (loop session 2026-04-30)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
