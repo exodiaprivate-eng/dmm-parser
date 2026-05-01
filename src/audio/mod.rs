@@ -29,7 +29,9 @@
 pub mod wem;
 pub mod bnk;
 pub mod vpath;
+pub mod validate;
 
 pub use wem::{WemMetadata, WemFormatTag, classify_wem};
 pub use bnk::{BnkBank, BnkSection, DidxEntry, parse_bnk};
 pub use vpath::{infer_audio_vpath, AudioPathClass};
+pub use validate::{validate_audio, has_fatal_audio, AudioValidation, AudioSeverity};
