@@ -208,6 +208,23 @@ pub enum GimmickTail<'a> {
         f31_alt_053: Option<u32>, f31_alt_054: Option<u32>, f31_alt_055: Option<u32>, f31_alt_056: Option<u32>,
         f31_alt_057: Option<u32>, f31_alt_058: Option<u32>, f31_alt_059: Option<u32>, f31_alt_060: Option<u32>,
         f31_alt_061: Option<u32>, f31_alt_062: Option<u32>, f31_alt_063: Option<u32>, f31_alt_064: Option<u32>,
+        /// f31_alt extension: 65-128
+        f31_alt_065: Option<u32>, f31_alt_066: Option<u32>, f31_alt_067: Option<u32>, f31_alt_068: Option<u32>,
+        f31_alt_069: Option<u32>, f31_alt_070: Option<u32>, f31_alt_071: Option<u32>, f31_alt_072: Option<u32>,
+        f31_alt_073: Option<u32>, f31_alt_074: Option<u32>, f31_alt_075: Option<u32>, f31_alt_076: Option<u32>,
+        f31_alt_077: Option<u32>, f31_alt_078: Option<u32>, f31_alt_079: Option<u32>, f31_alt_080: Option<u32>,
+        f31_alt_081: Option<u32>, f31_alt_082: Option<u32>, f31_alt_083: Option<u32>, f31_alt_084: Option<u32>,
+        f31_alt_085: Option<u32>, f31_alt_086: Option<u32>, f31_alt_087: Option<u32>, f31_alt_088: Option<u32>,
+        f31_alt_089: Option<u32>, f31_alt_090: Option<u32>, f31_alt_091: Option<u32>, f31_alt_092: Option<u32>,
+        f31_alt_093: Option<u32>, f31_alt_094: Option<u32>, f31_alt_095: Option<u32>, f31_alt_096: Option<u32>,
+        f31_alt_097: Option<u32>, f31_alt_098: Option<u32>, f31_alt_099: Option<u32>, f31_alt_100: Option<u32>,
+        f31_alt_101: Option<u32>, f31_alt_102: Option<u32>, f31_alt_103: Option<u32>, f31_alt_104: Option<u32>,
+        f31_alt_105: Option<u32>, f31_alt_106: Option<u32>, f31_alt_107: Option<u32>, f31_alt_108: Option<u32>,
+        f31_alt_109: Option<u32>, f31_alt_110: Option<u32>, f31_alt_111: Option<u32>, f31_alt_112: Option<u32>,
+        f31_alt_113: Option<u32>, f31_alt_114: Option<u32>, f31_alt_115: Option<u32>, f31_alt_116: Option<u32>,
+        f31_alt_117: Option<u32>, f31_alt_118: Option<u32>, f31_alt_119: Option<u32>, f31_alt_120: Option<u32>,
+        f31_alt_121: Option<u32>, f31_alt_122: Option<u32>, f31_alt_123: Option<u32>, f31_alt_124: Option<u32>,
+        f31_alt_125: Option<u32>, f31_alt_126: Option<u32>, f31_alt_127: Option<u32>, f31_alt_128: Option<u32>,
         /// Field 32 alt — 64× chained u32s when field_32 CArray<u32> fails
         /// (691 entries with XML content embedded as CString-prefixed text).
         f32_alt_001: Option<u32>, f32_alt_002: Option<u32>, f32_alt_003: Option<u32>, f32_alt_004: Option<u32>,
@@ -1349,6 +1366,70 @@ impl<'a> GimmickTail<'a> {
                 let f31_alt_062 = f31_alt_read!(f31_alt_061.is_some());
                 let f31_alt_063 = f31_alt_read!(f31_alt_062.is_some());
                 let f31_alt_064 = f31_alt_read!(f31_alt_063.is_some());
+                let f31_alt_065 = f31_alt_read!(f31_alt_064.is_some());
+                let f31_alt_066 = f31_alt_read!(f31_alt_065.is_some());
+                let f31_alt_067 = f31_alt_read!(f31_alt_066.is_some());
+                let f31_alt_068 = f31_alt_read!(f31_alt_067.is_some());
+                let f31_alt_069 = f31_alt_read!(f31_alt_068.is_some());
+                let f31_alt_070 = f31_alt_read!(f31_alt_069.is_some());
+                let f31_alt_071 = f31_alt_read!(f31_alt_070.is_some());
+                let f31_alt_072 = f31_alt_read!(f31_alt_071.is_some());
+                let f31_alt_073 = f31_alt_read!(f31_alt_072.is_some());
+                let f31_alt_074 = f31_alt_read!(f31_alt_073.is_some());
+                let f31_alt_075 = f31_alt_read!(f31_alt_074.is_some());
+                let f31_alt_076 = f31_alt_read!(f31_alt_075.is_some());
+                let f31_alt_077 = f31_alt_read!(f31_alt_076.is_some());
+                let f31_alt_078 = f31_alt_read!(f31_alt_077.is_some());
+                let f31_alt_079 = f31_alt_read!(f31_alt_078.is_some());
+                let f31_alt_080 = f31_alt_read!(f31_alt_079.is_some());
+                let f31_alt_081 = f31_alt_read!(f31_alt_080.is_some());
+                let f31_alt_082 = f31_alt_read!(f31_alt_081.is_some());
+                let f31_alt_083 = f31_alt_read!(f31_alt_082.is_some());
+                let f31_alt_084 = f31_alt_read!(f31_alt_083.is_some());
+                let f31_alt_085 = f31_alt_read!(f31_alt_084.is_some());
+                let f31_alt_086 = f31_alt_read!(f31_alt_085.is_some());
+                let f31_alt_087 = f31_alt_read!(f31_alt_086.is_some());
+                let f31_alt_088 = f31_alt_read!(f31_alt_087.is_some());
+                let f31_alt_089 = f31_alt_read!(f31_alt_088.is_some());
+                let f31_alt_090 = f31_alt_read!(f31_alt_089.is_some());
+                let f31_alt_091 = f31_alt_read!(f31_alt_090.is_some());
+                let f31_alt_092 = f31_alt_read!(f31_alt_091.is_some());
+                let f31_alt_093 = f31_alt_read!(f31_alt_092.is_some());
+                let f31_alt_094 = f31_alt_read!(f31_alt_093.is_some());
+                let f31_alt_095 = f31_alt_read!(f31_alt_094.is_some());
+                let f31_alt_096 = f31_alt_read!(f31_alt_095.is_some());
+                let f31_alt_097 = f31_alt_read!(f31_alt_096.is_some());
+                let f31_alt_098 = f31_alt_read!(f31_alt_097.is_some());
+                let f31_alt_099 = f31_alt_read!(f31_alt_098.is_some());
+                let f31_alt_100 = f31_alt_read!(f31_alt_099.is_some());
+                let f31_alt_101 = f31_alt_read!(f31_alt_100.is_some());
+                let f31_alt_102 = f31_alt_read!(f31_alt_101.is_some());
+                let f31_alt_103 = f31_alt_read!(f31_alt_102.is_some());
+                let f31_alt_104 = f31_alt_read!(f31_alt_103.is_some());
+                let f31_alt_105 = f31_alt_read!(f31_alt_104.is_some());
+                let f31_alt_106 = f31_alt_read!(f31_alt_105.is_some());
+                let f31_alt_107 = f31_alt_read!(f31_alt_106.is_some());
+                let f31_alt_108 = f31_alt_read!(f31_alt_107.is_some());
+                let f31_alt_109 = f31_alt_read!(f31_alt_108.is_some());
+                let f31_alt_110 = f31_alt_read!(f31_alt_109.is_some());
+                let f31_alt_111 = f31_alt_read!(f31_alt_110.is_some());
+                let f31_alt_112 = f31_alt_read!(f31_alt_111.is_some());
+                let f31_alt_113 = f31_alt_read!(f31_alt_112.is_some());
+                let f31_alt_114 = f31_alt_read!(f31_alt_113.is_some());
+                let f31_alt_115 = f31_alt_read!(f31_alt_114.is_some());
+                let f31_alt_116 = f31_alt_read!(f31_alt_115.is_some());
+                let f31_alt_117 = f31_alt_read!(f31_alt_116.is_some());
+                let f31_alt_118 = f31_alt_read!(f31_alt_117.is_some());
+                let f31_alt_119 = f31_alt_read!(f31_alt_118.is_some());
+                let f31_alt_120 = f31_alt_read!(f31_alt_119.is_some());
+                let f31_alt_121 = f31_alt_read!(f31_alt_120.is_some());
+                let f31_alt_122 = f31_alt_read!(f31_alt_121.is_some());
+                let f31_alt_123 = f31_alt_read!(f31_alt_122.is_some());
+                let f31_alt_124 = f31_alt_read!(f31_alt_123.is_some());
+                let f31_alt_125 = f31_alt_read!(f31_alt_124.is_some());
+                let f31_alt_126 = f31_alt_read!(f31_alt_125.is_some());
+                let f31_alt_127 = f31_alt_read!(f31_alt_126.is_some());
+                let f31_alt_128 = f31_alt_read!(f31_alt_127.is_some());
                 let field_32_u32_list = if field_31_u32_list.is_some() || f31_alt_001.is_some() {
                     let pre_ = probe;
                     match <CArray<u32>>::read_from(data, &mut probe) {
@@ -3456,6 +3537,22 @@ impl<'a> GimmickTail<'a> {
                     f31_alt_053, f31_alt_054, f31_alt_055, f31_alt_056,
                     f31_alt_057, f31_alt_058, f31_alt_059, f31_alt_060,
                     f31_alt_061, f31_alt_062, f31_alt_063, f31_alt_064,
+                    f31_alt_065, f31_alt_066, f31_alt_067, f31_alt_068,
+                    f31_alt_069, f31_alt_070, f31_alt_071, f31_alt_072,
+                    f31_alt_073, f31_alt_074, f31_alt_075, f31_alt_076,
+                    f31_alt_077, f31_alt_078, f31_alt_079, f31_alt_080,
+                    f31_alt_081, f31_alt_082, f31_alt_083, f31_alt_084,
+                    f31_alt_085, f31_alt_086, f31_alt_087, f31_alt_088,
+                    f31_alt_089, f31_alt_090, f31_alt_091, f31_alt_092,
+                    f31_alt_093, f31_alt_094, f31_alt_095, f31_alt_096,
+                    f31_alt_097, f31_alt_098, f31_alt_099, f31_alt_100,
+                    f31_alt_101, f31_alt_102, f31_alt_103, f31_alt_104,
+                    f31_alt_105, f31_alt_106, f31_alt_107, f31_alt_108,
+                    f31_alt_109, f31_alt_110, f31_alt_111, f31_alt_112,
+                    f31_alt_113, f31_alt_114, f31_alt_115, f31_alt_116,
+                    f31_alt_117, f31_alt_118, f31_alt_119, f31_alt_120,
+                    f31_alt_121, f31_alt_122, f31_alt_123, f31_alt_124,
+                    f31_alt_125, f31_alt_126, f31_alt_127, f31_alt_128,
                     field_32_u32_list,
                     f32_alt_001, f32_alt_002, f32_alt_003, f32_alt_004,
                     f32_alt_005, f32_alt_006, f32_alt_007, f32_alt_008,
@@ -4253,6 +4350,22 @@ impl<'a> GimmickTail<'a> {
                 f31_alt_053, f31_alt_054, f31_alt_055, f31_alt_056,
                 f31_alt_057, f31_alt_058, f31_alt_059, f31_alt_060,
                 f31_alt_061, f31_alt_062, f31_alt_063, f31_alt_064,
+                f31_alt_065, f31_alt_066, f31_alt_067, f31_alt_068,
+                f31_alt_069, f31_alt_070, f31_alt_071, f31_alt_072,
+                f31_alt_073, f31_alt_074, f31_alt_075, f31_alt_076,
+                f31_alt_077, f31_alt_078, f31_alt_079, f31_alt_080,
+                f31_alt_081, f31_alt_082, f31_alt_083, f31_alt_084,
+                f31_alt_085, f31_alt_086, f31_alt_087, f31_alt_088,
+                f31_alt_089, f31_alt_090, f31_alt_091, f31_alt_092,
+                f31_alt_093, f31_alt_094, f31_alt_095, f31_alt_096,
+                f31_alt_097, f31_alt_098, f31_alt_099, f31_alt_100,
+                f31_alt_101, f31_alt_102, f31_alt_103, f31_alt_104,
+                f31_alt_105, f31_alt_106, f31_alt_107, f31_alt_108,
+                f31_alt_109, f31_alt_110, f31_alt_111, f31_alt_112,
+                f31_alt_113, f31_alt_114, f31_alt_115, f31_alt_116,
+                f31_alt_117, f31_alt_118, f31_alt_119, f31_alt_120,
+                f31_alt_121, f31_alt_122, f31_alt_123, f31_alt_124,
+                f31_alt_125, f31_alt_126, f31_alt_127, f31_alt_128,
                 field_32_u32_list,
                 f32_alt_001, f32_alt_002, f32_alt_003, f32_alt_004,
                 f32_alt_005, f32_alt_006, f32_alt_007, f32_alt_008,
@@ -4744,6 +4857,70 @@ impl<'a> GimmickTail<'a> {
                 if let Some(v) = f31_alt_062 { v.write_to(w)?; }
                 if let Some(v) = f31_alt_063 { v.write_to(w)?; }
                 if let Some(v) = f31_alt_064 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_065 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_066 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_067 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_068 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_069 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_070 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_071 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_072 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_073 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_074 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_075 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_076 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_077 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_078 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_079 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_080 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_081 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_082 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_083 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_084 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_085 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_086 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_087 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_088 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_089 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_090 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_091 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_092 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_093 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_094 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_095 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_096 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_097 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_098 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_099 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_100 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_101 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_102 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_103 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_104 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_105 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_106 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_107 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_108 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_109 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_110 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_111 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_112 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_113 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_114 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_115 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_116 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_117 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_118 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_119 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_120 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_121 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_122 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_123 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_124 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_125 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_126 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_127 { v.write_to(w)?; }
+                if let Some(v) = f31_alt_128 { v.write_to(w)?; }
                 if let Some(arr) = field_32_u32_list { arr.write_to(w)?; }
                 if let Some(v) = f32_alt_001 { v.write_to(w)?; }
                 if let Some(v) = f32_alt_002 { v.write_to(w)?; }
@@ -6256,6 +6433,22 @@ impl<'a> GimmickTail<'a> {
                 f31_alt_053, f31_alt_054, f31_alt_055, f31_alt_056,
                 f31_alt_057, f31_alt_058, f31_alt_059, f31_alt_060,
                 f31_alt_061, f31_alt_062, f31_alt_063, f31_alt_064,
+                f31_alt_065, f31_alt_066, f31_alt_067, f31_alt_068,
+                f31_alt_069, f31_alt_070, f31_alt_071, f31_alt_072,
+                f31_alt_073, f31_alt_074, f31_alt_075, f31_alt_076,
+                f31_alt_077, f31_alt_078, f31_alt_079, f31_alt_080,
+                f31_alt_081, f31_alt_082, f31_alt_083, f31_alt_084,
+                f31_alt_085, f31_alt_086, f31_alt_087, f31_alt_088,
+                f31_alt_089, f31_alt_090, f31_alt_091, f31_alt_092,
+                f31_alt_093, f31_alt_094, f31_alt_095, f31_alt_096,
+                f31_alt_097, f31_alt_098, f31_alt_099, f31_alt_100,
+                f31_alt_101, f31_alt_102, f31_alt_103, f31_alt_104,
+                f31_alt_105, f31_alt_106, f31_alt_107, f31_alt_108,
+                f31_alt_109, f31_alt_110, f31_alt_111, f31_alt_112,
+                f31_alt_113, f31_alt_114, f31_alt_115, f31_alt_116,
+                f31_alt_117, f31_alt_118, f31_alt_119, f31_alt_120,
+                f31_alt_121, f31_alt_122, f31_alt_123, f31_alt_124,
+                f31_alt_125, f31_alt_126, f31_alt_127, f31_alt_128,
                 field_32_u32_list,
                 f32_alt_001, f32_alt_002, f32_alt_003, f32_alt_004,
                 f32_alt_005, f32_alt_006, f32_alt_007, f32_alt_008,
@@ -6738,6 +6931,38 @@ impl<'a> GimmickTail<'a> {
                     ("f31_alt_059", f31_alt_059), ("f31_alt_060", f31_alt_060),
                     ("f31_alt_061", f31_alt_061), ("f31_alt_062", f31_alt_062),
                     ("f31_alt_063", f31_alt_063), ("f31_alt_064", f31_alt_064),
+                    ("f31_alt_065", f31_alt_065), ("f31_alt_066", f31_alt_066),
+                    ("f31_alt_067", f31_alt_067), ("f31_alt_068", f31_alt_068),
+                    ("f31_alt_069", f31_alt_069), ("f31_alt_070", f31_alt_070),
+                    ("f31_alt_071", f31_alt_071), ("f31_alt_072", f31_alt_072),
+                    ("f31_alt_073", f31_alt_073), ("f31_alt_074", f31_alt_074),
+                    ("f31_alt_075", f31_alt_075), ("f31_alt_076", f31_alt_076),
+                    ("f31_alt_077", f31_alt_077), ("f31_alt_078", f31_alt_078),
+                    ("f31_alt_079", f31_alt_079), ("f31_alt_080", f31_alt_080),
+                    ("f31_alt_081", f31_alt_081), ("f31_alt_082", f31_alt_082),
+                    ("f31_alt_083", f31_alt_083), ("f31_alt_084", f31_alt_084),
+                    ("f31_alt_085", f31_alt_085), ("f31_alt_086", f31_alt_086),
+                    ("f31_alt_087", f31_alt_087), ("f31_alt_088", f31_alt_088),
+                    ("f31_alt_089", f31_alt_089), ("f31_alt_090", f31_alt_090),
+                    ("f31_alt_091", f31_alt_091), ("f31_alt_092", f31_alt_092),
+                    ("f31_alt_093", f31_alt_093), ("f31_alt_094", f31_alt_094),
+                    ("f31_alt_095", f31_alt_095), ("f31_alt_096", f31_alt_096),
+                    ("f31_alt_097", f31_alt_097), ("f31_alt_098", f31_alt_098),
+                    ("f31_alt_099", f31_alt_099), ("f31_alt_100", f31_alt_100),
+                    ("f31_alt_101", f31_alt_101), ("f31_alt_102", f31_alt_102),
+                    ("f31_alt_103", f31_alt_103), ("f31_alt_104", f31_alt_104),
+                    ("f31_alt_105", f31_alt_105), ("f31_alt_106", f31_alt_106),
+                    ("f31_alt_107", f31_alt_107), ("f31_alt_108", f31_alt_108),
+                    ("f31_alt_109", f31_alt_109), ("f31_alt_110", f31_alt_110),
+                    ("f31_alt_111", f31_alt_111), ("f31_alt_112", f31_alt_112),
+                    ("f31_alt_113", f31_alt_113), ("f31_alt_114", f31_alt_114),
+                    ("f31_alt_115", f31_alt_115), ("f31_alt_116", f31_alt_116),
+                    ("f31_alt_117", f31_alt_117), ("f31_alt_118", f31_alt_118),
+                    ("f31_alt_119", f31_alt_119), ("f31_alt_120", f31_alt_120),
+                    ("f31_alt_121", f31_alt_121), ("f31_alt_122", f31_alt_122),
+                    ("f31_alt_123", f31_alt_123), ("f31_alt_124", f31_alt_124),
+                    ("f31_alt_125", f31_alt_125), ("f31_alt_126", f31_alt_126),
+                    ("f31_alt_127", f31_alt_127), ("f31_alt_128", f31_alt_128),
                 ] {
                     m.insert(k.to_string(), match v {
                         Some(val) => val.to_json_value(), None => Value::Null });
@@ -7989,6 +8214,22 @@ impl<'a> GimmickTail<'a> {
                     "f31_alt_053", "f31_alt_054", "f31_alt_055", "f31_alt_056",
                     "f31_alt_057", "f31_alt_058", "f31_alt_059", "f31_alt_060",
                     "f31_alt_061", "f31_alt_062", "f31_alt_063", "f31_alt_064",
+                    "f31_alt_065", "f31_alt_066", "f31_alt_067", "f31_alt_068",
+                    "f31_alt_069", "f31_alt_070", "f31_alt_071", "f31_alt_072",
+                    "f31_alt_073", "f31_alt_074", "f31_alt_075", "f31_alt_076",
+                    "f31_alt_077", "f31_alt_078", "f31_alt_079", "f31_alt_080",
+                    "f31_alt_081", "f31_alt_082", "f31_alt_083", "f31_alt_084",
+                    "f31_alt_085", "f31_alt_086", "f31_alt_087", "f31_alt_088",
+                    "f31_alt_089", "f31_alt_090", "f31_alt_091", "f31_alt_092",
+                    "f31_alt_093", "f31_alt_094", "f31_alt_095", "f31_alt_096",
+                    "f31_alt_097", "f31_alt_098", "f31_alt_099", "f31_alt_100",
+                    "f31_alt_101", "f31_alt_102", "f31_alt_103", "f31_alt_104",
+                    "f31_alt_105", "f31_alt_106", "f31_alt_107", "f31_alt_108",
+                    "f31_alt_109", "f31_alt_110", "f31_alt_111", "f31_alt_112",
+                    "f31_alt_113", "f31_alt_114", "f31_alt_115", "f31_alt_116",
+                    "f31_alt_117", "f31_alt_118", "f31_alt_119", "f31_alt_120",
+                    "f31_alt_121", "f31_alt_122", "f31_alt_123", "f31_alt_124",
+                    "f31_alt_125", "f31_alt_126", "f31_alt_127", "f31_alt_128",
                 ] {
                     let v = json_get_field(obj, k)?;
                     if !v.is_null() {
