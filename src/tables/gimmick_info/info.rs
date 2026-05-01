@@ -157,8 +157,20 @@ pub enum GimmickTail<'a> {
         /// indicate this is actually a different type — defensive parse
         /// keeps it Option.
         field_23_u32_list: Option<CArray<u32>>,
-        /// Field 24 — empirically `CArray<u32>` continuation.
+        /// Field 24 — empirically `CArray<u32>` continuation OR a structured
+        /// "emissive bind" record (63 entries) `{flag_a:u8, value_a:u32,
+        /// flag_b:u8, name:CString, value_b:u32}` for material parameter
+        /// bindings (e.g. "_emissiveProgressGauge"). When the structured
+        /// record is detected (first byte = 0x01), it consumes those bytes
+        /// and CArray<u32> attempt is skipped.
         field_24_u32_list: Option<CArray<u32>>,
+        /// Structured emissive-bind record at field_24 position (mutually
+        /// exclusive with field_24_u32_list).
+        field_24_emissive_flag_a: Option<u8>,
+        field_24_emissive_value_a: Option<u32>,
+        field_24_emissive_flag_b: Option<u8>,
+        field_24_emissive_name: Option<CString<'a>>,
+        field_24_emissive_value_b: Option<u32>,
         /// Field 25 — empirically `CArray<u32>` continuation.
         field_25_u32_list: Option<CArray<u32>>,
         /// Field 26 — single u32 (probably a hash/key, NOT a CArray).
@@ -1118,14 +1130,45 @@ impl<'a> GimmickTail<'a> {
                         _ => { probe = pre_23; None }
                     }
                 } else { None };
-                let field_24_u32_list = if field_23_u32_list.is_some() {
+                // Try structured emissive-bind record FIRST (63 entries).
+                // Pattern: u8=0x01 + u32 + u8 + CString(name) + u32
+                let (field_24_emissive_flag_a, field_24_emissive_value_a,
+                     field_24_emissive_flag_b, field_24_emissive_name,
+                     field_24_emissive_value_b) =
+                if field_23_u32_list.is_some() && probe + 11 <= entry_end {
+                    let pre = probe;
+                    if data[probe] == 0x01 {
+                        let try_read = (|| -> io::Result<(u8, u32, u8, CString<'a>, u32)> {
+                            let mut p = probe;
+                            let fa = u8::read_from(data, &mut p)?;
+                            let va = u32::read_from(data, &mut p)?;
+                            let fb = u8::read_from(data, &mut p)?;
+                            let name = CString::read_from(data, &mut p)?;
+                            let vb = u32::read_from(data, &mut p)?;
+                            // Sanity: name must be valid identifier-like
+                            let n = name.data.as_bytes();
+                            if n.is_empty() || n.len() > 100 { return Err(io::Error::new(io::ErrorKind::InvalidData, "bad name")); }
+                            if !n.iter().all(|&b| b.is_ascii_alphanumeric() || b == b'_') {
+                                return Err(io::Error::new(io::ErrorKind::InvalidData, "non-id name"));
+                            }
+                            if p > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "over-read")); }
+                            probe = p;
+                            Ok((fa, va, fb, name, vb))
+                        })();
+                        match try_read {
+                            Ok((fa, va, fb, n, vb)) => (Some(fa), Some(va), Some(fb), Some(n), Some(vb)),
+                            Err(_) => { probe = pre; (None, None, None, None, None) }
+                        }
+                    } else { (None, None, None, None, None) }
+                } else { (None, None, None, None, None) };
+                let field_24_u32_list = if field_23_u32_list.is_some() && field_24_emissive_flag_a.is_none() {
                     let pre_24 = probe;
                     match <CArray<u32>>::read_from(data, &mut probe) {
                         Ok(arr) if probe <= entry_end => Some(arr),
                         _ => { probe = pre_24; None }
                     }
                 } else { None };
-                let field_25_u32_list = if field_24_u32_list.is_some() {
+                let field_25_u32_list = if field_24_u32_list.is_some() || field_24_emissive_flag_a.is_some() {
                     let pre_25 = probe;
                     match <CArray<u32>>::read_from(data, &mut probe) {
                         Ok(arr) if probe <= entry_end => Some(arr),
@@ -3118,6 +3161,11 @@ impl<'a> GimmickTail<'a> {
                     field_22_u32_list,
                     field_23_u32_list,
                     field_24_u32_list,
+                    field_24_emissive_flag_a,
+                    field_24_emissive_value_a,
+                    field_24_emissive_flag_b,
+                    field_24_emissive_name,
+                    field_24_emissive_value_b,
                     field_25_u32_list,
                     field_26_u32,
                     field_27_u32_list,
@@ -3868,6 +3916,9 @@ impl<'a> GimmickTail<'a> {
                 field_19_u32_list, field_20_u32_list,
                 field_21_u32_list, field_22_u32_list,
                 field_23_u32_list, field_24_u32_list,
+                field_24_emissive_flag_a, field_24_emissive_value_a,
+                field_24_emissive_flag_b, field_24_emissive_name,
+                field_24_emissive_value_b,
                 field_25_u32_list, field_26_u32, field_27_u32_list,
                 field_28_u32, field_29_u32_list, field_30_u32_list,
                 field_31_u32_list, field_32_u32_list,
@@ -4243,6 +4294,12 @@ impl<'a> GimmickTail<'a> {
                 if let Some(arr) = field_24_u32_list {
                     arr.write_to(w)?;
                 }
+                // Structured emissive record (mutually exclusive with field_24_u32_list)
+                if let Some(v) = field_24_emissive_flag_a { v.write_to(w)?; }
+                if let Some(v) = field_24_emissive_value_a { v.write_to(w)?; }
+                if let Some(v) = field_24_emissive_flag_b { v.write_to(w)?; }
+                if let Some(s) = field_24_emissive_name { s.write_to(w)?; }
+                if let Some(v) = field_24_emissive_value_b { v.write_to(w)?; }
                 if let Some(arr) = field_25_u32_list {
                     arr.write_to(w)?;
                 }
@@ -5620,6 +5677,9 @@ impl<'a> GimmickTail<'a> {
                 field_19_u32_list, field_20_u32_list,
                 field_21_u32_list, field_22_u32_list,
                 field_23_u32_list, field_24_u32_list,
+                field_24_emissive_flag_a, field_24_emissive_value_a,
+                field_24_emissive_flag_b, field_24_emissive_name,
+                field_24_emissive_value_b,
                 field_25_u32_list, field_26_u32, field_27_u32_list,
                 field_28_u32, field_29_u32_list, field_30_u32_list,
                 field_31_u32_list, field_32_u32_list,
@@ -6006,6 +6066,16 @@ impl<'a> GimmickTail<'a> {
                     Some(arr) => arr.to_json_value(),
                     None => Value::Null,
                 });
+                m.insert("field_24_emissive_flag_a".to_string(), match field_24_emissive_flag_a {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("field_24_emissive_value_a".to_string(), match field_24_emissive_value_a {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("field_24_emissive_flag_b".to_string(), match field_24_emissive_flag_b {
+                    Some(v) => v.to_json_value(), None => Value::Null });
+                m.insert("field_24_emissive_name".to_string(), match field_24_emissive_name {
+                    Some(s) => s.to_json_value(), None => Value::Null });
+                m.insert("field_24_emissive_value_b".to_string(), match field_24_emissive_value_b {
+                    Some(v) => v.to_json_value(), None => Value::Null });
                 m.insert("field_25_u32_list".to_string(), match field_25_u32_list {
                     Some(arr) => arr.to_json_value(),
                     None => Value::Null,
@@ -7140,6 +7210,26 @@ impl<'a> GimmickTail<'a> {
                 let f24 = json_get_field(obj, "field_24_u32_list")?;
                 if !f24.is_null() {
                     <CArray<u32> as WriteJsonValue>::write_from_json(w, f24)?;
+                }
+                let efa = json_get_field(obj, "field_24_emissive_flag_a")?;
+                if !efa.is_null() {
+                    <u8 as WriteJsonValue>::write_from_json(w, efa)?;
+                }
+                let eva = json_get_field(obj, "field_24_emissive_value_a")?;
+                if !eva.is_null() {
+                    <u32 as WriteJsonValue>::write_from_json(w, eva)?;
+                }
+                let efb = json_get_field(obj, "field_24_emissive_flag_b")?;
+                if !efb.is_null() {
+                    <u8 as WriteJsonValue>::write_from_json(w, efb)?;
+                }
+                let en = json_get_field(obj, "field_24_emissive_name")?;
+                if !en.is_null() {
+                    <CString as WriteJsonValue>::write_from_json(w, en)?;
+                }
+                let evb = json_get_field(obj, "field_24_emissive_value_b")?;
+                if !evb.is_null() {
+                    <u32 as WriteJsonValue>::write_from_json(w, evb)?;
                 }
                 let f25 = json_get_field(obj, "field_25_u32_list")?;
                 if !f25.is_null() {
