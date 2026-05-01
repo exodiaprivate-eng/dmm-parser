@@ -136,14 +136,17 @@ This file is for collaborators picking up round-trip work. It's the
   alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
   + 4 tail_pad u8). post_blob avg **1118 → 125 bytes** (12.31M bytes
   recovered total over 12393 entries — **89% reduction from baseline**).
-  Iters 61-63 added f31/f39/f32 alt u32 chains (64 fields each).
-  Iters 73-75 extended each alt chain from 64 → 128. Iters 76-79
+  **MAJOR milestone (iter 80): 11585/12393 entries (93%) now have**
+  **ZERO post_blob bytes** (up from 1073 at session start). Only
+  808 entries retain any residual; remaining 1.55M bytes are
+  concentrated in 711 outlier entries with embedded XML/script
+  content (60 entries with 4096+ bytes alone account for 55% of
+  remaining bytes). Iters 61-63 added f31/f39/f32 alt u32 chains
+  (64 fields each). Iters 73-75 extended each to 128. Iters 76-79
   extended f31_alt → 256, f32_alt → 192, f39_alt → 192. Iter 80
-  added 4× chained `Option<u8>` for trailing pad bytes (drains
-  the 1-3 trailing zero bytes seen in ~10500 entries). Remaining
-  bytes concentrated in 61 entries with 4096+ byte XML payloads
-  (~51% of remaining 1.55M bytes). Smart-probe methodology proven
-  repeatable. (loop session 2026-05-01)
+  added 4× chained `Option<u8>` for trailing pad bytes (drained
+  10500 entries down to 0 trailing bytes). Smart-probe methodology
+  proven repeatable. (loop session 2026-05-01)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
