@@ -14,7 +14,7 @@
 >   existing fields. **post_blob is empty for all 9947 with_body entries.**
 >   The 2446 post_body=None entries fail GimmickPostBody due to genuine format
 >   divergence (different gimmick variant layouts), not parser bugs.
-> - `condition_info`: 8919/8934 Decoded (99.83%). 15 Raw = data-truncation
+> - `condition_info`: 8920/8934 Decoded (99.84%). 14 Raw = data-truncation
 >   bugs in source .pabgb, not fixable.
 > - `interaction_info` 100% Decoded (363/363).
 > - Push policy: push when user asks. Use feature branches for PRs.
