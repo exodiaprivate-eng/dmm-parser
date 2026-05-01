@@ -137,8 +137,8 @@ pub enum GimmickTail<'a> {
         property_list: CArray<u32>,
         gimmick_name_hash: u32,
         gimmick_name: Box<LocalizableString<'a>>,
-        emoji_texture_id: CString<'a>,
-        dev_memo: CString<'a>,
+        emoji_texture_id: Box<CString<'a>>,
+        dev_memo: Box<CString<'a>>,
         hash_pair_list: CArray<GimmickHashPair<'a>>,    // sub_141104D20
         hash_single_list: CArray<GimmickHashSingle<'a>>, // sub_141102990
         /// sub_1411125E0 — `CArray<COptional<TriggerGamePlayEventHandlerData>>`.
@@ -149,6 +149,16 @@ pub enum GimmickTail<'a> {
         /// sub_141C7F8B0 — `CArray<GimmickChartParameter>`. Only Some when
         /// field 17 (TGPEHD) also decoded. Wire: u32 count + count × 10 bytes.
         gimmick_chart_parameter_list: Option<CArray<GimmickChartParameter>>,
+        /// Field 19 prefix: `CArray<COptional<AltTriggerEntry>>` outer count.
+        /// `None` when field 17/18 didn't decode (post_blob starts earlier).
+        /// `Some(0)` = no triggers. `Some(n > 0)` = n triggers; first
+        /// element's flag and name are captured in the two fields below; the
+        /// element body and remaining elements remain in `post_blob`.
+        alt_trigger_count: Option<u32>,
+        /// First element's COptional flag (`None` when count = 0 or not decoded).
+        alt_trigger_flag: Option<u8>,
+        /// First element's CString name (`None` when flag = 0 or not decoded).
+        alt_trigger_name: Option<Box<CString<'a>>>,
         post_blob: Vec<u8>,
     },
     Raw(Vec<u8>),
@@ -166,8 +176,8 @@ impl<'a> GimmickTail<'a> {
             let property_list = <CArray<u32>>::read_from(data, &mut probe)?;
             let gimmick_name_hash = u32::read_from(data, &mut probe)?;
             let gimmick_name = LocalizableString::read_from(data, &mut probe)?;
-            let emoji_texture_id = CString::read_from(data, &mut probe)?;
-            let dev_memo = CString::read_from(data, &mut probe)?;
+            let emoji_texture_id = Box::new(CString::read_from(data, &mut probe)?);
+            let dev_memo = Box::new(CString::read_from(data, &mut probe)?);
             let hash_pair_list = <CArray<GimmickHashPair>>::read_from(data, &mut probe)?;
             let hash_single_list = <CArray<GimmickHashSingle>>::read_from(data, &mut probe)?;
             if probe > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "overrun")); }
@@ -194,6 +204,32 @@ impl<'a> GimmickTail<'a> {
                 } else {
                     None
                 };
+                // Field 19 prefix: u32 alt_trigger_count + (if count>0) u8 flag +
+                // (if flag!=0) CString name. Safe-probe: on any failure, probe
+                // resets and the bytes remain in post_blob.
+                let pre19 = probe;
+                let (alt_trigger_count, alt_trigger_flag, alt_trigger_name): (Option<u32>, Option<u8>, Option<Box<CString<'a>>>) =
+                    if gimmick_chart_parameter_list.is_some() {
+                        'f19: {
+                            let Ok(count) = u32::read_from(data, &mut probe) else {
+                                probe = pre19; break 'f19 (None, None, None);
+                            };
+                            if probe > entry_end { probe = pre19; break 'f19 (None, None, None); }
+                            if count == 0 { break 'f19 (Some(0), None, None); }
+                            let Ok(flag) = u8::read_from(data, &mut probe) else {
+                                probe = pre19; break 'f19 (None, None, None);
+                            };
+                            if probe > entry_end { probe = pre19; break 'f19 (None, None, None); }
+                            if flag == 0 { break 'f19 (Some(count), Some(0), None); }
+                            let Ok(name) = CString::read_from(data, &mut probe) else {
+                                probe = pre19; break 'f19 (None, None, None);
+                            };
+                            if probe > entry_end { probe = pre19; break 'f19 (None, None, None); }
+                            (Some(count), Some(flag), Some(Box::new(name)))
+                        }
+                    } else {
+                        (None, None, None)
+                    };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Decoded {
@@ -209,6 +245,9 @@ impl<'a> GimmickTail<'a> {
                     hash_single_list: hsl,
                     trigger_event_handler_list,
                     gimmick_chart_parameter_list,
+                    alt_trigger_count,
+                    alt_trigger_flag,
+                    alt_trigger_name,
                     post_blob,
                 })
             }
@@ -227,7 +266,9 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list,
+                alt_trigger_count, alt_trigger_flag, alt_trigger_name,
+                post_blob } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
@@ -244,6 +285,15 @@ impl<'a> GimmickTail<'a> {
                 if let Some(arr) = gimmick_chart_parameter_list {
                     arr.write_to(w)?;
                 }
+                if let Some(count) = alt_trigger_count {
+                    count.write_to(w)?;
+                    if *count > 0 && let Some(flag) = alt_trigger_flag {
+                        flag.write_to(w)?;
+                        if *flag != 0 && let Some(name) = alt_trigger_name {
+                            name.write_to(w)?;
+                        }
+                    }
+                }
                 w.write_all(post_blob)
             }
             GimmickTail::Raw(b) => w.write_all(b),
@@ -257,7 +307,9 @@ impl<'a> GimmickTail<'a> {
                 property_list, gimmick_name_hash, gimmick_name,
                 emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list,
-                trigger_event_handler_list, gimmick_chart_parameter_list, post_blob } => {
+                trigger_event_handler_list, gimmick_chart_parameter_list,
+                alt_trigger_count, alt_trigger_flag, alt_trigger_name,
+                post_blob } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
                 m.insert("gimmick_interaction_override_list".to_string(),
@@ -277,6 +329,18 @@ impl<'a> GimmickTail<'a> {
                 });
                 m.insert("gimmick_chart_parameter_list".to_string(), match gimmick_chart_parameter_list {
                     Some(arr) => arr.to_json_value(),
+                    None => Value::Null,
+                });
+                m.insert("alt_trigger_count".to_string(), match alt_trigger_count {
+                    Some(c) => c.to_json_value(),
+                    None => Value::Null,
+                });
+                m.insert("alt_trigger_flag".to_string(), match alt_trigger_flag {
+                    Some(f) => f.to_json_value(),
+                    None => Value::Null,
+                });
+                m.insert("alt_trigger_name".to_string(), match alt_trigger_name {
+                    Some(n) => n.to_json_value(),
                     None => Value::Null,
                 });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
@@ -320,6 +384,28 @@ impl<'a> GimmickTail<'a> {
                 let gcpl = json_get_field(obj, "gimmick_chart_parameter_list")?;
                 if !gcpl.is_null() {
                     <CArray<GimmickChartParameter> as WriteJsonValue>::write_from_json(w, gcpl)?;
+                }
+                let atc_v = json_get_field(obj, "alt_trigger_count")?;
+                if !atc_v.is_null() {
+                    let count = atc_v.as_u64()
+                        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                            "GimmickTail.alt_trigger_count: expected integer"))? as u32;
+                    count.write_to(w)?;
+                    if count > 0 {
+                        let atf_v = json_get_field(obj, "alt_trigger_flag")?;
+                        if !atf_v.is_null() {
+                            let flag = atf_v.as_u64()
+                                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                                    "GimmickTail.alt_trigger_flag: expected integer"))? as u8;
+                            flag.write_to(w)?;
+                            if flag != 0 {
+                                let atn_v = json_get_field(obj, "alt_trigger_name")?;
+                                if !atn_v.is_null() {
+                                    <CString as WriteJsonValue>::write_from_json(w, atn_v)?;
+                                }
+                            }
+                        }
+                    }
                 }
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -450,6 +536,7 @@ mod tests {
             }
         };
     }
+
 
     #[test]
     fn roundtrip() {

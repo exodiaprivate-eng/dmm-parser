@@ -144,6 +144,14 @@ This file is for collaborators picking up round-trip work. It's the
   + CArray<CString> hide_list + 88-byte fixed tail; full decode blocked
   without IDA vtable[85] for the tag-16 class. Entries remain in
   post_blob via safe-probe fallback. TGPEHD docstring updated.
+  **Session follow-up (2026-04-30 loop, continued):** field 19
+  `alt_trigger_count/flag/name` prefix extracted — `u32` outer count +
+  (if count>0) first element's `u8` flag + (if flag!=0) `CString` name.
+  Recovers ~5025 entries' trigger identity from `post_blob`. Two element
+  types confirmed: "UnnamedTrigger_0" (flag+name+sub_count+CString[] subs)
+  and "GimmickOn" (flag+name+82-byte geometry body); element body and
+  remaining elements stay in `post_blob`. Safe-probe: on any failure,
+  post_blob absorbs field 19. 308/308 tests pass, clippy clean.
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
