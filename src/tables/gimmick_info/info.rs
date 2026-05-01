@@ -1916,6 +1916,92 @@ mod tests {
     }
 
     #[test]
+    fn variant_diag() {
+        // Print grouping by prefab prefix for post_body=None entries.
+        // Also prints the min post_body size for successful entries.
+        let (data, pabgh_data) = load_or_skip!();
+        let Some(entries) = load_pabgh_offsets_from_bytes(&pabgh_data) else { return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let mut counts: std::collections::BTreeMap<Vec<u8>, (usize, usize)> = Default::default();
+        let mut success_min = usize::MAX;
+        let mut success_max = 0usize;
+        for (_k, s, e) in &ranges {
+            let mut probe = *s;
+            let item = GimmickInfo::read_with_size(&data, &mut probe, e - s).unwrap();
+            match &item.tail {
+                GimmickTail::Decoded { post_body: None, post_blob, .. } => {
+                    let key: Vec<u8> = item.prefab_path.data.as_bytes()
+                        .iter().take(32).copied().collect();
+                    let entry = counts.entry(key).or_insert((0, 0));
+                    entry.0 += 1;
+                    entry.1 = entry.1.max(post_blob.len());
+                }
+                GimmickTail::Decoded { post_body: Some(_), post_blob, .. } => {
+                    // post_blob is the bytes consumed by alt_trigger_list
+                    // probe is at entry_end so post_body size = entry_end - post_body_start
+                    // We don't have post_body_start directly, but post_blob.len()==0
+                    // means alt_trigger_list + post_body consumed all remaining bytes.
+                    // Approximate: record entry size as proxy.
+                    let _ = post_blob;
+                    // Use entry size minus known-fixed prefix overhead (~350 bytes)
+                    // as a rough proxy for the post-blob region.
+                    let total = e - s;
+                    success_min = success_min.min(total);
+                    success_max = success_max.max(total);
+                }
+                _ => {}
+            }
+        }
+        eprintln!("--- failing variant groups ({} total) ---",
+                  counts.values().map(|(n,_)| n).sum::<usize>());
+        for (k, (count, max_blob)) in &counts {
+            let s = std::str::from_utf8(k).unwrap_or("(invalid)");
+            eprintln!("  count={:4}  max_blob={:5}  prefab_prefix={:?}", count, max_blob, s);
+        }
+        eprintln!("--- successful with_body entry sizes: min={} max={} ---", success_min, success_max);
+    }
+
+    #[test]
+    fn generated_blob_diag() {
+        // Findings (4-24 dump):
+        //   - All 1833 generated__/pointcontrol entries have exactly 738-byte post_blobs.
+        //   - 1713/1833 are bitwise identical (default config); 120 non-default from
+        //     abyssislandpipe_0018_phase00_00.
+        //   - Only bytes 281-284 vary across all entries: a small u32 (≤ 0x1b45) likely
+        //     a spline segment ID. All non-default entries have this field set; default = 0.
+        //   - Blob contains CString("fx_pc_weapon_exp_b__logout.system.effect") at bytes
+        //     596-639 (length u32 at 596, data at 600).
+        //   - Decoding requires IDA: sub_1410E6FC0 dispatches to a different post-body reader
+        //     for generated__/pointcontrol gimmick classes than the standard GimmickPostBody.
+        let (data, pabgh_data) = load_or_skip!();
+        let Some(entries) = load_pabgh_offsets_from_bytes(&pabgh_data) else { return; };
+        let ranges = entry_ranges(&entries, data.len());
+
+        let mut first_blob: Option<Vec<u8>> = None;
+        let mut total = 0usize;
+        let mut identical = 0usize;
+        let mut size_mismatch = 0usize;
+        let mut non_default_count = 0usize;
+
+        for (_k, s, e) in &ranges {
+            let mut probe = *s;
+            let item = GimmickInfo::read_with_size(&data, &mut probe, e - s).unwrap();
+            if !item.prefab_path.data.contains("/generated__/") { continue; }
+            let GimmickTail::Decoded { post_body: None, post_blob, .. } = &item.tail else { continue; };
+            total += 1;
+            if post_blob.len() != 738 { size_mismatch += 1; continue; }
+            let var = &post_blob[281..285];
+            match &first_blob {
+                None => { first_blob = Some(post_blob.clone()); identical = 1; }
+                Some(fb) => { if post_blob == fb { identical += 1; } }
+            }
+            if var != [0u8, 0, 0, 0] { non_default_count += 1; }
+        }
+        eprintln!("generated__ total={} size_mismatch={} identical={} non_default_var_field={}",
+                  total, size_mismatch, identical, non_default_count);
+    }
+
+    #[test]
     fn json_roundtrip() {
         let (data, pabgh_data) = load_or_skip!();
         let Some(entries) = load_pabgh_offsets_from_bytes(&pabgh_data) else { eprintln!("SKIP: bad pabgh"); return; };
