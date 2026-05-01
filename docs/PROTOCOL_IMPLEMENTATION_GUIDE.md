@@ -272,58 +272,134 @@ use serde_json::Value;
 use super::canonical::canonical_bytes;
 use super::trust_roots::{lookup, TrustRoot};
 
+/// Mod formats that REQUIRE a valid signature. Per spec §2.5.
+const SIGNING_REQUIRED_FORMATS: &[&str] = &["v3.1"];
+
+/// Mod formats that may be present but never need a signature.
+const LEGACY_FORMATS: &[&str] = &["v1", "v2", "legacy", "v3"];
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum VerifyResult {
+    /// Signature present and verified against a known Trust Root.
     Valid,
+    /// Legacy/unsigned entry. Format is v1/v2/legacy/v3, or signature is
+    /// missing and the format does not require signing.
+    /// THIS IS AN ACCEPT STATE — entry is honored.
+    LegacyUnsigned,
+    /// Signing required (v3.1) but signature is missing. REJECT.
+    SignatureRequired,
+    /// Signing key not in TRUST_ROOTS. REJECT.
     UnknownKey,
+    /// Key was found, but its owner doesn't match the entry's owner. REJECT.
     OwnerMismatch,
+    /// Signature present but cryptographically invalid. REJECT for v3.1;
+    /// for legacy formats, log and ACCEPT as LegacyUnsigned.
     InvalidSignature,
+    /// Signature field could not be parsed. REJECT for v3.1;
+    /// for legacy formats, log and ACCEPT as LegacyUnsigned.
     MalformedSignature,
-    LegacyUnsigned,    // v1 entry, no signature field — soft-trust per spec §2.4
     KeyExpired,
 }
 
+impl VerifyResult {
+    /// True when DMM should honor the entry (mount/coordinate with it).
+    pub fn is_accepted(&self) -> bool {
+        matches!(self, VerifyResult::Valid | VerifyResult::LegacyUnsigned)
+    }
+}
+
 pub fn verify_entry(entry: &Value) -> VerifyResult {
-    // Pull signature + key_id
+    let mod_format = entry.get("mod_format").and_then(|v| v.as_str()).unwrap_or("legacy");
+    let signing_required = SIGNING_REQUIRED_FORMATS.contains(&mod_format);
+    let is_legacy = LEGACY_FORMATS.contains(&mod_format);
+
+    // No signature?
     let sig_str = match entry.get("signature").and_then(|v| v.as_str()) {
         Some(s) => s,
-        None => return VerifyResult::LegacyUnsigned,
+        None => {
+            if signing_required {
+                return VerifyResult::SignatureRequired;
+            }
+            return VerifyResult::LegacyUnsigned;
+        }
     };
+
+    // Has signature — try to verify, but downgrade to LegacyUnsigned for legacy formats
+    // if anything goes wrong (preserves backward compat).
     let key_id = match entry.get("key_id").and_then(|v| v.as_str()) {
         Some(s) => s,
-        None => return VerifyResult::MalformedSignature,
+        None => {
+            return if signing_required {
+                VerifyResult::MalformedSignature
+            } else {
+                VerifyResult::LegacyUnsigned
+            };
+        }
     };
     let claimed_owner = match entry.get("owner").and_then(|v| v.as_str()) {
         Some(s) => s,
-        None => return VerifyResult::MalformedSignature,
+        None => {
+            return if signing_required {
+                VerifyResult::MalformedSignature
+            } else {
+                VerifyResult::LegacyUnsigned
+            };
+        }
     };
 
-    // Parse "ed25519:<base64>"
     let sig_b64 = match sig_str.strip_prefix("ed25519:") {
         Some(s) => s,
-        None => return VerifyResult::MalformedSignature,
+        None => {
+            return if signing_required {
+                VerifyResult::MalformedSignature
+            } else {
+                VerifyResult::LegacyUnsigned
+            };
+        }
     };
     let sig_bytes = match STANDARD.decode(sig_b64) {
         Ok(b) => b,
-        Err(_) => return VerifyResult::MalformedSignature,
+        Err(_) => {
+            return if signing_required {
+                VerifyResult::MalformedSignature
+            } else {
+                VerifyResult::LegacyUnsigned
+            };
+        }
     };
     let sig_array: [u8; 64] = match sig_bytes.try_into() {
         Ok(a) => a,
-        Err(_) => return VerifyResult::MalformedSignature,
+        Err(_) => {
+            return if signing_required {
+                VerifyResult::MalformedSignature
+            } else {
+                VerifyResult::LegacyUnsigned
+            };
+        }
     };
     let signature = Signature::from_bytes(&sig_array);
 
-    // Look up trust root
     let root: &TrustRoot = match lookup(key_id) {
         Some(r) => r,
-        None => return VerifyResult::UnknownKey,
+        None => {
+            return if signing_required {
+                VerifyResult::UnknownKey
+            } else {
+                // Legacy entry with unknown key — log but accept
+                log::warn!("Legacy entry with unknown key_id: {key_id}");
+                VerifyResult::LegacyUnsigned
+            };
+        }
     };
     if root.owner != claimed_owner {
-        return VerifyResult::OwnerMismatch;
+        return if signing_required {
+            VerifyResult::OwnerMismatch
+        } else {
+            log::warn!("Legacy entry has owner mismatch: claimed={claimed_owner}, key_owner={}", root.owner);
+            VerifyResult::LegacyUnsigned
+        };
     }
-    // (Optional: check valid_from / valid_until against current time)
 
-    // Verify
     let verifying_key = match VerifyingKey::from_bytes(&root.public_key) {
         Ok(k) => k,
         Err(_) => return VerifyResult::UnknownKey,
@@ -331,8 +407,19 @@ pub fn verify_entry(entry: &Value) -> VerifyResult {
     let canonical = canonical_bytes(entry);
     match verifying_key.verify(&canonical, &signature) {
         Ok(()) => VerifyResult::Valid,
-        Err(_) => VerifyResult::InvalidSignature,
+        Err(_) => {
+            if signing_required {
+                VerifyResult::InvalidSignature
+            } else {
+                log::warn!("Legacy entry signature failed verification — accepting as legacy");
+                VerifyResult::LegacyUnsigned
+            }
+        }
     }
+
+    // Note: is_legacy is computed but unused; future Protocol amendments
+    // can swap branches based on it (e.g., to deprecate v1 globally).
+    let _ = is_legacy;
 }
 ```
 
@@ -366,6 +453,10 @@ pub struct StateFile {
 pub struct OverlayEntry {
     pub owner: String,
     pub owner_version: String,
+    /// Mod format: "v1" | "v2" | "legacy" | "v3" | "v3.1".
+    /// Signing required only for "v3.1". Defaults to "legacy" for backward compat.
+    #[serde(default = "default_mod_format")]
+    pub mod_format: String,
     pub content: String,
     pub updated: String,
     #[serde(default)]
@@ -374,6 +465,10 @@ pub struct OverlayEntry {
     pub signature: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_id: Option<String>,
+}
+
+fn default_mod_format() -> String {
+    "legacy".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -415,25 +510,22 @@ impl StateFile {
         }
     }
 
-    /// Return only entries whose signature verifies.
-    /// Unsigned legacy entries are returned as Unknown owner if they claim DMM/CrimsonGameMods.
+    /// Return entries that should be honored:
+    ///   - Valid (signed v3.1 entry, signature verified)
+    ///   - LegacyUnsigned (v1/v2/legacy/v3 entry, no verification needed)
+    ///
+    /// Rejected: SignatureRequired (v3.1 missing sig), UnknownKey (v3.1 with unknown
+    /// signer), OwnerMismatch (key signed for wrong owner), InvalidSignature
+    /// (v3.1 with broken sig).
     pub fn verified_overlays(&self) -> HashMap<String, &OverlayEntry> {
         let mut out = HashMap::new();
         for (slot, entry) in &self.overlays {
             let value = serde_json::to_value(entry).unwrap();
-            match verify_entry(&value) {
-                VerifyResult::Valid => {
-                    out.insert(slot.clone(), entry);
-                }
-                VerifyResult::LegacyUnsigned => {
-                    // Soft-trust mode: accept v1 entries from known good owners
-                    if entry.owner == "DMM" || entry.owner == "CrimsonGameMods" || entry.owner == "JMM" {
-                        out.insert(slot.clone(), entry);
-                    }
-                }
-                _ => {
-                    log::warn!("Rejected state entry {slot}: {:?}", verify_entry(&value));
-                }
+            let result = verify_entry(&value);
+            if result.is_accepted() {
+                out.insert(slot.clone(), entry);
+            } else {
+                log::warn!("Rejected state entry {slot}: {:?}", result);
             }
         }
         out
@@ -441,9 +533,13 @@ impl StateFile {
 }
 ```
 
-### 1.8 Wire Into Existing v3_overlay.rs
+### 1.8 Wire Into Existing Mount Paths (Per-Format Signing)
 
-In `dmm-api-test/src-tauri/src/iteminfo/v3_overlay.rs`, after a successful mount, replace the implicit state update with a signed write:
+**Critical scope rule**: Sign ONLY for v3.1 mounts. v1/v2/legacy mounts continue to use unsigned entries indefinitely so DMM can keep loading old mods.
+
+#### 1.8.1 v3.1 Mount Path — `iteminfo/v3_overlay.rs`
+
+After a successful v3.1 mount, write a SIGNED entry:
 
 ```rust
 use crate::protocol::{StateFile, OverlayEntry, sign::sign_entry};
@@ -454,6 +550,7 @@ let mut state = StateFile::load(game_dir).unwrap_or_else(|_| StateFile::empty())
 let mut entry = OverlayEntry {
     owner: "DMM".to_string(),
     owner_version: env!("CARGO_PKG_VERSION").to_string(),
+    mod_format: "v3.1".to_string(),     // ← signing-required format
     content: format!("v3.1 field-level intents on {target_table}"),
     updated: chrono::Utc::now().to_rfc3339(),
     files: vec![target_table.to_string()],
@@ -461,7 +558,7 @@ let mut entry = OverlayEntry {
     key_id: None,
 };
 
-// Sign it
+// Sign it (v3.1 requires it)
 let entry_json = serde_json::to_value(&entry).unwrap();
 let dmm_priv = include_bytes!("../../../../keys/dmm-2026-05.priv");
 let (sig, kid) = sign_entry(dmm_priv, "dmm-2026-05", &entry_json);
@@ -474,7 +571,80 @@ state.updated = chrono::Utc::now().to_rfc3339();
 state.save(game_dir)?;
 ```
 
+#### 1.8.2 Legacy Mount Paths — v1/v2/byte-replace
+
+For v1/v2/legacy mounts (e.g., `iteminfo/legacy_merge.rs`, `iteminfo/v3_byte_replace.rs`, `iteminfo/hybrid_merge.rs`, the file-replacement overlay path), write an UNSIGNED entry:
+
+```rust
+use crate::protocol::{StateFile, OverlayEntry};
+
+// After successful legacy mount:
+let mut state = StateFile::load(game_dir).unwrap_or_else(|_| StateFile::empty());
+
+let entry = OverlayEntry {
+    owner: "DMM".to_string(),
+    owner_version: env!("CARGO_PKG_VERSION").to_string(),
+    mod_format: "v2".to_string(),          // or "v1" / "legacy" depending on path
+    content: format!("byte-replace mod on {target_file}"),
+    updated: chrono::Utc::now().to_rfc3339(),
+    files: vec![target_file.to_string()],
+    signature: None,                        // ← legacy: unsigned
+    key_id: None,
+};
+
+state.overlays.insert(group_name.clone(), entry);
+state.save(game_dir)?;
+```
+
+#### 1.8.3 Format Determination Helper
+
+To keep the signing decision in one place, add a small helper:
+
+```rust
+// dmm-api-test/src-tauri/src/protocol/format_policy.rs
+
+/// Returns true if a mount of this format must be signed per spec §2.5.
+pub fn signing_required(mod_format: &str) -> bool {
+    matches!(mod_format, "v3.1")
+}
+
+/// Build a state file entry, signing only if the format requires it.
+pub fn build_entry(
+    owner: &str,
+    owner_version: &str,
+    mod_format: &str,
+    content: &str,
+    files: Vec<String>,
+    sign_with: Option<(&[u8; 32], &str)>,   // (priv_key, key_id) — Some only for v3.1
+) -> super::OverlayEntry {
+    let mut entry = super::OverlayEntry {
+        owner: owner.to_string(),
+        owner_version: owner_version.to_string(),
+        mod_format: mod_format.to_string(),
+        content: content.to_string(),
+        updated: chrono::Utc::now().to_rfc3339(),
+        files,
+        signature: None,
+        key_id: None,
+    };
+
+    if signing_required(mod_format) {
+        let (priv_key, key_id) = sign_with.expect("v3.1 mount requires signing key");
+        let val = serde_json::to_value(&entry).unwrap();
+        let (sig, kid) = super::sign::sign_entry(priv_key, key_id, &val);
+        entry.signature = Some(sig);
+        entry.key_id = Some(kid);
+    }
+
+    entry
+}
+```
+
+Then both v3.1 and legacy mount paths call `build_entry` with the appropriate `mod_format` string, and signing is automatically applied or skipped.
+
 > ⚠ **Build-time secret**: `include_bytes!("keys/dmm-2026-05.priv")` requires the priv file at build time. Set up a CI/build secrets injection step that places the file before `cargo build`, then deletes it after. Never commit the priv file. Alternative: load from environment variable at runtime.
+
+> ⚠ **No-key fallback**: If the dev/release build is missing the priv key (e.g., contributor PR build), v3.1 mounts can either (a) fail with a clear error, or (b) write `mod_format: "v3"` (the soft-trust variant) instead. Recommendation: option (a) with a build-time check that errors if the priv key is missing for `--features rps-sign` builds.
 
 ---
 
@@ -616,9 +786,10 @@ def sign_entry(private_key_bytes: bytes, key_id: str, entry: dict) -> tuple[str,
 
 ```python
 # SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-"""Verify protocol entry signatures."""
+"""Verify protocol entry signatures with mod-format-aware policy."""
 
 import base64
+import logging
 from enum import Enum
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -627,47 +798,72 @@ from cryptography.exceptions import InvalidSignature
 from .canonical import canonical_bytes
 from .trust_roots import lookup
 
+log = logging.getLogger(__name__)
+
+# Per spec §2.5 — only v3.1 mounts MUST be signed.
+SIGNING_REQUIRED_FORMATS = {"v3.1"}
+LEGACY_FORMATS = {"v1", "v2", "legacy", "v3"}
+
 
 class VerifyResult(Enum):
     VALID = "valid"
-    UNKNOWN_KEY = "unknown_key"
+    LEGACY_UNSIGNED = "legacy_unsigned"          # ACCEPT for v1/v2/legacy/v3
+    SIGNATURE_REQUIRED = "signature_required"     # REJECT — v3.1 missing sig
+    UNKNOWN_KEY = "unknown_key"                   # REJECT (or downgrade for legacy)
     OWNER_MISMATCH = "owner_mismatch"
     INVALID_SIGNATURE = "invalid_signature"
     MALFORMED_SIGNATURE = "malformed_signature"
-    LEGACY_UNSIGNED = "legacy_unsigned"
+
+    def is_accepted(self) -> bool:
+        return self in (VerifyResult.VALID, VerifyResult.LEGACY_UNSIGNED)
 
 
 def verify_entry(entry: dict) -> VerifyResult:
+    mod_format = entry.get("mod_format", "legacy")
+    signing_required = mod_format in SIGNING_REQUIRED_FORMATS
+
     sig_str = entry.get("signature")
+
+    # No signature?
     if not sig_str:
+        if signing_required:
+            return VerifyResult.SIGNATURE_REQUIRED
+        return VerifyResult.LEGACY_UNSIGNED
+
+    # Has signature — try to verify, but downgrade to LegacyUnsigned for
+    # legacy formats if anything goes wrong (preserves backward compat).
+    def _legacy_or(reject: VerifyResult) -> VerifyResult:
+        if signing_required:
+            return reject
+        log.warning(f"Legacy entry signature problem ({reject.value}) — accepting as legacy")
         return VerifyResult.LEGACY_UNSIGNED
 
     key_id = entry.get("key_id")
     claimed_owner = entry.get("owner")
     if not key_id or not claimed_owner:
-        return VerifyResult.MALFORMED_SIGNATURE
+        return _legacy_or(VerifyResult.MALFORMED_SIGNATURE)
 
     if not sig_str.startswith("ed25519:"):
-        return VerifyResult.MALFORMED_SIGNATURE
+        return _legacy_or(VerifyResult.MALFORMED_SIGNATURE)
     try:
         sig_bytes = base64.b64decode(sig_str[len("ed25519:"):])
     except Exception:
-        return VerifyResult.MALFORMED_SIGNATURE
+        return _legacy_or(VerifyResult.MALFORMED_SIGNATURE)
     if len(sig_bytes) != 64:
-        return VerifyResult.MALFORMED_SIGNATURE
+        return _legacy_or(VerifyResult.MALFORMED_SIGNATURE)
 
     root = lookup(key_id)
     if root is None:
-        return VerifyResult.UNKNOWN_KEY
+        return _legacy_or(VerifyResult.UNKNOWN_KEY)
     if root.owner != claimed_owner:
-        return VerifyResult.OWNER_MISMATCH
+        return _legacy_or(VerifyResult.OWNER_MISMATCH)
 
     try:
         pub = Ed25519PublicKey.from_public_bytes(root.public_key)
         pub.verify(sig_bytes, canonical_bytes(entry))
         return VerifyResult.VALID
     except InvalidSignature:
-        return VerifyResult.INVALID_SIGNATURE
+        return _legacy_or(VerifyResult.INVALID_SIGNATURE)
 ```
 
 ### 2.7 State File Read/Write
@@ -699,6 +895,7 @@ class OverlayEntry:
     owner_version: str
     content: str
     updated: str
+    mod_format: str = "legacy"          # "v1"|"v2"|"legacy"|"v3"|"v3.1" — signing required only for "v3.1"
     files: list[str] = field(default_factory=list)
     signature: Optional[str] = None
     key_id: Optional[str] = None
@@ -757,17 +954,12 @@ class StateFile:
         tmp.replace(path)
 
     def verified_overlays(self) -> dict[str, OverlayEntry]:
-        """Return only entries whose signature verifies."""
+        """Return entries that should be honored (Valid OR LegacyUnsigned)."""
         out = {}
         for slot, entry in self.overlays.items():
-            entry_dict = asdict(entry)
-            result = verify_entry(entry_dict)
-            if result == VerifyResult.VALID:
+            result = verify_entry(asdict(entry))
+            if result.is_accepted():
                 out[slot] = entry
-            elif result == VerifyResult.LEGACY_UNSIGNED:
-                # Soft-trust v1 entries from known good owners
-                if entry.owner in ("DMM", "CrimsonGameMods", "JMM"):
-                    out[slot] = entry
             else:
                 log.warning(f"Rejected state entry {slot}: {result.value}")
         return out
@@ -784,71 +976,142 @@ def _asdict_compact(obj) -> dict:
 
 ### 2.8 Wire Into Existing overlay_coordinator.py
 
-In `CrimsonGameMods/overlay_coordinator.py`, replace the unsigned record-write with signed:
+**Critical scope rule**: Sign ONLY for v3.1 mounts. Stacker output (v3.1) signs; legacy mod paths (v1/v2/byte-replace exports) write unsigned entries.
 
 ```python
-from protocol import StateFile, OverlayEntry, sign_entry
+from dataclasses import asdict
+from pathlib import Path
 from datetime import datetime, timezone
 
-def post_write(game_path: Path, group: str, owner: str, content: str, files: list[str]):
+from protocol import StateFile, OverlayEntry, sign_entry
+
+# Per spec §2.5
+SIGNING_REQUIRED_FORMATS = {"v3.1"}
+
+
+def _signing_required(mod_format: str) -> bool:
+    return mod_format in SIGNING_REQUIRED_FORMATS
+
+
+def post_write(
+    game_path: Path,
+    group: str,
+    owner: str,
+    mod_format: str,        # "v3.1" for Stacker exports; "v2"/"legacy" otherwise
+    content: str,
+    files: list[str],
+) -> None:
+    """Record a successful overlay mount in the State File.
+
+    Per spec §2.5: only v3.1 mounts are signed. Legacy mod formats
+    (v1/v2/byte-replace) write unsigned entries indefinitely so existing
+    mods continue to mount.
+    """
     state = StateFile.load(game_path)
     state.protocol_version = 2
 
     entry = OverlayEntry(
-        owner=owner,                               # "CrimsonGameMods"
+        owner=owner,                                # "CrimsonGameMods"
         owner_version=_get_swiss_version(),
+        mod_format=mod_format,
         content=content,
         updated=datetime.now(timezone.utc).isoformat(),
         files=files,
     )
 
-    # Sign it
-    priv_path = Path(__file__).parent / "keys" / "swiss-2026-05.priv"
-    if priv_path.exists():
+    # Sign only for v3.1
+    if _signing_required(mod_format):
+        priv_path = Path(__file__).parent / "keys" / "swiss-2026-05.priv"
+        if not priv_path.exists():
+            raise RuntimeError(
+                f"v3.1 mount requires signing key at {priv_path}, but it was not found. "
+                f"Either install the key or downgrade this export to mod_format='v3'."
+            )
         priv = priv_path.read_bytes()
         entry_dict = asdict(entry)
         sig, kid = sign_entry(priv, "swiss-2026-05", entry_dict)
         entry.signature = sig
         entry.key_id = kid
-    else:
-        log.warning("Private key not present; writing unsigned (legacy v1) entry")
 
     state.overlays[group] = entry
     state.save(game_path)
 ```
 
-> ⚠ **Build-time secret**: For SWISS bundled distributions, the private key is included at build time via PyInstaller's data bundling, then encrypted at-rest using a key derived from the binary's hash. For development, load from `keys/swiss-2026-05.priv` (gitignored).
+**Caller examples:**
+
+```python
+# Stacker v3.1 export — signs
+post_write(
+    game_path,
+    group="0036",
+    owner="CrimsonGameMods",
+    mod_format="v3.1",
+    content="Stacker merged dropsets",
+    files=["dropsetinfo.pabgb"],
+)
+
+# Legacy v2 byte-diff export — does NOT sign
+post_write(
+    game_path,
+    group="0036",
+    owner="CrimsonGameMods",
+    mod_format="v2",
+    content="Legacy byte-diff stack",
+    files=["dropsetinfo.pabgb"],
+)
+```
+
+> ⚠ **Build-time secret**: For SWISS bundled distributions, the private key is included at build time via PyInstaller's data bundling. Without obfuscation the priv key in the bundled exe is extractable — accepted risk for v1 of the protocol; rotate keys quarterly. For development, load from `keys/swiss-2026-05.priv` (gitignored).
 
 ---
 
-## Phase 3 — Migration Plan (Unsigned v1 → Signed v2)
+## Phase 3 — Rollout Plan
 
 ### Goal
 
-Roll out signed entries without breaking existing user installations.
+Roll out signed v3.1 entries without breaking existing v1/v2/legacy mod mounts.
 
-### Strategy
+### Strategy — No Hard Cutoff for Legacy Formats
 
-**Stage 1 — Dual-version (Weeks 1-4):**
-- New DMM and SWISS releases write v2 signed entries
-- They also accept v1 unsigned legacy entries from known good owners (`DMM`, `CrimsonGameMods`, `JMM`)
-- This is the `LEGACY_UNSIGNED → soft-trust` path in the verify code
+Per spec §2.5, **v1/v2/legacy/v3 mounts are PERMANENTLY exempt from signing**. The rollout only changes behavior for v3.1 mounts:
 
-**Stage 2 — Warning (Weeks 5-12):**
-- DMM and SWISS show a warning when reading unsigned entries: "Legacy unsigned entry from `<owner>`. Update your other tool to v1.4+ for full protocol compliance."
-- All new entries are v2 signed
+**Stage 1 — Initial Release (Week 1):**
+- DMM and SWISS releases ship with the protocol module + embedded Trust Roots
+- v3.1 mounts → SIGNED entries written to State File
+- v1/v2/legacy/v3 mounts → UNSIGNED entries (no behavior change vs current)
+- All entries (signed or unsigned) read and honored as before
+- State File `protocol_version` field upgrades to 2 the first time a v3.1 entry is written
 
-**Stage 3 — Hard cutoff (Week 13+):**
-- Release DMM 1.5 / SWISS 4.0 that REJECT unsigned entries claiming `DMM` or `CrimsonGameMods` ownership
-- Unsigned entries are still accepted but marked `Unknown` owner (treated as foreign for conflict purposes)
+**Stage 2 — Forgery Detection (Week 1+, ongoing):**
+- A v3.1 entry with missing/invalid signature is REJECTED
+- The slot is treated as if no entry exists for it (foreign tool conflict path)
+- Logged so user can see what happened
+
+**Stage 3 — Future Optional Tightening (Not Currently Planned):**
+- If RicePaddySoftware later decides to deprecate v1 or v2 mod formats, the spec will be amended to require signing on those formats too
+- Until that explicit Protocol amendment, v1/v2/legacy mounts continue to work indefinitely
+- This addresses the user's concern: legacy mods are NOT subject to signing requirements
+
+### What This Means For Existing Installations
+
+| Scenario | Behavior |
+|---|---|
+| User has only legacy mods mounted | No change. State file stays unsigned, mods load normally. |
+| User installs a v3.1 mod via DMM | New v3.1 entry is signed. Existing legacy entries stay as-is. |
+| User has both legacy and v3.1 mods mounted | State file mixes signed v3.1 entries with unsigned legacy entries. Both honored. |
+| User downgrades DMM to a pre-protocol version | Old DMM ignores new fields (`mod_format`, `signature`, `key_id`); legacy entries continue to work. v3.1 entries become orphaned but harmless. |
+| Forgery: external tool writes "owner: DMM, mod_format: v3.1" with bad sig | Rejected during read. User sees warning in log. |
+| Forgery: external tool writes "owner: DMM, mod_format: v2" without sig | Treated as legacy entry (soft-trust). This is a known gap — legacy mounts are intentionally trust-on-faith. |
 
 ### User-Facing Communication
 
-In the release notes for the first signed-version release:
+In release notes:
 
-> **DMM 1.4 / SWISS 3.2** introduces cryptographic signing for cross-tool coordination. This prevents unauthorized tools from impersonating DMM or SWISS in your game directory.
+> **DMM v1.4 / SWISS v3.2 — Protocol v2 (v3.1 signing only).**
 >
-> If you use both DMM and SWISS, **update both tools** for full protocol compliance. Single-tool installations are unaffected.
+> v3.1 mods now use cryptographic signing for cross-tool coordination between DMM and SWISS. This prevents unauthorized tools from impersonating DMM or SWISS in your game directory.
+>
+> **Existing v1/v2/legacy mods are unaffected.** They continue to mount and load exactly as before. Only new v3.1 mods are subject to the signing requirement, and only RicePaddySoftware's official DMM and SWISS builds can produce them.
 
 ---
 
