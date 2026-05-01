@@ -170,11 +170,14 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 
 ## Phase S — Save File Parser
 
-- [ ] **S0** — Recon. Read DMM's `save_engine` module end-to-end (`save_engine/mod.rs`, `crypto.rs`, `format.rs`, `applicator.rs`, `scanner.rs`, `packs.rs`). Document save format spec in `references/save_notes.md`.
+- [x] **S0** — Recon. Read DMM's `save_engine` module end-to-end (`save_engine/mod.rs`, `crypto.rs`, `format.rs`, `applicator.rs`, `scanner.rs`, `packs.rs`). Document save format spec in `references/save_notes.md`.
+  Done: No Rust `save_engine` exists in the DMM tree — the canonical implementation lives in Benreuveni's public `CrimsonSaveEditor` (Python: `save_crypto.py`, `save_parser.py`). Wrote `references/save_notes.md` covering: 0x80 header layout (magic SAVE, version/flags, reserved_a, uncomp_size, payload_size, 16-byte nonce, 32-byte hmac, reserved_b padding to 0x80), envelope pipeline (ChaCha20 stream + HMAC-SHA256 over compressed plaintext + LZ4 high-compression), key derivation formula (BASE_KEY[31] XOR version_material[31] || 0x00, with v1/v2 prefixes documented but not embedded in our code), Phase S2-S9 implementation targets, body-recon TODOs, and 4 open questions. **Decision: dmm-parser keeps keys out of the public crate** — envelope module accepts caller-supplied key + HMAC closure so we stay a pure format library.
 
-- [ ] **S1** — Header hexpat. Write `references/save.hexpat` for the 0x80-byte header. Test against a real save file.
+- [x] **S1** — Header hexpat. Write `references/save.hexpat` for the 0x80-byte header. Test against a real save file.
+  Done: `references/save.hexpat` defines `SaveHeader` (0x80 bytes) + `SaveFile` (header followed by `payload[payload_size]` opaque bytes). Field types match `save_notes.md` §1.1 exactly. Payload region intentionally left as `u8[]` — anything past 0x80 is ChaCha20 ciphertext and not patternable in the clear.
 
-- [ ] **S2** — Save envelope module. Port DMM's save crypto (ChaCha20, HMAC-SHA256, LZ4) into `dmm-parser/src/save/envelope.rs`. `decrypt_save(bytes, key)` + inverse. Verify against DMM's existing test vectors.
+- [x] **S2** — Save envelope module. Port DMM's save crypto (ChaCha20, HMAC-SHA256, LZ4) into `dmm-parser/src/save/envelope.rs`. `decrypt_save(bytes, key)` + inverse. Verify against DMM's existing test vectors.
+  Done: New `src/save/{mod,envelope}.rs`. `SaveHeader` round-trips bytes ↔ struct. `decrypt_envelope(bytes, &key32, hmac_fn)` returns `SaveEnvelope { header, body, warnings }`; `encrypt_envelope(body, &key32, nonce16, template_header, hmac_fn)` produces a complete SAVE file. ChaCha20 uses the existing `chacha20_crate` with the 16→4+12 nonce split (counter via `seek(counter*64)`, matching the OpenSSL/`cryptography` ChaCha20 primitive convention used by upstream Python). LZ4 via `lz4_flex` (already a dep). HMAC is a caller-supplied closure (`Fn(&[u8]) -> [u8; 32]`) so dmm-parser doesn't pull in `sha2`/`hmac` and doesn't bake save keys into the public crate. HMAC mismatch returns body + `EnvelopeWarning::HmacMismatch` rather than failing — SWISS picks the policy. 7/7 unit tests pass: header round-trip, too-small/bad-magic/payload-overflow rejection, full encrypt+decrypt round-trip with body integrity, HMAC mismatch warning path, template-header prefix preservation. No new Cargo deps added.
 
 - [ ] **S3** — Save body structure recon. Identify section layout inside decrypted body. Inventory, equipment, quest progress, etc. Use SWISS save editor as reference.
 

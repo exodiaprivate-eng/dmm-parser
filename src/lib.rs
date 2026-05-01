@@ -18,6 +18,7 @@ pub mod item_info;
 pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;
+pub mod save;
 pub mod tables;
 
 // Re-export the most commonly-used dispatch entry points so callers can
