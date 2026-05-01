@@ -257,6 +257,151 @@ py_binary_struct! {
     }
 }
 
+/// F87 sub-element (sub_141109D60 per-element).
+/// Wire: u64 + u8 + u8 (10 bytes; 16-byte memory stride).
+py_binary_struct! {
+    pub struct GimmickF87Sub {
+        pub f0: u64,
+        pub f8: u8,
+        pub f9: u8,
+    }
+}
+
+/// F87 inner element (128-byte mem stride): sub_1410F7F20.
+/// Wire: u32×2 + [u32;3]×2 + CBytes×5 (hash strings via sub_1410A9D40)
+///       + CBytes (raw string via sub_1410A9B70) + [u32;4] (sub_141107700)
+///       + u32 + u8 + [u32;4] (sub_1410AA0D0) + u8×6 + CArray<GimmickF87Sub>.
+py_binary_struct! {
+    pub struct GimmickF87Inner<'a> {
+        pub f0:    u32,
+        pub f1:    u32,
+        pub f2:    [u32; 3],
+        pub f3:    [u32; 3],
+        pub hash0: CBytes<'a>,
+        pub hash1: CBytes<'a>,
+        pub hash2: CBytes<'a>,
+        pub hash3: CBytes<'a>,
+        pub hash4: CBytes<'a>,
+        pub str0:  CBytes<'a>,
+        pub arr0:  [u32; 4],
+        pub f20:   u32,
+        pub f21:   u8,
+        pub arr1:  [u32; 4],
+        pub f26:   u8,
+        pub f26b:  u8,
+        pub f26c:  u8,
+        pub f26d:  u8,
+        pub f27:   u8,
+        pub f27b:  u8,
+        pub subs:  CArray<GimmickF87Sub>,
+    }
+}
+
+/// F87 outer element: sub_141105260. Wire: GimmickF87Inner + u32 tail.
+py_binary_struct! {
+    pub struct GimmickF87Elem<'a> {
+        pub inner: GimmickF87Inner<'a>,
+        pub tail:  u32,
+    }
+}
+
+/// F88 sub-element for the initial CArray (sub_1411003E0 + sub_1410FF220).
+/// Each reads a u16 from wire and does an in-memory table lookup.
+/// Wire: u16 + u16.
+py_binary_struct! {
+    pub struct GimmickF88Sub1 {
+        pub id0: u16,
+        pub id1: u16,
+    }
+}
+
+/// F88 optional-field content (sub_141103B30 / sub_141CEA810).
+/// Wire: u8×3 (after the COptional flag byte).
+py_binary_struct! {
+    pub struct GimmickF88COptContent {
+        pub b0: u8,
+        pub b1: u8,
+        pub b2: u8,
+    }
+}
+
+/// F88 sub-struct for sub_1410F6ED0 (memory offset 144 in GimmickF88Inner).
+/// Wire: u32 + CBytes (hash string) + u8 + u16 + u64.
+py_binary_struct! {
+    pub struct GimmickF88Sub3<'a> {
+        pub f0:   u32,
+        pub hash: CBytes<'a>,
+        pub f8:   u8,
+        pub f10:  u16,
+        pub f16:  u64,
+    }
+}
+
+/// F88 inner element (232-byte mem stride): sub_1410F7440.
+py_binary_struct! {
+    pub struct GimmickF88Inner<'a> {
+        // Initial CArray (sub_1411003E0 + sub_1410FF220 per element)
+        pub arr0:   CArray<GimmickF88Sub1>,
+        // COptional<{u8+u8+u8}> (sub_141103B30)
+        pub opt0:   COptional<GimmickF88COptContent>,
+        // scalar fields
+        pub f24:    u32,
+        pub f28:    u16,
+        pub f32v:   [u32; 3],
+        pub f44:    u32,
+        pub f48:    u8,
+        // raw string (sub_1410A9B70)
+        pub str0:   CBytes<'a>,
+        pub f64:    u8,
+        pub f65:    u8,
+        pub f66:    u8,
+        pub f72:    u64,
+        // sub_141107700
+        pub arr1:   [u32; 4],
+        pub f96:    u8,
+        pub f97:    u8,
+        // hash strings (sub_1410A9D40 wire)
+        pub hash0:  CBytes<'a>,
+        pub hash1:  CBytes<'a>,
+        pub f108:   u32,
+        // sub_141107700
+        pub arr2:   [u32; 4],
+        pub f128:   u32,
+        pub f132:   u8,
+        pub f136:   u32,
+        // sub_1410F6ED0 sub-struct
+        pub sub3:   GimmickF88Sub3<'a>,
+        // second raw string (sub_1410A9B70)
+        pub str1:   CBytes<'a>,
+        pub f176:   u64,
+        pub f184:   u8,
+        pub f188:   u32,
+        pub f192:   u32,
+        pub f196:   u8,
+        pub f197:   u8,
+        pub f198:   u8,
+        pub f199:   u8,
+        pub f200:   u8,
+        pub f204:   u64,
+        // sub_141BD4120 = plain u32
+        pub f212:   u32,
+        pub f216:   u32,
+        pub f220:   u16,
+        pub f222:   u8,
+        pub f223:   u8,
+        pub f224:   u8,
+        pub f225:   u8,
+    }
+}
+
+/// F88 outer element: sub_141105390. Wire: GimmickF88Inner + u32 tail.
+py_binary_struct! {
+    pub struct GimmickF88Elem<'a> {
+        pub inner: GimmickF88Inner<'a>,
+        pub tail:  u32,
+    }
+}
+
 /// F81 element: u32×4 + CArray<u32> + u32.
 py_binary_struct! {
     pub struct GimmickF81Elem {
@@ -876,10 +1021,10 @@ py_binary_struct! {
         pub f86_a: u32,
         pub f86_b: u32,
         pub f86_c: u32,
-        // F87: DEFERRED — CArray<{136b complex + u32}> (element format unknown)
-        pub f87: EmptyCArray,
-        // F88: DEFERRED — CArray<240b complex> (element format unknown)
-        pub f88: EmptyCArray,
+        // F87: CArray<{GimmickF87Inner + u32}> (sub_141105260 / sub_1410F7F20)
+        pub f87: CArray<GimmickF87Elem<'a>>,
+        // F88: CArray<{GimmickF88Inner + u32}> (sub_141105390 / sub_1410F7440)
+        pub f88: CArray<GimmickF88Elem<'a>>,
         // F89: CArray<{u32+u16+[u32;3]+[u32;3]+u32+[u32;4]+u32+u8+u8+u8+u32+CArray<u32>+u16+u16}>
         pub f89: CArray<GimmickF89Elem>,
         // F90: CArray<{CString+CArray<sub>+u64+u8+u8+u32+u16}>
@@ -1537,8 +1682,8 @@ mod tests {
                 rd!(u32, p, "f86_a");
                 rd!(u32, p, "f86_b");
                 rd!(u32, p, "f86_c");
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f87(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f87 non-zero"); return; } }
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f88(empty) count={} [cnt_pos={}]",cnt,cnt_pos); if cnt!=0 { eprintln!("  STOP: f88 non-zero"); return; } }
+                rd!(CArray<GimmickF87Elem>, p, "f87");
+                rd!(CArray<GimmickF88Elem>, p, "f88");
                 rd!(CArray<GimmickF89Elem>, p, "f89");
                 rd!(CArray<GimmickF90Elem>, p, "f90");
                 rd!(u32, p, "f91");
@@ -1737,8 +1882,8 @@ mod tests {
                 rd2!(u32, p, "f86_a");
                 rd2!(u32, p, "f86_b");
                 rd2!(u32, p, "f86_c");
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f87 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f87 STOP"); break 'outer2; } }
-                { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f88 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  f88 STOP"); break 'outer2; } }
+                rd2!(CArray<GimmickF87Elem>, p, "f87");
+                rd2!(CArray<GimmickF88Elem>, p, "f88");
                 rd2!(CArray<GimmickF89Elem>, p, "f89");
                 rd2!(CArray<GimmickF90Elem>, p, "f90");
                 rd2!(u32, p, "f91");
