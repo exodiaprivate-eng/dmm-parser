@@ -23,8 +23,9 @@ Any copy of this software, or any derivative work based on it, found outside the
 ## Status
 
 - 162 / 162 tests pass (`cargo test --release`)
-- 121 pabgb tables round-trip byte-perfect
+- 122 pabgb tables round-trip byte-perfect (+ paloc localization format)
 - 67 fully field-decoded (every field individually addressable, including BuffInfo + SkillInfo with all 120 BuffData variants)
+- PALOC (localization) format supported with category-based JSON form: `parse_paloc_to_json` / `serialize_paloc_from_json`
 - 54 byte-perfect with `Vec<u8>` blob-tail for polymorphic regions still being decoded
 
 ## Python bindings

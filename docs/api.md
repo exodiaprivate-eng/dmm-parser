@@ -276,6 +276,33 @@ Serialize a list of localization entries back to raw bytes.
 data = dmm_parser.serialize_paloc(entries)
 ```
 
+### `parse_paloc_from_file(path: str) -> list[dict]` (recommended)
+
+Parse a localization file directly from a path. Returns the cleaner JSON-form
+shape with `category` (u8) instead of `unk_id` (u64).
+
+```python
+entries = dmm_parser.parse_paloc_from_file("0020/gamedata/localizationstring_eng.paloc")
+print(entries[0])
+# {'category': 47, 'key': '262897', 'value': 'Unavailable during combat.'}
+```
+
+**Returns:** List of dicts with fields: `category` (`int`, 0-255), `key` (`str`), `value` (`str`).
+
+### `parse_paloc_from_bytes(data: bytes) -> list[dict]` (recommended)
+
+Same as `parse_paloc_from_file` but takes raw bytes. Use this when you've already loaded the bytes (e.g. extracted from a PAZ archive).
+
+### `serialize_paloc_to_bytes(items: list[dict]) -> bytes` (recommended)
+
+Inverse of the from-bytes parser. Takes JSON-form entries with `{category, key, value}` shape and produces the on-disk byte stream.
+
+```python
+new_bytes = dmm_parser.serialize_paloc_to_bytes(entries)
+```
+
+**Use the new `*_paloc_*` family for new code.** The legacy `parse_paloc_bytes` / `serialize_paloc` (with `unk_id` u64) are preserved for backward compat.
+
 ---
 
 ## SkillInfo (pabgb + pabgh)
