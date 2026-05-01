@@ -61,7 +61,8 @@
 - [x] **P6** — JSON surface: `parse_paloc_to_json` returns `Vec<{category, key, value}>`. Inverse `serialize_paloc_from_json`. Add to `dispatch.rs`: `"paloc"` and `"paloc.pamt"` arms in BOTH `parse_table_to_json` and `serialize_table_from_json`. Add `"paloc"` to `supported_tables()`.
   Done: Added `parse_paloc_to_json` and `serialize_paloc_from_json` to `binary/paloc.rs` exposing JSON form `[{category: u8, key: string, value: string}]`. Added dispatch arms for `"paloc"` / `"paloc.pamt"` / `"localizationstring"` (all three aliases) in both parse and serialize functions. Added to `supported_tables()` list. Added synthetic round-trip unit test `roundtrip_synthetic`. `cargo check` passes cleanly.
 
-- [ ] **P7** — Tests: unit per-entry round-trip, container plain/compressed/encrypted round-trip, integration with real production sample, edge cases (empty entries, long values, non-ASCII). All must pass via `cargo test --release`.
+- [x] **P7** — Tests: unit per-entry round-trip, container plain/compressed/encrypted round-trip, integration with real production sample, edge cases (empty entries, long values, non-ASCII). All must pass via `cargo test --release`.
+  Done: 10 JSON tests added in `src/binary/paloc.rs::json_tests`: roundtrip_synthetic, empty_file_roundtrip, empty_strings_allowed, long_value_64k, unicode_korean_roundtrip, unicode_emoji_and_mixed_scripts, max_category_byte_0xff, rejects_non_zero_upper_bytes_in_category_u64, rejects_oversized_category_in_json_input, rejects_missing_fields_in_json_input. Plus 4 pre-existing real-file tests (test_paloc_parse, test_paloc_roundtrip, test_paloc_kor_parse, test_paloc_kor_roundtrip). 14 total paloc tests pass in release mode.
 
 - [ ] **P8** — Python bindings: `dmm_parser.parse_paloc_from_file(path)`, `parse_paloc_from_bytes(bytes)`, `serialize_paloc_to_bytes(entries)`. Update `python.rs`. Run `maturin develop` and verify import.
 

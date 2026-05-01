@@ -172,11 +172,16 @@ pub fn serialize_paloc_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
 #[cfg(test)]
 mod json_tests {
     use super::*;
+    use serde_json::json;
+
+    fn build(entries: Vec<LocalizationEntry>) -> Vec<u8> {
+        LocalizationFile { entries }.to_bytes().unwrap()
+    }
 
     #[test]
     fn roundtrip_synthetic() {
         // Build a synthetic paloc with two entries, parse to JSON, serialize back.
-        let entries = vec![
+        let bytes = build(vec![
             LocalizationEntry {
                 unk_id: 0x70,
                 string_key: CString { length: 10, data: "4294967408" },
@@ -187,9 +192,7 @@ mod json_tests {
                 string_key: CString { length: 6, data: "262897" },
                 string_value: CString { length: 26, data: "Unavailable during combat." },
             },
-        ];
-        let original = LocalizationFile { entries };
-        let bytes = original.to_bytes().unwrap();
+        ]);
 
         let json_array = parse_paloc_to_json(&bytes).unwrap();
         assert_eq!(json_array.len(), 2);
@@ -199,5 +202,138 @@ mod json_tests {
 
         let written = serialize_paloc_from_json(&json_array).unwrap();
         assert_eq!(written, bytes, "JSON round-trip should be byte-perfect");
+    }
+
+    #[test]
+    fn empty_file_roundtrip() {
+        // Zero entries — just the trailing u32 count of 0.
+        let bytes = build(vec![]);
+        let json_array = parse_paloc_to_json(&bytes).unwrap();
+        assert_eq!(json_array.len(), 0);
+        assert_eq!(serialize_paloc_from_json(&json_array).unwrap(), bytes);
+    }
+
+    #[test]
+    fn empty_strings_allowed() {
+        // Both key and value can be empty strings (length 0).
+        let bytes = build(vec![
+            LocalizationEntry {
+                unk_id: 0x07,
+                string_key: CString { length: 0, data: "" },
+                string_value: CString { length: 0, data: "" },
+            },
+        ]);
+        let json_array = parse_paloc_to_json(&bytes).unwrap();
+        assert_eq!(json_array.len(), 1);
+        assert_eq!(json_array[0]["key"], "");
+        assert_eq!(json_array[0]["value"], "");
+        assert_eq!(serialize_paloc_from_json(&json_array).unwrap(), bytes);
+    }
+
+    #[test]
+    fn long_value_64k() {
+        // Values can be very long. Localization for some items is paragraph-length.
+        let long_value = "A".repeat(64 * 1024);
+        let bytes = build(vec![
+            LocalizationEntry {
+                unk_id: 0x71,
+                string_key: CString { length: 6, data: "999001" },
+                string_value: CString { length: long_value.len() as u32, data: &long_value },
+            },
+        ]);
+        let json_array = parse_paloc_to_json(&bytes).unwrap();
+        assert_eq!(json_array[0]["value"].as_str().unwrap().len(), 64 * 1024);
+        assert_eq!(serialize_paloc_from_json(&json_array).unwrap(), bytes);
+    }
+
+    #[test]
+    fn unicode_korean_roundtrip() {
+        // Korean characters — 3 bytes each in UTF-8. The CString length is byte
+        // count, not character count.
+        let kor = "안녕하세요"; // "Hello" in Korean
+        let bytes = build(vec![
+            LocalizationEntry {
+                unk_id: 0x07,
+                string_key: CString { length: 6, data: "262897" },
+                string_value: CString { length: kor.len() as u32, data: kor },
+            },
+        ]);
+        let json_array = parse_paloc_to_json(&bytes).unwrap();
+        assert_eq!(json_array[0]["value"], kor);
+        assert_eq!(serialize_paloc_from_json(&json_array).unwrap(), bytes);
+    }
+
+    #[test]
+    fn unicode_emoji_and_mixed_scripts() {
+        // Emoji + Latin + CJK in one value (modern game UI text).
+        let mixed = "Sword ⚔️ 名刀 «Excalibur»";
+        let bytes = build(vec![
+            LocalizationEntry {
+                unk_id: 0x70,
+                string_key: CString { length: 10, data: "4294967408" },
+                string_value: CString { length: mixed.len() as u32, data: mixed },
+            },
+        ]);
+        let json_array = parse_paloc_to_json(&bytes).unwrap();
+        assert_eq!(json_array[0]["value"], mixed);
+        assert_eq!(serialize_paloc_from_json(&json_array).unwrap(), bytes);
+    }
+
+    #[test]
+    fn max_category_byte_0xff() {
+        // Even if no production paloc uses category 0xFF, the parser should not
+        // arbitrarily reject high u8 values (only > u8::MAX is invalid).
+        let bytes = build(vec![
+            LocalizationEntry {
+                unk_id: 0xFF,
+                string_key: CString { length: 1, data: "x" },
+                string_value: CString { length: 1, data: "y" },
+            },
+        ]);
+        let json_array = parse_paloc_to_json(&bytes).unwrap();
+        assert_eq!(json_array[0]["category"], 0xFF);
+        assert_eq!(serialize_paloc_from_json(&json_array).unwrap(), bytes);
+    }
+
+    #[test]
+    fn rejects_non_zero_upper_bytes_in_category_u64() {
+        // If a paloc file has a category u64 with non-zero upper bytes, we
+        // currently fail loudly so unknown variants surface immediately.
+        let mut bytes = vec![];
+        // Synthesize: category u64 = 0x00FF000000000007 (non-zero upper bytes)
+        bytes.extend_from_slice(&0x00FF000000000007u64.to_le_bytes());
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.push(b'k');
+        bytes.extend_from_slice(&1u32.to_le_bytes());
+        bytes.push(b'v');
+        bytes.extend_from_slice(&1u32.to_le_bytes()); // trailing count
+
+        let result = parse_paloc_to_json(&bytes);
+        assert!(result.is_err(), "should reject non-zero upper bytes in category u64");
+        assert!(
+            result.unwrap_err().to_string().contains("non-zero upper bytes"),
+            "error message should mention upper bytes"
+        );
+    }
+
+    #[test]
+    fn rejects_oversized_category_in_json_input() {
+        // serialize_paloc_from_json must reject category values > u8::MAX.
+        let bad = vec![json!({"category": 256, "key": "k", "value": "v"})];
+        let result = serialize_paloc_from_json(&bad);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("exceeds u8 range"));
+    }
+
+    #[test]
+    fn rejects_missing_fields_in_json_input() {
+        let missing_key = vec![json!({"category": 7, "value": "v"})];
+        assert!(serialize_paloc_from_json(&missing_key).is_err());
+
+        let missing_value = vec![json!({"category": 7, "key": "k"})];
+        assert!(serialize_paloc_from_json(&missing_value).is_err());
+
+        let missing_category = vec![json!({"key": "k", "value": "v"})];
+        assert!(serialize_paloc_from_json(&missing_category).is_err());
     }
 }
