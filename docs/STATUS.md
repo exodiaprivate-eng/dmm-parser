@@ -1,10 +1,10 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-05-01 (session 5 — clippy clean + ceiling confirmed)
+**Last updated**: 2026-05-01 (session 6 — variant analysis + generated__ format characterised)
 **Repo**: https://github.com/DatGuySnowfox/dmm-parser
 **Branch**: `main`
 
-> **Current state (2026-05-01 session 5 end):**
+> **Current state (2026-05-01 session 6 end):**
 > - **119 T1 / 0 T2 / 0 T1.5** — all 121 on-disk tables in the
 >   2026-4-24 dump have byte-perfect round-trip parsers. 309/309 tests pass.
 >   **Zero clippy warnings** (`cargo clippy` clean).
@@ -20,6 +20,16 @@
 > - Push policy: push when user asks. Use feature branches for PRs.
 > - **No remaining actionable work** for the 2026-4-24 dump — project is
 >   at ceiling. Next work requires a newer game dump or new IDA targets.
+>
+> **2026-05-01 session 6 results (variant analysis):**
+> - Added `variant_diag` test: maps all 2446 post_body=None entries by prefab prefix
+>   and max_blob. Identified 48 distinct gimmick variant groups needing IDA work.
+> - Added `generated_blob_diag` test: characterized the 1833 `generated__/pointcontrol`
+>   entries (738-byte fixed-size blobs). 1713/1833 bitwise-identical (default config);
+>   only bytes 281-284 vary (likely a spline segment ID u32, values ≤ 0x1b45,
+>   non-default only in `abyssislandpipe_0018_phase00_00` entries). Blob contains
+>   CString "fx_pc_weapon_exp_b__logout.system.effect" at offset 596-639. Decoding
+>   requires IDA to locate variant-specific reader function. Commit: `f675521`.
 >
 > **2026-05-01 session 5 results (clippy clean + ceiling audit):**
 > - Fixed all 67 clippy warnings in `gimmick_info/info.rs` (`77e325c`):
