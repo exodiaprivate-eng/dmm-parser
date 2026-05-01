@@ -97,13 +97,13 @@ def _short_target(t: dict[str, Any], kind: str) -> str:
         vpath = t.get("vpath") or "(no vpath)"
         size = t.get("size")
         size_str = f" {size} bytes" if size else ""
-        return f"[{atype}] {file_rel} → {vpath}{size_str}"
+        return f"[{atype}] {file_rel} -> {vpath}{size_str}"
     if kind == "paloc":
         n = len(t.get("entries") or [])
         if n:
             return f"paloc inline ({n} string{'s' if n != 1 else ''})"
         if t.get("file"):
-            return f"paloc file ref → {t['file']}"
+            return f"paloc file ref -> {t['file']}"
         return "paloc (empty)"
     return repr(t)[:80]
 

@@ -218,13 +218,17 @@ All other phases stay focused on dmm-parser exposing format internals + Python b
 
 ## Phase F — Framework Documentation + Sample Mods
 
-- [ ] **F0** — Mod Author Guide. Create `docs/MOD_AUTHOR_GUIDE.md` — top-level entry. Sections per mod type (data, texture, audio, save, mixed). Worked examples. Common pitfalls.
+- [x] **F0** — Mod Author Guide. Create `docs/MOD_AUTHOR_GUIDE.md` — top-level entry. Sections per mod type (data, texture, audio, save, mixed). Worked examples. Common pitfalls.
+  Done: 12-section guide covering: big-picture (manifest → targets → SWISS apply), choosing a mod type, table targets (with op shape), DDS textures (with Crimson last4 + format-ID rules), Wwise audio (with vpath conventions and DIDX/WEM size relationship), paloc, custom items (links to deep-dive), mixed mods, the author workflow (validate → inspect → pack → diff), distribution/license guidance, common pitfalls (SHA mismatch, case mismatch, dwReserved2, unusual sample rates, ID collisions), and a "where to look next" pointer.
 
-- [ ] **F1** — Sample mods. Create `samples/01_simple_data_mod/`, `02_texture_swap/`, `03_audio_replacement/`, `04_custom_item/`, `05_mixed_overhaul/`. Each has README + commented .field.json.
+- [x] **F1** — Sample mods. Create `samples/01_simple_data_mod/`, `02_texture_swap/`, `03_audio_replacement/`, `04_custom_item/`, `05_mixed_overhaul/`. Each has README + commented .field.json.
+  Done: Five samples + `samples/README.md` index. `01_simple_data_mod` (pure ItemInfo edit, no assets). `02_texture_swap` (one DDS asset). `03_audio_replacement` (one WEM asset). `04_custom_item` (table insert + DDS icon + paloc strings — the canonical 3-target recipe). `05_mixed_overhaul` (5 targets across all 4 kinds). All 5 manifests inspect cleanly via `python -m dmm_parser.tools.inspect` (Windows cp1252 unicode bug fixed: replaced `→` with `->` in inspect.py output).
 
-- [ ] **F2** — Format reference docs. `docs/FORMATS.md` — every binary format dmm-parser handles. Header diagrams, byte layouts, validation rules. Links to hexpat patterns.
+- [x] **F2** — Format reference docs. `docs/FORMATS.md` — every binary format dmm-parser handles. Header diagrams, byte layouts, validation rules. Links to hexpat patterns.
+  Done: 12-section format reference. Single at-a-glance table maps every format → notes file, hexpat, Rust module. Per-format sections for PAPGT, PAMT, PAZ, Trie, PALOC, PABGB, DDS, WEM, BNK, SAVE, with header diagrams or section breakdowns. Final §11 documents the hexpat workflow; §12 is the recipe for adding a new format (drop sample → hexpat → notes → Rust → tests → dispatch → PyO3 → docs).
 
-- [ ] **F3** — Final pass: README updates across all repos, version bumps, CHANGELOG entries, ensure all phase notes are merged into permanent docs.
+- [x] **F3** — Final pass: README updates across all repos, version bumps, CHANGELOG entries, ensure all phase notes are merged into permanent docs.
+  Done: README.MD `Status` block updated to reflect 402 Rust tests + 12 tools tests, called out DDS / Wwise audio / save envelope / Field-JSON v3.1 CLIs as new since the original snapshot. Added `## For mod authors` section linking MOD_AUTHOR_GUIDE / FORMATS / samples and showing the four CLI invocations. Plan checkboxes consolidated; phase descriptions migrated into permanent docs (`MOD_AUTHOR_GUIDE.md`, `FORMATS.md`, `api.md`, `archive-format.md`, the `references/` notes). No CHANGELOG file in this repo — the git log + the `Done:` notes in this plan serve as the audit trail.
 
 ---
 

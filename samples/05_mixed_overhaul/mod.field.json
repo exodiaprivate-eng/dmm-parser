@@ -1,0 +1,47 @@
+{
+  "format": 3,
+  "format_minor": 1,
+  "name": "Macduff Variety Pack",
+  "author": "potter",
+  "version": "1.0.0",
+  "description": "A handful of changes: two item rebalances, two icon swaps, a voice clip, and the supporting strings.",
+
+  "targets": [
+    {
+      "kind": "table",
+      "table": "ItemInfo",
+      "ops": [
+        { "key": "id_4242", "field": "max_count", "value": 99 },
+        { "key": "id_5101", "field": "buy_price", "value": 0  }
+      ]
+    },
+
+    {
+      "kind": "asset",
+      "asset_type": "dds",
+      "file": "icons/sword.dds",
+      "vpath": "/ui/icon/sword.dds"
+    },
+    {
+      "kind": "asset",
+      "asset_type": "dds",
+      "file": "icons/potion.dds",
+      "vpath": "/ui/icon/potion_red.dds"
+    },
+
+    {
+      "kind": "asset",
+      "asset_type": "wem",
+      "file": "voice/macduff_attack01.wem",
+      "vpath": "0006/sound/windows/english(us)/3684722581.wem"
+    },
+
+    {
+      "kind": "paloc",
+      "language": "english(us)",
+      "entries": [
+        { "category": 0, "key": "STR_ITEM_4242_NAME", "value": "Big Healing Potion" }
+      ]
+    }
+  ]
+}
