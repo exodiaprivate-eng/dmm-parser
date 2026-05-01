@@ -647,6 +647,101 @@ pub fn classify_vpath_last4(vpath: &str) -> Option<u32> {
     crate::dds::classify_vpath_last4(vpath)
 }
 
+// ── Wwise audio (WEM + BNK) — Phase A8 ────────────────────────────────────
+//
+// Lightweight Python wrappers around dmm_parser::audio. Used by SWISS
+// Stacker to validate audio mods (WEM voice clips, BNK soundbanks) and
+// pre-fill v3.1 asset target entries during the asset-folder scan.
+
+#[pyfunction]
+pub fn classify_wem(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use crate::audio::classify_wem as core;
+    let m = core(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let d = PyDict::new(py);
+    d.set_item("file_size", m.file_size)?;
+    d.set_item("format_tag", m.format_tag.raw())?;
+    d.set_item("format_tag_label", match m.format_tag {
+        crate::audio::WemFormatTag::WaveformatExtensible => "WaveformatExtensible",
+        crate::audio::WemFormatTag::WwiseVorbis => "WwiseVorbis",
+        crate::audio::WemFormatTag::Other(_) => "Other",
+    })?;
+    d.set_item("channels", m.channels)?;
+    d.set_item("sample_rate", m.sample_rate)?;
+    d.set_item("byte_rate", m.byte_rate)?;
+    d.set_item("block_align", m.block_align)?;
+    d.set_item("bits_per_sample", m.bits_per_sample)?;
+    d.set_item("has_wwise_hash_chunk", m.has_wwise_hash_chunk)?;
+    d.set_item("data_offset", m.data_offset)?;
+    d.set_item("data_size", m.data_size)?;
+    Ok(d.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn parse_bnk(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use crate::audio::parse_bnk as core;
+    let bnk = core(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let d = PyDict::new(py);
+    d.set_item("file_size", bnk.file_size)?;
+    d.set_item("bank_version", bnk.bank_version)?;
+    d.set_item("bank_id", bnk.bank_id)?;
+    d.set_item("data_payload_offset", bnk.data_payload_offset)?;
+    d.set_item("has_hirc", bnk.has_hirc)?;
+
+    // Sections list
+    let sections = PyList::empty(py);
+    for s in &bnk.sections {
+        let sd = PyDict::new(py);
+        sd.set_item("id", std::str::from_utf8(&s.id).unwrap_or("????"))?;
+        sd.set_item("header_offset", s.header_offset)?;
+        sd.set_item("size", s.size)?;
+        sections.append(sd)?;
+    }
+    d.set_item("sections", sections)?;
+
+    // Embedded WEM index
+    let wems = PyList::empty(py);
+    for e in &bnk.embedded_wems {
+        let ed = PyDict::new(py);
+        ed.set_item("wem_id", e.wem_id)?;
+        ed.set_item("wem_offset", e.wem_offset)?;
+        ed.set_item("wem_size", e.wem_size)?;
+        wems.append(ed)?;
+    }
+    d.set_item("embedded_wems", wems)?;
+    Ok(d.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn infer_audio_vpath(vpath: &str) -> Option<&'static str> {
+    use crate::audio::AudioPathClass;
+    crate::audio::infer_audio_vpath(vpath).map(|c| match c {
+        AudioPathClass::LocalizedVoiceBank => "LocalizedVoiceBank",
+        AudioPathClass::LocalizedVoiceClip => "LocalizedVoiceClip",
+        AudioPathClass::CommonSoundBank => "CommonSoundBank",
+        AudioPathClass::CommonSoundClip => "CommonSoundClip",
+        AudioPathClass::OtherAudio => "OtherAudio",
+    })
+}
+
+#[pyfunction]
+pub fn validate_audio(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use crate::audio::{validate_audio as core, AudioSeverity};
+    let findings = core(data);
+    let out = PyList::empty(py);
+    for f in &findings {
+        let d = PyDict::new(py);
+        d.set_item("code", f.code)?;
+        d.set_item("severity", match f.severity {
+            AudioSeverity::Fatal => "fatal",
+            AudioSeverity::Warning => "warning",
+            AudioSeverity::Info => "info",
+        })?;
+        d.set_item("message", &f.message)?;
+        out.append(d)?;
+    }
+    Ok(out.into_any().unbind())
+}
+
 // ── Checksum ──────────────────────────────────────────────────────────────
 
 #[pyfunction]
@@ -1035,6 +1130,10 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(validate_dds, m)?)?;
     m.add_function(wrap_pyfunction!(infer_dds_vpath, m)?)?;
     m.add_function(wrap_pyfunction!(classify_vpath_last4, m)?)?;
+    m.add_function(wrap_pyfunction!(classify_wem, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_bnk, m)?)?;
+    m.add_function(wrap_pyfunction!(infer_audio_vpath, m)?)?;
+    m.add_function(wrap_pyfunction!(validate_audio, m)?)?;
     m.add_function(wrap_pyfunction!(parse_skillinfo_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_skillinfo_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_skillinfo, m)?)?;
