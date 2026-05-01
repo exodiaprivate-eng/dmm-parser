@@ -1971,6 +1971,7 @@ mod tests {
         //     a spline segment ID. All non-default entries have this field set; default = 0.
         //   - Blob contains CString("fx_pc_weapon_exp_b__logout.system.effect") at bytes
         //     596-639 (length u32 at 596, data at 600).
+        //   - 00_common/spl entries (5, max_blob=738) do NOT share this blob — different variant.
         //   - Decoding requires IDA: sub_1410E6FC0 dispatches to a different post-body reader
         //     for generated__/pointcontrol gimmick classes than the standard GimmickPostBody.
         let (data, pabgh_data) = load_or_skip!();
