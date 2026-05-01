@@ -143,6 +143,13 @@ pub fn parse_table_to_json(
         "sub_level_info"                 => p!(crate::tables::sub_level_info::SubLevelInfo),
         "terrain_region_auto_spawn_info" => p!(crate::tables::terrain_region_auto_spawn_info::TerrainRegionAutoSpawnInfo),
 
+        // ── localization (paloc) ──────────────────────────────────────────
+        // Self-delimiting via trailing u32 count, not pabgh-bounded or strict
+        // sequential. Special-cased like skill_info / equip_slot_info.
+        "paloc" | "paloc.pamt" | "localizationstring" => {
+            crate::binary::paloc::parse_paloc_to_json(pabgb)?
+        },
+
         // ── sequential tables ─────────────────────────────────────────────
         "action_point_info"              => s!(crate::tables::action_point_info::ActionPointInfo),
         "action_restriction_order_info"  => s!(crate::tables::action_restriction_order_info::ActionRestrictionOrderInfo),
@@ -304,6 +311,11 @@ pub fn serialize_table_from_json(
         "sub_level_info"                 => d!(crate::tables::sub_level_info::SubLevelInfo),
         "terrain_region_auto_spawn_info" => d!(crate::tables::terrain_region_auto_spawn_info::TerrainRegionAutoSpawnInfo),
 
+        // ── localization (paloc) ──────────────────────────────────────────
+        "paloc" | "paloc.pamt" | "localizationstring" => {
+            crate::binary::paloc::serialize_paloc_from_json(json_items)?
+        },
+
         // ── sequential tables ─────────────────────────────────────────────
         "action_point_info"              => d!(crate::tables::action_point_info::ActionPointInfo),
         "action_restriction_order_info"  => d!(crate::tables::action_restriction_order_info::ActionRestrictionOrderInfo),
@@ -426,6 +438,8 @@ pub fn supported_tables() -> &'static [&'static str] {
         "royal_supply_info", "sequencer_spawn_info", "skill_info",
         "spawning_pool_auto_spawn_info", "special_mode_info", "stage_info",
         "store_info", "sub_level_info", "terrain_region_auto_spawn_info",
+        // localization
+        "paloc", "paloc.pamt", "localizationstring",
         // sequential
         "action_point_info", "action_restriction_order_info",
         "aiaction_attribute_info", "aidialog_type_info", "aievent_table_info",

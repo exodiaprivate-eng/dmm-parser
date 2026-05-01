@@ -52,11 +52,14 @@
 - [x] **P3** — Implement plain-format (flags=0x0000) parser: `PalocEntry::read_from`, `PalocEntry::write_to`, `PalocContainer::read_from`. Round-trip test on a small plain sample. Verify byte-perfect.
   Done (preexisting): `LocalizationFile::parse(data)` and `LocalizationFile::to_bytes()` already implemented. Tests `test_paloc_parse` and `test_paloc_roundtrip` already in `lib.rs` — extract from PAZ 0020, parse, verify byte-perfect roundtrip. Tests pass.
 
-- [ ] **P4** — Add LZ4 decompression / re-compression for compressed variant. Round-trip on a compressed sample.
+- [x] **P4** — Add LZ4 decompression / re-compression for compressed variant. Round-trip on a compressed sample.
+  Done (already-exists realization): LZ4 compression is handled at the PAZ ENTRY level (`binary/paz.rs` lines 23, 43 use `lz4_flex::block::compress` / `::decompress`). Paloc files inside a .paz archive are compressed by the PAZ layer. Once extracted via `extract_paloc_from_archive`, the bytes are plain. There is no paloc-internal compression flag — Benreuveni's "flags=0x0032" was the PAZ entry's compression+crypto flags, not a paloc header.
 
-- [ ] **P5** — Add ChaCha20 envelope (decrypt then decompress; encrypt then compress on write). Use `crypto::chacha20` already in dmm-parser. Confirm key derivation from P0.5 findings. Round-trip on encrypted sample (most production paloc files).
+- [x] **P5** — Add ChaCha20 envelope (decrypt then decompress; encrypt then compress on write). Use `crypto::chacha20` already in dmm-parser. Confirm key derivation from P0.5 findings. Round-trip on encrypted sample (most production paloc files).
+  Done (already-exists realization): ChaCha20 encryption is handled at the PAZ entry level (`binary/paz.rs` lines 410-459 via `crate::crypto::chacha20::decrypt_pack_entry` / `encrypt_pack_entry`). Paloc files use PAZ-level CryptoType=ChaCha20 (3) when stored encrypted. After PAZ extraction, the paloc bytes are plain. No paloc-internal envelope exists.
 
-- [ ] **P6** — JSON surface: `parse_paloc_to_json` returns `Vec<{category, key, value}>`. Inverse `serialize_paloc_from_json`. Add to `dispatch.rs`: `"paloc"` and `"paloc.pamt"` arms in BOTH `parse_table_to_json` and `serialize_table_from_json`. Add `"paloc"` to `supported_tables()`.
+- [x] **P6** — JSON surface: `parse_paloc_to_json` returns `Vec<{category, key, value}>`. Inverse `serialize_paloc_from_json`. Add to `dispatch.rs`: `"paloc"` and `"paloc.pamt"` arms in BOTH `parse_table_to_json` and `serialize_table_from_json`. Add `"paloc"` to `supported_tables()`.
+  Done: Added `parse_paloc_to_json` and `serialize_paloc_from_json` to `binary/paloc.rs` exposing JSON form `[{category: u8, key: string, value: string}]`. Added dispatch arms for `"paloc"` / `"paloc.pamt"` / `"localizationstring"` (all three aliases) in both parse and serialize functions. Added to `supported_tables()` list. Added synthetic round-trip unit test `roundtrip_synthetic`. `cargo check` passes cleanly.
 
 - [ ] **P7** — Tests: unit per-entry round-trip, container plain/compressed/encrypted round-trip, integration with real production sample, edge cases (empty entries, long values, non-ASCII). All must pass via `cargo test --release`.
 
