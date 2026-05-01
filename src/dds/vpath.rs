@@ -29,7 +29,7 @@
 //! See `references/dds_notes.md` §3 (last4 lookup) and §5 (path-prefix
 //! classifier) for the authoritative reference.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Crimson-specific "last4" classification of a virtual game path. Used
 /// as tier 2 of the three-tier resolution: tier 1 reads the value from
@@ -111,6 +111,7 @@ fn path_to_forward_slashes(p: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     // ── classify_vpath_last4 ────────────────────────────────────────────
 

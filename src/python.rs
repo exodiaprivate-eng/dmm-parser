@@ -592,6 +592,61 @@ pub fn serialize_paloc_to_bytes(py: Python<'_>, items: &Bound<'_, PyList>) -> Py
     Ok(PyBytes::new(py, &bytes).into_any().unbind())
 }
 
+// ── DDS texture metadata + validation (Phase D7) ──────────────────────────
+//
+// Lightweight Python wrappers around dmm_parser::dds. Used by SWISS Stacker
+// to validate texture mods and pre-fill v3.1 asset target entries before
+// export. SHA-256 is supplied by the caller (Python's hashlib) — dmm-parser
+// doesn't bundle a SHA-256 implementation just for this.
+
+#[pyfunction]
+pub fn classify_dds(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use crate::dds::classify;
+    let c = classify(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let d = PyDict::new(py);
+    d.set_item("format", format!("{:?}", c.format))?;
+    d.set_item("width", c.width)?;
+    d.set_item("height", c.height)?;
+    d.set_item("mip_count", c.mip_count)?;
+    d.set_item("depth", c.depth)?;
+    d.set_item("is_dx10", c.is_dx10)?;
+    d.set_item("dxgi_format", c.dxgi_format)?;
+    d.set_item("crimson_last4", c.crimson_last4)?;
+    d.set_item("requires_pathc", c.requires_pathc)?;
+    d.set_item("block_bytes", c.format.block_bytes())?;
+    Ok(d.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn validate_dds(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use crate::dds::{validate_dds_for_game, Severity};
+    let findings = validate_dds_for_game(data);
+    let out = PyList::empty(py);
+    for f in &findings {
+        let d = PyDict::new(py);
+        d.set_item("code", f.code)?;
+        d.set_item("severity", match f.severity {
+            Severity::Fatal => "fatal",
+            Severity::Warning => "warning",
+            Severity::Info => "info",
+        })?;
+        d.set_item("message", &f.message)?;
+        out.append(d)?;
+    }
+    Ok(out.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn infer_dds_vpath(asset_root: &str, file_path: &str) -> Option<String> {
+    use std::path::Path;
+    crate::dds::infer_vpath_from_disk_path(Path::new(asset_root), Path::new(file_path))
+}
+
+#[pyfunction]
+pub fn classify_vpath_last4(vpath: &str) -> Option<u32> {
+    crate::dds::classify_vpath_last4(vpath)
+}
+
 // ── Checksum ──────────────────────────────────────────────────────────────
 
 #[pyfunction]
@@ -976,6 +1031,10 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_paloc_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paloc_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_paloc_to_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(classify_dds, m)?)?;
+    m.add_function(wrap_pyfunction!(validate_dds, m)?)?;
+    m.add_function(wrap_pyfunction!(infer_dds_vpath, m)?)?;
+    m.add_function(wrap_pyfunction!(classify_vpath_last4, m)?)?;
     m.add_function(wrap_pyfunction!(parse_skillinfo_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_skillinfo_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_skillinfo, m)?)?;
