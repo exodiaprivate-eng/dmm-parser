@@ -308,7 +308,7 @@ Serialize and write to a file.
 | `string_key` | `str` | String identifier |
 | `is_blocked` | `int` | Blocked flag (u8) |
 | `cooltime` | `int` | Cooldown (u32) |
-| `buff_level_list` | `str` | Base64 blob — `CArray<CArray<BuffData>>` per level; opaque until BuffData gets a JSON shim |
+| `buff_level_list` | `list[list[dict]]` | Nested JSON array — `CArray<CArray<BuffDataOptional>>` per level; each BuffData dict has `base_fields` + `variant_payload_b64` |
 | `skill_group_key` | `int` | SkillGroupKey (u32) |
 | `parent_skill` | `int` | Parent SkillKey (u32) |
 | `learn_level` | `int` | Required level to learn (u32) |
@@ -370,7 +370,7 @@ Serialize and write to a file.
 | `key` | `int` | Unique buff ID (u32) |
 | `string_key` | `str` | String identifier |
 | `is_blocked` | `int` | Blocked flag (u8) |
-| `_buff_data_list_b64` | `str` | Base64 blob — polymorphic `CArray<BuffData>` (120 variant family); opaque until BuffData gets a JSON shim |
+| `buff_data_list` | `list[dict]` | Typed JSON array — `CArray<BuffDataEntry>`; each entry has `base_fields` dict + `variant_payload_b64` (variant body as base64 for unrecognized variants) |
 | `min_level` | `int` | Minimum buff level (u32) |
 | `max_level` | `int` | Maximum buff level (u32) |
 | `sequencer_file_name` | `str` | Sequencer asset path |
@@ -473,6 +473,7 @@ All data is returned as plain Python dicts, lists, and primitives. No custom cla
 | `i8`, `i64` | `int` | |
 | `f32` | `float` | |
 | `CString` | `str` | |
+| `CBytes` | `bytes` | Raw byte string (u32 len + bytes, no UTF-8 check) |
 | `CArray<T>` | `list[T]` | |
 | `COptional<T>` | `T \| None` | |
 | `LocalizableString` | `dict` | See [LocalizableString](#localizablestring) |
