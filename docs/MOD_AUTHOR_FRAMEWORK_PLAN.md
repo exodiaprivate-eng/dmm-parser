@@ -7,6 +7,16 @@
 
 ---
 
+## Scope (SWISS + dmm-parser only — DMM is parked)
+
+This framework focuses on **unlocking what the game hides via dmm-parser to help SWISS**. DMM-integration work is explicitly **out of scope** unless the user re-opens it. The following sub-phases are marked NOT-NEEDED and skipped:
+
+- ~~**P10**~~ — DMM apply integration (committed on DMM-BETA feature branch but not requested; left in place since it's on an unmerged branch).
+- ~~**X1**~~ — DMM apply integration for asset targets (not needed).
+- ~~**S10**~~ — DMM `save_engine` migration coordination (not needed).
+
+All other phases stay focused on dmm-parser exposing format internals + Python bindings + spec docs that SWISS consumes.
+
 ## How To Use This Plan (Read First Each Loop Iteration)
 
 1. Find the **first unchecked `[ ]` checkbox** below in the linear order they appear.
@@ -77,9 +87,10 @@
 
 ## Phase X — v3.1 Asset Target Schema (Cross-Cutting)
 
-- [ ] **X0** — Update `FIELD_JSON_V3_1_SPEC.md` with `type: "asset"` target. Document `source` (relative path), `sha256` (optional), file-extension dispatch, sidecar folder convention.
+- [x] **X0** — Update `FIELD_JSON_V3_1_SPEC.md` with `type: "asset"` target. Document `source` (relative path), `sha256` (optional), file-extension dispatch, sidecar folder convention.
+  Done: Added two new sections to FIELD_JSON_V3_1_SPEC.md (SWISS clone): (1) "Localization target — paloc.pamt" — documents the (category, key) intent mapping for paloc records, with example JSON for custom-item naming. (2) "Asset target type (v3.1, additive)" — full spec for the `type: "asset"` shape with `source` + optional `sha256`, path resolution rules (no abs paths, no `..`), file-extension dispatch table (DDS/WEM/BNK/TTF/FX), mixed-target example, validation requirements. Authoritative spec doc now ready for SWISS Stacker exporter (X2) to follow.
 
-- [ ] **X1** — DMM apply integration. In `field_json_v3.rs` add asset target dispatch. Resolve sidecar paths relative to .field.json. Use dmm-parser's classify_dds / classify_wem / parse_bnk for validation. Route to existing `pending_dds` / `dds_injections` queues.
+- [~] **X1** — ~~DMM apply integration~~ — **SKIPPED**: DMM work is out of scope per user direction. SWISS exporter (X2) and dmm-parser validators (Phase D/A) cover the framework's needs. If DMM work resumes later, dispatch can be added then; the spec doc (X0) and validators (D/A) are designed to support it without re-spec.
 
 - [ ] **X2** — SWISS export integration. Extend `_export_field_json` in `stacker.py` to scan an asset folder. Use dmm-parser's vpath inference for auto-targeting. Compute SHA-256 for integrity.
 
@@ -155,7 +166,7 @@
 
 - [ ] **S9** — Python bindings + tests. PyO3 bindings for save parse/serialize. Tests on real save files.
 
-- [ ] **S10** — Migration coordination with DMM. DMM's `save_engine` continues for backward compat. New code uses `dmm_parser::save::*`.
+- [~] **S10** — ~~Migration coordination with DMM~~ — **SKIPPED**: DMM work is out of scope per user direction. The dmm-parser save module (S0-S9) stands alone for SWISS save editor consumption.
 
 ---
 
