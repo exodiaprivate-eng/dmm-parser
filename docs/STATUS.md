@@ -131,13 +131,15 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
-- `GimmickInfo` — Decoded tail extended to **731 typed fields** (1-16
-  prefix + 712 tail u32 + 3 alt-format header). post_blob average
-  **1118 → 682 bytes** (5.40M bytes recovered total over 12393
-  entries). MAJOR: Added alt-format trigger header (count + flag +
-  CString name) that activates when field 17 fails — unlocks 4975
-  scene/region gimmicks (40% of entries) that previously had ALL
-  data in post_blob. (loop session 2026-04-30)
+- `GimmickInfo` — Decoded tail extended to **862 typed fields** (1-16
+  prefix + 712 tail u32 + 6 alt-header + 128 alt-body). post_blob
+  average **1118 → 470 bytes** (8.03M bytes recovered total over
+  12393 entries). MAJOR: Added alt-format trigger header (count +
+  flag + CString name + inner header + 128× u32 body) that
+  activates when field 17 fails — unlocks 4975 scene/region
+  gimmicks (40% of entries) that previously had ALL data in
+  post_blob. Single iteration savings of 1.26M bytes × 2 batches.
+  (loop session 2026-04-30)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
