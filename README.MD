@@ -3,7 +3,22 @@
 Pabgb / pabgh / paz / pamt / papgt parser for the DMM mod loader.
 
 Forked from `crimson-rs` by `potter4208467` (Discord) with explicit permission.
-Distributed under a source-available license restricted to DMM-affiliated use — see [LICENSE](LICENSE).
+
+## License & Authorized Distribution
+
+Licensed under **CDMTL v1.0** (Crimson Desert Modding Tools License v1.0), effective 2026-05-01. See [LICENSE.txt](LICENSE.txt) for full terms.
+
+**This software is distributed exclusively through the following authorized channels:**
+
+- **Source**: https://github.com/exodiaprivate-eng/dmm-parser
+- **Releases**: https://github.com/exodiaprivate-eng/dmm-parser/releases
+- **NexusMods**: only via the official RicePaddySoftware author page when published
+
+Any copy of this software, or any derivative work based on it, found outside these channels is **unauthorized** and subject to DMCA takedown. This includes uploads to NexusMods, ModDB, GameBanana, CurseForge, file-sharing services, and third-party GitHub repositories not operated by RicePaddySoftware.
+
+**Trademarks**: "DMM", "Definitive Mod Manager", "SWISS", "SWISS Suite", "Field JSON v3.1", "Multi-Target Field Patching", "RicePaddySoftware", and "CrimsonGameMods" are trademarks of RicePaddySoftware. Use of these names — including confusingly similar variants such as "CDUMM", "DUMM", or "DMM2" — by competing tools is prohibited.
+
+**Found an unauthorized copy?** Open an issue on this repository with the URL and a brief description, or follow the platform's own abuse-reporting flow.
 
 ## Status
 
