@@ -131,22 +131,16 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
-- `GimmickInfo` — Decoded tail extended to **2030 typed fields**
-  (1-16 prefix + 712 tail u32 + 6 alt-header + 640 alt-body + 2
+- `GimmickInfo` — Decoded tail extended to **2158 typed fields**
+  (1-16 prefix + 712 tail u32 + 6 alt-header + **768 alt-body** + 2
   alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
-  + 4 tail_pad u8). post_blob avg **1118 → 125 bytes** (12.31M bytes
+  + 4 tail_pad u8). post_blob avg **1118 → 120 bytes** (12.37M bytes
   recovered total over 12393 entries — **89% reduction from baseline**).
-  **MAJOR milestone (iter 80): 11585/12393 entries (93%) now have**
-  **ZERO post_blob bytes** (up from 1073 at session start). Only
-  808 entries retain any residual; remaining 1.55M bytes are
-  concentrated in 711 outlier entries with embedded XML/script
-  content (60 entries with 4096+ bytes alone account for 55% of
-  remaining bytes). Iters 61-63 added f31/f39/f32 alt u32 chains
-  (64 fields each). Iters 73-75 extended each to 128. Iters 76-79
-  extended f31_alt → 256, f32_alt → 192, f39_alt → 192. Iter 80
-  added 4× chained `Option<u8>` for trailing pad bytes (drained
-  10500 entries down to 0 trailing bytes). Smart-probe methodology
-  proven repeatable. (loop session 2026-05-01)
+  Iter 81 (alt_body 640→768): drained 56K bytes from 122 entries that
+  fully chained the original alt_body chain (avg=125→120). Smart-probe
+  alt-chain extension methodology continues to deliver consistent
+  byte savings across all four chains (f31_alt, f32_alt, f39_alt,
+  alt_body). (loop session 2026-05-01)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
