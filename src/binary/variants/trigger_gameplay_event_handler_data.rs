@@ -182,7 +182,7 @@ impl<'a> BinaryRead<'a> for ForceFieldBody {
         let sub_dispatch = u8::read_from(data, offset)?;
         let helper = ForceFieldHelperBlock::read_from(data, offset)?;
         let sub_body = match sub_dispatch {
-            0 | 1 | 2 | 3 => {
+            0..=3 => {
                 ForceFieldSubBody::StandardCase01_3(ForceFieldSubCase01230rOther::read_from(data, offset)?)
             }
             4 => ForceFieldSubBody::Case4(ForceFieldSubCase4Body::read_from(data, offset)?),

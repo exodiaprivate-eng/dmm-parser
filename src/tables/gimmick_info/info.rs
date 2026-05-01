@@ -127,7 +127,7 @@ pub enum GimmickTail<'a> {
         use_sub_part_for_interaction: u8,
         property_list: CArray<u32>,
         gimmick_name_hash: u32,
-        gimmick_name: LocalizableString<'a>,
+        gimmick_name: Box<LocalizableString<'a>>,
         emoji_texture_id: CString<'a>,
         dev_memo: CString<'a>,
         hash_pair_list: CArray<GimmickHashPair<'a>>,    // sub_141104D20
@@ -5166,7 +5166,7 @@ impl<'a> GimmickTail<'a> {
                     use_sub_part_for_interaction: sp,
                     property_list: pl,
                     gimmick_name_hash: gnh,
-                    gimmick_name: gn,
+                    gimmick_name: Box::new(gn),
                     emoji_texture_id: eti,
                     dev_memo: dm,
                     hash_pair_list: hpl,

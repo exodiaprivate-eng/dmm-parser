@@ -234,7 +234,7 @@ impl<'a> BinaryRead<'a> for FilterCondition {
     }
 }
 
-impl<'a> BinaryWrite for FilterCondition {
+impl BinaryWrite for FilterCondition {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.tag.write_to(w)?;
         self.u16_list.write_to(w)?;
@@ -266,7 +266,7 @@ impl<'a> BinaryReadTracked<'a> for FilterCondition {
     }
 }
 
-impl<'a> ToJsonValue for FilterCondition {
+impl ToJsonValue for FilterCondition {
     fn to_json_value(&self) -> Value {
         let mut m = Map::new();
         m.insert("tag".into(), self.tag.to_json_value());
@@ -292,7 +292,7 @@ impl<'a> ToJsonValue for FilterCondition {
     }
 }
 
-impl<'a> WriteJsonValue for FilterCondition {
+impl WriteJsonValue for FilterCondition {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "FilterCondition: expected object"))?;
@@ -325,14 +325,14 @@ impl<'a> WriteJsonValue for FilterCondition {
     }
 }
 
-impl<'a> crate::python_traits::ToPyValue for FilterCondition {
+impl crate::python_traits::ToPyValue for FilterCondition {
     fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
         Err(pyo3::exceptions::PyNotImplementedError::new_err(
             "FilterCondition: use JSON path"))
     }
 }
 
-impl<'a> crate::python_traits::WritePyValue for FilterCondition {
+impl crate::python_traits::WritePyValue for FilterCondition {
     fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
         Err(pyo3::exceptions::PyNotImplementedError::new_err(
             "FilterCondition: use JSON path"))
