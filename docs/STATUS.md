@@ -133,12 +133,14 @@ This file is for collaborators picking up round-trip work. It's the
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
 - `GimmickInfo` — Decoded tail extended to **1376 typed fields**
   (1-16 prefix + 712 tail u32 + 6 alt-header + 640 alt-body + 2
-  alt-cstr + 5 emissive-record). post_blob average **1118 → 191
-  bytes** (11.49M bytes recovered total over 12393 entries —
-  **83% reduction from baseline**). Iter 60 decoded structured
-  emissive bind record at field_24 (51 entries, 3.7K bytes saved)
-  — exposes material parameter binding names like
-  `_emissiveProgressGauge` for mod editing. (loop session 2026-04-30)
+  alt-cstr + 5 emissive-record + 64 f31_alt). post_blob average
+  **1118 → 174 bytes** (11.70M bytes recovered total over 12393
+  entries — **84% reduction from baseline**). Iter 61 added
+  f31_alt u32 chain that activates when field_31 CArray<u32> fails
+  — 724 entries unlocked, saved 210K bytes in single iteration
+  (more than the prior 5 combined). Smart probe-detection approach
+  proven to unlock next tier beyond flat batching ceiling.
+  (loop session 2026-04-30)
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
