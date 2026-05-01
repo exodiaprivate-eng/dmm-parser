@@ -30,7 +30,97 @@ pub enum AudioPathClass {
 /// Infer the audio asset class from a Crimson Desert vpath. Returns
 /// `None` if the path doesn't match any known audio convention.
 ///
-/// Stub for A6 — full path-prefix table lands in A6.
-pub fn infer_audio_vpath(_vpath: &str) -> Option<AudioPathClass> {
-    None
+/// Recognized patterns (case-insensitive; leading slash optional):
+///   `0006/sound/windows/<lang>/<id>.bnk` → LocalizedVoiceBank
+///   `0006/sound/windows/<lang>/<id>.wem` → LocalizedVoiceClip
+///   `soundcommon/windows/<id>.bnk`       → CommonSoundBank
+///   `soundcommon/windows/<id>.wem`       → CommonSoundClip
+///   any other `.wem` / `.bnk` path        → OtherAudio
+///   non-audio extension                   → None
+pub fn infer_audio_vpath(vpath: &str) -> Option<AudioPathClass> {
+    let lower = vpath.to_ascii_lowercase();
+    let p = lower.strip_prefix('/').unwrap_or(&lower);
+
+    let is_bnk = p.ends_with(".bnk");
+    let is_wem = p.ends_with(".wem");
+    if !is_bnk && !is_wem {
+        return None;
+    }
+
+    if p.starts_with("0006/sound/windows/") {
+        Some(if is_bnk { AudioPathClass::LocalizedVoiceBank } else { AudioPathClass::LocalizedVoiceClip })
+    } else if p.starts_with("soundcommon/windows/") {
+        Some(if is_bnk { AudioPathClass::CommonSoundBank } else { AudioPathClass::CommonSoundClip })
+    } else {
+        Some(AudioPathClass::OtherAudio)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn localized_voice_bank() {
+        assert_eq!(
+            infer_audio_vpath("0006/sound/windows/english(us)/3684722581.bnk"),
+            Some(AudioPathClass::LocalizedVoiceBank),
+        );
+        assert_eq!(
+            infer_audio_vpath("/0006/sound/windows/korean/694511365.bnk"),
+            Some(AudioPathClass::LocalizedVoiceBank),
+        );
+    }
+
+    #[test]
+    fn localized_voice_clip() {
+        assert_eq!(
+            infer_audio_vpath("0006/sound/windows/english(us)/1045272379.wem"),
+            Some(AudioPathClass::LocalizedVoiceClip),
+        );
+    }
+
+    #[test]
+    fn common_sound_bank() {
+        assert_eq!(
+            infer_audio_vpath("soundcommon/windows/2498340951.bnk"),
+            Some(AudioPathClass::CommonSoundBank),
+        );
+    }
+
+    #[test]
+    fn common_sound_clip() {
+        assert_eq!(
+            infer_audio_vpath("soundcommon/windows/113958244.wem"),
+            Some(AudioPathClass::CommonSoundClip),
+        );
+    }
+
+    #[test]
+    fn other_audio_paths() {
+        // Legacy DMM convention or non-canonical Wwise paths
+        assert_eq!(
+            infer_audio_vpath("0014/sound/banks/macduff_voices.bnk"),
+            Some(AudioPathClass::OtherAudio),
+        );
+        assert_eq!(
+            infer_audio_vpath("0014/sound/character/macduff/voice_attack01.wem"),
+            Some(AudioPathClass::OtherAudio),
+        );
+    }
+
+    #[test]
+    fn case_insensitive() {
+        assert_eq!(
+            infer_audio_vpath("0006/Sound/Windows/English(US)/3684722581.BNK"),
+            Some(AudioPathClass::LocalizedVoiceBank),
+        );
+    }
+
+    #[test]
+    fn non_audio_returns_none() {
+        assert_eq!(infer_audio_vpath("0009/character/texture/foo.dds"), None);
+        assert_eq!(infer_audio_vpath("paloc.pamt"), None);
+        assert_eq!(infer_audio_vpath(""), None);
+    }
 }
