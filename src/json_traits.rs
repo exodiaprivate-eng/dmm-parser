@@ -282,6 +282,23 @@ impl WriteJsonValue for [u32; 2] {
     }
 }
 
+impl ToJsonValue for [u32; 3] {
+    fn to_json_value(&self) -> Value {
+        Value::Array(self.iter().map(|x| Value::from(*x)).collect())
+    }
+}
+impl WriteJsonValue for [u32; 3] {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            format!("expected array of 3 u32, got {}", type_name(v))))?;
+        if arr.len() != 3 {
+            return err(format!("expected 3 elements for [u32; 3], got {}", arr.len()));
+        }
+        for elem in arr { u32::write_from_json(w, elem)?; }
+        Ok(())
+    }
+}
+
 impl ToJsonValue for [u32; 4] {
     fn to_json_value(&self) -> Value {
         Value::Array(self.iter().map(|x| Value::from(*x)).collect())

@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
     "rust-skills@rust-skills": true
-  }
+  },
+  "enabledMcpjsonServers": ["local"]
 }
