@@ -26,12 +26,27 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
+    pub struct GlobalGameEventGroupEventData {
+        pub field_a: u32,
+        pub field_b: u64,
+        pub field_c: u64,
+        pub field_d: u32,
+    }
+}
+
+py_binary_struct! {
     pub struct GlobalGameEventGroupInfo<'a> {
         pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub events: CArray<u16>,
-        pub tail_qword: u64,
+        pub priority: u32,
+        pub cooltime: u64,
+        pub duration: u64,
+        pub flags: u32,
+        pub event_data_list: CArray<GlobalGameEventGroupEventData>,
+        pub event_key_list: CArray<u16>,
+        pub field_info_key: u32,
+        pub is_enabled: u8,
     }
 }
 

@@ -25,12 +25,6 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct ActionPoint {
         pub field_a: u32,
-        // block_a [u8;24] split via empirical per-slot probe across all
-        // 25988 entries: slots 0-3 (bytes 0-15) are always non-NaN f32
-        // (zero in vanilla); slots 4-5 (bytes 16-23) are always NaN bit
-        // patterns. Tail exposed as 2× u32 raw bit fields so JSON
-        // consumers can edit each lane while preserving exact bit
-        // pattern (u32 doesn't normalize through serde_json like f32).
         pub block_a_floats: [f32; 4],
         pub block_a_nan_tail_lo: u32,
         pub block_a_nan_tail_hi: u32,
@@ -44,6 +38,16 @@ py_binary_struct! {
         pub field_g: u32,
         pub block_c: [f32; 3],
         pub field_h: u32,
+        pub ext_float_a: f32,
+        pub ext_field_a: u32,
+        pub ext_float_b: f32,
+        pub ext_scale: [f32; 3],
+        pub ext_nan_lo: u32,
+        pub ext_nan_hi: u32,
+        pub ext_block_a1: [u32; 4],
+        pub ext_block_a2: [u32; 2],
+        pub ext_block_b: [f32; 4],
+        pub ext_tail: [u32; 4],
     }
 }
 
