@@ -314,10 +314,11 @@ impl WriteJsonValue for [u32; 4] {
 
 impl ToJsonValue for CString<'_> {
     fn to_json_value(&self) -> Value {
-        if self.data.is_empty() && !self.raw.is_empty() {
-            Value::String(String::from_utf8_lossy(self.raw).into_owned())
-        } else {
+        if std::str::from_utf8(self.raw).is_ok() {
             Value::String(self.data.to_string())
+        } else {
+            use base64::Engine;
+            Value::String(format!("b64:{}", base64::engine::general_purpose::STANDARD.encode(self.raw)))
         }
     }
 }
@@ -325,12 +326,21 @@ impl WriteJsonValue for CString<'_> {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         let s = v.as_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
             format!("expected string for CString, got {}", type_name(v))))?;
-        let bytes = s.as_bytes();
-        if bytes.len() > u32::MAX as usize {
-            return err(format!("string too long ({} bytes)", bytes.len()));
+        if let Some(b64) = s.strip_prefix("b64:") {
+            use base64::Engine;
+            let bytes = base64::engine::general_purpose::STANDARD.decode(b64)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("bad base64 in CString: {}", e)))?;
+            w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+            w.extend_from_slice(&bytes);
+        } else {
+            let bytes = s.as_bytes();
+            if bytes.len() > u32::MAX as usize {
+                return err(format!("string too long ({} bytes)", bytes.len()));
+            }
+            w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+            w.extend_from_slice(bytes);
         }
-        w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
-        w.extend_from_slice(bytes);
         Ok(())
     }
 }
