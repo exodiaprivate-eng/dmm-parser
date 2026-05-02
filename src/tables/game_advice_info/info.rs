@@ -31,6 +31,7 @@ py_binary_struct! {
         pub ui_texture_name_string_info: u32,
         pub ui_video_path_string_info: u32,
         pub widget_id_string_info: u32,
+        pub sort_order: u32,
         pub is_once: u8,
         pub is_show_guide_list: u8,
         pub game_advice_group_info: u32,

@@ -24,6 +24,7 @@ py_binary_struct! {
         pub key: u8,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
+        pub mercenary_key_list: CArray<u8>,
         pub mercenarye_info_list: CArray<u8>,
         pub child_mercenary_group_info_list: CArray<u8>,
         pub parent_mercenary_group_info: u8,
