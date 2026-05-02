@@ -105,6 +105,7 @@ py_binary_struct! {
         pub lookup_u32_e: u32,
         pub lookup_u32_f: u32,
         pub byte_at_126: u8,
+        pub always_call_vehicle_dev: u8,
     }
 }
 

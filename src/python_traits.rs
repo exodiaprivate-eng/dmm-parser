@@ -183,7 +183,12 @@ impl<const N: usize> WritePyValue for [u8; N] {
 
 impl ToPyValue for CString<'_> {
     fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(self.data.into_pyobject(py)?.into_any().unbind())
+        if self.data.is_empty() && !self.raw.is_empty() {
+            let lossy = String::from_utf8_lossy(self.raw);
+            Ok(lossy.as_ref().into_pyobject(py)?.into_any().unbind())
+        } else {
+            Ok(self.data.into_pyobject(py)?.into_any().unbind())
+        }
     }
 }
 
