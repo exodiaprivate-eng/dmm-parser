@@ -1,3 +1,4 @@
+mod info; pub use info::{GimmickInfo, GimmickTail};
 // SPDX-License-Identifier: LicenseRef-CDMTL-1.0
 // Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
 // Licensed under CDMTL v1.0 - see LICENSE.txt

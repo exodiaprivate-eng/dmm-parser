@@ -1,20 +1,19 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-04-30 (instance A working session, loop active)
+**Last updated**: 2026-05-01 (GimmickInfo post-blob F20–F179 decoded via IDA)
 **Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
 
-> **Active work (instance A, lane-A — `dmm-parser/`):** ConditionData
-> per-tag recipe verification against Win-IDA, driven by the
-> `interaction_info::diag_raw_entries` failure histogram. Original
-> goal was to eliminate the 50-ish Raw-fallback entries on
-> interaction_info; **achieved and exceeded**: down to **0 / 363 Raw
-> (100% Decoded)** as of `171a00e` — tag 54 promoted to
-> `TwoU32BodyPayload` and tag 214 to a new
-> `ConditionData_CheckExistStealItemPayload` struct, clearing the
-> remaining anti-disasm entries. Continuing with doc-drift cleanup
-> across STATUS.md, PARALLEL_LANES.md, condition_data.rs comments,
-> and module docstrings.
+> **Current state (2026-05-01 end-of-session):**
+> - **119 T1 / 0 T2 / 0 T1.5** — all 121 on-disk tables in the
+>   2026-4-24 dump have byte-perfect round-trip parsers.
+> - `gimmick_info` post-blob decoded via IDA (`sub_1410E6FC0`):
+>   F20–F179 wired as `GimmickPostBody`; 9947/12393 entries have
+>   `with_body=true` (2446 legitimately absent, `COptional flag=0`).
+> - `interaction_info` 100% Decoded (363/363).
+> - Catalog synced 2026-04-30: 26 stale 📚 P entries corrected to
+>   ✅ T1. Only EquipInfo and MercenaryGroupInfo remain as P (not in
+>   the current game dump).
 >
 > **Local-only commits** — per user directive, do NOT push until all
 > tables are field-level parsed. The remote `origin/main` is currently
@@ -89,6 +88,8 @@ This file is for collaborators picking up round-trip work. It's the
 - `EffectInfo` — parser fully typed end-to-end (EffectDataElement + EffectDataInner + MeshEffectData); catalog corrected to ✅ T1
 - `FactionSpawnDataInfo` — parser was already fully typed (all 7 fields); catalog corrected to ✅ T1
 - Catalog count: T1 88 → 91, T2 4 → 1 (only MiniGameDataInfo remains, blocked by spawn_data_list fallback)
+- `FieldReviveInfo` (pabgb: `reviepointinfo.pabgb`) — fixture gap closed. Tests updated to use 4-12 dump;
+  full byte-perfect roundtrip on 1109 entries confirmed. Catalog: 📚 P → ✅ T1. T1 count: 92 → 93.
 
 ### Recent Tier 1 promotions (lane-c)
 - `FilterConditionBlock.raw_block` — `[u8; 12]` → 3× named u32
@@ -131,6 +132,29 @@ This file is for collaborators picking up round-trip work. It's the
   share the AutoSpawnEntry type from `binary::variants::auto_spawn_entry`. Cracked
   sub_1411092E0 / sub_1410FA2A0 / sub_141109110 / sub_1410F9F00 /
   sub_1410F9DF0 / sub_14100CAB0 nested polymorphic chain.
+- `GimmickInfo` — Decoded tail extended from 1 to 10 typed fields
+  (use_interaction_ui_socket, use_sub_part_for_interaction,
+  property_list, gimmick_name_hash, gimmick_name, emoji_texture_id,
+  dev_memo, hash_pair_list, hash_single_list); 99.93% Decoded.
+  **Session follow-up (2026-04-30 loop):** field 18
+  `_gimmickChartParameterList` added (`4b4d237`; CArray<{u32+u8+u32+u8}>,
+  count=0 for 10119/10121 Decoded entries). **Session follow-up
+  2026-05-01:** The 1317 "tag-16" TGPEHD entries are now fully decoded.
+  Root cause: sub_1411125E0 calls sub_141D7FF30 (complex struct reader,
+  no outer tag byte); the Rust decoder was misreading the low byte of a
+  u32 BString length as a tag. New type TriggerEventHandlerDataElement
+  implements the sub_141D7FF30 wire format: trigger_name (BString) +
+  hide_list (CArray&lt;CString&gt;) + event_list (CArray&lt;TriggerEventEntry&gt;)
+  + handler_list (CArray&lt;COptional&lt;InnerTriggerEventWrapper&gt;&gt;) + 4 bytes.
+  gimmick_info decoded 12393/12399 (was ~11082/12399). 308 tests pass.
+  **Session follow-up (2026-04-30 loop, continued):** field 19
+  `alt_trigger_count/flag/name` prefix extracted — `u32` outer count +
+  (if count>0) first element's `u8` flag + (if flag!=0) `CString` name.
+  Recovers ~5025 entries' trigger identity from `post_blob`. Two element
+  types confirmed: "UnnamedTrigger_0" (flag+name+sub_count+CString[] subs)
+  and "GimmickOn" (flag+name+82-byte geometry body); element body and
+  remaining elements stay in `post_blob`. Safe-probe: on any failure,
+  post_blob absorbs field 19. 308/308 tests pass, clippy clean.
 - `GimmickInfo` — Decoded tail extended to **2926 typed fields**
   (1-16 prefix + 712 tail u32 + 6 alt-header + **1536 alt-body** + 2
   alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
@@ -201,6 +225,15 @@ spawn_data_list is now a `Decoded|Raw` enum (`SpawnDataList`) with
 `CArray<CArray<SequencerStageSpawnData>>` Decoded shape, same T1
 pattern as ConditionInfo's GameCondition wrapper.)
 
+### Unresolved format mysteries
+- `levelinfo.pabgb` (134 entries) — empirical analysis shows the file uses the
+  `pa::ReflectObject` reflection pattern. Every entry starts `e2 e0 51 1f 00 00
+  [count] 00 00 00` (hash 0x1f51e0e2 + u16 + outer count), then outer elements
+  each begin with the same hash. Sub-element structure has variable sizes determined
+  by nested inner counts. Class name hashes 0xa19e44b1 and 0x66be15a8 appear as
+  element type tags. **Deferred — needs IDA decompile of the LevelInfo reader to
+  identify concrete field layout.**
+
 ### Recently cracked (was previously labeled DEFERRED ReflectObject)
 - `DropSetInfo._list` — sub_141600210 turned out fixed-shape with a
   tag-dispatched 14-case variant tail (63 fixed bytes + variant payload).
@@ -262,11 +295,17 @@ made this a focused multi-session crack rather than an in-loop win.
 
 ### Reverse-engineering notes — TriggerGamePlayEventHandlerData
 
-GimmickInfo's `post_blob` field 17 (sub_1411125E0) calls sub_141D80A90
-which is the `TriggerGamePlayEventHandlerData` polymorphic dispatcher
-with 8 cases (0..7). Each case allocates a different-sized struct
-(40/48/112/144 bytes) and constructs via case-specific vtables; the
-actual wire reads happen in `vtable[85]` per case.
+GimmickInfo's field 17 (sub_1411125E0) does NOT call sub_141D80A90
+directly. It calls sub_141D7FF30 per element — a complex struct reader
+(trigger_name BString + hide_list + event_list + handler_list + 4 bytes).
+sub_141D80A90 (the `TriggerGamePlayEventHandlerData` polymorphic
+dispatcher with 8 cases, 0..7) is only used nested inside sub_141D881B0,
+which is in turn nested inside sub_141D7FF30. The "tag-16" misread was
+caused by this architectural mismatch — resolved 2026-05-01.
+
+`TriggerGamePlayEventHandlerData` itself: 8 cases, each case allocates
+a different-sized struct (40/48/112/144 bytes) and constructs via
+case-specific vtables; the actual wire reads happen in `vtable[85]` per case.
 
 **Per-case factory + body reader (Win-IDA, decoded 2026-04-30 instance A):**
 
@@ -338,8 +377,8 @@ variants typed (dispatch_tag u8 + per-tag body), wrapped in
 | **SequencerStageTrackChangeData** family (Character/Gimmick/Item) | ✅ shipped (inside SequencerStageChartDesc field 19) | (used inside SequencerStageChartDesc) |
 | **SequencerStageSpawnData** | ✅ shipped (inside SequencerStageChartDesc field 20) | (used inside SequencerStageChartDesc) |
 | **GameEventHandler** | ✅ shipped — per-sub_tag typed bodies (sub_tag 2 = 12-byte SetUIPlayGuideParameter, sub_tag 3 = 6-byte SetUIFullscreenGuideParameter, sub_tags 0/1/4 in-place or Raw fallback). | GameEventHandlerInfo (Tier 1) |
-| **TriggerEventHandler** | 🟡 deferred (uses `pa::ReflectObject` reflection-driven serialization, different pattern from bespoke dispatchers — needs reflection layer reversed first) | TriggerRegionInfo and others |
-| **TriggerGamePlayEventHandlerData** (TGPEHD) | ✅ FULLY SHIPPED — `binary::variants::trigger_gameplay_event_handler_data` covers all 8 cases (Gimmick 0, IgnoreFallingDamageToTarget 1, ApplyPassiveSkillToTarget 2, ForceField 3, MoveSyncGimmickWithPlatform 4, DetectTriggerExpansion 5, TriggerRegionInfo 6, ElementalArea 7). GimmickInfo wired via `trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`. | GimmickInfo `post_blob` — Tier 1 (was internal-T1.5) |
+| **TriggerEventHandler** | 🟡 deferred — `pa::ReflectObject` is runtime-only (confirmed); binary I/O for ITriggerEventHandler is a fixed struct (transform + 2 u16 type indices). The GimmickInfo "tag-16" issue is resolved; remaining deferred work is TriggerRegionInfo and similar tables that embed ITriggerEventHandler. | TriggerRegionInfo and others |
+| **TriggerGamePlayEventHandlerData** (TGPEHD) | ✅ FULLY SHIPPED — `binary::variants::trigger_gameplay_event_handler_data` covers all 8 inner cases (tags 0–7) plus the outer sub_141D7FF30 complex format (`TriggerEventHandlerDataElement`, `InnerTriggerEventWrapper`, `TriggerEventEntry`). GimmickInfo wired via `trigger_event_handler_list: Option<CArray<COptional<TriggerEventHandlerDataElement>>>`. | GimmickInfo field 17 — 12393/12399 decoded |
 | **FilterCondition** family | ✅ FULLY SHIPPED — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). QuestInfo wired via `6cdc22c` (lane-c, 2026-04-30). | QuestInfo `_questDialogFilterDataList` — Tier 1 |
 
 ### Tables by tier
@@ -466,40 +505,15 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 
 ## What's next, in priority order
 
-### Big wins (each enables a polymorphic family)
-1. ~~**EffectData family**~~ — ✅ SHIPPED. Per-element typed with 47-field
-   `core_block`; `inner_map` typed as `Vec<EffectDataInnerMapEntry>`.
-   See `binary::variants::effect_data` and `tables::effect_info` (Tier 1).
-2. ~~**Per-sub_tag typed payloads inside GameEventHandlerData**~~ — ✅
-   SHIPPED. sub_tag 2 (SetUIPlayGuideParameter) is 12-byte body, sub_tag
-   3 (SetUIFullscreenGuideParameter) is 6-byte body, sub_tag 4 in-place,
-   sub_tags 0/1 unobserved (Raw fallback). ~~**GlobalGameEventExecuteData
-   per-sub_tag bodies**~~ — ✅ SHIPPED also: typed `GlobalGameEventExecuteDataBody`
-   enum with VaryTradeItemPrice (sub_tag 0, full payload typed),
-   OpenRoyalSupply (sub_tag 1), InPlace (sub_tag 2, no body); Raw fallback
-   for unknown sub_tags.
-3. **TriggerEventHandler family** (task #95). DEFERRED — uses
-   `pa::ReflectObject` reflection-driven serialization (sub_14055F190
-   constructor reveals the inheritance chain through `ReflectDerive
-   <ITriggerEventHandler, ReflectObjectExtension>`). Different pattern
-   from the bespoke dispatchers; needs the reflection layer reversed
-   first. Worth tackling because cracking it unlocks ALL reflection-
-   serialized tables at once.
-
-### Smaller wins
-4. ~~**Wire JSON tree exposure for GameCondition's Decoded variant**~~
-   — ✅ SHIPPED. `GameConditionNode::to_json_value` (9 cases) plus
-   `ConditionData::to_json_dict` (per-variant typed body dict) emit the
-   tree directly; only the `Raw` fallback ships as `raw_b64`.
-5. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — needs a check
-   in DMM-BETA's mod-loader to route conditioninfo edits through the
-   new typed parser. Small CLAUDE.md change in the consuming repo.
-6. **Promote remaining internal-Tier-1.5 sub-fields to fully typed** —
-   see "Remaining Tier 1.5" section above (QuestInfo FilterCondition
-   variant family, GimmickInfo post_blob). EquipSlotInfo was just
-   promoted to Tier 1 by lane-c (commit `338dfa0`). Catalog-level T2
-   count is already 0; these are sub-field opacities inside otherwise-T1
-   tables, blocked on family decoder reverse engineering.
+### Remaining work
+1. ~~**GimmickInfo post_blob fields 20–179**~~ — ✅ DECODED via IDA
+   (`sub_1410E6FC0`); shipped as `GimmickPostBody` struct (F20–F179).
+   9947/12393 entries successfully decode the post-body. 2446 entries
+   have `COptional flag=0` (legitimately absent).
+2. **TriggerEventHandler family** — `pa::ReflectObject` reflection-
+   driven serialization. Needs reflection layer reversed. DEFERRED.
+3. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — small change
+   in DMM-BETA's mod-loader. No IDA required.
 
 ### Deferred (need runtime debugger or are non-blocking)
 - ConditionData tags 54/286 — anti-disassembly obfuscated readers

@@ -243,6 +243,60 @@ mod tests {
         for (tag, c) in &hist { eprintln!("  tag {:>4}: {} entries", tag, c); }
     }
 
+    #[test]
+    #[ignore]
+    fn diag_raw_entries_all_patches() {
+        use std::collections::BTreeMap;
+        let base = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb";
+        let patches = [
+            "2026-03-29", "2026-03-30", "2026-03-31",
+            "2026-4-4", "2026-4-11", "2026-4-12",
+            "2026-4-23", "2026-4-24",
+        ];
+        for patch in patches {
+            let pabgb = format!("{}/{}/conditioninfo.pabgb", base, patch);
+            let pabgh = format!("{}/{}/conditioninfo.pabgh", base, patch);
+            let Ok(data) = std::fs::read(&pabgb) else {
+                eprintln!("[{}] SKIP: missing pabgb", patch); continue;
+            };
+            let Some(entries) = load_pabgh_offsets(&pabgh) else {
+                eprintln!("[{}] SKIP: missing pabgh", patch); continue;
+            };
+            let ranges = entry_ranges(&entries, data.len());
+            let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
+            let mut raw_count = 0usize;
+            let total = ranges.len();
+            for (_i, (_k, s, e)) in ranges.iter().enumerate() {
+                let mut cursor = *s;
+                let item = ConditionInfo::read_with_size(&data, &mut cursor, e - s).unwrap();
+                if let crate::binary::variants::game_condition::GameCondition::Raw(blob) = &item.game_condition {
+                    let mut probe = 0usize;
+                    crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.set(None));
+                    let _ = (|| -> io::Result<()> {
+                        let _tree = crate::binary::variants::game_condition::GameConditionNode::read_from(blob, &mut probe)?;
+                        let _ta = u8::read_from(blob, &mut probe)?;
+                        let _tb = u8::read_from(blob, &mut probe)?;
+                        let _tc = u8::read_from(blob, &mut probe)?;
+                        if probe != blob.len() { return Err(io::Error::new(io::ErrorKind::InvalidData, "under-consume")); }
+                        Ok(())
+                    })();
+                    let tag = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.get());
+                    if let Some(t) = tag { *hist.entry(t).or_insert(0) += 1; }
+                    raw_count += 1;
+                }
+            }
+            let decoded = total - raw_count;
+            eprint!("[{}] {}/{} decoded ({:.2}%)", patch, decoded, total,
+                100.0 * decoded as f64 / total as f64);
+            if raw_count > 0 {
+                let tags: Vec<String> = hist.iter().map(|(t, c)| format!("{}×{}", c, t)).collect();
+                eprintln!("  raw=[{}]", tags.join(", "));
+            } else {
+                eprintln!("  -- all decoded");
+            }
+        }
+    }
+
     /// JSON dict round-trip — typed write_to bytes must match
     /// write_from_json_dict bytes for every entry. Validates the
     /// tree-navigable GameCondition JSON shape preserves bytes.

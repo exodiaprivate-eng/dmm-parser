@@ -2065,7 +2065,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckPositionOwnerFaction(ConditionData_CheckPositionOwnerFactionPayload),
     ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload),
     ConditionData_CheckGimmickItemSocket,
-    ConditionData_CheckCurrentEquipType_OrTag286,
+    ConditionData_CheckCurrentEquipType_OrTag286(TwoU32BodyPayload),
     ConditionData_IsInSpecialModeStage(OneU32BodyPayload),
     ConditionData_IsSpawnedOnPlatform,
     ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload),
@@ -2475,7 +2475,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckPositionOwnerFaction(_) => 283,
             Self::ConditionData_CheckCharacterItemSocket(_) => 284,
             Self::ConditionData_CheckGimmickItemSocket => 285,
-            Self::ConditionData_CheckCurrentEquipType_OrTag286 => 286,
+            Self::ConditionData_CheckCurrentEquipType_OrTag286(_) => 286,
             Self::ConditionData_IsInSpecialModeStage(_) => 287,
             Self::ConditionData_IsSpawnedOnPlatform => 288,
             Self::ConditionData_GetInventoryWeightLevel(_) => 289,
@@ -2888,7 +2888,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckPositionOwnerFaction(_) => "ConditionData_CheckPositionOwnerFaction",
             Self::ConditionData_CheckCharacterItemSocket(_) => "ConditionData_CheckCharacterItemSocket",
             Self::ConditionData_CheckGimmickItemSocket => "ConditionData_CheckGimmickItemSocket",
-            Self::ConditionData_CheckCurrentEquipType_OrTag286 => "ConditionData_CheckCurrentEquipType_OrTag286",
+            Self::ConditionData_CheckCurrentEquipType_OrTag286(_) => "ConditionData_CheckCurrentEquipType_OrTag286",
             Self::ConditionData_IsInSpecialModeStage(_) => "ConditionData_IsInSpecialModeStage",
             Self::ConditionData_IsSpawnedOnPlatform => "ConditionData_IsSpawnedOnPlatform",
             Self::ConditionData_GetInventoryWeightLevel(_) => "ConditionData_GetInventoryWeightLevel",
@@ -3302,7 +3302,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckPositionOwnerFaction(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckCharacterItemSocket(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGimmickItemSocket => {}
-            Self::ConditionData_CheckCurrentEquipType_OrTag286 => {}
+            Self::ConditionData_CheckCurrentEquipType_OrTag286(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsInSpecialModeStage(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsSpawnedOnPlatform => {}
             Self::ConditionData_GetInventoryWeightLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3723,7 +3723,7 @@ impl<'a> ConditionDataVariant<'a> {
             283 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPositionOwnerFaction: missing body object"))?; ConditionData_CheckPositionOwnerFactionPayload::write_from_json_dict(w, body)?; }
             284 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCharacterItemSocket: missing body object"))?; ConditionData_CheckCharacterItemSocketPayload::write_from_json_dict(w, body)?; }
             285 => {}
-            286 => {}
+            286 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCurrentEquipType_OrTag286: missing body object"))?; TwoU32BodyPayload::write_from_json_dict(w, body)?; }
             287 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInSpecialModeStage: missing body object"))?; OneU32BodyPayload::write_from_json_dict(w, body)?; }
             288 => {}
             289 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetInventoryWeightLevel: missing body object"))?; ConditionData_GetInventoryWeightLevelPayload::write_from_json_dict(w, body)?; }
@@ -4138,7 +4138,7 @@ impl<'a> ConditionDataVariant<'a> {
             283 => Self::ConditionData_CheckPositionOwnerFaction(ConditionData_CheckPositionOwnerFactionPayload::read_from(data, offset)?),
             284 => Self::ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload::read_from(data, offset)?),
             285 => Self::ConditionData_CheckGimmickItemSocket,
-            286 => Self::ConditionData_CheckCurrentEquipType_OrTag286,
+            286 => Self::ConditionData_CheckCurrentEquipType_OrTag286(TwoU32BodyPayload::read_from(data, offset)?),
             287 => Self::ConditionData_IsInSpecialModeStage(OneU32BodyPayload::read_from(data, offset)?),
             288 => Self::ConditionData_IsSpawnedOnPlatform,
             289 => Self::ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload::read_from(data, offset)?),
@@ -4549,7 +4549,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckPositionOwnerFaction(p) => p.write_to(w),
             Self::ConditionData_CheckCharacterItemSocket(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickItemSocket => Ok(()),
-            Self::ConditionData_CheckCurrentEquipType_OrTag286 => Ok(()),
+            Self::ConditionData_CheckCurrentEquipType_OrTag286(p) => p.write_to(w),
             Self::ConditionData_IsInSpecialModeStage(p) => p.write_to(w),
             Self::ConditionData_IsSpawnedOnPlatform => Ok(()),
             Self::ConditionData_GetInventoryWeightLevel(p) => p.write_to(w),
@@ -4728,7 +4728,14 @@ impl<'a> ConditionDataOptionData<'a> {
 /// captured 2026-04-30):
 ///
 /// Current state — `n=0` Raw entries on interaction_info (100%
-/// decoded, 363 of 363); condition_info 8918/8934 = 99.82%.
+/// decoded, 363 of 363); condition_info 8920/8934 = 99.84%.
+///
+/// Remaining 14 Raw entries are confirmed source-data truncation
+/// (not parser bugs): 7×272 (sub_tag bodies cut short), 3×372
+/// (blob_len=4, u16 body needs 2 but only 1 byte remains), 1×9
+/// (blob too short for u64), 1×31 (truncated), 1×286 (BinaryOpB
+/// right-child absent), 1×287 (3 bytes for u32 body). Unfixable
+/// without a corrected source dump.
 ///
 /// Anti-disasm-family tags 54 and 214 were resolved via the **Mac
 /// binary** (CrimsonDesert_Steam.app), where the vtables are not
@@ -4757,6 +4764,13 @@ impl<'a> ConditionDataOptionData<'a> {
 ///   tag 370 (CheckOwnershipState) — 1-byte body, KEPT in skip-list via `41bc97f`
 ///   tag 393 (CheckAccompanyType)— added 1-byte body via `d91d961`
 ///   tag 19/27 (CheckGroggy/IsFocusActor) — kept as unit variant
+///   tag 221 (CheckAttackImpulseLevel) — added to Class A skip-list;
+///                                  vtable[19]=0x1402D3A80 (Win-IDA)
+///   tag 261 (CheckDamageElementalType) — added to Class A skip-list;
+///                                  vtable[19]=0x1402D3A80 (Win-IDA)
+///   tag 286 (CheckCurrentEquipType_OrTag286) — upgraded unit →
+///                                  TwoU32BodyPayload; vtable[16]
+///                                  0x141C98F40 reads 2×u32 (Win-IDA)
 ///
 /// Verification template for any next promote: read vtable[16] and
 /// vtable[19] from the matching `??_7ConditionData_<Name>@pa@@6B@`
@@ -4791,8 +4805,10 @@ fn variant_skips_option_block(tag: u16) -> bool {
         //   tag 256: ConditionData_Macro               @ 0x144ce2f88
         //   tag 272: ConditionData_GameEventParam      @ 0x144ce4cb0
         //   tag 300: vftable @ off_144CD3778
-        2 | 81 | 126 | 256 | 272 | 300 |
+        2 | 81 | 126 | 221 | 256 | 261 | 272 | 300 |
         // Class A (continuing) — same source, vtable[19] = no-op:
+        //   tag 221: ConditionData_CheckAttackImpulseLevel  @ 0x144ce5268
+        //   tag 261: ConditionData_CheckDamageElementalType @ 0x144ce4080
         306 | 401 |
         // Class B — vtable[19] = thunk into anti-disassembly runtime
         // (sub_14F0D2550 / sub_14F24B730). Byte-math verified: vanilla
