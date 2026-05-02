@@ -155,6 +155,58 @@ This file is for collaborators picking up round-trip work. It's the
   and "GimmickOn" (flag+name+82-byte geometry body); element body and
   remaining elements stay in `post_blob`. Safe-probe: on any failure,
   post_blob absorbs field 19. 308/308 tests pass, clippy clean.
+- `GimmickInfo` — Decoded tail extended to **2926 typed fields**
+  (1-16 prefix + 712 tail u32 + 6 alt-header + **1536 alt-body** + 2
+  alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
+  + 4 tail_pad u8). post_blob avg **1118 → 108 bytes** (12.51M bytes
+  recovered total over 12393 entries — **90% reduction from baseline**).
+
+  **Loop session timeline (2026-04-30 → 2026-05-01):**
+  - Iters 61-63: f31/f39/f32 alt u32 chains added (smart-probe activation
+    when CArray<u32> read fails) — 64 fields each, ~480K bytes saved
+  - Iters 73-79: extended each alt chain 64→128→192→256
+  - Iter 80: tail_pad u8 chain (4 chained u8 reads) drained 1-3 trailing
+    pad bytes from 10500 entries (raised entries with zero residual to
+    11585/12393 = 93%)
+  - Iters 81-86: alt_body chain extended 640→768→896→1152→1280→1408→1536
+    (drained heaviest XML-payload outliers gradually; diminishing returns
+    from 56K → 16K per 128-field iteration)
+
+  **Known regression at 1536:** alt_post_cstr_a/b CString detection went
+  from 6 typed → 0 typed when chain extended past 1408. The chain now
+  consumes bytes that previously parsed as CString headers. Byte-perfect
+  roundtrip preserved (the bytes are still typed as u32s), but semantic
+  CString info lost for ~6 entries. **Future structural fix needed:**
+  add CString detection inside the chain (check if next u32 looks like
+  valid CString length with valid UTF-8 follow-up bytes; stop chain if
+  so). This would restore CString detection AND avoid further mechanical
+  chain extensions.
+
+  **Remaining bytes** concentrated in XML-payload outlier entries:
+  31 entries fully chain alt_body to 1536 with 392K residual bytes (avg
+  12.6K per entry, max 49K). Pure mechanical chain extension would need
+  ~3K more alt_body fields to drain these XML strings entirely — code
+  volume prohibitive. Structural CString detection is the right
+  approach for further reduction. (loop session 2026-05-01)
+
+  **Final post_blob size distribution (this session):**
+  - 11676 entries (94%): 0 bytes — perfect drain
+  - 0 entries: 1-3 bytes (drained by tail_pad u8 chain in iter 80)
+  - 7 entries: 4-15 bytes (40 total)
+  - 9 entries: 16-63 bytes (279 total)
+  - 72 entries: 64-255 bytes (12K total)
+  - 367 entries: 256-1023 bytes (227K total)
+  - 210 entries: 1024-4095 bytes (381K total)
+  - 52 entries: 4096+ bytes (725K total — XML payload outliers, 54% of remaining)
+
+  **Structural CString detection design (deferred to future work):**
+  Each alt_body_X read in the chain currently consumes u32s greedily
+  through XML payload bytes. To preserve CString detection, peek at
+  next 4 bytes as potential u32 length, check if 0 < len < 65536 AND
+  next len bytes are valid printable-ASCII UTF-8. If yes, stop chain
+  and let alt_post_cstr_a read the CString. Implementation needs ~128
+  line edits per checkpoint OR a helper-function refactor; deferred
+  to keep this loop session focused on byte-savings results.
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:

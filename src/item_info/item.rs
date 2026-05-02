@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 use super::keys::*;
 use super::structs::*;
 use crate::binary::*;
@@ -132,6 +141,7 @@ py_binary_struct! {
         pub hackable_character_group_info_list: CArray<CharacterGroupKey>,
         pub item_group_info_list: CArray<ItemGroupKey>,
         pub discard_offset_y: f32,
+        pub discard_attach_terrain: u8,
         pub hide_from_inventory_on_pop_item: u8,
         pub is_shield_item: u8,
         pub is_tower_shield_item: u8,
@@ -139,6 +149,7 @@ py_binary_struct! {
         pub packed_item_info: ItemKey,
         pub unpacked_item_info: ItemKey,
         pub convert_item_info_by_drop_npc: ItemKey,
+        pub stage_info: u32,
         pub pattern_description_data_list: CArray<PatternDescriptionData<'a>>,
         pub look_detail_game_advice_info_wrapper: GameAdviceInfoKey,
         pub look_detail_mission_info: MissionKey,

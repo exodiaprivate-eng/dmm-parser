@@ -276,6 +276,260 @@ Serialize a list of localization entries back to raw bytes.
 data = dmm_parser.serialize_paloc(entries)
 ```
 
+### `parse_paloc_from_file(path: str) -> list[dict]` (recommended)
+
+Parse a localization file directly from a path. Returns the cleaner JSON-form
+shape with `category` (u8) instead of `unk_id` (u64).
+
+```python
+entries = dmm_parser.parse_paloc_from_file("0020/gamedata/localizationstring_eng.paloc")
+print(entries[0])
+# {'category': 47, 'key': '262897', 'value': 'Unavailable during combat.'}
+```
+
+**Returns:** List of dicts with fields: `category` (`int`, 0-255), `key` (`str`), `value` (`str`).
+
+### `parse_paloc_from_bytes(data: bytes) -> list[dict]` (recommended)
+
+Same as `parse_paloc_from_file` but takes raw bytes. Use this when you've already loaded the bytes (e.g. extracted from a PAZ archive).
+
+### `serialize_paloc_to_bytes(items: list[dict]) -> bytes` (recommended)
+
+Inverse of the from-bytes parser. Takes JSON-form entries with `{category, key, value}` shape and produces the on-disk byte stream.
+
+```python
+new_bytes = dmm_parser.serialize_paloc_to_bytes(entries)
+```
+
+**Use the new `*_paloc_*` family for new code.** The legacy `parse_paloc_bytes` / `serialize_paloc` (with `unk_id` u64) are preserved for backward compat.
+
+---
+
+## DDS Textures
+
+dmm-parser exposes a small DDS (DirectDraw Surface) toolkit so SWISS Stacker
+and CLI tools can validate texture mods before they ship. It does NOT
+decompress pixel data — header inspection + format classification + path
+inference + Crimson-specific quirk surfacing only.
+
+See [Archive Format](archive-format.md) and `references/dds_notes.md` for
+the format spec; `references/dds.hexpat` for the binary layout.
+
+### `classify_dds(data: bytes) -> dict`
+
+Parse a DDS file's header and return a classification dict.
+
+```python
+with open("diffuse.dds", "rb") as f:
+    info = dmm_parser.classify_dds(f.read())
+
+print(info)
+# {
+#   'format': 'Dxt5',                 # str — DdsFormat enum variant
+#   'width': 256, 'height': 256,
+#   'mip_count': 8,
+#   'depth': 1,
+#   'is_dx10': False,
+#   'dxgi_format': None,              # int when is_dx10, else None
+#   'crimson_last4': 15,              # game-specific overlay format ID
+#   'requires_pathc': False,          # True for BC6H/BC7
+#   'block_bytes': 16,                # 8 or 16 for BC formats; None for uncompressed
+# }
+```
+
+`format` is one of: `"Dxt1"`, `"Dxt3"`, `"Dxt5"`, `"Bc4Unorm"`, `"Bc4Snorm"`,
+`"Bc5Unorm"`, `"Bc5Snorm"`, `"Bc6hUf16"`, `"Bc6hSf16"`, `"Bc7Unorm"`,
+`"UncompressedRgb"`, `"Unknown"`.
+
+### `validate_dds(data: bytes) -> list[dict]`
+
+Run all validation checks and return findings. Returns `[]` for a clean DDS.
+
+```python
+findings = dmm_parser.validate_dds(dds_bytes)
+for f in findings:
+    print(f"[{f['severity']}] {f['code']}: {f['message']}")
+
+# [warning] non_power_of_two_dims: Non-POW2 dimensions 100x100; ...
+# [warning] missing_mips: 512x512 texture has only 1 mip; ...
+# [info] requires_pathc: Bc7Unorm needs PATHC template registration ...
+```
+
+Each finding has:
+- `code` — stable identifier (e.g. `"bad_magic"`, `"unknown_fourcc"`,
+  `"non_power_of_two_dims"`, `"requires_pathc"`)
+- `severity` — `"fatal"`, `"warning"`, or `"info"`
+- `message` — human-readable description
+
+Codes UI/scripts should switch on:
+
+| Severity | Code | Meaning |
+|---|---|---|
+| fatal | `header_too_short` | File < 128 bytes |
+| fatal | `bad_magic` | Not `b"DDS "` at offset 0 |
+| fatal | `dx10_header_too_short` | DX10 fourcc but file < 148 bytes |
+| fatal | `header_parse_error` | Generic header parse failure |
+| fatal | `classify_error` | Generic classifier failure |
+| warning | `unknown_fourcc` | FOURCC not in dispatch table |
+| warning | `unknown_dxgi_format` | DX10 with unknown DXGI value |
+| warning | `depth_zero` | dwDepth == 0 (auto-fixed at apply time) |
+| warning | `mip_count_zero` | mipMapCount == 0 (auto-fixed) |
+| warning | `non_power_of_two_dims` | Width/height not POW2 |
+| warning | `missing_mips` | Large textures with only 1 mip |
+| info | `requires_pathc` | BC6H/BC7 needs PATHC registration |
+| info | `overlay_patched` | crimson_last4 already set (already patched) |
+
+### `infer_dds_vpath(asset_root: str, file_path: str) -> str | None`
+
+Infer the in-game vpath for a DDS file under a mod's asset folder. Returns
+`None` if the file isn't under `asset_root` or the first segment isn't a
+4-digit PAZ group prefix.
+
+```python
+vpath = dmm_parser.infer_dds_vpath(
+    "/mods/MyMod/assets",
+    "/mods/MyMod/assets/0009/character/texture/macduff/diffuse.dds",
+)
+# "0009/character/texture/macduff/diffuse.dds"
+```
+
+Used by SWISS Stacker's asset-folder scan to auto-fill v3.1 asset target
+entries.
+
+### `classify_vpath_last4(vpath: str) -> int | None`
+
+Path-prefix → Crimson-specific "last4" overlay class lookup. Mirrors the
+DMM mount-time classifier so SWISS can predict the same value.
+
+```python
+dmm_parser.classify_vpath_last4("/ui/icon/sword.dds")
+# 0x1580
+
+dmm_parser.classify_vpath_last4("/character/texture/macduff/diffuse_n.dds")
+# 0x0480 (normal map)
+
+dmm_parser.classify_vpath_last4("/character/texture/macduff/tattoo_dragon.dds")
+# 0x1380 (tattoo)
+
+dmm_parser.classify_vpath_last4("/character/texture/macduff/diffuse.dds")
+# 0x1280 (default character texture)
+
+dmm_parser.classify_vpath_last4("/level/world/foo.dds")
+# None — caller falls back to format-derived last4 from classify_dds
+```
+
+---
+
+## Wwise Audio (WEM + BNK)
+
+Header-only metadata + structure validation for Wwise audio files. We do
+NOT decode audio payloads — these helpers exist so SWISS Stacker can
+validate audio mods (voice clips, soundbanks) and pre-fill v3.1 asset
+target entries during the asset-folder scan.
+
+### `classify_wem(data: bytes) -> dict`
+
+Parse a WEM (Wwise-flavored RIFF-WAVE) header and return its
+WAVEFORMATEX-style metadata + Wwise-specific markers.
+
+```python
+with open("1045272379.wem", "rb") as f:
+    info = dmm_parser.classify_wem(f.read())
+# {
+#   "file_size": 433152,
+#   "format_tag": 0xFFFF,
+#   "format_tag_label": "WwiseVorbis",   # or "WaveformatExtensible" / "Other"
+#   "channels": 1,
+#   "sample_rate": 44100,
+#   "byte_rate": 16000,
+#   "block_align": 0,
+#   "bits_per_sample": 0,
+#   "has_wwise_hash_chunk": True,        # `hash` chunk = Wwise origin marker
+#   "data_offset": 1024,
+#   "data_size": 432128,
+# }
+```
+
+Raises `ValueError` if the buffer isn't a parseable RIFF-WAVE.
+
+### `parse_bnk(data: bytes) -> dict`
+
+Parse a Wwise BNK (soundbank) section index. Returns the section table
++ embedded WEM index (DIDX entries pointing into the DATA chunk). Does
+not parse HIRC/STID/FXPR contents — only their headers.
+
+```python
+with open("2498340951.bnk", "rb") as f:
+    bank = dmm_parser.parse_bnk(f.read())
+# {
+#   "file_size": 141557760,
+#   "bank_version": 150,                  # Crimson uses 150
+#   "bank_id": 2498340951,
+#   "data_payload_offset": 384,
+#   "has_hirc": True,
+#   "sections": [
+#     {"id": "BKHD", "header_offset": 0,   "size": 28},
+#     {"id": "DIDX", "header_offset": 36,  "size": 36},
+#     {"id": "DATA", "header_offset": 80,  "size": 141500000},
+#     {"id": "HIRC", "header_offset": ...,  "size": ...},
+#   ],
+#   "embedded_wems": [
+#     {"wem_id": 113958244, "wem_offset": 0, "wem_size": 65000000},
+#     ...
+#   ],
+# }
+```
+
+Raises `ValueError` if the buffer doesn't begin with a valid BKHD section.
+
+### `validate_audio(data: bytes) -> list[dict]`
+
+Auto-dispatching validator. Inspects the magic bytes (`RIFF` → WEM
+rules, `BKHD` → BNK rules, anything else → fatal) and returns SWISS
+findings using the same shape as `validate_dds`:
+
+```python
+findings = dmm_parser.validate_audio(audio_bytes)
+# [
+#   {"code": "wem_unusual_sample_rate", "severity": "warning",
+#    "message": "sample_rate=192000 outside expected 8000-96000 range"},
+#   {"code": "bnk_embedded_wems", "severity": "info",
+#    "message": "DIDX index references 3 embedded WEMs"},
+# ]
+```
+
+Severity values: `"fatal"`, `"warning"`, `"info"`. WEM rule codes:
+`wem_parse_error`, `wem_missing_hash_chunk`, `wem_unknown_format_tag`,
+`wem_unusual_channel_count`, `wem_unusual_sample_rate`, `wem_empty_data`.
+BNK rule codes: `bnk_parse_error`, `bnk_unknown_version`,
+`bnk_didx_without_data`, `bnk_didx_offset_oob`, `bnk_has_hirc`,
+`bnk_embedded_wems`.
+
+### `infer_audio_vpath(vpath: str) -> str | None`
+
+Map a Crimson Desert audio vpath to its semantic class. Returns one of:
+`"LocalizedVoiceBank"`, `"LocalizedVoiceClip"`, `"CommonSoundBank"`,
+`"CommonSoundClip"`, `"OtherAudio"`, or `None` if the path doesn't end
+in `.bnk` / `.wem`.
+
+```python
+dmm_parser.infer_audio_vpath("0006/sound/windows/english(us)/3684722581.bnk")
+# "LocalizedVoiceBank"
+
+dmm_parser.infer_audio_vpath("soundcommon/windows/113958244.wem")
+# "CommonSoundClip"
+
+dmm_parser.infer_audio_vpath("0014/sound/character/macduff/voice.wem")
+# "OtherAudio"
+
+dmm_parser.infer_audio_vpath("paloc.pamt")
+# None
+```
+
+Used by SWISS Stacker's asset-folder scan to populate the v3.1 asset
+target metadata for audio bundles (and to refuse non-audio files when
+the user drops a folder into an "audio" slot).
+
 ---
 
 ## SkillInfo (pabgb + pabgh)
@@ -458,6 +712,74 @@ dmm_parser.write_table_to_file("vehicle_info", items, "vehicle_info.pabgb")
 `terrain_region_navi_info`, `tribe_info`, `trigger_region_info`, `ui_social_action_info`,
 `uifilter_group_info`, `uimap_texture_info`, `valid_schedule_action_info`, `vehicle_info`,
 `vibrate_pattern_info`, `wanted_info`
+
+### High-impact tables for modders
+
+These tables have rich field-level typing and are the most useful for mods:
+
+| Table | Entries | Typed fields/entry | Decoded ratio | Modder use case |
+|---|---|---|---|---|
+| `iteminfo` | ~6000 | full | 100% | Items: damage, cooltime, stack, enchants, drops |
+| `gimmick_info` | 12393 | **2926** | 100% (90% bytes typed) | Environmental gimmicks, weapon FX, scene triggers |
+| `character_info` | 6966 | 174 | 100% | NPC/mob stats, AI, faction, behavior |
+| `skill_info` | thousands | full | 100% | Skill behavior, damage, cooldowns, ranges |
+| `buff_info` | thousands | full | 100% | Buffs/debuffs, stat modifiers, stacking |
+| `condition_info` | 8934 | full | 99.83% | Combat triggers (15 entries have truncated source data) |
+| `interaction_info` | 363 | full | 100% | NPC dialogue/interaction triggers |
+| `drop_set_info` | thousands | full | 100% | Loot tables — high modder demand |
+| `effect_info` | typed | full | 100% | VFX definitions |
+| `faction_node_spawn_info` | typed | full | 100% | Mob spawn placement, patrol paths |
+
+`gimmick_info` is the most field-typed table at the moment: 12393 entries × 2926 named
+fields = **~36M field paths** addressable by name. The Decoded tail captures field 1-728
+plus alt-format scene gimmicks (768-1408 alt-body fields), making complex gimmick edits
+possible by field name without touching binary offsets.
+
+For tables with `Decoded | Raw` enums (`gimmick_info`, `condition_info`, `mini_game_data_info`,
+`quest_info`), inspect `item["tail"]["_kind"]` (or equivalent) to confirm an entry is in
+the `Decoded` branch before editing fields. Entries in the `Raw` branch must be replaced
+wholesale (rare, < 0.2% of vanilla entries).
+
+### End-to-end mod workflow (any table)
+
+```python
+import dmm_parser
+
+# 1. Extract vanilla bytes from PAZ archives
+pabgb = dmm_parser.extract_file(game_dir, "0008",
+    "gamedata/binary__/client/bin", "drop_set_info.pabgb")
+pabgh = dmm_parser.extract_file(game_dir, "0008",
+    "gamedata/binary__/client/bin", "drop_set_info.pabgh")
+
+# 2. Parse to typed list of dicts
+items = dmm_parser.parse_table("drop_set_info", pabgb, pabgh)
+
+# 3. Look up by entry name (string_key) — survives game updates
+for item in items:
+    if item.get("string_key") == "DropSet_FinalBoss":
+        item["drop_count_min"] = 5  # field-level edit
+        item["drop_count_max"] = 10
+
+# 4. Serialize back to bytes
+modified = dmm_parser.serialize_table("drop_set_info", items)
+
+# 5. Pack into mod overlay
+import os
+mod_dir = "/path/to/my_mod"
+target_path = os.path.join(mod_dir, "gamedata/binary__/client/bin/drop_set_info.pabgb")
+os.makedirs(os.path.dirname(target_path), exist_ok=True)
+with open(target_path, "wb") as f:
+    f.write(modified)
+
+dmm_parser.pack_mod.pack_mod(
+    game_dir=game_dir,
+    mod_folder=mod_dir,
+    output_dir="/path/to/output",
+    group_name="0058",
+)
+```
+
+The same workflow applies to all 122 supported tables — only the table name string changes.
 
 ---
 

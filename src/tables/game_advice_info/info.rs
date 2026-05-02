@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 //! IDA-derived parser for `GameAdviceInfo.pabgb`.
 //!
 //! Field layout extracted from Hex-Rays decompile of the parse function
@@ -22,6 +31,7 @@ py_binary_struct! {
         pub ui_texture_name_string_info: u32,
         pub ui_video_path_string_info: u32,
         pub widget_id_string_info: u32,
+        pub sort_order: u32,
         pub is_once: u8,
         pub is_show_guide_list: u8,
         pub game_advice_group_info: u32,

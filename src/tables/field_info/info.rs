@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 //! IDA-derived parser for `FieldInfo.pabgb`.
 //!
 //! Field layout extracted from Hex-Rays decompile of `sub_1410E0940` in the
@@ -96,6 +105,7 @@ py_binary_struct! {
         pub lookup_u32_e: u32,
         pub lookup_u32_f: u32,
         pub byte_at_126: u8,
+        pub always_call_vehicle_dev: u8,
     }
 }
 

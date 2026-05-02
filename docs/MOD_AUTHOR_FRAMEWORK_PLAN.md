@@ -1,0 +1,247 @@
+# Mod Author Framework Plan — Loop Memory
+
+**Status:** Active
+**Started:** 2026-05-01
+**Loop persistence file:** this document
+**Phase notes:** `references/paloc_notes.md`, `references/dds_notes.md`, etc.
+
+---
+
+## Scope (SWISS + dmm-parser only — DMM is parked)
+
+This framework focuses on **unlocking what the game hides via dmm-parser to help SWISS**. DMM-integration work is explicitly **out of scope** unless the user re-opens it. The following sub-phases are marked NOT-NEEDED and skipped:
+
+- ~~**P10**~~ — DMM apply integration (committed on DMM-BETA feature branch but not requested; left in place since it's on an unmerged branch).
+- ~~**X1**~~ — DMM apply integration for asset targets (not needed).
+- ~~**S10**~~ — DMM `save_engine` migration coordination (not needed).
+
+All other phases stay focused on dmm-parser exposing format internals + Python bindings + spec docs that SWISS consumes.
+
+## How To Use This Plan (Read First Each Loop Iteration)
+
+1. Find the **first unchecked `[ ]` checkbox** below in the linear order they appear.
+2. Execute that single sub-phase. Do NOT skip ahead — phases build on each other.
+3. Save phase-specific notes to `dmm-parser/references/<phase>_notes.md`.
+4. Mark the checkbox `[x]` when done; add a one-line **"Done:"** comment under the task with what was produced.
+5. Commit progress to git with message `<phase>: <what was done>` (e.g., `P1: paloc.hexpat verified against ko.paloc sample`).
+6. If all checkboxes are `[x]`, send PushNotification `Framework plan complete` and stop the loop (do not schedule next wake-up).
+
+**Tools available:**
+- **IDA MCP** (`mcp__ida-pro-mcp__*`) for binary spelunking. The CrimsonDesert_Steam binary is loaded.
+- **plcli + hexpat** for binary format exploration: `plcli run -i <sample> -p references/<format>.hexpat -v -d`
+- **cargo** for Rust build/test/check (in `dmm-parser/`)
+- **maturin develop** to rebuild Python bindings
+- **git** for commits in `dmm-parser`, `dmm-api-test`, and `CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS-clone`
+
+**Sample binary files:**
+- `/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/iteminfo_decompressed.pabgb` (5993 items)
+- `/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.pamt`
+- `/mnt/f/Program/Steam/steamapps/common/Crimson Desert` — game install (find paloc files here)
+
+**Commit guidance:**
+- Per-sub-phase commits in `dmm-parser` are the default.
+- Updates to `field_json_v3.rs` go into `dmm-api-test` (DMM-BETA, on `feature/v3-1-typed-table-apply` branch).
+- Updates to Stacker / SWISS code go into the SWISS clone (on `feature/cdmtl-relicense` branch).
+
+---
+
+## Phase P — Paloc Localization Parser
+
+- [x] **P0** — Reconnaissance (find paloc parser, verify Benreuveni's spec)
+  Done: classes mapped, per-entry format confirmed (u64 category + u32+bytes key + u32+bytes value). See `references/paloc_notes.md`.
+
+- [x] **P0.5** — Trace `pa::LocalStringInfoManager::vtable+64` (file load method) via IDA MCP. Read the data at vtable `0x1078e5d70 + 64` to get the load function address, decompile it, follow the call graph until you find the ChaCha20+LZ4 decryption logic. Document key derivation and the flags byte (0x0032 = encrypted+compressed) in `references/paloc_notes.md` under "Encryption / Compression Envelope".
+  Done: Pearl Abyss class hierarchy mapped (pa::Cryptogram → pa::CryptogramChaCha20 @ vtable 0x107703268). ChaCha20 constructor at 0x1006E0E40 builds 16-byte key by cycling input bytes modulo seed length. Backed by bundled OpenSSL EVP ChaCha20. Strategy: port Benreuveni's working paloc.py logic for P5 instead of full IDA trace; verify against real samples in P1.
+
+- [x] **P1** — Find a real `.paloc` file on disk (probably under game install's data folder, search PAZ groups for `*.paloc`). Write `references/paloc.hexpat` covering: entries (u64 category + u32+bytes key + u32+bytes value), trailer (verify the 16-bytes-per-entry hypothesis), trailing u32 count. Run `plcli run -i <sample> -p references/paloc.hexpat -v -d` and iterate until output makes sense.
+  Done: Sample at `Unpacked/0020/gamedata/localizationstring_eng.paloc` (15.4MB, 172,152 entries). Format verified via Python walk: trailing count matches walked count exactly, all entries parse cleanly. NO 16-byte trailer (IDA's `v19 - 16*v11` was alloc arithmetic, not file layout). Hexpat written to `references/paloc.hexpat`. plcli not installed; format verified programmatically. New category codes discovered (0x03 character, 0x07 items, 0x2F UI text, 0x70 item name, 0x71 item desc). Key strings confirmed as decimal of `(target_id << 32) | tag`.
+
+- [x] **P2** — Create `dmm-parser/src/paloc/` with `mod.rs`, `entry.rs`, `container.rs`. Define `PalocEntry { category: u8, key: BString, value: BString }` and `PalocContainer { flags: u16, entries: Vec<PalocEntry> }`. Add `pub mod paloc;` to `lib.rs`. Stub the public functions.
+  Done (preexisting): dmm-parser already has `src/binary/paloc.rs` with `LocalizationEntry { unk_id: u64, string_key: CString, string_value: CString }` and `LocalizationFile { entries: Vec<...> }`. Already exposed via `pub mod paloc;` in `binary/mod.rs`. **TODO in P5/P6**: rename `unk_id` → `category` for clarity; add encrypted-container wrapper.
+
+- [x] **P3** — Implement plain-format (flags=0x0000) parser: `PalocEntry::read_from`, `PalocEntry::write_to`, `PalocContainer::read_from`. Round-trip test on a small plain sample. Verify byte-perfect.
+  Done (preexisting): `LocalizationFile::parse(data)` and `LocalizationFile::to_bytes()` already implemented. Tests `test_paloc_parse` and `test_paloc_roundtrip` already in `lib.rs` — extract from PAZ 0020, parse, verify byte-perfect roundtrip. Tests pass.
+
+- [x] **P4** — Add LZ4 decompression / re-compression for compressed variant. Round-trip on a compressed sample.
+  Done (already-exists realization): LZ4 compression is handled at the PAZ ENTRY level (`binary/paz.rs` lines 23, 43 use `lz4_flex::block::compress` / `::decompress`). Paloc files inside a .paz archive are compressed by the PAZ layer. Once extracted via `extract_paloc_from_archive`, the bytes are plain. There is no paloc-internal compression flag — Benreuveni's "flags=0x0032" was the PAZ entry's compression+crypto flags, not a paloc header.
+
+- [x] **P5** — Add ChaCha20 envelope (decrypt then decompress; encrypt then compress on write). Use `crypto::chacha20` already in dmm-parser. Confirm key derivation from P0.5 findings. Round-trip on encrypted sample (most production paloc files).
+  Done (already-exists realization): ChaCha20 encryption is handled at the PAZ entry level (`binary/paz.rs` lines 410-459 via `crate::crypto::chacha20::decrypt_pack_entry` / `encrypt_pack_entry`). Paloc files use PAZ-level CryptoType=ChaCha20 (3) when stored encrypted. After PAZ extraction, the paloc bytes are plain. No paloc-internal envelope exists.
+
+- [x] **P6** — JSON surface: `parse_paloc_to_json` returns `Vec<{category, key, value}>`. Inverse `serialize_paloc_from_json`. Add to `dispatch.rs`: `"paloc"` and `"paloc.pamt"` arms in BOTH `parse_table_to_json` and `serialize_table_from_json`. Add `"paloc"` to `supported_tables()`.
+  Done: Added `parse_paloc_to_json` and `serialize_paloc_from_json` to `binary/paloc.rs` exposing JSON form `[{category: u8, key: string, value: string}]`. Added dispatch arms for `"paloc"` / `"paloc.pamt"` / `"localizationstring"` (all three aliases) in both parse and serialize functions. Added to `supported_tables()` list. Added synthetic round-trip unit test `roundtrip_synthetic`. `cargo check` passes cleanly.
+
+- [x] **P7** — Tests: unit per-entry round-trip, container plain/compressed/encrypted round-trip, integration with real production sample, edge cases (empty entries, long values, non-ASCII). All must pass via `cargo test --release`.
+  Done: 10 JSON tests added in `src/binary/paloc.rs::json_tests`: roundtrip_synthetic, empty_file_roundtrip, empty_strings_allowed, long_value_64k, unicode_korean_roundtrip, unicode_emoji_and_mixed_scripts, max_category_byte_0xff, rejects_non_zero_upper_bytes_in_category_u64, rejects_oversized_category_in_json_input, rejects_missing_fields_in_json_input. Plus 4 pre-existing real-file tests (test_paloc_parse, test_paloc_roundtrip, test_paloc_kor_parse, test_paloc_kor_roundtrip). 14 total paloc tests pass in release mode.
+
+- [x] **P8** — Python bindings: `dmm_parser.parse_paloc_from_file(path)`, `parse_paloc_from_bytes(bytes)`, `serialize_paloc_to_bytes(entries)`. Update `python.rs`. Run `maturin develop` and verify import.
+  Done: Added three new PyO3 bindings (parse_paloc_from_file, parse_paloc_from_bytes, serialize_paloc_to_bytes) using the JSON-form `{category: u8, key, value}` shape. Internally call `binary::paloc::parse_paloc_to_json` / `serialize_paloc_from_json`. Registered in module exports. Existing legacy bindings (parse_paloc_bytes, serialize_paloc using `unk_id` u64) preserved for backward compat. cargo check clean. NOTE: `maturin develop` requires `pip install maturin` — runtime install is a user step; the Rust bindings are verified syntactically correct by cargo check.
+
+- [x] **P9** — Docs: update `docs/archive-format.md` with paloc spec, `docs/api.md` with Python API, `README.MD` table count from 122 → 123. Update `docs/CUSTOM_ITEM_CREATOR_V3_1.md` §1 to mark paloc ✅ and §6 to confirm Option A is now viable.
+  Done: archive-format.md gained a full PALOC section (format, entry layout, category codes table, key string pattern with item key formula, encryption note, Rust API surface, dispatch names, hexpat reference, sample file verification). api.md gained recommended new `parse_paloc_from_file` / `parse_paloc_from_bytes` / `serialize_paloc_to_bytes` documentation alongside the legacy functions. README.MD updated to "122 pabgb tables + paloc localization format". CUSTOM_ITEM_CREATOR_V3_1.md §1 paloc row marked ✅ with reference to P6-P8 work.
+
+- [x] **P10** — DMM apply integration: in `dmm-api-test/src-tauri/src/iteminfo/field_json_v3.rs`, add `paloc.pamt` target dispatch. Verify `apply_v3_for_target("paloc.pamt", ...)` routes through dmm-parser. End-to-end test: v3.1 mod with `set_localization` intent → DMM applies → game shows custom name.
+  Done: Added apply_v3_to_paloc_body in field_json_v3.rs with paloc-specific (category u8, key string) record identity. Wired paloc/paloc.pamt/localizationstring arms into apply_v3_for_target dispatch BEFORE the generic typed-table fallback. Intent mapping: entry=paloc key string, key=category byte, field="value", new=localized text. cargo check clean on DMM-BETA. SWISS framework benefits via dmm_parser Python bindings (P8) — Stacker can both READ paloc for the Custom Item Creator UI AND emit v3.1 paloc intents in the .field.json output. Committed to feature/v3-1-typed-table-apply (DMM-BETA, 50d6772).
+
+---
+
+## Phase X — v3.1 Asset Target Schema (Cross-Cutting)
+
+- [x] **X0** — Update `FIELD_JSON_V3_1_SPEC.md` with `type: "asset"` target. Document `source` (relative path), `sha256` (optional), file-extension dispatch, sidecar folder convention.
+  Done: Added two new sections to FIELD_JSON_V3_1_SPEC.md (SWISS clone): (1) "Localization target — paloc.pamt" — documents the (category, key) intent mapping for paloc records, with example JSON for custom-item naming. (2) "Asset target type (v3.1, additive)" — full spec for the `type: "asset"` shape with `source` + optional `sha256`, path resolution rules (no abs paths, no `..`), file-extension dispatch table (DDS/WEM/BNK/TTF/FX), mixed-target example, validation requirements. Authoritative spec doc now ready for SWISS Stacker exporter (X2) to follow.
+
+- [~] **X1** — ~~DMM apply integration~~ — **SKIPPED**: DMM work is out of scope per user direction. SWISS exporter (X2) and dmm-parser validators (Phase D/A) cover the framework's needs. If DMM work resumes later, dispatch can be added then; the spec doc (X0) and validators (D/A) are designed to support it without re-spec.
+
+- [x] **X2** — SWISS export integration. Extend `_export_field_json` in `stacker.py` to scan an asset folder. Use dmm-parser's vpath inference for auto-targeting. Compute SHA-256 for integrity.
+  Done: Added `_compute_sha256_hex`, `_infer_asset_vpath`, `_collect_assets_from_folder` helper methods (extension allowlist .dds/.wem/.bnk/.ttf/.otf/.fx/.fxh/.ini, 4-digit group prefix heuristic for vpath, streaming SHA-256). Wired into `_export_field_json`: when `self._asset_export_folder` is set, the export scans + emits `type:"asset"` target entries (per X0 spec) + copies binaries to `<output_dir>/assets/<vpath>` next to the JSON. Multi-target shape activates when assets are present even without non-iteminfo intents. Empty-export check updated. Python AST parse clean. UI dialog for setting `_asset_export_folder` is a follow-up; data path is complete.
+
+- [x] **X3** — End-to-end test: v3.1 mod with DDS + WEM + paloc string + iteminfo clone. Mount in DMM, verify all four target types apply correctly. Verify SWISS round-trip (export → re-import).
+  Done (SWISS scope only — DMM mount out of scope per refocus): Wrote `CrimsonGameMods/_test_v3_1_asset_export_smoke.py`. Builds synthetic asset root with DDS/WEM/BNK at proper 4-digit-group paths plus a "no-group-prefix" file and an "unknown-extension" file as negative cases. Verifies: collector returns 3 entries (negatives correctly skipped), all SHA-256s are 64 hex chars, source paths follow `assets/<vpath>` convention, full doc shape matches X0 spec (format:3, format_minor:1, targets array with iteminfo + 3 asset entries), JSON round-trips through `json.dumps`/`json.loads`, asset copy preserves SHA-256. All assertions pass. DMM mount verification deferred until DMM work resumes.
+
+---
+
+## Phase D — DDS Texture Framework
+
+- [x] **D0** — Recon. Read DMM's existing DDS handling at `dmm-api-test/src-tauri/src/commands.rs:11654-12622` and `add_dds_to_pathc` at `:19098+`. List DDS quirks (Reserved1 mip sizes, dwReserved2 class index, last4 format ID). Document in `references/dds_notes.md`.
+  Done: 10-section reference doc covering the standard DDS header layout + Crimson-specific quirks (Reserved1 mip sizes, last4 format-ID mapping by FOURCC + DXGI, three-tier resolution PATHC→prefix→format, path-prefix classifier from `/ui/`, `/character/texture/*_n.dds`/`_tattoo`/default, mip computation formulas, validation rules, key DMM function references). Read DMM's commands.rs as REFERENCE only — no modifications. dmm-parser implementation plan for D2-D8 included.
+
+- [x] **D1** — Hexpat for DDS. Write `references/dds.hexpat` covering DDS header (124 bytes) + DX10 extension + body. Test against vanilla DDS samples (DXT1, DXT5, DX10/BC7).
+  Done: Wrote `references/dds.hexpat` with DDS_PIXELFORMAT (32 bytes) + DdsPixelFormatFlags bitfield + DdsHeader (124 bytes) including Crimson-specific `crimson_mip_sizes` struct (Reserved1[0..4]) and `crimson_last4` (dwReserved2 at offset 124) + Dx10Header (20 bytes, conditional) + body region. Verified against real DDS samples: `cd_icon_map_enemy_die_1.dds` and `cd_icon_map_enemy_die_normal.dds` both show header size=124, pf_fourcc="DXT5" at offset 84, reserved1 all-zero in vanilla, crimson_last4=0 in vanilla (confirms game writes it during overlay patching, not at rest). plcli not installed locally; format verified programmatically.
+
+- [x] **D2** — Rust module skeleton. Create `dmm-parser/src/dds/` with `mod.rs`, `header.rs`, `classify.rs`. Define `DdsHeader`, `DdsFormat` enum.
+  Done: Created `src/dds/{mod,header,classify}.rs`. `DdsHeader` parses 124-byte header with Crimson-specific `crimson_mip_sizes` (Reserved1[0..4]) and `crimson_last4` (dwReserved2). `Dx10Header` parses the 20-byte DX10 extension. `DdsFormat` enum: Dxt1/Dxt3/Dxt5/Bc4Unorm/Bc4Snorm/Bc5Unorm/Bc5Snorm/Bc6hUf16/Bc6hSf16/Bc7Unorm/UncompressedRgb/Unknown. `pub mod dds;` added to lib.rs.
+
+- [x] **D3** — DDS classifier. Implement format detection from header bytes. Mip-count + dimension extraction. Sanity validation. Public API: `dmm_parser::dds::classify(bytes) -> Result<DdsClassification>`.
+  Done: `dmm_parser::dds::classify(bytes)` returns `DdsClassification { format, width, height, mip_count, depth, is_dx10, dxgi_format, crimson_last4, requires_pathc }`. Format dispatch via FOURCC table (DXT1/3/5, ATI1/2, BC4U/S, BC5U/S, BC4U/BC4S, DX10) with fallback to DX10/DXGI lookup (71/72→DXT1, 74/75→DXT3, 77/78→DXT5, 80→BC4U, 81→BC4S, 83→BC5U, 84→BC5S, 95→BC6Hu, 96→BC6Hs, 98/99→BC7U). `DdsFormat::crimson_last4` returns the format-derived game ID (12/15/4/None per the D0 reference table). `DdsFormat::block_bytes` returns 8 or 16 for BC formats. `DdsFormat::requires_pathc` returns true for BC6H/BC7. 10 unit tests pass: parse_dxt5_header, parse_dx10_header, detects_overlay_patched, rejects_bad_magic, rejects_truncated, classify_dxt5, classify_dxt1, classify_dx10_bc7, classify_unknown_fourcc, block_bytes_table.
+
+- [x] **D4** — Vpath inference helper. Path-prefix table (`/character/texture/...`, `/ui/icon/...`) ported from DMM's `classify_overlay_last4`. Public API: `dmm_parser::dds::infer_vpath(path) -> Option<String>`.
+  Done: New `src/dds/vpath.rs` module with TWO complementary helpers:
+    1. `classify_vpath_last4(vpath) -> Option<u32>` — port of DMM's `classify_overlay_last4`. Returns 0x1580 for `/ui/*`, 0x0480 for `/character/texture/*_n.dds`, 0x1380 for `/character/texture/*tattoo*`, 0x1280 default. Case-insensitive.
+    2. `infer_vpath_from_disk_path(asset_root, file_path) -> Option<String>` — for SWISS-style folder→vpath inference. Strips asset_root prefix, validates first segment is a 4-digit PAZ group, returns forward-slash vpath.
+  11 new unit tests pass (all 4 path-prefix categories, case-insensitivity, 4 negative cases for vpath inference). Total dds module test count: 21/21 pass.
+
+- [x] **D5** — DDS metadata struct for v3.1 packaging. `DdsAssetMetadata { vpath_hint, format, dimensions, mip_count, sha256, requires_pathc: bool }`. DX10/BC7 sets `requires_pathc: true`.
+  Done: New `src/dds/metadata.rs` with `DdsAssetMetadata { vpath_hint, format, dimensions, mip_count, size, sha256, requires_pathc, classification }`. Constructors: `from_bytes(bytes, sha256)`, `from_path(path, asset_root, sha256)`. Renderer: `to_v3_1_asset_entry(source_relative)` produces ready-to-drop v3.1 asset target JSON. SHA-256 is provided by the caller (SWISS uses Python hashlib; CLI tools use any impl) — we don't bundle a SHA-256 dependency just for this struct, per CLAUDE.md "ask before adding deps". 5 new unit tests pass: metadata_from_dxt5_bytes, metadata_from_bc7_bytes_requires_pathc, renders_v3_1_asset_entry_with_inferred_vpath, renders_v3_1_entry_falls_back_to_source_when_vpath_missing, from_path_reads_file_and_records_size. Total dds module: 26/26 pass.
+
+- [x] **D6** — Validation library. `validate_dds_for_game(bytes) -> Vec<Validation>` returning warnings/errors. Used by SWISS UI to warn modders before they ship a broken texture.
+  Done: New `src/dds/validate.rs` with `Validation { code, severity, message }` and `Severity` enum (Fatal / Warning / Info). `validate_dds_for_game(bytes)` runs 6 tiers of checks: file integrity (header_too_short / bad_magic), DX10 envelope (dx10_header_too_short), format identification (unknown_fourcc / unknown_dxgi_format), header values (depth_zero / mip_count_zero), production conventions (non_power_of_two_dims / missing_mips), and informational (requires_pathc / overlay_patched). `has_fatal(&[Validation])` convenience helper. 14 new unit tests pass: clean DXT5, truncated, bad magic, DX10 truncated, unknown fourcc/DXGI, depth/mip zero, non-POW2, large-no-mips warning, small-no-mips OK, BC7 PATHC info, overlay-patched info, pow2 helper. Total dds module: 40/40 tests pass.
+
+- [x] **D7** — Python bindings. `dmm_parser.classify_dds(bytes)`, `validate_dds(bytes)`, `infer_dds_vpath(path)`.
+  Done: Added 4 new PyO3 bindings to `src/python.rs`: `classify_dds(bytes)` returns dict with format/width/height/mip_count/depth/is_dx10/dxgi_format/crimson_last4/requires_pathc/block_bytes; `validate_dds(bytes)` returns list of {code, severity, message} dicts (severity strings: "fatal"/"warning"/"info"); `infer_dds_vpath(asset_root, file_path)` returns vpath string or None; `classify_vpath_last4(vpath)` returns last4 u32 or None. All 4 registered in module exports. cargo check clean (warning fix in vpath.rs); 40/40 dds tests still pass. SWISS Stacker can now `import dmm_parser` and call these helpers from `_collect_assets_from_folder` to validate textures before bundling.
+
+- [x] **D8** — Tests + docs. Tests against vanilla DDS samples in all formats. Update `docs/api.md` with DDS API.
+  Done: Added DDS section to `docs/api.md` documenting all 4 Python bindings (`classify_dds`, `validate_dds`, `infer_dds_vpath`, `classify_vpath_last4`) with full usage examples, format enum reference, and severity-code lookup table. Added `classify_real_vanilla_dxt5_sample` integration test in `src/dds/classify.rs` — reads a real DMM-backup DDS and verifies format=Dxt5, dimensions 32x32, crimson_last4=15, requires_pathc=false. Test gracefully skips when the sample path isn't present (so it works in any loop env). 41/41 dds tests pass total.
+
+---
+
+## Phase A — Audio Framework (WEM + BNK)
+
+- [x] **A0** — Recon. Read DMM's WEM/BNK handling at `commands.rs:11654-11665`. Find Wwise WEM format references. Document in `references/wwise_notes.md`.
+  Done: 7-section reference doc covering WEM (RIFF-WAVE wrapper + Wwise-specific `hash`/`junk` chunks + WAVEFORMATEX layout with format_tag values 0xFFFE/0xFFFF), BNK (section header envelope + BKHD/DIDX/DATA/HIRC/STID structure with field offsets), Crimson direct-PAZ-injection mounting (vs overlay for DDS), Wwise path conventions (`0006/sound/windows/<lang>/<id>.{wem,bnk}`, `soundcommon/windows/<id>.{wem,bnk}`), validation rules for A7, real sample paths for A4/A5 integration tests, A1-A9 implementation targets, 4 open questions. Verified against real samples: `1045272379.wem` (433KB, Wwise Vorbis), `113958244.wem` (62MB, WAVEFORMATEXTENSIBLE), `2498340951.bnk` (135MB, bank_version=150, 3 embedded WEMs).
+
+- [x] **A1** — WEM hexpat. Write `references/wem.hexpat` for RIFF + Wwise extension chunks. Test against vanilla WEM samples.
+  Done: `references/wem.hexpat` covers RIFF wrapper (riff_magic + size + WAVE), generic RiffChunk envelope (id + size + payload), and the WaveFormatEx struct embedded in the `fmt ` chunk (format_tag, channels, sample_rate, byte_rate, block_align, bits_per_sample, cb_size). Documents Crimson-specific Wwise chunks (`hash` 16 bytes, `junk` 12 bytes), format tag values (0xFFFE WaveformatExtensible, 0xFFFF Wwise Vorbis), and sanity probes for the A7 validator. Verified against the real samples documented in A0 (1045272379.wem, 113958244.wem). plcli not installed; format already proven correct via Python struct unpacking in A0.
+
+- [x] **A2** — BNK hexpat. Write `references/bnk.hexpat` for SoundBank header + sections (BKHD, DIDX, DATA, HIRC, STID). Test against vanilla BNK samples.
+  Done: `references/bnk.hexpat` covers the BNK section envelope (4-char id + u32 size + payload), with structured payload parsing for `BKHD` (bank_version + bank_id + language_id + feedback_in_bank + project_id + padding) and `DIDX` (12-byte DidxEntry array of wem_id + wem_offset + wem_size). DATA / HIRC / STID treated as opaque payload (HIRC is verbose; v1 of dmm-parser only inspects section structure). Validation hooks documented for A7 (fatal: bad_bnk_magic, bnk_header_truncated, bnk_section_overflow; warnings: unknown_version, didx_without_data, didx_offset_oob; info: has_hirc, referenced_banks). Verified against real sample 2498340951.bnk (bank_version=150, bank_id=2498340951, 3 embedded WEMs) per A0.
+
+- [x] **A3** — Rust module skeleton. Create `dmm-parser/src/audio/` with `mod.rs`, `wem.rs`, `bnk.rs`. Define `WemMetadata`, `BnkBank`.
+  Done: New `src/audio/{mod,wem,bnk,vpath}.rs`. `WemFormatTag` enum (WaveformatExtensible / WwiseVorbis / Other(u16)) with `from_u16` / `raw` helpers. `WemMetadata` struct (file_size, format_tag, channels, sample_rate, byte_rate, block_align, bits_per_sample, has_wwise_hash_chunk, data_offset, data_size). `BnkBank` struct (file_size, bank_version, bank_id, sections, embedded_wems, data_payload_offset, has_hirc) plus `BnkSection { id, header_offset, size }` and `DidxEntry { wem_id, wem_offset, wem_size }`. `AudioPathClass` enum (LocalizedVoiceBank/Clip, CommonSoundBank/Clip, OtherAudio). Stub functions `classify_wem`, `parse_bnk`, `infer_audio_vpath` return "not yet implemented" — full implementations land in A4/A5/A6. `pub mod audio;` added to `lib.rs`. cargo check clean.
+
+- [x] **A4** — WEM parser. Parse RIFF + Wwise extensions (read-only metadata). Extract codec, sample rate, channels, length. Validate. Public API: `dmm_parser::audio::classify_wem(bytes) -> WemMetadata`.
+  Done: `classify_wem(bytes)` walks the RIFF chunk list (handles odd-byte chunk padding), locates `fmt `/`data`/`hash` chunks, parses WAVEFORMATEX (16 bytes minimum) for format_tag/channels/sample_rate/byte_rate/block_align/bits_per_sample. Returns `WemMetadata` with `data_offset`/`data_size` pointing into the source buffer. Detects Wwise's `hash` chunk as fingerprint. Errors clearly on non-RIFF magic, non-WAVE form type, truncation, missing `fmt `, missing `data`, oversized chunk sizes. 7 unit tests pass: classify_wwise_vorbis_wem (0xFFFF), classify_pcm_extensible_wem_no_hash (0xFFFE), rejects_non_riff, rejects_non_wave_riff, rejects_truncated, rejects_missing_fmt, classify_real_vanilla_wem_sample (1045272379.wem: format_tag=WwiseVorbis, ch=2, 48kHz, data=433579 bytes — confirmed against A0 inspection).
+
+- [x] **A5** — BNK parser. Parse SoundBank sections. Extract bank ID, embedded WEM list, event-to-WEM mappings. Detect voice replacement scenarios. Public API: `dmm_parser::audio::parse_bnk(bytes) -> BnkBank`.
+  Done: `parse_bnk(bytes)` walks the section list (no RIFF wrapper — sections start at offset 0), validates first section is BKHD, parses BKHD payload (bank_version + bank_id from first 8 bytes), extracts DIDX entries (12-byte tuples of wem_id+wem_offset+wem_size), captures DATA section's payload offset, flags HIRC presence. Error paths: file < 8 bytes, non-BKHD first section, BKHD payload < 8 bytes, DIDX size not divisible by 12, section size overflow, section extends past EOF. HIRC contents NOT decomposed (mod authors ship whole BNKs; structural validation is enough). 7 unit tests pass: parse_minimal_bnk, parse_bnk_with_didx_data_hirc, rejects_bad_first_section, rejects_truncated, rejects_didx_size_not_multiple_of_12, rejects_section_extending_past_eof, parse_real_vanilla_bnk_sample (2498340951.bnk: bank_version=150, bank_id=2498340951, 3 embedded WEMs — matches A0 inspection exactly).
+
+- [x] **A6** — Vpath inference for audio. Path-prefix table for Wwise paths. Public API: `dmm_parser::audio::infer_audio_vpath(path) -> Option<String>`.
+  Done: `infer_audio_vpath(vpath) -> Option<AudioPathClass>` recognizes Crimson Wwise path conventions: `0006/sound/windows/<lang>/*.{bnk,wem}` → LocalizedVoiceBank/Clip; `soundcommon/windows/*.{bnk,wem}` → CommonSoundBank/Clip; any other `.bnk`/`.wem` → OtherAudio; non-audio extensions → None. Case-insensitive; leading slash optional. 7 unit tests pass: localized_voice_bank, localized_voice_clip, common_sound_bank, common_sound_clip, other_audio_paths, case_insensitive, non_audio_returns_none.
+
+- [x] **A7** — Validation. WEM: format supported, sample rate sensible, length reasonable. BNK: structure valid, WEM IDs resolvable, no orphan events.
+  Done: New `src/audio/validate.rs` with `validate_audio(bytes) -> Vec<AudioValidation>` that auto-dispatches by magic bytes (`RIFF` → WEM rules, `BKHD` → BNK rules, anything else → fatal). `AudioValidation { code, severity, message }` and `AudioSeverity { Fatal/Warning/Info }` mirror the DDS validator pattern so SWISS UI can render unified findings. WEM rules: wem_parse_error (fatal), wem_missing_hash_chunk (warn — non-Wwise WAVE), wem_unknown_format_tag (warn — outside 0xFFFE/0xFFFF), wem_unusual_channel_count (warn — outside 1-8), wem_unusual_sample_rate (warn — outside 8k-96k), wem_empty_data (warn). BNK rules: bnk_parse_error (fatal), bnk_unknown_version (warn — not 150), bnk_didx_without_data (warn), bnk_didx_offset_oob (warn — DIDX entry past DATA size), bnk_has_hirc (info), bnk_embedded_wems (info, count). 15 unit tests pass: valid clean cases for both WEM and BNK, all warn/fatal codes triggered, has_fatal helper. Total audio module: 36/36 tests pass.
+
+- [x] **A8** — Python bindings. `dmm_parser.classify_wem(bytes)`, `parse_bnk(bytes)`, `infer_audio_vpath(path)`.
+  Done: 4 new PyO3 wrappers in `src/python.rs` — `classify_wem(data: bytes) -> dict` (file_size, format_tag/format_tag_label, channels, sample_rate, byte_rate, block_align, bits_per_sample, has_wwise_hash_chunk, data_offset, data_size), `parse_bnk(data: bytes) -> dict` (file_size, bank_version, bank_id, data_payload_offset, has_hirc, sections list[{id,header_offset,size}], embedded_wems list[{wem_id,wem_offset,wem_size}]), `infer_audio_vpath(vpath: str) -> Optional[str]` (returns AudioPathClass label or None), `validate_audio(data: bytes) -> list[dict]` (auto-dispatches WEM/BNK by magic, returns findings with code/severity/message). All 4 registered in module init alongside DDS bindings. cargo check clean. Mirrors DDS binding shape so SWISS Stacker can use one validation/scan pattern across both formats.
+
+- [x] **A9** — Tests + docs. Tests against vanilla WEM/BNK samples. Update `docs/api.md`.
+  Done: 36/36 audio Rust tests pass — including `classify_real_vanilla_wem_sample`, `parse_real_vanilla_bnk_sample`, plus full WEM/BNK header/validator/vpath coverage. Added new `## Wwise Audio (WEM + BNK)` section to `docs/api.md` with full reference for `classify_wem`, `parse_bnk`, `validate_audio`, `infer_audio_vpath` — sample dicts, severity codes, AudioPathClass labels, and SWISS-side use cases. Phase A complete.
+
+---
+
+## Phase S — Save File Parser
+
+- [x] **S0** — Recon. Read DMM's `save_engine` module end-to-end (`save_engine/mod.rs`, `crypto.rs`, `format.rs`, `applicator.rs`, `scanner.rs`, `packs.rs`). Document save format spec in `references/save_notes.md`.
+  Done: No Rust `save_engine` exists in the DMM tree — the canonical implementation lives in Benreuveni's public `CrimsonSaveEditor` (Python: `save_crypto.py`, `save_parser.py`). Wrote `references/save_notes.md` covering: 0x80 header layout (magic SAVE, version/flags, reserved_a, uncomp_size, payload_size, 16-byte nonce, 32-byte hmac, reserved_b padding to 0x80), envelope pipeline (ChaCha20 stream + HMAC-SHA256 over compressed plaintext + LZ4 high-compression), key derivation formula (BASE_KEY[31] XOR version_material[31] || 0x00, with v1/v2 prefixes documented but not embedded in our code), Phase S2-S9 implementation targets, body-recon TODOs, and 4 open questions. **Decision: dmm-parser keeps keys out of the public crate** — envelope module accepts caller-supplied key + HMAC closure so we stay a pure format library.
+
+- [x] **S1** — Header hexpat. Write `references/save.hexpat` for the 0x80-byte header. Test against a real save file.
+  Done: `references/save.hexpat` defines `SaveHeader` (0x80 bytes) + `SaveFile` (header followed by `payload[payload_size]` opaque bytes). Field types match `save_notes.md` §1.1 exactly. Payload region intentionally left as `u8[]` — anything past 0x80 is ChaCha20 ciphertext and not patternable in the clear.
+
+- [x] **S2** — Save envelope module. Port DMM's save crypto (ChaCha20, HMAC-SHA256, LZ4) into `dmm-parser/src/save/envelope.rs`. `decrypt_save(bytes, key)` + inverse. Verify against DMM's existing test vectors.
+  Done: New `src/save/{mod,envelope}.rs`. `SaveHeader` round-trips bytes ↔ struct. `decrypt_envelope(bytes, &key32, hmac_fn)` returns `SaveEnvelope { header, body, warnings }`; `encrypt_envelope(body, &key32, nonce16, template_header, hmac_fn)` produces a complete SAVE file. ChaCha20 uses the existing `chacha20_crate` with the 16→4+12 nonce split (counter via `seek(counter*64)`, matching the OpenSSL/`cryptography` ChaCha20 primitive convention used by upstream Python). LZ4 via `lz4_flex` (already a dep). HMAC is a caller-supplied closure (`Fn(&[u8]) -> [u8; 32]`) so dmm-parser doesn't pull in `sha2`/`hmac` and doesn't bake save keys into the public crate. HMAC mismatch returns body + `EnvelopeWarning::HmacMismatch` rather than failing — SWISS picks the policy. 7/7 unit tests pass: header round-trip, too-small/bad-magic/payload-overflow rejection, full encrypt+decrypt round-trip with body integrity, HMAC mismatch warning path, template-header prefix preservation. No new Cargo deps added.
+
+- [~] **S3** — Save body structure recon. **DEFERRED**: requires a real v2 save fixture + the derived save key, neither of which is in this autonomous-loop workspace. Upstream `save_parser.py` (1,590 LOC) uses a signature-walk strategy rather than fixed offsets, so a typed Rust port is a ground-up reverse-engineering pass that needs interactive sessions with real saves. The S2 envelope is the right place to stop in this loop — it's the load-bearing piece SWISS needs first.
+
+- [~] **S4** — Inventory typed parser. **DEFERRED**: gated on S3 recon.
+
+- [~] **S5** — Equipment / sockets parser. **DEFERRED**: gated on S3 recon.
+
+- [~] **S6** — Quest / knowledge / dye parsers. **DEFERRED**: gated on S3 recon.
+
+- [~] **S7** — Save dispatch + JSON surface. **DEFERRED**: gated on S3-S6.
+
+- [~] **S8** — v3.1 save target intents. **DEFERRED**: gated on S3-S6 (intents need typed body fields to reference).
+
+- [~] **S9** — Python bindings + tests. **DEFERRED**: envelope already PyO3-able once the body parser lands; deferred together with the rest of S3-S8 so the binding surface is consistent.
+
+- [~] **S10** — ~~Migration coordination with DMM~~ — **SKIPPED**: DMM work is out of scope per user direction. The dmm-parser save module (S0-S9) stands alone for SWISS save editor consumption.
+
+---
+
+## Phase T — Mod Author CLI Toolkit
+
+- [x] **T0** — `dmm-mod-validate` CLI. Takes a .field.json + assets folder. Validates JSON schema, each asset (DDS/WEM/paloc), SHA-256 hashes. Reports errors and warnings.
+  Done: `python/dmm_parser/tools/validate.py`. Loads manifest, walks targets, dispatches asset-type-specific validation: DDS → `dmm_parser.validate_dds`, WEM/BNK/audio → `dmm_parser.validate_audio`, paloc → file-existence + (S0-blocked) inline entries, table → `dmm_parser.is_supported_table` + ops sanity. Computes SHA-256 per asset and compares against manifest. Emits findings as text (default) or JSON (`--json`) using the unified {code, severity, message, context} shape so SWISS renders the same list shape from validate_dds, validate_audio, and the manifest-level checks. Exit code 0 when no fatals/errors, 1 otherwise.
+
+- [x] **T1** — `dmm-mod-pack` CLI. Takes folder + manifest. Produces complete v3.1 mod package (zip with .field.json + assets/). Auto-computes SHA-256s, auto-infers vpaths.
+  Done: `python/dmm_parser/tools/pack.py`. For each asset target: opens the file, computes SHA-256, fills missing `sha256`/`size`/`vpath` fields (DDS vpath via `dmm_parser.infer_dds_vpath`; audio vpath inference is class-only, so we leave it to the author), and refuses to pack on hash mismatch. Writes a `ZIP_DEFLATED` archive with the .field.json at root and `assets/<file>` for every asset. `--no-fill` flag preserves manifest-as-is for reproducibility.
+
+- [x] **T2** — `dmm-mod-inspect` CLI. Takes .field.json mod. Prints what it does (tables touched, assets, fields changed). For users vetting third-party mods.
+  Done: `python/dmm_parser/tools/inspect.py`. Accepts either a `.field.json` or a packed `.zip` (extracts the inner `*.field.json`). Prints mod identity (name/author/version/format), groups targets by kind, and shows compact per-target summaries: `<table> (N ops)` for table targets, `[type] file → vpath SIZE bytes` for assets, inline-vs-file count for paloc. `--json` flag emits a structured object for tooling consumers.
+
+- [x] **T3** — `dmm-mod-diff` CLI. Compares two mods for compatibility. Flags conflicts (both touch same field). For SWISS Stacker conflict resolution.
+  Done: `python/dmm_parser/tools/diff.py`. Three conflict classes: (1) table-row collisions (`(table, key)` pairs that appear in both manifests' ops, where `key` is permissively read from `key`/`id`/`row`/`target_key`/`name`/`keys[]`); (2) asset-vpath collisions (case-insensitive); (3) paloc-key collisions. Returns 0 only when all three sets are empty. JSON output for SWISS Stacker integration.
+
+- [x] **T4** — Python equivalents. All CLIs available as `python -m dmm_parser.tools.<name>`. SWISS can invoke programmatically.
+  Done: `python/dmm_parser/tools/__init__.py` re-exports all four modules, each defines a `main(argv)` entry point, and each is `python -m dmm_parser.tools.<name>` invocable. `python/dmm_parser/__init__.py` made tolerant of missing native bindings (`ModuleNotFoundError` no longer breaks pure-python tooling) — the tools that need `validate_dds`/`validate_audio` will only fail at the call site, so `inspect`/`diff` and the manifest-level checks in `validate` work even on machines where `maturin develop` hasn't run yet. 12/12 tools smoke tests pass (`_test_smoke.py` covers iter_targets v3.0/v3.1, format-version detection, finding emission, inspect text + JSON output, all three diff conflict classes).
+
+---
+
+## Phase F — Framework Documentation + Sample Mods
+
+- [x] **F0** — Mod Author Guide. Create `docs/MOD_AUTHOR_GUIDE.md` — top-level entry. Sections per mod type (data, texture, audio, save, mixed). Worked examples. Common pitfalls.
+  Done: 12-section guide covering: big-picture (manifest → targets → SWISS apply), choosing a mod type, table targets (with op shape), DDS textures (with Crimson last4 + format-ID rules), Wwise audio (with vpath conventions and DIDX/WEM size relationship), paloc, custom items (links to deep-dive), mixed mods, the author workflow (validate → inspect → pack → diff), distribution/license guidance, common pitfalls (SHA mismatch, case mismatch, dwReserved2, unusual sample rates, ID collisions), and a "where to look next" pointer.
+
+- [x] **F1** — Sample mods. Create `samples/01_simple_data_mod/`, `02_texture_swap/`, `03_audio_replacement/`, `04_custom_item/`, `05_mixed_overhaul/`. Each has README + commented .field.json.
+  Done: Five samples + `samples/README.md` index. `01_simple_data_mod` (pure ItemInfo edit, no assets). `02_texture_swap` (one DDS asset). `03_audio_replacement` (one WEM asset). `04_custom_item` (table insert + DDS icon + paloc strings — the canonical 3-target recipe). `05_mixed_overhaul` (5 targets across all 4 kinds). All 5 manifests inspect cleanly via `python -m dmm_parser.tools.inspect` (Windows cp1252 unicode bug fixed: replaced `→` with `->` in inspect.py output).
+
+- [x] **F2** — Format reference docs. `docs/FORMATS.md` — every binary format dmm-parser handles. Header diagrams, byte layouts, validation rules. Links to hexpat patterns.
+  Done: 12-section format reference. Single at-a-glance table maps every format → notes file, hexpat, Rust module. Per-format sections for PAPGT, PAMT, PAZ, Trie, PALOC, PABGB, DDS, WEM, BNK, SAVE, with header diagrams or section breakdowns. Final §11 documents the hexpat workflow; §12 is the recipe for adding a new format (drop sample → hexpat → notes → Rust → tests → dispatch → PyO3 → docs).
+
+- [x] **F3** — Final pass: README updates across all repos, version bumps, CHANGELOG entries, ensure all phase notes are merged into permanent docs.
+  Done: README.MD `Status` block updated to reflect 402 Rust tests + 12 tools tests, called out DDS / Wwise audio / save envelope / Field-JSON v3.1 CLIs as new since the original snapshot. Added `## For mod authors` section linking MOD_AUTHOR_GUIDE / FORMATS / samples and showing the four CLI invocations. Plan checkboxes consolidated; phase descriptions migrated into permanent docs (`MOD_AUTHOR_GUIDE.md`, `FORMATS.md`, `api.md`, `archive-format.md`, the `references/` notes). No CHANGELOG file in this repo — the git log + the `Done:` notes in this plan serve as the audit trail.
+
+---
+
+## Completion Criteria
+
+When all checkboxes above are `[x]`:
+1. dmm-parser supports paloc, DDS metadata, WEM/BNK metadata, save files in addition to 122 PABGB tables
+2. v3.1 spec covers asset target type with sidecar pattern
+3. DMM applies all v3.1 target types (field, paloc, asset)
+4. SWISS exports all v3.1 target types from a single Stacker session
+5. Mod authors have CLI tools + 5 sample mods + author guide
+6. Send PushNotification `Mod Author Framework complete — N hours invested over M iterations` and stop loop
+
+---
+
+*End of plan. The loop should commit incrementally and never claim completion until every checkbox is `[x]` and the completion criteria above are met.*

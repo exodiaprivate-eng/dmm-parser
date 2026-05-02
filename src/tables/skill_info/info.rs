@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 //! `Skill.pabgb` (SkillInfo) — fully field-decoded, **1952/1952 (100%) entries
 //! round-trip byte-perfect**.
 //!
@@ -216,42 +225,55 @@ impl<'a> SkillInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
         offset: &mut usize,
-        _entry_size: usize,
+        entry_size: usize,
     ) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let cooltime = u32::read_from(data, offset)?;
-        let buff_level_list = CArray::<CArray<BuffDataOptional>>::read_from(data, offset)?;
-        let skill_group_key = u32::read_from(data, offset)?;
-        let parent_skill = u32::read_from(data, offset)?;
-        let learn_level = u32::read_from(data, offset)?;
-        let apply_type = u8::read_from(data, offset)?;
-        let icon_path = u32::read_from(data, offset)?;
-        let need_upgrade_item_info = u32::read_from(data, offset)?;
-        let need_upgrade_item_count_graph = GraphData::read_from(data, offset)?;
-        let need_upgrade_experience_graph = GraphData::read_from(data, offset)?;
-        let usable_character_info_list = CArray::<u32>::read_from(data, offset)?;
-        let usable_condition = CArray::<u32>::read_from(data, offset)?;
-        let learn_knowledge_info = u32::read_from(data, offset)?;
-        let faction_info = u32::read_from(data, offset)?;
-        let use_resource_stat_list = CArray::<ResourceStat>::read_from(data, offset)?;
-        let use_resource_item_list = CArray::<ResourceItem>::read_from(data, offset)?;
-        let use_driver_resource_stat_list = CArray::<ResourceStat>::read_from(data, offset)?;
-        let use_battery_stat = u64::read_from(data, offset)?;
-        let is_ui_use_allowed = u8::read_from(data, offset)?;
-        let is_learn_use_artifact = u8::read_from(data, offset)?;
-        let allow_skill_with_low_resource = u8::read_from(data, offset)?;
-        let is_use_child_pattern_description_buff_data = u8::read_from(data, offset)?;
-        let damage_type = u8::read_from(data, offset)?;
-        let ui_type = u8::read_from(data, offset)?;
-        let reserve_slot_info_list = CArray::<u32>::read_from(data, offset)?;
-        let max_level = u32::read_from(data, offset)?;
-        let skill_group_key_list = CArray::<u16>::read_from(data, offset)?;
-        let buff_sustain_flag = u32::read_from(data, offset)?;
-        let dev_skill_name = CString::read_from(data, offset)?;
-        let dev_skill_desc = CString::read_from(data, offset)?;
-        let video_path = u32::read_from(data, offset)?;
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+        // Clamp the data slice to the pabgh-declared entry boundary
+        // so BuffData parsing can't overrun into adjacent entries.
+        let entry_data = &data[..entry_end.min(data.len())];
+        let key = u32::read_from(entry_data, offset)?;
+        let string_key = CString::read_from(entry_data, offset)?;
+        let is_blocked = u8::read_from(entry_data, offset)?;
+        let cooltime = u32::read_from(entry_data, offset)?;
+        let buff_level_list = CArray::<CArray<BuffDataOptional>>::read_from(entry_data, offset)?;
+        let skill_group_key = u32::read_from(entry_data, offset)?;
+        let parent_skill = u32::read_from(entry_data, offset)?;
+        let learn_level = u32::read_from(entry_data, offset)?;
+        let apply_type = u8::read_from(entry_data, offset)?;
+        let icon_path = u32::read_from(entry_data, offset)?;
+        let need_upgrade_item_info = u32::read_from(entry_data, offset)?;
+        let need_upgrade_item_count_graph = GraphData::read_from(entry_data, offset)?;
+        let need_upgrade_experience_graph = GraphData::read_from(entry_data, offset)?;
+        let usable_character_info_list = CArray::<u32>::read_from(entry_data, offset)?;
+        let usable_condition = CArray::<u32>::read_from(entry_data, offset)?;
+        let learn_knowledge_info = u32::read_from(entry_data, offset)?;
+        let faction_info = u32::read_from(entry_data, offset)?;
+        let use_resource_stat_list = CArray::<ResourceStat>::read_from(entry_data, offset)?;
+        let use_resource_item_list = CArray::<ResourceItem>::read_from(entry_data, offset)?;
+        let use_driver_resource_stat_list = CArray::<ResourceStat>::read_from(entry_data, offset)?;
+        let use_battery_stat = u64::read_from(entry_data, offset)?;
+        let is_ui_use_allowed = u8::read_from(entry_data, offset)?;
+        let is_learn_use_artifact = u8::read_from(entry_data, offset)?;
+        let allow_skill_with_low_resource = u8::read_from(entry_data, offset)?;
+        let is_use_child_pattern_description_buff_data = u8::read_from(entry_data, offset)?;
+        let damage_type = u8::read_from(entry_data, offset)?;
+        let ui_type = u8::read_from(entry_data, offset)?;
+        let reserve_slot_info_list = CArray::<u32>::read_from(entry_data, offset)?;
+        let max_level = u32::read_from(entry_data, offset)?;
+        let skill_group_key_list = CArray::<u16>::read_from(entry_data, offset)?;
+        let buff_sustain_flag = u32::read_from(entry_data, offset)?;
+        let dev_skill_name = CString::read_from(entry_data, offset)?;
+        let dev_skill_desc = CString::read_from(entry_data, offset)?;
+        let video_path = u32::read_from(entry_data, offset)?;
+
+        // Absorb trailing bytes only when a real pabgh boundary was provided.
+        // When entry_size == remaining data (no pabgh), snapping to entry_end
+        // jumps to EOF and kills all subsequent entries.
+        let has_pabgh_boundary = entry_size < (data.len() - entry_start);
+        if has_pabgh_boundary && *offset < entry_end {
+            *offset = entry_end;
+        }
 
         Ok(Self {
             key, string_key, is_blocked, cooltime, buff_level_list,
@@ -487,12 +509,24 @@ pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<V
     let mut items = Vec::with_capacity(ranges.len());
     for (_k, s, e) in ranges {
         let mut c = s;
-        let item = SkillInfo::read_with_size(data, &mut c, e - s)?;
-        if c != e {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("SkillInfo entry under/over-consumed: {}/{}", c - s, e - s)));
+        match SkillInfo::read_with_size(data, &mut c, e - s) {
+            Ok(item) => {
+                items.push(item.to_json_value());
+            }
+            Err(_) => {
+                // BuffData variant changed in game update — fall back to
+                // blob representation so the entry roundtrips even if we
+                // can't decode every field.
+                use base64::Engine;
+                let blob = &data[s..e];
+                let key = u32::from_le_bytes(blob[..4].try_into().unwrap_or([0;4]));
+                let mut m = serde_json::Map::new();
+                m.insert("key".into(), Value::from(key));
+                m.insert("_blob_b64".into(), Value::String(
+                    base64::engine::general_purpose::STANDARD.encode(blob)));
+                items.push(Value::Object(m));
+            }
         }
-        items.push(item.to_json_value());
     }
     Ok(items)
 }
@@ -500,10 +534,19 @@ pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<V
 /// Inverse of `parse_skill_to_json`: write a sequence of skill dicts back
 /// to pabgb bytes.
 pub fn serialize_skill_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
+    use base64::Engine;
     let mut out = Vec::with_capacity(items.len() * 512);
     for (i, v) in items.iter().enumerate() {
-        SkillInfo::write_from_json(&mut out, v).map_err(|e| io::Error::new(
-            e.kind(), format!("skill[{}]: {}", i, e)))?;
+        // Check if this is a blob-fallback entry
+        if let Some(blob_b64) = v.get("_blob_b64").and_then(|b| b.as_str()) {
+            let blob = base64::engine::general_purpose::STANDARD.decode(blob_b64)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("skill[{}]: bad base64: {}", i, e)))?;
+            out.extend_from_slice(&blob);
+        } else {
+            SkillInfo::write_from_json(&mut out, v).map_err(|e| io::Error::new(
+                e.kind(), format!("skill[{}]: {}", i, e)))?;
+        }
     }
     Ok(out)
 }

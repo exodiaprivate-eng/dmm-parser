@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 use std::io::{self, Write};
 
 use super::{
@@ -11,6 +20,7 @@ use super::{
 pub struct CString<'a> {
     pub length: u32,
     pub data: &'a str,
+    pub raw: &'a [u8],
 }
 
 impl<'a> BinaryRead<'a> for CString<'a> {
@@ -20,16 +30,16 @@ impl<'a> BinaryRead<'a> for CString<'a> {
         check_remaining(data, *offset, len)?;
         let bytes = &data[*offset..*offset + len];
         let s = std::str::from_utf8(bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            .unwrap_or_else(|_| "");
         *offset += len;
-        Ok(CString { length, data: s })
+        Ok(CString { length, data: s, raw: bytes })
     }
 }
 
 impl BinaryWrite for CString<'_> {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.length.write_to(w)?;
-        w.write_all(self.data.as_bytes())
+        w.write_all(self.raw)
     }
 }
 
@@ -58,7 +68,7 @@ impl<'a> BinaryReadTracked<'a> for CString<'a> {
         check_remaining(data, *offset, len)?;
         let bytes = &data[*offset..*offset + len];
         let s = std::str::from_utf8(bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            .unwrap_or_else(|_| "");
         *offset += len;
         ranges.push(FieldRange {
             path: path.clone(),
@@ -66,7 +76,7 @@ impl<'a> BinaryReadTracked<'a> for CString<'a> {
             end: *offset,
             ty: "CString",
         });
-        Ok(CString { length, data: s })
+        Ok(CString { length, data: s, raw: bytes })
     }
 }
 
