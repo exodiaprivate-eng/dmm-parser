@@ -213,6 +213,7 @@ py_binary_struct! {
         pub f0b: u8,
         pub f0c: u32,
         pub f0d: u8,
+        pub f0d2: u8,
         pub f0e: u8,
     }
 }
@@ -221,6 +222,7 @@ py_binary_struct! {
     pub struct VaryRegenerateValueBuffDataPayload {
         pub f00: u8,
         pub f01: BuffDataValueBlock,
+        pub f02: u8,
     }
 }
 
@@ -250,6 +252,7 @@ py_binary_struct! {
     pub struct VaryStatBuffDataPayload {
         pub f00: u32,
         pub f01: BuffDataValueBlock,
+        pub f02: u8,
     }
 }
 
@@ -654,12 +657,14 @@ py_binary_struct! {
     pub struct DefenceBuffDataPayload {
         pub f00: u32,
         pub f01: u8,
+        pub f02: u8,
     }
 }
 
 py_binary_struct! {
     pub struct AggroBuffDataPayload {
         pub f00: BuffDataValueBlock,
+        pub f01: u8,
     }
 }
 
@@ -897,6 +902,7 @@ py_binary_struct! {
     pub struct VaryStatOverMaxValueBuffDataPayload {
         pub f00: u8,
         pub f01: BuffDataValueBlock,
+        pub f02: u8,
     }
 }
 
