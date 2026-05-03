@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! Generic JSON runtime for `pabgh_blob_table!` formatted tables.
 //!
 //! The macro at `binary::variant::pabgh_blob_table!` lays out every entry as
@@ -281,36 +272,15 @@ where
     let ranges = entry_ranges(&entries, data.len());
     let mut out = Vec::with_capacity(ranges.len());
     for (k, s, e) in ranges {
-        let entry_size = e - s;
         let mut c = s;
-        // Clamp the data slice to the entry boundary to prevent
-        // CArray count overflows from allocating unbounded memory.
-        let clamped = if e <= data.len() { &data[..e] } else { data };
-        match read_one(clamped, &mut c, entry_size) {
-            Ok(dict) if c == e => {
-                out.push(Value::Object(dict));
-            }
-            Ok(dict) => {
-                // Under/over-consumed — fall back to blob for roundtrip safety
-                use base64::Engine;
-                let blob = &data[s..e];
-                let mut m = serde_json::Map::new();
-                m.insert("key".into(), Value::from(k));
-                m.insert("_blob_b64".into(), Value::String(
-                    base64::engine::general_purpose::STANDARD.encode(blob)));
-                out.push(Value::Object(m));
-            }
-            Err(_) => {
-                // Parse failed — fall back to blob
-                use base64::Engine;
-                let blob = &data[s..e];
-                let mut m = serde_json::Map::new();
-                m.insert("key".into(), Value::from(k));
-                m.insert("_blob_b64".into(), Value::String(
-                    base64::engine::general_purpose::STANDARD.encode(blob)));
-                out.push(Value::Object(m));
-            }
+        let dict = read_one(data, &mut c, e - s).map_err(|err| io::Error::new(
+            err.kind(), format!("typed_blob_table k=0x{:x}: {}", k, err)))?;
+        if c != e {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("typed_blob_table k=0x{:x}: under/over-consumed {}/{}",
+                    k, c - s, e - s)));
         }
+        out.push(Value::Object(dict));
     }
     Ok(out)
 }
@@ -337,15 +307,6 @@ where
                 i, match v { Value::Null => "null", Value::Bool(_) => "bool",
                     Value::Number(_) => "number", Value::String(_) => "string",
                     Value::Array(_) => "array", Value::Object(_) => "object" })))?;
-        // Check for blob-fallback entries
-        if let Some(blob_val) = obj.get("_blob_b64").and_then(|b| b.as_str()) {
-            use base64::Engine;
-            let blob = base64::engine::general_purpose::STANDARD.decode(blob_val)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-                    format!("typed_blob_table[{}]: bad base64: {}", i, e)))?;
-            out.extend_from_slice(&blob);
-            continue;
-        }
         write_one(&mut out, obj).map_err(|e| io::Error::new(
             e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
     }
@@ -396,8 +357,8 @@ mod tests {
     #[test]
     fn blob_table_roundtrip_u16_key() {
         for (pb, ph) in [
-            (r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\inventory.pabgb",
-             r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\inventory.pabgh"),
+            (r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgb",
+             r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgh"),
             (r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\inventory.pabgb",
              r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\inventory.pabgh"),
         ] {

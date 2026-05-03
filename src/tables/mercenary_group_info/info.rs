@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! IDA-derived parser for `MercenaryGroupInfo.pabgb`.
 //!
 //! Field layout extracted from Hex-Rays decompile of the parse function
@@ -24,8 +15,8 @@ py_binary_struct! {
         pub key: u8,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub mercenary_key_list: CArray<u8>,
         pub mercenarye_info_list: CArray<u8>,
+        pub unk_new_u32: u32,
         pub child_mercenary_group_info_list: CArray<u8>,
         pub parent_mercenary_group_info: u8,
     }
@@ -35,7 +26,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\mercenarygroupinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/mercenarygroupinfo.pabgb";
 
     #[test]
     fn roundtrip() {

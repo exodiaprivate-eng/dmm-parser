@@ -1,32 +1,12 @@
 #![allow(clippy::doc_lazy_continuation, clippy::doc_overindented_list_items)]
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
 
-
-pub mod audio;
 pub mod binary;
 pub mod crypto;
-pub mod dds;
-pub mod dispatch;
 pub mod item_info;
 pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;
-pub mod save;
 pub mod tables;
-
-// Re-export the most commonly-used dispatch entry points so callers can
-// `use dmm_parser::{parse_table_to_json, serialize_table_from_json};` directly.
-pub use dispatch::{
-    is_supported_table, parse_table_to_json, serialize_table_from_json,
-    supported_tables,
-};
 
 use pyo3::prelude::*;
 
@@ -78,9 +58,8 @@ mod tests {
         first_existing(
             "DMM_PARSER_ITEMINFO_PATH",
             &[
-                "/mnt/e/OpensourceGame/CrimsonDesert/Godmod/backups/iteminfo_1.0.4.0.pabgb",
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\1.0.4 PABGB_PABGH\iteminfo.pabgb",
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\iteminfo.pabgb",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\iteminfo.pabgb",
             ],
         )
     }

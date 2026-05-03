@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 use super::keys::*;
 use super::structs::*;
 use crate::binary::*;
@@ -179,9 +170,9 @@ mod tests {
     // Returns None (test SKIPs) if no fixture found anywhere.
     fn find_iteminfo() -> Option<Vec<u8>> {
         let candidates: &[&str] = &[
-            "/mnt/e/OpensourceGame/CrimsonDesert/Godmod/backups/iteminfo_1.0.4.0.pabgb",
-            r"C:\Users\corin\Desktop\CD DUMPING TOOLS\1.0.4 PABGB_PABGH\iteminfo.pabgb",
-            r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\iteminfo.pabgb",
+            "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
+            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
+            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
         ];
         if let Ok(p) = std::env::var("DMM_PARSER_ITEMINFO_PATH") {
             if let Ok(d) = std::fs::read(&p) {
@@ -215,13 +206,13 @@ mod tests {
         let item = ItemInfo::read_from(&data, &mut offset).unwrap();
         assert_eq!(item.key, ItemKey(2200));
         assert_eq!(item.string_key.data, "Pyeonjeon_Arrow");
-        assert_eq!(offset, 0x00000270, "unexpected size for first item");
+        assert_eq!(offset, 0x0000027A, "unexpected size for first item");
     }
 
     #[test]
     fn test_parse_second_item() {
         let data = load_or_skip!();
-        let mut offset = 0x00000270;
+        let mut offset = 0x0000027A;
         let item = ItemInfo::read_from(&data, &mut offset).unwrap();
         assert_ne!(item.key, ItemKey(0));
         println!(

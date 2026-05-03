@@ -212,6 +212,7 @@ py_binary_struct! {
         pub f0a: u8,
         pub f0b: u8,
         pub f0c: u32,
+        pub f0c_new: u8,
         pub f0d: u8,
         pub f0d2: u8,
         pub f0e: u8,
@@ -1505,6 +1506,7 @@ pub enum BuffDataVariant<'a> {
     BlockDeadBodyGarbageCollectionBuffData,
     DecreaseMercenaryCooltimeBuffData(DecreaseMercenaryCooltimeBuffDataPayload),
     DetectReactionOverrideBuffData(DetectReactionOverrideBuffDataPayload),
+    EmpoweredOverlayColorBuffData,
 }
 
 impl<'a> BuffDataVariant<'a> {
@@ -1630,6 +1632,7 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockDeadBodyGarbageCollectionBuffData => 117,
             Self::DecreaseMercenaryCooltimeBuffData(_) => 118,
             Self::DetectReactionOverrideBuffData(_) => 119,
+            Self::EmpoweredOverlayColorBuffData => 120,
         }
     }
 
@@ -1756,6 +1759,7 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockDeadBodyGarbageCollectionBuffData => "BlockDeadBodyGarbageCollectionBuffData",
             Self::DecreaseMercenaryCooltimeBuffData(_) => "DecreaseMercenaryCooltimeBuffData",
             Self::DetectReactionOverrideBuffData(_) => "DetectReactionOverrideBuffData",
+            Self::EmpoweredOverlayColorBuffData => "EmpoweredOverlayColorBuffData",
         }
     }
 
@@ -1885,6 +1889,7 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockDeadBodyGarbageCollectionBuffData => {}
             Self::DecreaseMercenaryCooltimeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::DetectReactionOverrideBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::EmpoweredOverlayColorBuffData => {}
         }
         Value::Object(m)
     }
@@ -2020,6 +2025,7 @@ impl<'a> BuffDataVariant<'a> {
             117 => {}
             118 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseMercenaryCooltimeBuffData: missing body object"))?; DecreaseMercenaryCooltimeBuffDataPayload::write_from_json_dict(w, body)?; }
             119 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectReactionOverrideBuffData: missing body object"))?; DetectReactionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
+            120 => {}
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("BuffDataVariant: unknown disc {}", other))),
         }
@@ -2150,6 +2156,7 @@ impl<'a> BuffDataVariant<'a> {
             117 => Self::BlockDeadBodyGarbageCollectionBuffData,
             118 => Self::DecreaseMercenaryCooltimeBuffData(DecreaseMercenaryCooltimeBuffDataPayload::read_from(data, offset)?),
             119 => Self::DetectReactionOverrideBuffData(DetectReactionOverrideBuffDataPayload::read_from(data, offset)?),
+            120 => Self::EmpoweredOverlayColorBuffData,
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown BuffData disc: {}", disc))),
         })
     }
@@ -2276,6 +2283,7 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockDeadBodyGarbageCollectionBuffData => Ok(()),
             Self::DecreaseMercenaryCooltimeBuffData(p) => p.write_to(w),
             Self::DetectReactionOverrideBuffData(p) => p.write_to(w),
+            Self::EmpoweredOverlayColorBuffData => Ok(()),
         }
     }
 }

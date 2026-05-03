@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! Tier 1 — every wire byte typed. The polymorphic
 //! SequencerStageChartDesc that used to ride as an opaque blob is now
 //! fully decoded (26/26 wire fields) by `SequencerStageChartDescPartial`.
@@ -165,12 +156,12 @@ mod tests {
     fn find_fixture() -> Option<(Vec<u8>, Vec<u8>)> {
         let candidates: &[(&str, &str)] = &[
             (
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-12/reviepointinfo.pabgb",
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-12/reviepointinfo.pabgh",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/reviepointinfo.pabgb",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/reviepointinfo.pabgh",
             ),
             (
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\reviepointinfo.pabgb",
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\reviepointinfo.pabgh",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\reviepointinfo.pabgb",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\reviepointinfo.pabgh",
             ),
         ];
         if let Ok(p) = std::env::var("DMM_PARSER_REVIEPOINTINFO_PABGB") {

@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! Variant validator for BuffData. Iterates every BuffInfo entry's
 //! buff_data_list, attempts to parse each BuffDataEntry, and reports which
 //! variants successfully decoded vs which had byte-count mismatches.
@@ -22,9 +13,9 @@ use crate::binary::*;
 use std::collections::BTreeMap;
 
 const PABGB_PATH: &str =
-    r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\buffinfo.pabgb";
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/buffinfo.pabgb";
 const PABGH_PATH: &str =
-    r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\buffinfo.pabgh";
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/buffinfo.pabgh";
 
 /// Tail layout (post buff_data_list) per sub_1410D6510:
 ///   u32 min_level (4) + u32 max_level (4) + CString sequencer_file_name +
