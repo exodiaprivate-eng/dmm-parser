@@ -39,8 +39,8 @@ py_binary_struct! {
         pub use_camp_level: u8,
         pub apply_equip_item_stat: u8,
         pub spawn_position_type: u8,
-        pub unk_new_u8_a: u8,
-        pub unk_new_u8_b: u8,
+        pub mercenary_type: u8,
+        pub is_growable: u8,
         pub parent_mercenary_group_info: u8,
         pub hired_skill_info_list: CArray<HiredSkillData>,
     }

@@ -193,7 +193,7 @@ py_binary_struct! {
         pub learning_position: [f32; 3],
         pub learning_stage_info: u32,
         pub learn_apply_skill_info: u32,
-        pub unk_new_list: CArray<U32U32Pair>,
+        pub level_gimmick_scene_object_data_list: CArray<U32U32Pair>,
     }
 }
 
