@@ -1,12 +1,21 @@
 #![allow(clippy::doc_lazy_continuation, clippy::doc_overindented_list_items)]
 
+pub mod audio;
 pub mod binary;
 pub mod crypto;
+pub mod dds;
+pub mod dispatch;
 pub mod item_info;
 pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;
+pub mod save;
 pub mod tables;
+
+pub use dispatch::{
+    is_supported_table, parse_table_to_json, serialize_table_from_json,
+    supported_tables,
+};
 
 use pyo3::prelude::*;
 

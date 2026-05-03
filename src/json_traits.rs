@@ -332,11 +332,7 @@ impl WriteJsonValue for [u32; 4] {
 
 impl ToJsonValue for CString<'_> {
     fn to_json_value(&self) -> Value {
-        if self.data.is_empty() && !self.raw.is_empty() {
-            Value::String(String::from_utf8_lossy(self.raw).into_owned())
-        } else {
-            Value::String(self.data.to_string())
-        }
+        Value::String(self.data.to_string())
     }
 }
 impl WriteJsonValue for CString<'_> {

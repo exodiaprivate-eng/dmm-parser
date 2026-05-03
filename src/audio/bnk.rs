@@ -132,7 +132,7 @@ pub fn parse_bnk(data: &[u8]) -> io::Result<BnkBank> {
                 ));
             }
             b"DIDX" => {
-                if size % 12 != 0 {
+                if !size.is_multiple_of(12) {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         format!("DIDX size {} not divisible by 12 (entry size)", size),
