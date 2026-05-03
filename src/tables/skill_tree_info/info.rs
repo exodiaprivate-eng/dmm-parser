@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed parser.
 //!
 //! Reader (Mac CrimsonDesert_Steam): `sub_101857BC0` at 0x101857BC0.
@@ -37,8 +38,8 @@
 //!  11. CArray<SkillTreeSkillNode> skill_node_list
 //!  12. CArray<SkillTreeStatNode> stat_node_list
 //!  13. u32 first_focus_skill_info (SkillKey lookup, wire 4)
-//!  14. u32 first_focus_zoom        (f32-as-u32)
-//!  15. [u8;8] first_focus_position (vec2)
+//!  14. f32 first_focus_zoom
+//!  15. [f32;2] first_focus_position (Vec2)
 //!  16. [u8;8] skill_tree_area
 //!
 //! ## Helper map (Mac)
@@ -82,10 +83,10 @@ py_binary_struct! {
         pub item_info: u32,
         pub sub_level_info: u32,
         pub ui_command: CString<'a>,
-        pub ui_position: [u8; 8],
+        pub ui_position: [f32; 2],
         pub node_type: u8,
         pub deco_line_node_id: u32,
-        pub color: [u8; 16],
+        pub color: [f32; 4],
     }
 }
 
@@ -104,14 +105,14 @@ py_binary_struct! {
         pub ui_position_x: u32,
         pub ui_position_y: u32,
         pub deco_line_node_id: u32,
-        pub ui_position: [u8; 8],
+        pub ui_position: [f32; 2],
         pub parent_id: u32,
         pub child_id_list: CArray<u32>,
         pub ui_parent_data_list: CArray<SkillTreeParentDataEntry>,
         pub ui_child_id_for_guideline: CArray<u32>,
         pub node_type: u8,
         pub ui_learn_need_node_list: CArray<u32>,
-        pub color: [u8; 16],
+        pub color: [f32; 4],
         pub faction_research_key: u32,
     }
 }
@@ -133,9 +134,9 @@ py_binary_struct! {
         pub skill_node_list: CArray<SkillTreeSkillNode>,
         pub stat_node_list: CArray<SkillTreeStatNode<'a>>,
         pub first_focus_skill_info: u32,
-        pub first_focus_zoom: u32,
-        pub first_focus_position: [u8; 8],
-        pub skill_tree_area: [u8; 8],
+        pub first_focus_zoom: f32,
+        pub first_focus_position: [f32; 2],
+        pub skill_tree_area: u64,
     }
 }
 
@@ -143,8 +144,8 @@ py_binary_struct! {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\skilltreeinfo.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\skilltreeinfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/skilltreeinfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/skilltreeinfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -162,5 +163,34 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "skilltreeinfo roundtrip mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut c = *start;
+            let item = SkillTreeInfo::read_from(&data, &mut c).unwrap();
+            assert_eq!(c, *end, "entry {} key=0x{:x}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            SkillTreeInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
+            );
+        }
     }
 }

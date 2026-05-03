@@ -11,6 +11,8 @@
 use super::game_expression::GameExpression;
 use super::ivariant_item::IVariantItem;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -61,5 +63,61 @@ impl<'a> ConditionDataStageChart<'a> {
                 item.write_to(w)
             }
         }
+    }
+
+    /// JSON shape: discriminated union.
+    /// - BranchA: {branch: "A", outer_presence, label, byte_b, qword_c,
+    ///   expression: <GameExpression dict>}
+    /// - BranchB: {branch: "B", ivariant_selector, item: <IVariantItem dict>}
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        match self {
+            Self::BranchA { outer_presence, label, byte_b, qword_c, expression } => {
+                m.insert("branch".into(), Value::String("A".into()));
+                m.insert("outer_presence".into(), outer_presence.to_json_value());
+                m.insert("label".into(), label.to_json_value());
+                m.insert("byte_b".into(), byte_b.to_json_value());
+                m.insert("qword_c".into(), qword_c.to_json_value());
+                m.insert("expression".into(), Value::Object(expression.to_json_dict()));
+            }
+            Self::BranchB { ivariant_selector, item } => {
+                m.insert("branch".into(), Value::String("B".into()));
+                m.insert("ivariant_selector".into(), ivariant_selector.to_json_value());
+                m.insert("item".into(), Value::Object(item.to_json_dict()));
+            }
+        }
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let branch = json_get_field(obj, "branch")?.as_str().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData,
+                "ConditionDataStageChart.branch: expected string")
+        })?;
+        match branch {
+            "A" => {
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "outer_presence")?)?;
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "label")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_b")?)?;
+                <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_c")?)?;
+                let expr_obj = json_get_field(obj, "expression")?.as_object().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData,
+                        "StageChart.expression: expected object")
+                })?;
+                GameExpression::write_from_json_dict(w, expr_obj)?;
+            }
+            "B" => {
+                w.push(0u8);  // outer_presence == 0 implies BranchB
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ivariant_selector")?)?;
+                let item_obj = json_get_field(obj, "item")?.as_object().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData,
+                        "StageChart.item: expected object")
+                })?;
+                IVariantItem::write_from_json_dict(w, item_obj)?;
+            }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("ConditionDataStageChart.branch: unknown {:?}", other))),
+        }
+        Ok(())
     }
 }

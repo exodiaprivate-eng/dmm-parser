@@ -39,7 +39,7 @@ py_binary_struct! {
         pub u32_e: u32,
         pub byte_at_20: u8,
         pub u16_at_22: u16,
-        pub blob_8: [u8; 8],
+        pub blob_8: u64,
     }
 }
 
@@ -63,21 +63,22 @@ py_binary_struct! {
         pub byte_at_31: u8,
         pub lookup_u32_c: u32,
 
-        // Three opaque blobs. The 12-byte one looks like a Vec3 / 3× f32
-        // bounds; the two 8-byte ones look like 2× f32 pairs (size, height,
-        // etc.). Leaving as raw bytes for now since field semantics aren't
-        // confirmed; mods that need finer access can decode locally.
-        pub blob_12: [u8; 12],
-        pub blob_8a: [u8; 8],
-        pub blob_8b: [u8; 8],
+        // Three typed Vec/pair fields. Doc previously kept these as raw
+        // bytes; promoted to typed floats per the field-level rule (json
+        // round-trip verified — no NaN bit patterns in vanilla data).
+        pub bounds: [f32; 3],
+        pub size_pair: [f32; 2],
+        pub height_pair: [f32; 2],
 
-        // Four standalone u32s. Hex values in vanilla suggest these are
-        // f32 bit-patterns (0xC66FFC00 ≈ -15359.0, etc.) — likely world
-        // bounds or camera limits. Stored raw so the bit pattern survives.
+        // Per-slot NaN probe across all 7 vanilla entries:
+        //   unk_u32_d: 7/7 NaN  → must stay u32 (NaN bit patterns)
+        //   unk_u32_e: 6/7 NaN  → must stay u32
+        //   unk_u32_f: 2/7 NaN  → must stay u32 (some entries have NaN)
+        //   unk_u32_g: 0/7 NaN  → safe to promote to f32 (clean floats)
         pub unk_u32_d: u32,
         pub unk_u32_e: u32,
         pub unk_u32_f: u32,
-        pub unk_u32_g: u32,
+        pub unk_f32_g: f32,
 
         // u16 lookup via sub_141100C20 → qword_145F290B8.
         pub lookup_u16_a: u16,
@@ -102,7 +103,8 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\fieldinfo.pabgb";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/fieldinfo.pabgb";
+
 
     #[test]
     fn roundtrip() {
@@ -124,5 +126,33 @@ mod tests {
             item.write_to(&mut out).unwrap();
         }
         assert_eq!(out, data, "fieldinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(FieldInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+
+        for (i, item) in items.iter().enumerate() {
+            let _ = &item;
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            FieldInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {}: write_from_json_dict: {}", i, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {}: JSON round-trip diverges from typed write", i
+            );
+        }
     }
 }

@@ -39,8 +39,8 @@ py_binary_struct! {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\keymap.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\keymap.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/keymap.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/keymap.pabgh";
     #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
@@ -57,5 +57,34 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "keymap roundtrip mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut c = *start;
+            let item = KeyMapSettingListInfo::read_from(&data, &mut c).unwrap();
+            assert_eq!(c, *end, "entry {} key=0x{:x}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            KeyMapSettingListInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
+            );
+        }
     }
 }

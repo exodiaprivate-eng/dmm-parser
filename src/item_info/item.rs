@@ -168,9 +168,9 @@ mod tests {
     // Returns None (test SKIPs) if no fixture found anywhere.
     fn find_iteminfo() -> Option<Vec<u8>> {
         let candidates: &[&str] = &[
-            "/mnt/e/OpensourceGame/CrimsonDesert/Godmod/backups/iteminfo_1.0.4.0.pabgb",
-            r"C:\Users\corin\Desktop\CD DUMPING TOOLS\1.0.4 PABGB_PABGH\iteminfo.pabgb",
-            r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\iteminfo.pabgb",
+            "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
+            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
+            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
         ];
         if let Ok(p) = std::env::var("DMM_PARSER_ITEMINFO_PATH") {
             if let Ok(d) = std::fs::read(&p) {

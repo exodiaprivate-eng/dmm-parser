@@ -17,6 +17,8 @@
 //!   6  GameExpression_Value          (slot7: 0x1411738F0) — CString name
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 #[derive(Debug)]
@@ -210,5 +212,204 @@ impl<'a> GameExpression<'a> {
                 s.write_to(w)
             }
         }
+    }
+
+    /// Tree-navigable JSON. Each variant emits {kind: <name>, ...} with
+    /// recursive children for tree-shaped variants. Empty maps to
+    /// {kind: "Empty"}.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        match self {
+            Self::Empty => {
+                m.insert("kind".into(), Value::String("Empty".into()));
+            }
+            Self::UnaryOperator { op_kind, child } => {
+                m.insert("kind".into(), Value::String("UnaryOperator".into()));
+                m.insert("op_kind".into(), op_kind.to_json_value());
+                m.insert("child".into(), Value::Object(child.to_json_dict()));
+            }
+            Self::BinaryOperator { left, right, op_kind } => {
+                m.insert("kind".into(), Value::String("BinaryOperator".into()));
+                m.insert("left".into(), Value::Object(left.to_json_dict()));
+                m.insert("right".into(), Value::Object(right.to_json_dict()));
+                m.insert("op_kind".into(), op_kind.to_json_value());
+            }
+            Self::MemberFunction { receiver, method_id, args } => {
+                m.insert("kind".into(), Value::String("MemberFunction".into()));
+                m.insert("receiver".into(), Value::Object(receiver.to_json_dict()));
+                m.insert("method_id".into(), method_id.to_json_value());
+                let arg_arr: Vec<Value> = args.iter()
+                    .map(|a| Value::Object(a.to_json_dict()))
+                    .collect();
+                m.insert("args".into(), Value::Array(arg_arr));
+            }
+            Self::Actor { actor_kind } => {
+                m.insert("kind".into(), Value::String("Actor".into()));
+                m.insert("actor_kind".into(), actor_kind.to_json_value());
+            }
+            Self::Primitive(p) => {
+                m.insert("kind".into(), Value::String("Primitive".into()));
+                m.insert("presence".into(), p.presence.to_json_value());
+                m.insert(
+                    "body".into(),
+                    match &p.body {
+                        Some(body) => {
+                            let mut bm = Map::new();
+                            bm.insert("value_kind".into(), body.value_kind.to_json_value());
+                            match &body.data {
+                                GameValueData::U8(v) => {
+                                    bm.insert("data_kind".into(), Value::String("u8".into()));
+                                    bm.insert("value".into(), v.to_json_value());
+                                }
+                                GameValueData::U32(v) => {
+                                    bm.insert("data_kind".into(), Value::String("u32".into()));
+                                    bm.insert("value".into(), v.to_json_value());
+                                }
+                                GameValueData::Str(s) => {
+                                    bm.insert("data_kind".into(), Value::String("str".into()));
+                                    bm.insert("value".into(), s.to_json_value());
+                                }
+                                GameValueData::None => {
+                                    bm.insert("data_kind".into(), Value::String("none".into()));
+                                }
+                            }
+                            Value::Object(bm)
+                        }
+                        None => Value::Null,
+                    },
+                );
+            }
+            Self::ConstObject(c) => {
+                m.insert("kind".into(), Value::String("ConstObject".into()));
+                m.insert("presence".into(), c.presence.to_json_value());
+                m.insert(
+                    "type_name".into(),
+                    match &c.type_name {
+                        Some(s) => s.to_json_value(),
+                        None => Value::Null,
+                    },
+                );
+                m.insert(
+                    "value_name".into(),
+                    match &c.value_name {
+                        Some(s) => s.to_json_value(),
+                        None => Value::Null,
+                    },
+                );
+            }
+            Self::Value(s) => {
+                m.insert("kind".into(), Value::String("Value".into()));
+                m.insert("name".into(), s.to_json_value());
+            }
+        }
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let kind = json_get_field(obj, "kind")?.as_str().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData,
+                "GameExpression.kind: expected string")
+        })?;
+        match kind {
+            "Empty" => {
+                w.push(0u8);
+            }
+            "UnaryOperator" => {
+                w.push(1u8); w.push(0u8);
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "op_kind")?)?;
+                let child_obj = json_get_field(obj, "child")?.as_object().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData,
+                        "UnaryOperator.child: expected object")
+                })?;
+                Self::write_from_json_dict(w, child_obj)?;
+            }
+            "BinaryOperator" => {
+                w.push(1u8); w.push(1u8);
+                let left_obj = json_get_field(obj, "left")?.as_object().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "BinaryOperator.left: expected object")
+                })?;
+                Self::write_from_json_dict(w, left_obj)?;
+                let right_obj = json_get_field(obj, "right")?.as_object().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "BinaryOperator.right: expected object")
+                })?;
+                Self::write_from_json_dict(w, right_obj)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "op_kind")?)?;
+            }
+            "MemberFunction" => {
+                w.push(1u8); w.push(2u8);
+                let recv_obj = json_get_field(obj, "receiver")?.as_object().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "MemberFunction.receiver: expected object")
+                })?;
+                Self::write_from_json_dict(w, recv_obj)?;
+                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "method_id")?)?;
+                let args = json_get_field(obj, "args")?.as_array().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "MemberFunction.args: expected array")
+                })?;
+                (args.len() as u32).write_to(w)?;
+                for (i, arg) in args.iter().enumerate() {
+                    let arg_obj = arg.as_object().ok_or_else(|| io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("MemberFunction.args[{}]: expected object", i),
+                    ))?;
+                    Self::write_from_json_dict(w, arg_obj)?;
+                }
+            }
+            "Actor" => {
+                w.push(1u8); w.push(3u8);
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "actor_kind")?)?;
+            }
+            "Primitive" => {
+                w.push(1u8); w.push(4u8);
+                let presence = json_get_field(obj, "presence")?.as_u64().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "Primitive.presence: expected u8")
+                })?;
+                if presence > u8::MAX as u64 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("Primitive.presence: {} out of u8 range", presence)));
+                }
+                w.push(presence as u8);
+                if presence != 0 {
+                    let body_obj = json_get_field(obj, "body")?.as_object().ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::InvalidData,
+                            "Primitive.body: expected object when presence!=0")
+                    })?;
+                    <u8 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "value_kind")?)?;
+                    let data_kind = json_get_field(body_obj, "data_kind")?.as_str().ok_or_else(|| {
+                        io::Error::new(io::ErrorKind::InvalidData,
+                            "Primitive.body.data_kind: expected string")
+                    })?;
+                    match data_kind {
+                        "u8" => <u8 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "value")?)?,
+                        "u32" => <u32 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "value")?)?,
+                        "str" => <CString as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "value")?)?,
+                        "none" => {}
+                        other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                            format!("Primitive.body.data_kind: unknown {:?}", other))),
+                    }
+                }
+            }
+            "ConstObject" => {
+                w.push(1u8); w.push(5u8);
+                let presence = json_get_field(obj, "presence")?.as_u64().ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "ConstObject.presence: expected u8")
+                })?;
+                if presence > u8::MAX as u64 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("ConstObject.presence: {} out of u8 range", presence)));
+                }
+                w.push(presence as u8);
+                if presence != 0 {
+                    <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "type_name")?)?;
+                    <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "value_name")?)?;
+                }
+            }
+            "Value" => {
+                w.push(1u8); w.push(6u8);
+                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name")?)?;
+            }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("GameExpression.kind: unknown {:?}", other))),
+        }
+        Ok(())
     }
 }

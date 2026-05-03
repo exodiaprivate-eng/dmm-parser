@@ -15,7 +15,12 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub destroyed_ai_event: [u8; 12],
+        // [u8;12] composite split into 4 fields per empirical sweep across
+        // all 111 entries: head=0xFFFF, pad=0, hash u32 varies, tail=0xFFFFFFFF.
+        pub destroyed_ai_event_head: u16,
+        pub destroyed_ai_event_pad: u16,
+        pub destroyed_ai_event_hash: u32,
+        pub destroyed_ai_event_tail: u32,
         pub use_resource_item_type: u32,
         pub fake_equip_reserve_slot_data: u32,
         pub apply_status_group_info_on_activate: u32,
@@ -39,7 +44,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\equiptypeinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equiptypeinfo.pabgb";
 
     #[test]
     fn roundtrip() {
@@ -58,5 +63,34 @@ mod tests {
             item.write_to(&mut out).unwrap();
         }
         assert_eq!(out, data, "equiptypeinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(EquipTypeInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+
+        for (i, item) in items.iter().enumerate() {
+            let _ = &item;
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            EquipTypeInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
     }
 }

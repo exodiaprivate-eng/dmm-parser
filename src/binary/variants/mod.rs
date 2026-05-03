@@ -10,14 +10,32 @@ pub mod branch_condition_data;
 pub mod condition_data;
 pub mod condition_data_stage_chart;
 pub mod condition_gimmick_data;
+pub mod effect_data;
 pub mod game_condition;
+pub mod game_event_handler_data;
 pub mod game_expression;
 pub mod global_effect_condition_data;
+pub mod global_game_event_execute_data;
 pub mod ivariant_item;
 pub mod mini_game_data;
 pub mod schedule_complete_condition_data;
+pub mod filter_condition;
+pub mod auto_spawn_entry;
+pub mod condition_pair;
+pub mod drop_target;
+pub mod gimmick_interaction_override;
+pub mod sequencer_stage_chart_desc;
+pub mod trigger_gameplay_event_handler_data;
 
 #[cfg(test)]
 mod validate_buffdata;
 #[cfg(test)]
 mod diagnose_conditiondata;
+#[cfg(test)]
+mod diagnose_filter_condition;
+#[cfg(test)]
+mod diagnose_game_level;
+#[cfg(test)]
+mod diagnose_sequencer_spawn;
+#[cfg(test)]
+mod diagnose_special_mode;

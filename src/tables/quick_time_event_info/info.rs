@@ -24,7 +24,9 @@
 //! "Hand-corrected" header marker on line 1.
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 py_binary_struct! {
@@ -141,6 +143,105 @@ impl QuickTimeEventDataVariant {
             Self::BarTiming(p) => p.write_to(w),
         }
     }
+
+    /// Serialize the variant as a self-describing JSON object:
+    /// `{"kind": "RepeatClick", "data": {"field_a": ..., "field_b": ...}}`
+    /// Empty variants (SingleClick/DoubleClick/Press/Indicator) omit `data`.
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        let kind = match self {
+            Self::SingleClick => "SingleClick",
+            Self::RepeatClick(_) => "RepeatClick",
+            Self::MultiClick(_) => "MultiClick",
+            Self::DoubleClick => "DoubleClick",
+            Self::Press => "Press",
+            Self::Timing(_) => "Timing",
+            Self::Indicator => "Indicator",
+            Self::Spin(_) => "Spin",
+            Self::Balance(_) => "Balance",
+            Self::BarTiming(_) => "BarTiming",
+        };
+        m.insert("kind".to_string(), Value::String(kind.to_string()));
+        match self {
+            Self::SingleClick | Self::DoubleClick | Self::Press | Self::Indicator => {}
+            Self::RepeatClick(p) => { m.insert("data".to_string(), Value::Object(p.to_json_dict())); }
+            Self::MultiClick(p) => { m.insert("data".to_string(), Value::Object(p.to_json_dict())); }
+            Self::Timing(p) => { m.insert("data".to_string(), Value::Object(p.to_json_dict())); }
+            Self::Spin(p) => { m.insert("data".to_string(), Value::Object(p.to_json_dict())); }
+            Self::Balance(p) => { m.insert("data".to_string(), Value::Object(p.to_json_dict())); }
+            Self::BarTiming(p) => { m.insert("data".to_string(), Value::Object(p.to_json_dict())); }
+        }
+        Value::Object(m)
+    }
+
+    /// Parse the JSON shape from `to_json_value` and write it directly to
+    /// the wire (discriminator byte + payload bytes).
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "QuickTimeEventDataVariant: expected object with kind field"))?;
+        let kind = obj.get("kind")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "QuickTimeEventDataVariant: missing or non-string kind"))?;
+        let data = obj.get("data");
+        match kind {
+            "SingleClick" => 0u8.write_to(w),
+            "RepeatClick" => {
+                1u8.write_to(w)?;
+                let d = data.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "RepeatClick: missing data"))?;
+                let m = d.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "RepeatClick: data must be an object"))?;
+                RepeatClickPayload::write_from_json_dict(w, m)
+            }
+            "MultiClick" => {
+                2u8.write_to(w)?;
+                let d = data.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "MultiClick: missing data"))?;
+                let m = d.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "MultiClick: data must be an object"))?;
+                MultiClickPayload::write_from_json_dict(w, m)
+            }
+            "DoubleClick" => 3u8.write_to(w),
+            "Press" => 4u8.write_to(w),
+            "Timing" => {
+                5u8.write_to(w)?;
+                let d = data.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "Timing: missing data"))?;
+                let m = d.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "Timing: data must be an object"))?;
+                TimingPayload::write_from_json_dict(w, m)
+            }
+            "Indicator" => 6u8.write_to(w),
+            "Spin" => {
+                7u8.write_to(w)?;
+                let d = data.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "Spin: missing data"))?;
+                let m = d.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "Spin: data must be an object"))?;
+                SpinPayload::write_from_json_dict(w, m)
+            }
+            "Balance" => {
+                8u8.write_to(w)?;
+                let d = data.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "Balance: missing data"))?;
+                let m = d.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "Balance: data must be an object"))?;
+                BalancePayload::write_from_json_dict(w, m)
+            }
+            "BarTiming" => {
+                9u8.write_to(w)?;
+                let d = data.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "BarTiming: missing data"))?;
+                let m = d.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "BarTiming: data must be an object"))?;
+                BarTimingPayload::write_from_json_dict(w, m)
+            }
+            other => Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("QuickTimeEventDataVariant: unknown kind '{}'", other))),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -154,7 +255,7 @@ pub struct QuickTimeEventInfoData {
     pub field_d: u32,
     pub field_e: u32,
     pub field_f: u32,
-    pub block: [u8; 8],
+    pub block: u64,
     pub flag_a: u8,
     pub flag_b: u8,
     pub field_g: u32,
@@ -172,10 +273,7 @@ impl QuickTimeEventInfoData {
         let field_d = u32::read_from(data, offset)?;
         let field_e = u32::read_from(data, offset)?;
         let field_f = u32::read_from(data, offset)?;
-        let mut block = [0u8; 8];
-        for b in &mut block {
-            *b = u8::read_from(data, offset)?;
-        }
+        let block = u64::read_from(data, offset)?;
         let flag_a = u8::read_from(data, offset)?;
         let flag_b = u8::read_from(data, offset)?;
         let field_g = u32::read_from(data, offset)?;
@@ -197,11 +295,48 @@ impl QuickTimeEventInfoData {
         self.field_d.write_to(w)?;
         self.field_e.write_to(w)?;
         self.field_f.write_to(w)?;
-        w.write_all(&self.block)?;
+        self.block.write_to(w)?;
         self.flag_a.write_to(w)?;
         self.flag_b.write_to(w)?;
         self.field_g.write_to(w)?;
         self.variant.write_to(w)
+    }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("field_a".to_string(), self.field_a.to_json_value());
+        m.insert("field_b".to_string(), self.field_b.to_json_value());
+        m.insert("hash_a".to_string(), self.hash_a.to_json_value());
+        m.insert("hash_b".to_string(), self.hash_b.to_json_value());
+        m.insert("hash_c".to_string(), self.hash_c.to_json_value());
+        m.insert("field_c".to_string(), self.field_c.to_json_value());
+        m.insert("field_d".to_string(), self.field_d.to_json_value());
+        m.insert("field_e".to_string(), self.field_e.to_json_value());
+        m.insert("field_f".to_string(), self.field_f.to_json_value());
+        m.insert("block".to_string(), self.block.to_json_value());
+        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
+        m.insert("flag_b".to_string(), self.flag_b.to_json_value());
+        m.insert("field_g".to_string(), self.field_g.to_json_value());
+        m.insert("variant".to_string(), self.variant.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "hash_c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_d")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_e")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_f")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "block")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_g")?)?;
+        QuickTimeEventDataVariant::write_from_json(w, json_get_field(obj, "variant")?)?;
+        Ok(())
     }
 }
 
@@ -236,13 +371,48 @@ impl<'a> QuickTimeEventInfo<'a> {
         }
         Ok(())
     }
+
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert(
+            "quick_time_event_data_list".to_string(),
+            Value::Array(
+                self.quick_time_event_data_list
+                    .iter()
+                    .map(|d| Value::Object(d.to_json_dict()))
+                    .collect(),
+            ),
+        );
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        let arr = json_get_field(obj, "quick_time_event_data_list")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "QuickTimeEventInfo: quick_time_event_data_list must be a JSON array"))?;
+        (arr.len() as u32).write_to(w)?;
+        for entry in arr {
+            let m = entry.as_object().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "QuickTimeEventInfo: each list entry must be an object"))?;
+            QuickTimeEventInfoData::write_from_json_dict(w, m)?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\quicktimeeventinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/quicktimeeventinfo.pabgb";
 
     #[test]
     fn roundtrip() {
@@ -261,5 +431,71 @@ mod tests {
             item.write_to(&mut out).unwrap();
         }
         assert_eq!(out, data, "quicktimeeventinfo roundtrip bytes mismatch");
+    }
+
+    /// Round-trip every entry through JSON: read → to_json_dict →
+    /// write_from_json_dict → bytes must match write_to() output.
+    /// This exercises the polymorphic variant kind/data shape end-to-end.
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(QuickTimeEventInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len());
+
+        for (i, item) in items.iter().enumerate() {
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            QuickTimeEventInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
+    }
+
+    /// Confirm the variant `kind` field surfaces every real discriminator
+    /// in the data — sanity check that the polymorphic JSON shape is
+    /// being exercised, not just SingleClick-stubs.
+    #[test]
+    fn variant_kinds_seen() {
+        use std::collections::HashMap;
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut counts: HashMap<&'static str, usize> = HashMap::new();
+        while offset < data.len() {
+            let item = QuickTimeEventInfo::read_from(&data, &mut offset).unwrap();
+            for d in &item.quick_time_event_data_list {
+                let kind = match &d.variant {
+                    QuickTimeEventDataVariant::SingleClick => "SingleClick",
+                    QuickTimeEventDataVariant::RepeatClick(_) => "RepeatClick",
+                    QuickTimeEventDataVariant::MultiClick(_) => "MultiClick",
+                    QuickTimeEventDataVariant::DoubleClick => "DoubleClick",
+                    QuickTimeEventDataVariant::Press => "Press",
+                    QuickTimeEventDataVariant::Timing(_) => "Timing",
+                    QuickTimeEventDataVariant::Indicator => "Indicator",
+                    QuickTimeEventDataVariant::Spin(_) => "Spin",
+                    QuickTimeEventDataVariant::Balance(_) => "Balance",
+                    QuickTimeEventDataVariant::BarTiming(_) => "BarTiming",
+                };
+                *counts.entry(kind).or_insert(0) += 1;
+            }
+        }
+        let mut sorted: Vec<_> = counts.iter().collect();
+        sorted.sort_by_key(|&(_, c)| std::cmp::Reverse(*c));
+        eprintln!("quicktimeeventinfo variant kinds seen: {:?}", sorted);
     }
 }

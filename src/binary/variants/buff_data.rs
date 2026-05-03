@@ -3,7 +3,27 @@
 //! Total variants: 120
 
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
+use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// Shared 28-byte BuffData value block (sub_141E2BB80). Wire reads
+    /// u64 + u64 + u64 + u32 in order. Used as a recurring sub-record
+    /// across DamageBuffData (3×), VaryRegenerateValueBuffData,
+    /// AdditionalRegenerateValueBuffData, and other variants.
+    ///
+    /// The runtime types of these fields aren't recovered yet; keeping
+    /// them as integer primitives preserves the bit pattern losslessly
+    /// (mod authors can reinterpret as f64/f32 if needed).
+    pub struct BuffDataValueBlock {
+        pub field_0: u64,
+        pub field_8: u64,
+        pub field_16: u64,
+        pub field_24: u32,
+    }
+}
 
 /// Common base fields shared by every BuffData variant.
 #[derive(Debug)]
@@ -101,330 +121,239 @@ impl<'a> BuffDataBase<'a> {
         self.u32_at136.write_to(w)?;
         Ok(())
     }
-}
 
-#[derive(Debug)]
-pub struct DamageBuffDataPayload {
-    pub f00: u8,
-    pub f01: [u8; 28],
-    pub f02: [u8; 28],
-    pub f03: [u8; 28],
-    pub f04: u64,
-    pub f05: u8,
-    pub f06: u64,
-    pub f07: u32,
-    pub f08: u8,
-    pub f09: u8,
-    pub f0a: u8,
-    pub f0b: u8,
-    pub f0c: u32,
-    pub f0d: u8,
-    pub f0e: u8,
-}
-impl DamageBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f02 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f03 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f04 = u64::read_from(data, offset)?;
-        let f05 = u8::read_from(data, offset)?;
-        let f06 = u64::read_from(data, offset)?;
-        let f07 = u32::read_from(data, offset)?;
-        let f08 = u8::read_from(data, offset)?;
-        let f09 = u8::read_from(data, offset)?;
-        let f0a = u8::read_from(data, offset)?;
-        let f0b = u8::read_from(data, offset)?;
-        let f0c = u32::read_from(data, offset)?;
-        let f0d = u8::read_from(data, offset)?;
-        let f0e = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04, f05, f06, f07, f08, f09, f0a, f0b, f0c, f0d, f0e })
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("tag".into(), self.tag.to_json_value());
+        m.insert("id".into(), self.id.to_json_value());
+        m.insert("name_id".into(), self.name_id.to_json_value());
+        m.insert("flags_a".into(), self.flags_a.to_json_value());
+        m.insert("flags_b".into(), self.flags_b.to_json_value());
+        m.insert("qword_a".into(), self.qword_a.to_json_value());
+        m.insert("qword_b".into(), self.qword_b.to_json_value());
+        m.insert("qword_c".into(), self.qword_c.to_json_value());
+        m.insert("asset_path".into(), self.asset_path.to_json_value());
+        m.insert("category".into(), self.category.to_json_value());
+        m.insert("by58".into(), self.by58.to_json_value());
+        m.insert("lookup_a_60".into(), self.lookup_a_60.to_json_value());
+        m.insert("lookup_b_62".into(), self.lookup_b_62.to_json_value());
+        m.insert("lookup_c_64".into(), self.lookup_c_64.to_json_value());
+        m.insert("lookup_d_66".into(), self.lookup_d_66.to_json_value());
+        m.insert("by68".into(), self.by68.to_json_value());
+        m.insert("by69".into(), self.by69.to_json_value());
+        m.insert("lookup_88".into(), self.lookup_88.to_json_value());
+        m.insert("lookup_90".into(), self.lookup_90.to_json_value());
+        m.insert("carray_u16".into(), self.carray_u16.to_json_value());
+        m.insert("u32_at128".into(), self.u32_at128.to_json_value());
+        m.insert("u32_at72".into(), self.u32_at72.to_json_value());
+        m.insert("u32_at76".into(), self.u32_at76.to_json_value());
+        m.insert("u32_at80".into(), self.u32_at80.to_json_value());
+        m.insert("u32_at84".into(), self.u32_at84.to_json_value());
+        m.insert("carray_u32".into(), self.carray_u32.to_json_value());
+        m.insert("by132".into(), self.by132.to_json_value());
+        m.insert("u32_at136".into(), self.u32_at136.to_json_value());
+        m
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        w.write_all(&self.f02)?;
-        w.write_all(&self.f03)?;
-        self.f04.write_to(w)?;
-        self.f05.write_to(w)?;
-        self.f06.write_to(w)?;
-        self.f07.write_to(w)?;
-        self.f08.write_to(w)?;
-        self.f09.write_to(w)?;
-        self.f0a.write_to(w)?;
-        self.f0b.write_to(w)?;
-        self.f0c.write_to(w)?;
-        self.f0d.write_to(w)?;
-        self.f0e.write_to(w)?;
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "id")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name_id")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flags_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flags_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_b")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "qword_c")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "asset_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "category")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by58")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a_60")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b_62")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c_64")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_d_66")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by68")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by69")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_88")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_90")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "carray_u16")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at128")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at72")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at76")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at80")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at84")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "carray_u32")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by132")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u32_at136")?)?;
         Ok(())
     }
 }
 
-#[derive(Debug)]
-pub struct VaryRegenerateValueBuffDataPayload {
-    pub f00: u8,
-    pub f01: [u8; 28],
-}
-impl VaryRegenerateValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub struct VaryCollectDropRateBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl VaryCollectDropRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct DamageBuffDataPayload {
+        pub f00: u8,
+        pub f01: BuffDataValueBlock,
+        pub f02: BuffDataValueBlock,
+        pub f03: BuffDataValueBlock,
+        pub f04: u64,
+        pub f05: u8,
+        pub f06: u64,
+        pub f07: u32,
+        pub f08: u8,
+        pub f09: u8,
+        pub f0a: u8,
+        pub f0b: u8,
+        pub f0c: u32,
+        pub f0d: u8,
+        pub f0e: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryStaticStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl VaryStaticStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryRegenerateValueBuffDataPayload {
+        pub f00: u8,
+        pub f01: BuffDataValueBlock,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryStaticStatLevelBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: u8,
-}
-impl VaryStaticStatLevelBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryCollectDropRateBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: [u8; 28],
-}
-impl VaryStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryStaticStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryStatMaxValueBuffDataPayload {
-    pub f00: u8,
-    pub f01: [u8; 28],
-    pub f02: u8,
-}
-impl VaryStatMaxValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryStaticStatLevelBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryStaticStatRateBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: u64,
-}
-impl VaryStaticStatRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: BuffDataValueBlock,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryStatRateBuffDataPayload {
-    pub f00: u8,
-    pub f01: u8,
-    pub f02: u64,
-}
-impl VaryStatRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryStatMaxValueBuffDataPayload {
+        pub f00: u8,
+        pub f01: BuffDataValueBlock,
+        pub f02: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct StatusExpBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl StatusExpBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryStaticStatRateBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02: u64,
     }
 }
 
-/// SummonBuffData (tag 10): full variant tail per IDA sub_1419DD000 + sub_1410F7440.
-/// vftable @ 0x144C72038. 392-byte allocation. Variant tail layout:
-///   sub_1410F7440 reads ~35 stream items into struct at offset +144 of object.
-///   Then outer reader sub_1419DD000 appends u8 + u32 + u32 (this+376/380/384).
-///
-/// The GameCondition optional inside sub_141103B30 is captured as opaque bytes
-/// (parsed via GameConditionNode to determine length, then stored verbatim from
-/// the input buffer for byte-perfect round-trip independent of GameCondition
-/// parser bugs).
-#[derive(Debug)]
-pub struct SummonBuffDataPayload<'a> {
-    /// CArray<u32> of paired u16 lookups (sub_1411003E0 + sub_1410FF220).
-    pub paired_lookups: CArray<u32>,
-    /// sub_141103B30: u8 presence + (if !0: GameCondition opaque bytes + 3 trailing u8s).
-    pub game_condition_opt: GameConditionOptional<'a>,
-    pub u32_24: u32,
-    pub u16_28: u16,
-    pub bytes_32: [u8; 12],
-    pub u32_44: u32,
-    pub u8_48: u8,
-    pub cstring_56: CString<'a>,
-    pub u8_64: u8,
-    pub u8_65: u8,
-    pub u8_66: u8,
-    pub bytes_72: [u8; 8],
-    pub four_lookups_80: [u32; 4],
-    pub u8_96: u8,
-    pub u8_97: u8,
-    pub lookup_100: u32,
-    pub lookup_104: u32,
-    pub u32_108: u32,
-    pub four_lookups_112: [u32; 4],
-    pub u32_128: u32,
-    pub u8_132: u8,
-    pub u32_136: u32,
-    pub graph_144: SummonGraphData,
-    pub cstring_168: CString<'a>,
-    pub bytes_176: [u8; 8],
-    pub u8_184: u8,
-    pub u32_188: u32,
-    pub u32_192: u32,
-    pub u8_196: u8,
-    pub u8_197: u8,
-    pub u8_198: u8,
-    pub u8_199: u8,
-    pub u8_200: u8,
-    pub bytes_204: [u8; 8],
-    pub lookup_212: u32,
-    pub bytes_216: [u8; 4],
-    pub bytes_220: [u8; 2],
-    pub u8_222: u8,
-    pub u8_223: u8,
-    pub u8_224: u8,
-    pub u8_225: u8,
-    /// outer wrapper (after sub_1410F7440 returns):
-    pub u8_outer_376: u8,
-    pub u32_outer_380: u32,
-    pub u32_outer_384: u32,
-}
-
-/// 19-byte SummonBuffData inner struct (sub_1410F6ED0): u32 + u32 + u8 + u16 + u64.
-#[derive(Debug)]
-pub struct SummonGraphData {
-    pub a: u32,
-    pub b: u32,
-    pub c: u8,
-    pub d: u16,
-    pub e: u64,
-}
-
-impl SummonGraphData {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let a = u32::read_from(data, offset)?;
-        let b = u32::read_from(data, offset)?;
-        let c = u8::read_from(data, offset)?;
-        let d = u16::read_from(data, offset)?;
-        let e = u64::read_from(data, offset)?;
-        Ok(Self { a, b, c, d, e })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.a.write_to(w)?;
-        self.b.write_to(w)?;
-        self.c.write_to(w)?;
-        self.d.write_to(w)?;
-        self.e.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryStatRateBuffDataPayload {
+        pub f00: u8,
+        pub f01: u8,
+        pub f02: u64,
     }
 }
 
-/// sub_141103B30: `[u8 presence][GameCondition opaque + 3 bytes if presence != 0]`.
-/// GameCondition stored as raw bytes captured by parsing-then-restoring the slice.
+py_binary_struct! {
+    pub struct StatusExpBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+    }
+}
+
+py_binary_struct! {
+    /// SummonBuffData (tag 10): full variant tail per IDA sub_1419DD000
+    /// + sub_1410F7440. vftable @ 0x144C72038. 392-byte allocation.
+    /// Variant tail: sub_1410F7440 reads ~35 stream items into struct
+    /// at offset +144 of object. Then outer reader sub_1419DD000
+    /// appends u8 + u32 + u32 (this+376/380/384).
+    ///
+    /// 41 typed fields. paired_lookups is a CArray<u32> of paired u16
+    /// lookups (sub_1411003E0 + sub_1410FF220). game_condition_opt is
+    /// sub_141103B30: u8 presence + (if !0: GameConditionNode tree +
+    /// 3 trailer u8s) — fully typed via `GameConditionOptional`.
+    /// u8_outer_376 / u32_outer_380 / u32_outer_384 are the outer
+    /// wrapper bytes appended by sub_1419DD000 after sub_1410F7440
+    /// returns.
+    pub struct SummonBuffDataPayload<'a> {
+        pub paired_lookups: CArray<u32>,
+        pub game_condition_opt: GameConditionOptional<'a>,
+        pub u32_24: u32,
+        pub u16_28: u16,
+        pub u32_32: u32,
+        pub u32_36: u32,
+        pub u32_40: u32,
+        pub u32_44: u32,
+        pub u8_48: u8,
+        pub cstring_56: CString<'a>,
+        pub u8_64: u8,
+        pub u8_65: u8,
+        pub u8_66: u8,
+        pub u64_72: u64,
+        pub four_lookups_80: [u32; 4],
+        pub u8_96: u8,
+        pub u8_97: u8,
+        pub lookup_100: u32,
+        pub lookup_104: u32,
+        pub u32_108: u32,
+        pub four_lookups_112: [u32; 4],
+        pub u32_128: u32,
+        pub u8_132: u8,
+        pub u32_136: u32,
+        pub graph_144: SummonGraphData,
+        pub cstring_168: CString<'a>,
+        pub u64_176: u64,
+        pub u8_184: u8,
+        pub u32_188: u32,
+        pub u32_192: u32,
+        pub u8_196: u8,
+        pub u8_197: u8,
+        pub u8_198: u8,
+        pub u8_199: u8,
+        pub u8_200: u8,
+        pub u64_204: u64,
+        pub lookup_212: u32,
+        pub u32_216: u32,
+        pub u16_220: u16,
+        pub u8_222: u8,
+        pub u8_223: u8,
+        pub u8_224: u8,
+        pub u8_225: u8,
+        pub u8_outer_376: u8,
+        pub u32_outer_380: u32,
+        pub u32_outer_384: u32,
+    }
+}
+
+py_binary_struct! {
+    /// 19-byte SummonBuffData inner struct (sub_1410F6ED0):
+    /// u32 + u32 + u8 + u16 + u64.
+    pub struct SummonGraphData {
+        pub a: u32,
+        pub b: u32,
+        pub c: u8,
+        pub d: u16,
+        pub e: u64,
+    }
+}
+
+/// sub_141103B30: `[u8 presence][GameConditionNode tree + 3 trailer bytes
+/// if presence != 0]`. The trailer is the same 3 u8s that
+/// GameCondition::Decoded reads after the tree (sub_141CEA810).
 #[derive(Debug)]
 pub struct GameConditionOptional<'a> {
     pub presence: u8,
@@ -433,9 +362,10 @@ pub struct GameConditionOptional<'a> {
 
 #[derive(Debug)]
 pub struct GameConditionInner<'a> {
-    pub game_condition_bytes: Vec<u8>,
-    pub trailer: [u8; 3],
-    pub _phantom: std::marker::PhantomData<&'a ()>,
+    pub tree: super::game_condition::GameConditionNode<'a>,
+    pub trailer_0: u8,
+    pub trailer_1: u8,
+    pub trailer_2: u8,
 }
 
 impl<'a> GameConditionOptional<'a> {
@@ -444,637 +374,325 @@ impl<'a> GameConditionOptional<'a> {
         if presence == 0 {
             return Ok(Self { presence, inner: None });
         }
-        let start = *offset;
-        // Use the existing GameConditionNode just to advance the cursor.
-        let _node = super::game_condition::GameConditionNode::read_from(data, offset)?;
-        let game_condition_bytes = data[start..*offset].to_vec();
-        let trailer = <[u8; 3]>::read_from(data, offset)?;
+        let tree = super::game_condition::GameConditionNode::read_from(data, offset)?;
+        let trailer_0 = u8::read_from(data, offset)?;
+        let trailer_1 = u8::read_from(data, offset)?;
+        let trailer_2 = u8::read_from(data, offset)?;
         Ok(Self {
             presence,
-            inner: Some(GameConditionInner {
-                game_condition_bytes,
-                trailer,
-                _phantom: std::marker::PhantomData,
-            }),
+            inner: Some(GameConditionInner { tree, trailer_0, trailer_1, trailer_2 }),
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.presence.write_to(w)?;
         if let Some(inner) = &self.inner {
-            w.write_all(&inner.game_condition_bytes)?;
-            w.write_all(&inner.trailer)?;
+            inner.tree.write_to(w)?;
+            inner.trailer_0.write_to(w)?;
+            inner.trailer_1.write_to(w)?;
+            inner.trailer_2.write_to(w)?;
         }
         Ok(())
     }
-}
 
-impl<'a> SummonBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let paired_lookups = CArray::<u32>::read_from(data, offset)?;
-        let game_condition_opt = GameConditionOptional::read_from(data, offset)?;
-        let u32_24 = u32::read_from(data, offset)?;
-        let u16_28 = u16::read_from(data, offset)?;
-        let bytes_32 = <[u8; 12]>::read_from(data, offset)?;
-        let u32_44 = u32::read_from(data, offset)?;
-        let u8_48 = u8::read_from(data, offset)?;
-        let cstring_56 = CString::read_from(data, offset)?;
-        let u8_64 = u8::read_from(data, offset)?;
-        let u8_65 = u8::read_from(data, offset)?;
-        let u8_66 = u8::read_from(data, offset)?;
-        let bytes_72 = <[u8; 8]>::read_from(data, offset)?;
-        let four_lookups_80 = <[u32; 4]>::read_from(data, offset)?;
-        let u8_96 = u8::read_from(data, offset)?;
-        let u8_97 = u8::read_from(data, offset)?;
-        let lookup_100 = u32::read_from(data, offset)?;
-        let lookup_104 = u32::read_from(data, offset)?;
-        let u32_108 = u32::read_from(data, offset)?;
-        let four_lookups_112 = <[u32; 4]>::read_from(data, offset)?;
-        let u32_128 = u32::read_from(data, offset)?;
-        let u8_132 = u8::read_from(data, offset)?;
-        let u32_136 = u32::read_from(data, offset)?;
-        let graph_144 = SummonGraphData::read_from(data, offset)?;
-        let cstring_168 = CString::read_from(data, offset)?;
-        let bytes_176 = <[u8; 8]>::read_from(data, offset)?;
-        let u8_184 = u8::read_from(data, offset)?;
-        let u32_188 = u32::read_from(data, offset)?;
-        let u32_192 = u32::read_from(data, offset)?;
-        let u8_196 = u8::read_from(data, offset)?;
-        let u8_197 = u8::read_from(data, offset)?;
-        let u8_198 = u8::read_from(data, offset)?;
-        let u8_199 = u8::read_from(data, offset)?;
-        let u8_200 = u8::read_from(data, offset)?;
-        let bytes_204 = <[u8; 8]>::read_from(data, offset)?;
-        let lookup_212 = u32::read_from(data, offset)?;
-        let bytes_216 = <[u8; 4]>::read_from(data, offset)?;
-        let bytes_220 = <[u8; 2]>::read_from(data, offset)?;
-        let u8_222 = u8::read_from(data, offset)?;
-        let u8_223 = u8::read_from(data, offset)?;
-        let u8_224 = u8::read_from(data, offset)?;
-        let u8_225 = u8::read_from(data, offset)?;
-        let u8_outer_376 = u8::read_from(data, offset)?;
-        let u32_outer_380 = u32::read_from(data, offset)?;
-        let u32_outer_384 = u32::read_from(data, offset)?;
-        Ok(Self {
-            paired_lookups, game_condition_opt,
-            u32_24, u16_28, bytes_32, u32_44, u8_48, cstring_56,
-            u8_64, u8_65, u8_66, bytes_72, four_lookups_80,
-            u8_96, u8_97, lookup_100, lookup_104, u32_108, four_lookups_112,
-            u32_128, u8_132, u32_136, graph_144, cstring_168, bytes_176,
-            u8_184, u32_188, u32_192, u8_196, u8_197, u8_198, u8_199, u8_200,
-            bytes_204, lookup_212, bytes_216, bytes_220,
-            u8_222, u8_223, u8_224, u8_225,
-            u8_outer_376, u32_outer_380, u32_outer_384,
-        })
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("presence".into(), self.presence.to_json_value());
+        m.insert(
+            "inner".into(),
+            match &self.inner {
+                Some(i) => {
+                    let mut im = Map::new();
+                    im.insert("tree".into(), i.tree.to_json_value());
+                    im.insert("trailer_0".into(), i.trailer_0.to_json_value());
+                    im.insert("trailer_1".into(), i.trailer_1.to_json_value());
+                    im.insert("trailer_2".into(), i.trailer_2.to_json_value());
+                    Value::Object(im)
+                }
+                None => Value::Null,
+            },
+        );
+        Value::Object(m)
     }
 
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.paired_lookups.write_to(w)?;
-        self.game_condition_opt.write_to(w)?;
-        self.u32_24.write_to(w)?;
-        self.u16_28.write_to(w)?;
-        self.bytes_32.write_to(w)?;
-        self.u32_44.write_to(w)?;
-        self.u8_48.write_to(w)?;
-        self.cstring_56.write_to(w)?;
-        self.u8_64.write_to(w)?;
-        self.u8_65.write_to(w)?;
-        self.u8_66.write_to(w)?;
-        self.bytes_72.write_to(w)?;
-        self.four_lookups_80.write_to(w)?;
-        self.u8_96.write_to(w)?;
-        self.u8_97.write_to(w)?;
-        self.lookup_100.write_to(w)?;
-        self.lookup_104.write_to(w)?;
-        self.u32_108.write_to(w)?;
-        self.four_lookups_112.write_to(w)?;
-        self.u32_128.write_to(w)?;
-        self.u8_132.write_to(w)?;
-        self.u32_136.write_to(w)?;
-        self.graph_144.write_to(w)?;
-        self.cstring_168.write_to(w)?;
-        self.bytes_176.write_to(w)?;
-        self.u8_184.write_to(w)?;
-        self.u32_188.write_to(w)?;
-        self.u32_192.write_to(w)?;
-        self.u8_196.write_to(w)?;
-        self.u8_197.write_to(w)?;
-        self.u8_198.write_to(w)?;
-        self.u8_199.write_to(w)?;
-        self.u8_200.write_to(w)?;
-        self.bytes_204.write_to(w)?;
-        self.lookup_212.write_to(w)?;
-        self.bytes_216.write_to(w)?;
-        self.bytes_220.write_to(w)?;
-        self.u8_222.write_to(w)?;
-        self.u8_223.write_to(w)?;
-        self.u8_224.write_to(w)?;
-        self.u8_225.write_to(w)?;
-        self.u8_outer_376.write_to(w)?;
-        self.u32_outer_380.write_to(w)?;
-        self.u32_outer_384.write_to(w)?;
+    pub fn write_from_json_value(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GameConditionOptional: expected object",
+        ))?;
+        let presence_v = json_get_field(obj, "presence")?;
+        let presence = presence_v.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GameConditionOptional.presence: expected u8",
+        ))?;
+        if presence > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("GameConditionOptional.presence: {} out of u8 range", presence)));
+        }
+        w.push(presence as u8);
+        if presence == 0 { return Ok(()); }
+        let inner_v = json_get_field(obj, "inner")?;
+        let inner_obj = inner_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "GameConditionOptional.inner: expected object when presence!=0",
+        ))?;
+        super::game_condition::GameConditionNode::write_from_json(
+            w, json_get_field(inner_obj, "tree")?,
+        )?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_0")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_1")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(inner_obj, "trailer_2")?)?;
         Ok(())
     }
 }
 
-#[derive(Debug)]
-pub struct LootBuffDataPayload {
-    pub f00: u8,
-}
-impl LootBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+impl<'a> BinaryRead<'a> for GameConditionOptional<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Self::read_from(data, offset)
     }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: u64,
-    pub f03: u64,
-}
-impl VaryDataDefinedStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        let f03 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        Ok(())
+impl<'a> BinaryWrite for GameConditionOptional<'a> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.write_to(w)
     }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedStatNeedUnapplyBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl VaryDataDefinedStatNeedUnapplyBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+impl<'a> BinaryReadTracked<'a> for GameConditionOptional<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        _path: &mut String,
+        _ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        <Self as BinaryRead<'a>>::read_from(data, offset)
     }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedRegenerateValueBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl VaryDataDefinedRegenerateValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+impl<'a> ToJsonValue for GameConditionOptional<'a> {
+    fn to_json_value(&self) -> Value {
+        self.to_json_value()
     }
 }
 
-#[derive(Debug)]
-pub struct RemoveAggroBuffDataPayload {
-    pub f00: u8,
-    pub f01: u32,
-    pub f02: u32,
-}
-impl RemoveAggroBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+impl<'a> WriteJsonValue for GameConditionOptional<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        Self::write_from_json_value(w, v)
     }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedStatMinValueBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl VaryDataDefinedStatMinValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+impl<'a> crate::python_traits::ToPyValue for GameConditionOptional<'a> {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "GameConditionOptional: use JSON path",
+        ))
     }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedStatMaxValueBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: u8,
-}
-impl VaryDataDefinedStatMaxValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+impl<'a> crate::python_traits::WritePyValue for GameConditionOptional<'a> {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "GameConditionOptional: use JSON path",
+        ))
     }
 }
 
-#[derive(Debug)]
-pub struct ElementalAreaBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: [u8; 12],
-    pub f03: u32,
-    pub f04: u32,
-    pub f05: u32,
-    pub f06: u32,
-    pub f07: [u8; 12],
-    pub f08: u32,
-    pub f09: u8,
-    pub f0a: u8,
-    pub f0b: u8,
-    pub f0c: u32,
-    pub f0d: u32,
-    pub f0e: u32,
-    pub f0f: u64,
-    pub f10: u64,
-    pub f11: u8,
-}
-impl ElementalAreaBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f03 = u32::read_from(data, offset)?;
-        let f04 = u32::read_from(data, offset)?;
-        let f05 = u32::read_from(data, offset)?;
-        let f06 = u32::read_from(data, offset)?;
-        let f07 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f08 = u32::read_from(data, offset)?;
-        let f09 = u8::read_from(data, offset)?;
-        let f0a = u8::read_from(data, offset)?;
-        let f0b = u8::read_from(data, offset)?;
-        let f0c = u32::read_from(data, offset)?;
-        let f0d = u32::read_from(data, offset)?;
-        let f0e = u32::read_from(data, offset)?;
-        let f0f = u64::read_from(data, offset)?;
-        let f10 = u64::read_from(data, offset)?;
-        let f11 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04, f05, f06, f07, f08, f09, f0a, f0b, f0c, f0d, f0e, f0f, f10, f11 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        w.write_all(&self.f02)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        self.f05.write_to(w)?;
-        self.f06.write_to(w)?;
-        w.write_all(&self.f07)?;
-        self.f08.write_to(w)?;
-        self.f09.write_to(w)?;
-        self.f0a.write_to(w)?;
-        self.f0b.write_to(w)?;
-        self.f0c.write_to(w)?;
-        self.f0d.write_to(w)?;
-        self.f0e.write_to(w)?;
-        self.f0f.write_to(w)?;
-        self.f10.write_to(w)?;
-        self.f11.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct LootBuffDataPayload {
+        pub f00: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryElementalStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: u64,
-    pub f03: u64,
-}
-impl VaryElementalStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        let f03 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryDataDefinedStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02: u64,
+        pub f03: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct SetElementalStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl SetElementalStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryDataDefinedStatNeedUnapplyBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct AdditionalGoalElementalStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl AdditionalGoalElementalStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryDataDefinedRegenerateValueBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeElementalStatSpeedBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-    pub f03: u8,
-}
-impl ChangeElementalStatSpeedBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        let f03 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct RemoveAggroBuffDataPayload {
+        pub f00: u8,
+        pub f01: u32,
+        pub f02: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct DisableElementalMaterialStateBuffDataPayload<'a> {
-    pub f00: u32,
-    pub f01: CString<'a>,
-}
-impl<'a> DisableElementalMaterialStateBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = CString::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryDataDefinedStatMinValueBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeMaterialKeyBuffDataPayload {
-    pub f00: u32,
-    pub f01: u8,
-}
-impl ChangeMaterialKeyBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryDataDefinedStatMaxValueBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ClothGravityBuffDataPayload {
-    pub f00: u32,
-}
-impl ClothGravityBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub struct WeatherEffectBuffDataPayload {
-    pub f00: u8,
-}
-impl WeatherEffectBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ElementalAreaBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
+        pub f03: u32,
+        pub f04: u32,
+        pub f05: u32,
+        pub f06: u32,
+        pub f07_a: u32,
+        pub f07_b: u32,
+        pub f07_c: u32,
+        pub f08: u32,
+        pub f09: u8,
+        pub f0a: u8,
+        pub f0b: u8,
+        pub f0c: u32,
+        pub f0d: u32,
+        pub f0e: u32,
+        pub f0f: u64,
+        pub f10: u64,
+        pub f11: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryDefenceValueBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl VaryDefenceValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryElementalStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02: u64,
+        pub f03: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct DefenceBuffDataPayload {
-    pub f00: u32,
-    pub f01: u8,
-}
-impl DefenceBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SetElementalStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct AggroBuffDataPayload {
-    pub f00: [u8; 28],
-}
-impl AggroBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        w.write_all(&self.f00)?;
-        Ok(())
+py_binary_struct! {
+    pub struct AdditionalGoalElementalStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct DamagedActionRestrictionBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl DamagedActionRestrictionBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeElementalStatSpeedBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
+        pub f03: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct BuffedActionRestrictionBuffDataPayload {
-    pub f00: u64,
-    pub f01: u32,
-    pub f02: u8,
-    pub f03: u32,
-    pub f04: u32,
-}
-impl BuffedActionRestrictionBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u64::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        let f03 = u32::read_from(data, offset)?;
-        let f04 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct DisableElementalMaterialStateBuffDataPayload<'a> {
+        pub f00: u32,
+        pub f01: CString<'a>,
     }
 }
 
-#[derive(Debug)]
-pub struct BuffedActionRestrictionPassiveBuffDataPayload {
-    pub f00: u64,
-    pub f01: u32,
-    pub f02: u8,
-}
-impl BuffedActionRestrictionPassiveBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u64::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeMaterialKeyBuffDataPayload {
+        pub f00: u32,
+        pub f01: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ReleaseBuffedActionRestrictionBuffDataPayload {
-    pub f00: CArray<u32>,
-}
-impl ReleaseBuffedActionRestrictionBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = CArray::<u32>::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ClothGravityBuffDataPayload {
+        pub f00: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct PlaySequencerBuffDataPayload<'a> {
-    pub f00: CString<'a>,
-}
-impl<'a> PlaySequencerBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = CString::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct WeatherEffectBuffDataPayload {
+        pub f00: u8,
     }
 }
 
+py_binary_struct! {
+    pub struct VaryDefenceValueBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+    }
+}
+
+py_binary_struct! {
+    pub struct DefenceBuffDataPayload {
+        pub f00: u32,
+        pub f01: u8,
+    }
+}
+
+py_binary_struct! {
+    pub struct AggroBuffDataPayload {
+        pub f00: BuffDataValueBlock,
+    }
+}
+
+py_binary_struct! {
+    pub struct DamagedActionRestrictionBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+    }
+}
+
+py_binary_struct! {
+    pub struct BuffedActionRestrictionBuffDataPayload {
+        pub f00: u64,
+        pub f01: u32,
+        pub f02: u8,
+        pub f03: u32,
+        pub f04: u32,
+    }
+}
+
+py_binary_struct! {
+    pub struct BuffedActionRestrictionPassiveBuffDataPayload {
+        pub f00: u64,
+        pub f01: u32,
+        pub f02: u8,
+    }
+}
+
+py_binary_struct! {
+    pub struct ReleaseBuffedActionRestrictionBuffDataPayload {
+        pub f00: CArray<u32>,
+    }
+}
+
+py_binary_struct! {
+    pub struct PlaySequencerBuffDataPayload<'a> {
+        pub f00: CString<'a>,
+    }
+}
+
+/// Immune payload — entries body width depends on header_tag:
+/// 0=>1, 1/2/3=>4, 4=>0, 5=>8 bytes per entry.
 #[derive(Debug)]
 pub struct ImmuneBuffDataPayload {
     pub header_tag: u8,
@@ -1097,1276 +715,574 @@ impl ImmuneBuffDataPayload {
         self.trailing.write_to(w)?;
         Ok(())
     }
-}
-
-#[derive(Debug)]
-pub struct ApplyPhysicsImpulseBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: [u8; 12],
-}
-impl ApplyPhysicsImpulseBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        w.write_all(&self.f02)?;
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("header_tag".into(), self.header_tag.to_json_value());
+        m.insert("flag".into(), self.flag.to_json_value());
+        // entries.body is decoded into a typed JSON array of integers
+        // sized by header_tag's element width. tag 4 emits an empty
+        // array (zero-byte stride).
+        let body = &self.entries.1;
+        let body_arr: Vec<Value> = match self.header_tag {
+            0 => body.iter().map(|&b| Value::from(b as u64)).collect(),
+            1..=3 => body.chunks_exact(4)
+                .map(|c| Value::from(u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u64))
+                .collect(),
+            4 => Vec::new(),
+            5 => body.chunks_exact(8)
+                .map(|c| Value::from(u64::from_le_bytes(
+                    [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]])))
+                .collect(),
+            _ => Vec::new(),
+        };
+        let mut em = Map::new();
+        em.insert("count".into(), self.entries.0.to_json_value());
+        em.insert("body".into(), Value::Array(body_arr));
+        m.insert("entries".into(), Value::Object(em));
+        m.insert("trailing".into(), self.trailing.to_json_value());
+        m
+    }
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let header_tag = json_get_field(obj, "header_tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ImmuneBuffData.header_tag: expected u8"))? as u8;
+        header_tag.write_to(w)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)?;
+        let entries_v = json_get_field(obj, "entries")?;
+        let entries_obj = entries_v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "ImmuneBuffData.entries: expected object",
+        ))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(entries_obj, "count")?)?;
+        let body_arr = json_get_field(entries_obj, "body")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ImmuneBuffData.entries.body: expected array"))?;
+        for v in body_arr {
+            let n = v.as_u64().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                "ImmuneBuffData.entries.body: element must be u64",
+            ))?;
+            match header_tag {
+                0 => w.push(n as u8),
+                1..=3 => w.extend_from_slice(&(n as u32).to_le_bytes()),
+                4 => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    "ImmuneBuffData header_tag=4 must have empty body")),
+                5 => w.extend_from_slice(&n.to_le_bytes()),
+                _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("unknown header_tag {}", header_tag))),
+            }
+        }
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing")?)?;
         Ok(())
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeAllyGroupBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u8,
-}
-impl ChangeAllyGroupBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ApplyPhysicsImpulseBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeFactionBuffDataPayload {
-    pub f00: u32,
-}
-impl ChangeFactionBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeAllyGroupBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct SetGimmickComponentParameterBoolBuffDataPayload<'a> {
-    pub f00: CString<'a>,
-    pub f01: u8,
-}
-impl<'a> SetGimmickComponentParameterBoolBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = CString::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeFactionBuffDataPayload {
+        pub f00: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct SummonGimmickBuffDataPayload<'a> {
-    pub f00: CString<'a>,
-    pub f01: [u8; 12],
-    pub f02: [u8; 16],
-    pub f03: u8,
-    pub f04: u8,
-}
-impl<'a> SummonGimmickBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = CString::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f02 = { let mut b = [0u8; 16]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f03 = u8::read_from(data, offset)?;
-        let f04 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        w.write_all(&self.f02)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SetGimmickComponentParameterBoolBuffDataPayload<'a> {
+        pub f00: CString<'a>,
+        pub f01: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct SendGimmickEventBuffDataPayload<'a> {
-    pub f00: u32,
-    pub f01: CArray<CString<'a>>,
-    pub f02: u8,
-}
-impl<'a> SendGimmickEventBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = CArray::<CString>::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SummonGimmickBuffDataPayload<'a> {
+        pub f00: CString<'a>,
+        pub f01_a: u32,
+        pub f01_b: u32,
+        pub f01_c: u32,
+        pub f02_a: u32,
+        pub f02_b: u32,
+        pub f02_c: u32,
+        pub f02_d: u32,
+        pub f03: u8,
+        pub f04: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct DetachEquipItemBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl DetachEquipItemBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SendGimmickEventBuffDataPayload<'a> {
+        pub f00: u32,
+        pub f01: CArray<CString<'a>>,
+        pub f02: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryEquipItemEnduranceBuffDataPayload {
-    pub f00: u32,
-    pub f01: u16,
-}
-impl VaryEquipItemEnduranceBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u16::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct DetachEquipItemBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedStatRateBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-    pub f02: u8,
-}
-impl VaryDataDefinedStatRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryEquipItemEnduranceBuffDataPayload {
+        pub f00: u32,
+        pub f01: u16,
     }
 }
 
-#[derive(Debug)]
-pub struct InstantDeathBuffDataPayload {
-    pub f00: u8,
-    pub f01: u8,
-}
-impl InstantDeathBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct VaryDataDefinedStatRateBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
+        pub f02: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct DeadReasonBuffDataPayload {
-    pub f00: u8,
-}
-impl DeadReasonBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        Ok(Self { f00 })
+py_binary_struct! {
+    pub struct InstantDeathBuffDataPayload {
+        pub f00: u8,
+        pub f01: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedStatOtherDataDefineStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u8,
-}
-impl VaryDataDefinedStatOtherDataDefineStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
+py_binary_struct! {
+    pub struct DeadReasonBuffDataPayload {
+        pub f00: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct VarySkillDamagePercentStatBuffDataPayload {
-    pub f00: u32,
-    pub f01: u16,
-    pub f02: u64,
-}
-impl VarySkillDamagePercentStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u16::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
+py_binary_struct! {
+    pub struct VaryDataDefinedStatOtherDataDefineStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct VaryStatOverMaxValueBuffDataPayload {
-    pub f00: u8,
-    pub f01: [u8; 28],
-}
-impl VaryStatOverMaxValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 28]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct VarySkillDamagePercentStatBuffDataPayload {
+        pub f00: u32,
+        pub f01: u16,
+        pub f02: u64,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct VaryDataDefinedStatOverMaxValueBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl VaryDataDefinedStatOverMaxValueBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct VaryStatOverMaxValueBuffDataPayload {
+        pub f00: u8,
+        pub f01: BuffDataValueBlock,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct DecreaseEquipItemEnduranceByPercentBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl DecreaseEquipItemEnduranceByPercentBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct VaryDataDefinedStatOverMaxValueBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct SetStatRateBuffDataPayload {
-    pub f00: u8,
-    pub f01: u64,
-}
-impl SetStatRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct DecreaseEquipItemEnduranceByPercentBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct SetStatMinRateBuffDataPayload {
-    pub f00: u8,
-    pub f01: u64,
-    pub f02: u64,
-}
-impl SetStatMinRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SetStatRateBuffDataPayload {
+        pub f00: u8,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeWeatherBuffDataPayload {
-    pub f00: u32,
-}
-impl ChangeWeatherBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SetStatMinRateBuffDataPayload {
+        pub f00: u8,
+        pub f01: u64,
+        pub f02: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct PlaySoundBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-}
-impl PlaySoundBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeWeatherBuffDataPayload {
+        pub f00: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeCombinationBuffDataPayload<'a> {
-    pub f00: CString<'a>,
-    pub f01: u32,
-}
-impl<'a> ChangeCombinationBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = CString::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct PlaySoundBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct RegisterConditionSkillBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-    pub f03: u32,
-    pub f04: u8,
-}
-impl RegisterConditionSkillBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        let f03 = u32::read_from(data, offset)?;
-        let f04 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeCombinationBuffDataPayload<'a> {
+        pub f00: CString<'a>,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct DetectPenaltyBuffDataPayload {
-    pub f00: u32,
-}
-impl DetectPenaltyBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct RegisterConditionSkillBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
+        pub f03: u32,
+        pub f04: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct StealthBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-}
-impl StealthBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct DetectPenaltyBuffDataPayload {
+        pub f00: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct SwitchSpecialModeBuffDataPayload {
-    pub f00: u32,
-}
-impl SwitchSpecialModeBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct StealthBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct AddExperienceBuffDataPayload {
-    pub f00: u64,
-}
-impl AddExperienceBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u64::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SwitchSpecialModeBuffDataPayload {
+        pub f00: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct RelationConvertBuffDataPayload {
-    pub f00: u32,
-    pub f01: u8,
-}
-impl RelationConvertBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct AddExperienceBuffDataPayload {
+        pub f00: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct DampMovementBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl DampMovementBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct RelationConvertBuffDataPayload {
+        pub f00: u32,
+        pub f01: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeDetectReactionBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl ChangeDetectReactionBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct DampMovementBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeBattleOrderTypeBuffDataPayload {
-    pub f00: u8,
-}
-impl ChangeBattleOrderTypeBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeDetectReactionBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryForceFieldStatBuffDataPayload {
-    pub f00: u8,
-    pub f01: u8,
-}
-impl VaryForceFieldStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeBattleOrderTypeBuffDataPayload {
+        pub f00: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct AddSubLevelBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl AddSubLevelBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryForceFieldStatBuffDataPayload {
+        pub f00: u8,
+        pub f01: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeElementalMaterialBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl ChangeElementalMaterialBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct AddSubLevelBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeDetectDistanceBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-}
-impl ChangeDetectDistanceBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
+py_binary_struct! {
+    pub struct ChangeElementalMaterialBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct ViewerDetectPenaltyBuffDataPayload {
-    pub f00: u32,
-}
-impl ViewerDetectPenaltyBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
+py_binary_struct! {
+    pub struct ChangeDetectDistanceBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct ChangeBuffLevelBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl ChangeBuffLevelBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct ViewerDetectPenaltyBuffDataPayload {
+        pub f00: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct SkinnedDecalBuffDataPayload {
-    pub f00: u8,
-    pub f01: u8,
-    pub f02: u64,
-    pub f03: u64,
-}
-impl SkinnedDecalBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        let f03 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeBuffLevelBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct ChangeAnimationSpeedBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-    pub f03: u32,
-}
-impl ChangeAnimationSpeedBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        let f03 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct SkinnedDecalBuffDataPayload {
+        pub f00: u8,
+        pub f01: u8,
+        pub f02: u64,
+        pub f03: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct ActivateUpdateFuelBuffDataPayload {
-    pub f00: u8,
-}
-impl ActivateUpdateFuelBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ChangeAnimationSpeedBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
+        pub f03: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct LimitBuffLevelBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-}
-impl LimitBuffLevelBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct ActivateUpdateFuelBuffDataPayload {
+        pub f00: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct BlockCrimeBuffDataPayload {
-    pub f00: u32,
-    pub f01: u8,
-}
-impl BlockCrimeBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct LimitBuffLevelBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct GameAudioEffectBuffDataPayload {
-    pub f00: u8,
-}
-impl GameAudioEffectBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct BlockCrimeBuffDataPayload {
+        pub f00: u32,
+        pub f01: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct MeditationKnowledgeBuffDataPayload {
-    /// CArray<u32> via sub_1411077F0 (each u32 is a hash-lookup key).
-    pub f00_carray: CArray<u32>,
-    pub f01: u8,
-    pub f02: u8,
-}
-impl MeditationKnowledgeBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00_carray = CArray::<u32>::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00_carray, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00_carray.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct GameAudioEffectBuffDataPayload {
+        pub f00: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct ClimbSlipBuffDataPayload {
-    pub f00: u32,
-}
-impl ClimbSlipBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
+py_binary_struct! {
+    /// MeditationKnowledge — f00_carray is a CArray<u32> of hash-lookup
+    /// keys (sub_1411077F0); f01/f02 are companion flags.
+    pub struct MeditationKnowledgeBuffDataPayload {
+        pub f00_carray: CArray<u32>,
+        pub f01: u8,
+        pub f02: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct DetectBrightnessBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-}
-impl DetectBrightnessBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
+py_binary_struct! {
+    pub struct ClimbSlipBuffDataPayload {
+        pub f00: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct ChangeEquipItemEnduranceBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u64,
-}
-impl ChangeEquipItemEnduranceBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
+py_binary_struct! {
+    pub struct DetectBrightnessBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct VaryMaxExpandInventorySlotBuffDataPayload {
-    /// u16 hash-lookup via sub_141103F00 (NOT u32 — corrected).
-    pub f00_lookup: u16,
-    pub f01: [u8; 2],
-}
-impl VaryMaxExpandInventorySlotBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00_lookup = u16::read_from(data, offset)?;
-        let f01 = <[u8; 2]>::read_from(data, offset)?;
-        Ok(Self { f00_lookup, f01 })
+py_binary_struct! {
+    pub struct ChangeEquipItemEnduranceBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u64,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00_lookup.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct BlockRegenerateStatBuffDataPayload {
-    pub f00: u32,
-}
-impl BlockRegenerateStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
+py_binary_struct! {
+    /// f00_lookup is a u16 hash-lookup via sub_141103F00 (NOT u32 —
+    /// corrected from earlier mis-typing).
+    pub struct VaryMaxExpandInventorySlotBuffDataPayload {
+        pub f00_lookup: u16,
+        pub f01: u16,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct ProjectileBuffDataPayload {
-    pub f00: u32,
-    pub f01: u8,
-}
-impl ProjectileBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct BlockRegenerateStatBuffDataPayload {
+        pub f00: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct ConsumeSpawnerMercenaryBuffDataPayload {
-    pub f00: u32,
-    pub f01: [u8; 12],
-    pub f02: u8,
-}
-impl ConsumeSpawnerMercenaryBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = { let mut b = [0u8; 12]; for x in &mut b { *x = u8::read_from(data, offset)?; } b };
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
+py_binary_struct! {
+    pub struct ProjectileBuffDataPayload {
+        pub f00: u32,
+        pub f01: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        w.write_all(&self.f01)?;
-        self.f02.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct RegisterQuickSlotSkillBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl RegisterQuickSlotSkillBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct ConsumeSpawnerMercenaryBuffDataPayload {
+        pub f00: u32,
+        pub f01_a: u32,
+        pub f01_b: u32,
+        pub f01_c: u32,
+        pub f02: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct VaryStatMaxValueRateBuffDataPayload {
-    pub f00: u8,
-    pub f01: u64,
-    pub f02: u8,
-}
-impl VaryStatMaxValueRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct RegisterQuickSlotSkillBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct TriggerVolumeBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u32,
-    pub f03: u32,
-    pub f04: u8,
-    pub f05: u8,
-    pub f06: u8,
-}
-impl TriggerVolumeBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        let f03 = u32::read_from(data, offset)?;
-        let f04 = u8::read_from(data, offset)?;
-        let f05 = u8::read_from(data, offset)?;
-        let f06 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04, f05, f06 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        self.f05.write_to(w)?;
-        self.f06.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryStatMaxValueRateBuffDataPayload {
+        pub f00: u8,
+        pub f01: u64,
+        pub f02: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct RegisterItemSellPriceRateBuffDataPayload {
-    pub f00: u64,
-}
-impl RegisterItemSellPriceRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u64::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct TriggerVolumeBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u32,
+        pub f03: u32,
+        pub f04: u8,
+        pub f05: u8,
+        pub f06: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct RegisterCrimePriceRateBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl RegisterCrimePriceRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct RegisterItemSellPriceRateBuffDataPayload {
+        pub f00: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct RegisterFactionOperationRewardRateBuffDataPayload {
-    pub f00: u64,
-}
-impl RegisterFactionOperationRewardRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u64::read_from(data, offset)?;
-        Ok(Self { f00 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct RegisterCrimePriceRateBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct LogoutTimeDropSetKeyBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl LogoutTimeDropSetKeyBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct RegisterFactionOperationRewardRateBuffDataPayload {
+        pub f00: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct AddPercentInGameContentsBuffDataPayload {
-    pub f00: u8,
-    pub f01: u64,
-}
-impl AddPercentInGameContentsBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct LogoutTimeDropSetKeyBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct VaryCustomIntInGameContentsBuffDataPayload {
-    pub f00: u8,
-    pub f01: u32,
-}
-impl VaryCustomIntInGameContentsBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct AddPercentInGameContentsBuffDataPayload {
+        pub f00: u8,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct TribeAdditionalDamageRateBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl TribeAdditionalDamageRateBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct VaryCustomIntInGameContentsBuffDataPayload {
+        pub f00: u8,
+        pub f01: u32,
     }
 }
 
-#[derive(Debug)]
-pub struct AdditionalBreakingImpulseDamageBuffDataPayload {
-    pub f00: u8,
-    pub f01: u8,
-}
-impl AdditionalBreakingImpulseDamageBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct TribeAdditionalDamageRateBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct UpdateShareValueBuffDataPayload<'a> {
-    pub f00: u8,
-    pub f01: u8,
-    pub f02: u32,
-    pub f03: u32,
-    pub f04: u32,
-    pub f05: u8,
-    pub f06: CString<'a>,
-}
-impl<'a> UpdateShareValueBuffDataPayload<'a> {
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        let f03 = u32::read_from(data, offset)?;
-        let f04 = u32::read_from(data, offset)?;
-        let f05 = u8::read_from(data, offset)?;
-        let f06 = CString::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03, f04, f05, f06 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        self.f04.write_to(w)?;
-        self.f05.write_to(w)?;
-        self.f06.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct AdditionalBreakingImpulseDamageBuffDataPayload {
+        pub f00: u8,
+        pub f01: u8,
     }
 }
 
-#[derive(Debug)]
-pub struct AddDamageBonusFromComboBuffDataPayload {
-    pub f00: u32,
-}
-impl AddDamageBonusFromComboBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
+py_binary_struct! {
+    pub struct UpdateShareValueBuffDataPayload<'a> {
+        pub f00: u8,
+        pub f01: u8,
+        pub f02: u32,
+        pub f03: u32,
+        pub f04: u32,
+        pub f05: u8,
+        pub f06: CString<'a>,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct ConvertOtherStatBuffDataPayload {
-    pub f00: u8,
-    pub f01: u32,
-    pub f02: u32,
-}
-impl ConvertOtherStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
+py_binary_struct! {
+    pub struct AddDamageBonusFromComboBuffDataPayload {
+        pub f00: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct IgnoreUseResourceStatBuffDataPayload {
-    pub f00: u32,
-}
-impl IgnoreUseResourceStatBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        Ok(Self { f00 })
+py_binary_struct! {
+    pub struct ConvertOtherStatBuffDataPayload {
+        pub f00: u8,
+        pub f01: u32,
+        pub f02: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct DisableMinimapIconBuffDataPayload {
-    pub f00: u8,
-}
-impl DisableMinimapIconBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u8::read_from(data, offset)?;
-        Ok(Self { f00 })
+py_binary_struct! {
+    pub struct IgnoreUseResourceStatBuffDataPayload {
+        pub f00: u32,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        Ok(())
-    }
 }
 
-#[derive(Debug)]
-pub struct UseGroggyBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-}
-impl UseGroggyBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+py_binary_struct! {
+    pub struct DisableMinimapIconBuffDataPayload {
+        pub f00: u8,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        Ok(())
+}
+
+py_binary_struct! {
+    pub struct UseGroggyBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
     }
 }
 
+/// AdditionalUseResourceStat — f01 is a length-prefixed Vec of
+/// 22-byte fixed-size records.
 #[derive(Debug)]
 pub struct AdditionalUseResourceStatBuffDataPayload {
     pub f00: CArray<u32>,
@@ -2383,73 +1299,76 @@ impl AdditionalUseResourceStatBuffDataPayload {
         { (self.f01.len() as u32).write_to(w)?; for it in &self.f01 { w.write_all(it)?; } }
         Ok(())
     }
-}
-
-#[derive(Debug)]
-pub struct AddCritiacalRateByMaterialKeyBuffDataPayload {
-    pub f00: u32,
-    pub f01: u64,
-}
-impl AddCritiacalRateByMaterialKeyBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01 })
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("f00".into(), self.f00.to_json_value());
+        // Each entry is a 22-byte fixed-size opaque record exposed as an
+        // array of 22 u8 integers — fully byte-addressable through JSON.
+        let entries: Vec<Value> = self.f01.iter()
+            .map(|b| Value::Array(b.iter().map(|&x| Value::from(x as u64)).collect()))
+            .collect();
+        m.insert("f01_entries".into(), Value::Array(entries));
+        m
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "f00")?)?;
+        let arr = json_get_field(obj, "f01_entries")?
+            .as_array()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "AdditionalUseResourceStat.f01_entries: expected array"))?;
+        (arr.len() as u32).write_to(w)?;
+        for (i, item) in arr.iter().enumerate() {
+            let inner = item.as_array().ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("AdditionalUseResourceStat.f01_entries[{}]: expected array of 22 u8", i),
+            ))?;
+            if inner.len() != 22 {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("AdditionalUseResourceStat.f01_entries[{}]: expected 22 elements, got {}", i, inner.len())));
+            }
+            for (j, v) in inner.iter().enumerate() {
+                let n = v.as_u64().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("AdditionalUseResourceStat.f01_entries[{}][{}]: expected u8", i, j),
+                ))?;
+                if n > u8::MAX as u64 {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData,
+                        format!("AdditionalUseResourceStat.f01_entries[{}][{}]: {} out of u8 range", i, j, n)));
+                }
+                w.push(n as u8);
+            }
+        }
         Ok(())
     }
 }
 
-#[derive(Debug)]
-pub struct DecreaseMercenaryCooltimeBuffDataPayload {
-    pub f00: u32,
-    pub f01: u8,
-    pub f02: u64,
-}
-impl DecreaseMercenaryCooltimeBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u8::read_from(data, offset)?;
-        let f02 = u64::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02 })
-    }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        Ok(())
+py_binary_struct! {
+    pub struct AddCritiacalRateByMaterialKeyBuffDataPayload {
+        pub f00: u32,
+        pub f01: u64,
     }
 }
 
-#[derive(Debug)]
-pub struct DetectReactionOverrideBuffDataPayload {
-    pub f00: u32,
-    pub f01: u32,
-    pub f02: u8,
-    pub f03: u32,
-}
-impl DetectReactionOverrideBuffDataPayload {
-    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let f00 = u32::read_from(data, offset)?;
-        let f01 = u32::read_from(data, offset)?;
-        let f02 = u8::read_from(data, offset)?;
-        let f03 = u32::read_from(data, offset)?;
-        Ok(Self { f00, f01, f02, f03 })
+py_binary_struct! {
+    pub struct DecreaseMercenaryCooltimeBuffDataPayload {
+        pub f00: u32,
+        pub f01: u8,
+        pub f02: u64,
     }
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.f00.write_to(w)?;
-        self.f01.write_to(w)?;
-        self.f02.write_to(w)?;
-        self.f03.write_to(w)?;
-        Ok(())
+}
+
+py_binary_struct! {
+    pub struct DetectReactionOverrideBuffDataPayload {
+        pub f00: u32,
+        pub f01: u32,
+        pub f02: u8,
+        pub f03: u32,
     }
 }
 
 /// BuffData variant — discriminated union of 120 cases.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum BuffDataVariant<'a> {
     DamageBuffData(DamageBuffDataPayload),
     VaryRegenerateValueBuffData(VaryRegenerateValueBuffDataPayload),
@@ -2698,6 +1617,401 @@ impl<'a> BuffDataVariant<'a> {
             Self::DetectReactionOverrideBuffData(_) => 119,
         }
     }
+
+    /// Returns the variant's enum name as a string.
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            Self::DamageBuffData(_) => "DamageBuffData",
+            Self::VaryRegenerateValueBuffData(_) => "VaryRegenerateValueBuffData",
+            Self::VaryCollectDropRateBuffData(_) => "VaryCollectDropRateBuffData",
+            Self::VaryStaticStatBuffData(_) => "VaryStaticStatBuffData",
+            Self::VaryStaticStatLevelBuffData(_) => "VaryStaticStatLevelBuffData",
+            Self::VaryStatBuffData(_) => "VaryStatBuffData",
+            Self::VaryStatMaxValueBuffData(_) => "VaryStatMaxValueBuffData",
+            Self::VaryStaticStatRateBuffData(_) => "VaryStaticStatRateBuffData",
+            Self::VaryStatRateBuffData(_) => "VaryStatRateBuffData",
+            Self::StatusExpBuffData(_) => "StatusExpBuffData",
+            Self::SummonBuffData(_) => "SummonBuffData",
+            Self::LootBuffData(_) => "LootBuffData",
+            Self::VaryDataDefinedStatBuffData(_) => "VaryDataDefinedStatBuffData",
+            Self::VaryDataDefinedStatNeedUnapplyBuffData(_) => "VaryDataDefinedStatNeedUnapplyBuffData",
+            Self::VaryDataDefinedRegenerateValueBuffData(_) => "VaryDataDefinedRegenerateValueBuffData",
+            Self::RemoveAggroBuffData(_) => "RemoveAggroBuffData",
+            Self::VoidActiveBuffData => "VoidActiveBuffData",
+            Self::VoidPassiveBuffData => "VoidPassiveBuffData",
+            Self::VaryDataDefinedStatMinValueBuffData(_) => "VaryDataDefinedStatMinValueBuffData",
+            Self::VaryDataDefinedStatMaxValueBuffData(_) => "VaryDataDefinedStatMaxValueBuffData",
+            Self::ElementalAreaBuffData(_) => "ElementalAreaBuffData",
+            Self::VaryElementalStatBuffData(_) => "VaryElementalStatBuffData",
+            Self::SetElementalStatBuffData(_) => "SetElementalStatBuffData",
+            Self::AdditionalGoalElementalStatBuffData(_) => "AdditionalGoalElementalStatBuffData",
+            Self::ChangeElementalStatSpeedBuffData(_) => "ChangeElementalStatSpeedBuffData",
+            Self::DisableElementalMaterialStateBuffData(_) => "DisableElementalMaterialStateBuffData",
+            Self::ChangeMaterialKeyBuffData(_) => "ChangeMaterialKeyBuffData",
+            Self::ClothGravityBuffData(_) => "ClothGravityBuffData",
+            Self::WeatherEffectBuffData(_) => "WeatherEffectBuffData",
+            Self::VaryDefenceValueBuffData(_) => "VaryDefenceValueBuffData",
+            Self::DefenceBuffData(_) => "DefenceBuffData",
+            Self::AggroBuffData(_) => "AggroBuffData",
+            Self::DamagedActionRestrictionBuffData(_) => "DamagedActionRestrictionBuffData",
+            Self::BuffedActionRestrictionBuffData(_) => "BuffedActionRestrictionBuffData",
+            Self::BuffedActionRestrictionPassiveBuffData(_) => "BuffedActionRestrictionPassiveBuffData",
+            Self::ReleaseBuffedActionRestrictionBuffData(_) => "ReleaseBuffedActionRestrictionBuffData",
+            Self::PlaySequencerBuffData(_) => "PlaySequencerBuffData",
+            Self::ImmuneBuffData(_) => "ImmuneBuffData",
+            Self::ApplyPhysicsImpulseBuffData(_) => "ApplyPhysicsImpulseBuffData",
+            Self::ChangeAllyGroupBuffData(_) => "ChangeAllyGroupBuffData",
+            Self::PlayerAllyBuffData => "PlayerAllyBuffData",
+            Self::DisableObstacleBuffData => "DisableObstacleBuffData",
+            Self::RideLimitBuffData => "RideLimitBuffData",
+            Self::ChangeFactionBuffData(_) => "ChangeFactionBuffData",
+            Self::SetGimmickComponentParameterBoolBuffData(_) => "SetGimmickComponentParameterBoolBuffData",
+            Self::SummonGimmickBuffData(_) => "SummonGimmickBuffData",
+            Self::SendGimmickEventBuffData(_) => "SendGimmickEventBuffData",
+            Self::DetachEquipItemBuffData(_) => "DetachEquipItemBuffData",
+            Self::DisableThrowEquipItemBuffData => "DisableThrowEquipItemBuffData",
+            Self::VaryEquipItemEnduranceBuffData(_) => "VaryEquipItemEnduranceBuffData",
+            Self::VaryDataDefinedStatRateBuffData(_) => "VaryDataDefinedStatRateBuffData",
+            Self::InstantDeathBuffData(_) => "InstantDeathBuffData",
+            Self::DeadReasonBuffData(_) => "DeadReasonBuffData",
+            Self::VaryDataDefinedStatOtherDataDefineStatBuffData(_) => "VaryDataDefinedStatOtherDataDefineStatBuffData",
+            Self::VarySkillDamagePercentStatBuffData(_) => "VarySkillDamagePercentStatBuffData",
+            Self::VaryStatOverMaxValueBuffData(_) => "VaryStatOverMaxValueBuffData",
+            Self::VaryDataDefinedStatOverMaxValueBuffData(_) => "VaryDataDefinedStatOverMaxValueBuffData",
+            Self::DecreaseEquipItemEnduranceByPercentBuffData(_) => "DecreaseEquipItemEnduranceByPercentBuffData",
+            Self::SetStatRateBuffData(_) => "SetStatRateBuffData",
+            Self::SetStatMinRateBuffData(_) => "SetStatMinRateBuffData",
+            Self::ChangeWeatherBuffData(_) => "ChangeWeatherBuffData",
+            Self::PlaySoundBuffData(_) => "PlaySoundBuffData",
+            Self::ChangeCombinationBuffData(_) => "ChangeCombinationBuffData",
+            Self::RegisterConditionSkillBuffData(_) => "RegisterConditionSkillBuffData",
+            Self::DetectPenaltyBuffData(_) => "DetectPenaltyBuffData",
+            Self::StealthBuffData(_) => "StealthBuffData",
+            Self::SwitchSpecialModeBuffData(_) => "SwitchSpecialModeBuffData",
+            Self::AddExperienceBuffData(_) => "AddExperienceBuffData",
+            Self::RelationConvertBuffData(_) => "RelationConvertBuffData",
+            Self::WarningSensorBuffData => "WarningSensorBuffData",
+            Self::DampMovementBuffData(_) => "DampMovementBuffData",
+            Self::ChangeDetectReactionBuffData(_) => "ChangeDetectReactionBuffData",
+            Self::ChangeBattleOrderTypeBuffData(_) => "ChangeBattleOrderTypeBuffData",
+            Self::VaryForceFieldStatBuffData(_) => "VaryForceFieldStatBuffData",
+            Self::PlayerSensibleBuffData => "PlayerSensibleBuffData",
+            Self::AddSubLevelBuffData(_) => "AddSubLevelBuffData",
+            Self::ChangeElementalMaterialBuffData(_) => "ChangeElementalMaterialBuffData",
+            Self::DisableDetectingBuffData => "DisableDetectingBuffData",
+            Self::ChangeDetectDistanceBuffData(_) => "ChangeDetectDistanceBuffData",
+            Self::ViewerDetectPenaltyBuffData(_) => "ViewerDetectPenaltyBuffData",
+            Self::ChangeBuffLevelBuffData(_) => "ChangeBuffLevelBuffData",
+            Self::SkinnedDecalBuffData(_) => "SkinnedDecalBuffData",
+            Self::ChangeAnimationSpeedBuffData(_) => "ChangeAnimationSpeedBuffData",
+            Self::ActivateUpdateFuelBuffData(_) => "ActivateUpdateFuelBuffData",
+            Self::LimitBuffLevelBuffData(_) => "LimitBuffLevelBuffData",
+            Self::BlockCrimeBuffData(_) => "BlockCrimeBuffData",
+            Self::BlockCrimeNPCBuffData => "BlockCrimeNPCBuffData",
+            Self::GameAudioEffectBuffData(_) => "GameAudioEffectBuffData",
+            Self::MeditationKnowledgeBuffData(_) => "MeditationKnowledgeBuffData",
+            Self::ClimbSlipBuffData(_) => "ClimbSlipBuffData",
+            Self::DetectBrightnessBuffData(_) => "DetectBrightnessBuffData",
+            Self::ChangeEquipItemEnduranceBuffData(_) => "ChangeEquipItemEnduranceBuffData",
+            Self::HackingBuffData => "HackingBuffData",
+            Self::VaryMaxExpandInventorySlotBuffData(_) => "VaryMaxExpandInventorySlotBuffData",
+            Self::BlockRegenerateStatBuffData(_) => "BlockRegenerateStatBuffData",
+            Self::ProjectileBuffData(_) => "ProjectileBuffData",
+            Self::ConsumeSpawnerMercenaryBuffData(_) => "ConsumeSpawnerMercenaryBuffData",
+            Self::RegisterQuickSlotSkillBuffData(_) => "RegisterQuickSlotSkillBuffData",
+            Self::VaryStatMaxValueRateBuffData(_) => "VaryStatMaxValueRateBuffData",
+            Self::TriggerVolumeBuffData(_) => "TriggerVolumeBuffData",
+            Self::RegisterItemSellPriceRateBuffData(_) => "RegisterItemSellPriceRateBuffData",
+            Self::RegisterCrimePriceRateBuffData(_) => "RegisterCrimePriceRateBuffData",
+            Self::RegisterFactionOperationRewardRateBuffData(_) => "RegisterFactionOperationRewardRateBuffData",
+            Self::LogoutTimeDropSetKeyBuffData(_) => "LogoutTimeDropSetKeyBuffData",
+            Self::AddPercentInGameContentsBuffData(_) => "AddPercentInGameContentsBuffData",
+            Self::VaryCustomIntInGameContentsBuffData(_) => "VaryCustomIntInGameContentsBuffData",
+            Self::TribeAdditionalDamageRateBuffData(_) => "TribeAdditionalDamageRateBuffData",
+            Self::AdditionalBreakingImpulseDamageBuffData(_) => "AdditionalBreakingImpulseDamageBuffData",
+            Self::UpdateShareValueBuffData(_) => "UpdateShareValueBuffData",
+            Self::AddDamageBonusFromComboBuffData(_) => "AddDamageBonusFromComboBuffData",
+            Self::ConvertOtherStatBuffData(_) => "ConvertOtherStatBuffData",
+            Self::IgnoreUseResourceStatBuffData(_) => "IgnoreUseResourceStatBuffData",
+            Self::BlockAbilityBuffData => "BlockAbilityBuffData",
+            Self::DisableMinimapIconBuffData(_) => "DisableMinimapIconBuffData",
+            Self::UseGroggyBuffData(_) => "UseGroggyBuffData",
+            Self::AdditionalUseResourceStatBuffData(_) => "AdditionalUseResourceStatBuffData",
+            Self::AddCritiacalRateByMaterialKeyBuffData(_) => "AddCritiacalRateByMaterialKeyBuffData",
+            Self::BlockDeadBodyGarbageCollectionBuffData => "BlockDeadBodyGarbageCollectionBuffData",
+            Self::DecreaseMercenaryCooltimeBuffData(_) => "DecreaseMercenaryCooltimeBuffData",
+            Self::DetectReactionOverrideBuffData(_) => "DetectReactionOverrideBuffData",
+        }
+    }
+
+    /// Per-variant JSON: emits {"type": variant_name, "body": typed
+    /// dict} for payload variants, {"type": variant_name} for no-payload.
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("type".into(), Value::String(self.variant_name().to_string()));
+        match self {
+            Self::DamageBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryRegenerateValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryCollectDropRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStaticStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStaticStatLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStaticStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::StatusExpBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SummonBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::LootBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatNeedUnapplyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedRegenerateValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RemoveAggroBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VoidActiveBuffData => {}
+            Self::VoidPassiveBuffData => {}
+            Self::VaryDataDefinedStatMinValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ElementalAreaBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryElementalStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetElementalStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AdditionalGoalElementalStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeElementalStatSpeedBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DisableElementalMaterialStateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeMaterialKeyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ClothGravityBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::WeatherEffectBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDefenceValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DefenceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AggroBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DamagedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BuffedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BuffedActionRestrictionPassiveBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ReleaseBuffedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlaySequencerBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ImmuneBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ApplyPhysicsImpulseBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeAllyGroupBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlayerAllyBuffData => {}
+            Self::DisableObstacleBuffData => {}
+            Self::RideLimitBuffData => {}
+            Self::ChangeFactionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetGimmickComponentParameterBoolBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SummonGimmickBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SendGimmickEventBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetachEquipItemBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DisableThrowEquipItemBuffData => {}
+            Self::VaryEquipItemEnduranceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::InstantDeathBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DeadReasonBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatOtherDataDefineStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VarySkillDamagePercentStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatOverMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryDataDefinedStatOverMaxValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DecreaseEquipItemEnduranceByPercentBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetStatRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SetStatMinRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeWeatherBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlaySoundBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeCombinationBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterConditionSkillBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetectPenaltyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::StealthBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SwitchSpecialModeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddExperienceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RelationConvertBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::WarningSensorBuffData => {}
+            Self::DampMovementBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeDetectReactionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeBattleOrderTypeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryForceFieldStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::PlayerSensibleBuffData => {}
+            Self::AddSubLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeElementalMaterialBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DisableDetectingBuffData => {}
+            Self::ChangeDetectDistanceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ViewerDetectPenaltyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeBuffLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::SkinnedDecalBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeAnimationSpeedBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ActivateUpdateFuelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::LimitBuffLevelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockCrimeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockCrimeNPCBuffData => {}
+            Self::GameAudioEffectBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::MeditationKnowledgeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ClimbSlipBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetectBrightnessBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeEquipItemEnduranceBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::HackingBuffData => {}
+            Self::VaryMaxExpandInventorySlotBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockRegenerateStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ProjectileBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConsumeSpawnerMercenaryBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterQuickSlotSkillBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryStatMaxValueRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::TriggerVolumeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterItemSellPriceRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterCrimePriceRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::RegisterFactionOperationRewardRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::LogoutTimeDropSetKeyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddPercentInGameContentsBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::VaryCustomIntInGameContentsBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::TribeAdditionalDamageRateBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AdditionalBreakingImpulseDamageBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::UpdateShareValueBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddDamageBonusFromComboBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConvertOtherStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::IgnoreUseResourceStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockAbilityBuffData => {}
+            Self::DisableMinimapIconBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::UseGroggyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AdditionalUseResourceStatBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::AddCritiacalRateByMaterialKeyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockDeadBodyGarbageCollectionBuffData => {}
+            Self::DecreaseMercenaryCooltimeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::DetectReactionOverrideBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+        }
+        Value::Object(m)
+    }
+
+    /// Inverse of to_json_value. `disc` selects the variant.
+    pub fn write_from_json(
+        disc: u8,
+        w: &mut Vec<u8>,
+        v: &Value,
+    ) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "BuffDataVariant: expected object",
+        ))?;
+        match disc {
+            0 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DamageBuffData: missing body object"))?; DamageBuffDataPayload::write_from_json_dict(w, body)?; }
+            1 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryRegenerateValueBuffData: missing body object"))?; VaryRegenerateValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            2 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryCollectDropRateBuffData: missing body object"))?; VaryCollectDropRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            3 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStaticStatBuffData: missing body object"))?; VaryStaticStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            4 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStaticStatLevelBuffData: missing body object"))?; VaryStaticStatLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            5 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatBuffData: missing body object"))?; VaryStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            6 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatMaxValueBuffData: missing body object"))?; VaryStatMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            7 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStaticStatRateBuffData: missing body object"))?; VaryStaticStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            8 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatRateBuffData: missing body object"))?; VaryStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            9 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "StatusExpBuffData: missing body object"))?; StatusExpBuffDataPayload::write_from_json_dict(w, body)?; }
+            10 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SummonBuffData: missing body object"))?; SummonBuffDataPayload::write_from_json_dict(w, body)?; }
+            11 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LootBuffData: missing body object"))?; LootBuffDataPayload::write_from_json_dict(w, body)?; }
+            12 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatBuffData: missing body object"))?; VaryDataDefinedStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            13 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatNeedUnapplyBuffData: missing body object"))?; VaryDataDefinedStatNeedUnapplyBuffDataPayload::write_from_json_dict(w, body)?; }
+            14 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedRegenerateValueBuffData: missing body object"))?; VaryDataDefinedRegenerateValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            15 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RemoveAggroBuffData: missing body object"))?; RemoveAggroBuffDataPayload::write_from_json_dict(w, body)?; }
+            16 => {}
+            17 => {}
+            18 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatMinValueBuffData: missing body object"))?; VaryDataDefinedStatMinValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            19 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatMaxValueBuffData: missing body object"))?; VaryDataDefinedStatMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            20 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ElementalAreaBuffData: missing body object"))?; ElementalAreaBuffDataPayload::write_from_json_dict(w, body)?; }
+            21 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryElementalStatBuffData: missing body object"))?; VaryElementalStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            22 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetElementalStatBuffData: missing body object"))?; SetElementalStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            23 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalGoalElementalStatBuffData: missing body object"))?; AdditionalGoalElementalStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            24 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeElementalStatSpeedBuffData: missing body object"))?; ChangeElementalStatSpeedBuffDataPayload::write_from_json_dict(w, body)?; }
+            25 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DisableElementalMaterialStateBuffData: missing body object"))?; DisableElementalMaterialStateBuffDataPayload::write_from_json_dict(w, body)?; }
+            26 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeMaterialKeyBuffData: missing body object"))?; ChangeMaterialKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            27 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ClothGravityBuffData: missing body object"))?; ClothGravityBuffDataPayload::write_from_json_dict(w, body)?; }
+            28 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "WeatherEffectBuffData: missing body object"))?; WeatherEffectBuffDataPayload::write_from_json_dict(w, body)?; }
+            29 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDefenceValueBuffData: missing body object"))?; VaryDefenceValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            30 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DefenceBuffData: missing body object"))?; DefenceBuffDataPayload::write_from_json_dict(w, body)?; }
+            31 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AggroBuffData: missing body object"))?; AggroBuffDataPayload::write_from_json_dict(w, body)?; }
+            32 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DamagedActionRestrictionBuffData: missing body object"))?; DamagedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
+            33 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BuffedActionRestrictionBuffData: missing body object"))?; BuffedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
+            34 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BuffedActionRestrictionPassiveBuffData: missing body object"))?; BuffedActionRestrictionPassiveBuffDataPayload::write_from_json_dict(w, body)?; }
+            35 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ReleaseBuffedActionRestrictionBuffData: missing body object"))?; ReleaseBuffedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
+            36 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "PlaySequencerBuffData: missing body object"))?; PlaySequencerBuffDataPayload::write_from_json_dict(w, body)?; }
+            37 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ImmuneBuffData: missing body object"))?; ImmuneBuffDataPayload::write_from_json_dict(w, body)?; }
+            38 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ApplyPhysicsImpulseBuffData: missing body object"))?; ApplyPhysicsImpulseBuffDataPayload::write_from_json_dict(w, body)?; }
+            39 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAllyGroupBuffData: missing body object"))?; ChangeAllyGroupBuffDataPayload::write_from_json_dict(w, body)?; }
+            40 => {}
+            41 => {}
+            42 => {}
+            43 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeFactionBuffData: missing body object"))?; ChangeFactionBuffDataPayload::write_from_json_dict(w, body)?; }
+            44 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetGimmickComponentParameterBoolBuffData: missing body object"))?; SetGimmickComponentParameterBoolBuffDataPayload::write_from_json_dict(w, body)?; }
+            45 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SummonGimmickBuffData: missing body object"))?; SummonGimmickBuffDataPayload::write_from_json_dict(w, body)?; }
+            46 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SendGimmickEventBuffData: missing body object"))?; SendGimmickEventBuffDataPayload::write_from_json_dict(w, body)?; }
+            47 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetachEquipItemBuffData: missing body object"))?; DetachEquipItemBuffDataPayload::write_from_json_dict(w, body)?; }
+            48 => {}
+            49 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryEquipItemEnduranceBuffData: missing body object"))?; VaryEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
+            50 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatRateBuffData: missing body object"))?; VaryDataDefinedStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            51 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "InstantDeathBuffData: missing body object"))?; InstantDeathBuffDataPayload::write_from_json_dict(w, body)?; }
+            52 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DeadReasonBuffData: missing body object"))?; DeadReasonBuffDataPayload::write_from_json_dict(w, body)?; }
+            53 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOtherDataDefineStatBuffData: missing body object"))?; VaryDataDefinedStatOtherDataDefineStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            54 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VarySkillDamagePercentStatBuffData: missing body object"))?; VarySkillDamagePercentStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            55 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatOverMaxValueBuffData: missing body object"))?; VaryStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            56 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOverMaxValueBuffData: missing body object"))?; VaryDataDefinedStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            57 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseEquipItemEnduranceByPercentBuffData: missing body object"))?; DecreaseEquipItemEnduranceByPercentBuffDataPayload::write_from_json_dict(w, body)?; }
+            58 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatRateBuffData: missing body object"))?; SetStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            59 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatMinRateBuffData: missing body object"))?; SetStatMinRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            60 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeWeatherBuffData: missing body object"))?; ChangeWeatherBuffDataPayload::write_from_json_dict(w, body)?; }
+            61 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "PlaySoundBuffData: missing body object"))?; PlaySoundBuffDataPayload::write_from_json_dict(w, body)?; }
+            62 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeCombinationBuffData: missing body object"))?; ChangeCombinationBuffDataPayload::write_from_json_dict(w, body)?; }
+            63 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterConditionSkillBuffData: missing body object"))?; RegisterConditionSkillBuffDataPayload::write_from_json_dict(w, body)?; }
+            64 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectPenaltyBuffData: missing body object"))?; DetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
+            65 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "StealthBuffData: missing body object"))?; StealthBuffDataPayload::write_from_json_dict(w, body)?; }
+            66 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SwitchSpecialModeBuffData: missing body object"))?; SwitchSpecialModeBuffDataPayload::write_from_json_dict(w, body)?; }
+            67 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddExperienceBuffData: missing body object"))?; AddExperienceBuffDataPayload::write_from_json_dict(w, body)?; }
+            68 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RelationConvertBuffData: missing body object"))?; RelationConvertBuffDataPayload::write_from_json_dict(w, body)?; }
+            69 => {}
+            70 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DampMovementBuffData: missing body object"))?; DampMovementBuffDataPayload::write_from_json_dict(w, body)?; }
+            71 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectReactionBuffData: missing body object"))?; ChangeDetectReactionBuffDataPayload::write_from_json_dict(w, body)?; }
+            72 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBattleOrderTypeBuffData: missing body object"))?; ChangeBattleOrderTypeBuffDataPayload::write_from_json_dict(w, body)?; }
+            73 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryForceFieldStatBuffData: missing body object"))?; VaryForceFieldStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            74 => {}
+            75 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddSubLevelBuffData: missing body object"))?; AddSubLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            76 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeElementalMaterialBuffData: missing body object"))?; ChangeElementalMaterialBuffDataPayload::write_from_json_dict(w, body)?; }
+            77 => {}
+            78 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectDistanceBuffData: missing body object"))?; ChangeDetectDistanceBuffDataPayload::write_from_json_dict(w, body)?; }
+            79 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ViewerDetectPenaltyBuffData: missing body object"))?; ViewerDetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
+            80 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBuffLevelBuffData: missing body object"))?; ChangeBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            81 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SkinnedDecalBuffData: missing body object"))?; SkinnedDecalBuffDataPayload::write_from_json_dict(w, body)?; }
+            82 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAnimationSpeedBuffData: missing body object"))?; ChangeAnimationSpeedBuffDataPayload::write_from_json_dict(w, body)?; }
+            83 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ActivateUpdateFuelBuffData: missing body object"))?; ActivateUpdateFuelBuffDataPayload::write_from_json_dict(w, body)?; }
+            84 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LimitBuffLevelBuffData: missing body object"))?; LimitBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            85 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockCrimeBuffData: missing body object"))?; BlockCrimeBuffDataPayload::write_from_json_dict(w, body)?; }
+            86 => {}
+            87 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "GameAudioEffectBuffData: missing body object"))?; GameAudioEffectBuffDataPayload::write_from_json_dict(w, body)?; }
+            88 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "MeditationKnowledgeBuffData: missing body object"))?; MeditationKnowledgeBuffDataPayload::write_from_json_dict(w, body)?; }
+            89 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ClimbSlipBuffData: missing body object"))?; ClimbSlipBuffDataPayload::write_from_json_dict(w, body)?; }
+            90 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectBrightnessBuffData: missing body object"))?; DetectBrightnessBuffDataPayload::write_from_json_dict(w, body)?; }
+            91 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeEquipItemEnduranceBuffData: missing body object"))?; ChangeEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
+            92 => {}
+            93 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryMaxExpandInventorySlotBuffData: missing body object"))?; VaryMaxExpandInventorySlotBuffDataPayload::write_from_json_dict(w, body)?; }
+            94 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockRegenerateStatBuffData: missing body object"))?; BlockRegenerateStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            95 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ProjectileBuffData: missing body object"))?; ProjectileBuffDataPayload::write_from_json_dict(w, body)?; }
+            96 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConsumeSpawnerMercenaryBuffData: missing body object"))?; ConsumeSpawnerMercenaryBuffDataPayload::write_from_json_dict(w, body)?; }
+            97 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterQuickSlotSkillBuffData: missing body object"))?; RegisterQuickSlotSkillBuffDataPayload::write_from_json_dict(w, body)?; }
+            98 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatMaxValueRateBuffData: missing body object"))?; VaryStatMaxValueRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            99 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TriggerVolumeBuffData: missing body object"))?; TriggerVolumeBuffDataPayload::write_from_json_dict(w, body)?; }
+            100 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterItemSellPriceRateBuffData: missing body object"))?; RegisterItemSellPriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            101 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterCrimePriceRateBuffData: missing body object"))?; RegisterCrimePriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            102 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterFactionOperationRewardRateBuffData: missing body object"))?; RegisterFactionOperationRewardRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            103 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LogoutTimeDropSetKeyBuffData: missing body object"))?; LogoutTimeDropSetKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            104 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddPercentInGameContentsBuffData: missing body object"))?; AddPercentInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
+            105 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryCustomIntInGameContentsBuffData: missing body object"))?; VaryCustomIntInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
+            106 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TribeAdditionalDamageRateBuffData: missing body object"))?; TribeAdditionalDamageRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            107 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalBreakingImpulseDamageBuffData: missing body object"))?; AdditionalBreakingImpulseDamageBuffDataPayload::write_from_json_dict(w, body)?; }
+            108 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UpdateShareValueBuffData: missing body object"))?; UpdateShareValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            109 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddDamageBonusFromComboBuffData: missing body object"))?; AddDamageBonusFromComboBuffDataPayload::write_from_json_dict(w, body)?; }
+            110 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConvertOtherStatBuffData: missing body object"))?; ConvertOtherStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            111 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "IgnoreUseResourceStatBuffData: missing body object"))?; IgnoreUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            112 => {}
+            113 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DisableMinimapIconBuffData: missing body object"))?; DisableMinimapIconBuffDataPayload::write_from_json_dict(w, body)?; }
+            114 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UseGroggyBuffData: missing body object"))?; UseGroggyBuffDataPayload::write_from_json_dict(w, body)?; }
+            115 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalUseResourceStatBuffData: missing body object"))?; AdditionalUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            116 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddCritiacalRateByMaterialKeyBuffData: missing body object"))?; AddCritiacalRateByMaterialKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            117 => {}
+            118 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseMercenaryCooltimeBuffData: missing body object"))?; DecreaseMercenaryCooltimeBuffDataPayload::write_from_json_dict(w, body)?; }
+            119 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectReactionOverrideBuffData: missing body object"))?; DetectReactionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
+            other => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("BuffDataVariant: unknown disc {}", other))),
+        }
+        Ok(())
+    }
+
+
 
     pub fn read_from(disc: u8, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match disc {
@@ -2970,5 +2284,53 @@ impl<'a> BuffData<'a> {
         self.base.write_to(w)?;
         self.variant.write_to(w)?;
         Ok(())
+    }
+
+    /// JSON shape:
+    /// JSON shape:
+    /// - `base`: nested object with all 28 typed BuffDataBase fields.
+    /// - `variant`: { type: variant_name, body?: typed dict } —
+    ///   per-variant typed JSON via BuffDataVariant::to_json_value.
+    ///   `body` is present for payload-bearing variants; pure-
+    ///   discriminator variants emit just `{type}`.
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("base".into(), Value::Object(self.base.to_json_dict()));
+        m.insert("variant".into(), self.variant.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        let base_v = json_get_field(obj, "base")?;
+        let base_obj = base_v.as_object().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "BuffData.base: expected object")
+        })?;
+        let tag = json_get_field(base_obj, "tag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "BuffData.base.tag: expected u8"))?;
+        if tag > u8::MAX as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("BuffData.base.tag: {} out of u8 range", tag)));
+        }
+        BuffDataBase::write_from_json_dict(w, base_obj)?;
+        let variant_v = json_get_field(obj, "variant")?;
+        BuffDataVariant::write_from_json(tag as u8, w, variant_v)?;
+        Ok(())
+    }
+}
+
+impl<'a> crate::json_traits::ToJsonValue for BuffData<'a> {
+    fn to_json_value(&self) -> Value {
+        Value::Object(self.to_json_dict())
+    }
+}
+
+impl<'a> crate::json_traits::WriteJsonValue for BuffData<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "BuffData: expected object",
+        ))?;
+        BuffData::write_from_json_dict(w, obj)
     }
 }

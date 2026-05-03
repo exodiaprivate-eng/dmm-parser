@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyList};
+use pyo3::types::{PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyNone};
 use pyo3::exceptions::{PyIOError, PyKeyError, PyValueError};
 
 use crate::binary::*;
@@ -21,6 +21,73 @@ where
 fn get_obj<'py>(d: &Bound<'py, PyDict>, key: &str) -> PyResult<Bound<'py, PyAny>> {
     d.get_item(key)?
         .ok_or_else(|| PyKeyError::new_err(key.to_string()))
+}
+
+fn json_to_py(py: Python<'_>, v: &serde_json::Value) -> PyResult<Py<PyAny>> {
+    match v {
+        serde_json::Value::Null => Ok(PyNone::get(py).to_owned().into_any().unbind()),
+        serde_json::Value::Bool(b) => Ok(PyBool::new(py, *b).to_owned().into_any().unbind()),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(i.into_pyobject(py)?.into_any().unbind())
+            } else if let Some(u) = n.as_u64() {
+                Ok(u.into_pyobject(py)?.into_any().unbind())
+            } else {
+                Ok(n.as_f64().unwrap_or(0.0).into_pyobject(py)?.into_any().unbind())
+            }
+        }
+        serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+        serde_json::Value::Array(arr) => {
+            let list = PyList::empty(py);
+            for item in arr {
+                list.append(json_to_py(py, item)?)?;
+            }
+            Ok(list.into_any().unbind())
+        }
+        serde_json::Value::Object(obj) => {
+            let dict = PyDict::new(py);
+            for (k, val) in obj {
+                dict.set_item(k, json_to_py(py, val)?)?;
+            }
+            Ok(dict.into_any().unbind())
+        }
+    }
+}
+
+fn py_to_json(v: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
+    if v.is_none() {
+        return Ok(serde_json::Value::Null);
+    }
+    if let Ok(b) = v.cast::<PyBool>() {
+        return Ok(serde_json::Value::Bool(b.is_true()));
+    }
+    if let Ok(i) = v.cast::<PyInt>() {
+        if let Ok(n) = i.extract::<i64>() {
+            return Ok(serde_json::json!(n));
+        }
+        if let Ok(n) = i.extract::<u64>() {
+            return Ok(serde_json::json!(n));
+        }
+    }
+    if let Ok(f) = v.cast::<PyFloat>() {
+        return Ok(serde_json::json!(f.value()));
+    }
+    if let Ok(s) = v.extract::<String>() {
+        return Ok(serde_json::Value::String(s));
+    }
+    if let Ok(list) = v.cast::<PyList>() {
+        let arr: Vec<serde_json::Value> = list.iter().map(|i| py_to_json(&i)).collect::<PyResult<_>>()?;
+        return Ok(serde_json::Value::Array(arr));
+    }
+    if let Ok(dict) = v.cast::<PyDict>() {
+        let mut map = serde_json::Map::new();
+        for (k, val) in dict.iter() {
+            let key = k.extract::<String>()?;
+            map.insert(key, py_to_json(&val)?);
+        }
+        return Ok(serde_json::Value::Object(map));
+    }
+    Err(PyValueError::new_err(format!("cannot convert {} to JSON", v.get_type().name()?)))
 }
 
 // ── ItemInfo Python conversion ─────────────────────────────────────────────
@@ -673,6 +740,454 @@ pub fn extract_file(
     Ok(PyBytes::new(py, &raw).into_any().unbind())
 }
 
+// ── SkillInfo ──────────────────────────────────────────────────────────────
+
+#[pyfunction]
+pub fn parse_skillinfo_from_file(py: Python<'_>, pabgb_path: &str, pabgh_path: &str) -> PyResult<Py<PyAny>> {
+    let data = std::fs::read(pabgb_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let pabgh = std::fs::read(pabgh_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    parse_skillinfo_from_bytes(py, &data, &pabgh)
+}
+
+#[pyfunction]
+pub fn parse_skillinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) -> PyResult<Py<PyAny>> {
+    let items = crate::tables::skill_info::parse_skill_to_json_with_pabgh(pabgb, pabgh)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let list = PyList::empty(py);
+    for v in items {
+        list.append(json_to_py(py, &v)?)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn serialize_skillinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::skill_info::serialize_skill_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &data).into_any().unbind())
+}
+
+#[pyfunction]
+pub fn write_skillinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult<()> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::skill_info::serialize_skill_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    std::fs::write(path, &data).map_err(|e| PyIOError::new_err(e.to_string()))
+}
+
+// ── BuffInfo ───────────────────────────────────────────────────────────────
+
+#[pyfunction]
+pub fn parse_buffinfo_from_file(py: Python<'_>, pabgb_path: &str, pabgh_path: &str) -> PyResult<Py<PyAny>> {
+    let data = std::fs::read(pabgb_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let pabgh = std::fs::read(pabgh_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    parse_buffinfo_from_bytes(py, &data, &pabgh)
+}
+
+#[pyfunction]
+pub fn parse_buffinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) -> PyResult<Py<PyAny>> {
+    let items = crate::tables::buff_info::parse_buffinfo_to_json_with_pabgh(pabgb, pabgh)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let list = PyList::empty(py);
+    for v in items {
+        list.append(json_to_py(py, &v)?)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn serialize_buffinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::buff_info::serialize_buffinfo_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &data).into_any().unbind())
+}
+
+#[pyfunction]
+pub fn write_buffinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult<()> {
+    let values: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = crate::tables::buff_info::serialize_buffinfo_from_json(&values)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    std::fs::write(path, &data).map_err(|e| PyIOError::new_err(e.to_string()))
+}
+
+// ── Generic table dispatch ─────────────────────────────────────────────────
+
+fn dispatch_parse(
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+) -> PyResult<Vec<serde_json::Value>> {
+    use crate::binary::BinaryRead;
+    use crate::tables::blob_runtime::parse_typed_blob_table_to_json_with_pabgh;
+
+    macro_rules! p {
+        ($ty:path) => {{
+            let ph = pabgh.ok_or_else(|| PyValueError::new_err(
+                format!("table '{}' requires a pabgh file", table_name)))?;
+            parse_typed_blob_table_to_json_with_pabgh(pabgb, ph, |data, offset, size| {
+                <$ty>::read_with_size(data, offset, size).map(|t| t.to_json_dict())
+            }).map_err(|e| PyValueError::new_err(e.to_string()))?
+        }};
+    }
+
+    macro_rules! s {
+        ($ty:path) => {{
+            let mut offset = 0usize;
+            let mut out: Vec<serde_json::Value> = Vec::new();
+            while offset < pabgb.len() {
+                let item = <$ty>::read_from(pabgb, &mut offset)
+                    .map_err(|e| PyValueError::new_err(
+                        format!("offset 0x{:08x}: {}", offset, e)))?;
+                out.push(serde_json::Value::Object(item.to_json_dict()));
+            }
+            out
+        }};
+    }
+
+    Ok(match table_name {
+        // ── pabgh-bounded tables ──────────────────────────────────────────
+        "ai_dialog_string_info"          => p!(crate::tables::ai_dialog_string_info::AIDialogStringInfo),
+        "bitmap_position_info"           => p!(crate::tables::bitmap_position_info::BitmapPositionInfo),
+        "buff_info"                      => p!(crate::tables::buff_info::BuffInfo),
+        "character_change_info"          => p!(crate::tables::character_change_info::CharacterChangeInfo),
+        "character_info"                 => p!(crate::tables::character_info::CharacterInfo),
+        "condition_info"                 => p!(crate::tables::condition_info::ConditionInfo),
+        "drop_set_info"                  => p!(crate::tables::drop_set_info::DropSetInfo),
+        "effect_info"                    => p!(crate::tables::effect_info::EffectInfo),
+        "elemental_material_info"        => p!(crate::tables::elemental_material_info::ElementalMaterialInfo),
+        "equip_info"                     => p!(crate::tables::equip_info::EquipInfo),
+        "equip_slot_info"                => {
+            let ph = pabgh.ok_or_else(|| PyValueError::new_err(
+                "table 'equip_slot_info' requires a pabgh file"))?;
+            crate::tables::equip_slot_info::parse_equip_slot_info_to_json_with_pabgh(pabgb, ph)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?
+        },
+        "faction_info"                   => p!(crate::tables::faction_info::FactionInfo),
+        "faction_node_info"              => p!(crate::tables::faction_node_info::FactionNodeInfo),
+        "faction_node_spawn_info"        => p!(crate::tables::faction_node_spawn_info::FactionNodeSpawnInfo),
+        "faction_spawn_data_info"        => p!(crate::tables::faction_spawn_data_info::FactionSpawnDataInfo),
+        "field_revive_info"              => p!(crate::tables::field_revive_info::FieldReviveInfo),
+        "frame_event_attr_group_info"    => p!(crate::tables::frame_event_attr_group_info::FrameEventAttrGroupInfo),
+        "game_event_handler_info"        => p!(crate::tables::game_event_handler_info::GameEventHandlerInfo),
+        "game_global_effect_info"        => p!(crate::tables::game_global_effect_info::GameGlobalEffectInfo),
+        "game_level_info"                => p!(crate::tables::game_level_info::GameLevelInfo),
+        "game_play_trigger_info"         => p!(crate::tables::game_play_trigger_info::GamePlayTriggerInfo),
+        "gimmick_group_info"             => p!(crate::tables::gimmick_group_info::GimmickGroupInfo),
+        "gimmick_info"                   => p!(crate::tables::gimmick_info::GimmickInfo),
+        "global_game_event_info"         => p!(crate::tables::global_game_event_info::GlobalGameEventInfo),
+        "global_stage_sequencer_info"    => p!(crate::tables::global_stage_sequencer_info::GlobalStageSequencerInfo),
+        "interaction_info"               => p!(crate::tables::interaction_info::InteractionInfo),
+        "inventory_info"                 => p!(crate::tables::inventory_info::InventoryInfo),
+        "item_use_info"                  => p!(crate::tables::item_use_info::ItemUseInfo),
+        "knowledge_info"                 => p!(crate::tables::knowledge_info::KnowledgeInfo),
+        "level_gimmick_scene_object_info" => p!(crate::tables::level_gimmick_scene_object_info::LevelGimmickSceneObjectInfo),
+        "mini_game_data_info"            => p!(crate::tables::mini_game_data_info::MiniGameDataInfo),
+        "mission_info"                   => p!(crate::tables::mission_info::MissionInfo),
+        "multi_change_info"              => p!(crate::tables::multi_change_info::MultiChangeInfo),
+        "npc_info"                       => p!(crate::tables::npc_info::NpcInfo),
+        "platform_entitlement_info"      => p!(crate::tables::platform_entitlement_info::PlatformEntitlementInfo),
+        "quest_info"                     => p!(crate::tables::quest_info::QuestInfo),
+        "region_info"                    => p!(crate::tables::region_info::RegionInfo),
+        "royal_supply_info"              => p!(crate::tables::royal_supply_info::RoyalSupplyInfo),
+        "sequencer_spawn_info"           => p!(crate::tables::sequencer_spawn_info::SequencerSpawnInfo),
+        "skill_info"                     => {
+            let ph = pabgh.ok_or_else(|| PyValueError::new_err(
+                "table 'skill_info' requires a pabgh file"))?;
+            crate::tables::skill_info::parse_skill_to_json_with_pabgh(pabgb, ph)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?
+        },
+        "spawning_pool_auto_spawn_info"  => p!(crate::tables::spawning_pool_auto_spawn_info::SpawningPoolAutoSpawnInfo),
+        "special_mode_info"              => p!(crate::tables::special_mode_info::SpecialModeInfo),
+        "stage_info"                     => p!(crate::tables::stage_info::StageInfo),
+        "store_info"                     => p!(crate::tables::store_info::StoreInfo),
+        "sub_level_info"                 => p!(crate::tables::sub_level_info::SubLevelInfo),
+        "terrain_region_auto_spawn_info" => p!(crate::tables::terrain_region_auto_spawn_info::TerrainRegionAutoSpawnInfo),
+
+        // ── sequential tables ─────────────────────────────────────────────
+        "action_point_info"              => s!(crate::tables::action_point_info::ActionPointInfo),
+        "action_restriction_order_info"  => s!(crate::tables::action_restriction_order_info::ActionRestrictionOrderInfo),
+        "aiaction_attribute_info"        => s!(crate::tables::aiaction_attribute_info::AIActionAttributeInfo),
+        "aidialog_type_info"             => s!(crate::tables::aidialog_type_info::AIDialogTypeInfo),
+        "aievent_table_info"             => s!(crate::tables::aievent_table_info::AIEventTableInfo),
+        "aimemory_info"                  => s!(crate::tables::aimemory_info::AIMemoryInfo),
+        "aimove_speed_info"              => s!(crate::tables::aimove_speed_info::AIMoveSpeedInfo),
+        "ally_group_info"                => s!(crate::tables::ally_group_info::AllyGroupInfo),
+        "auto_spawn_filter_info"         => s!(crate::tables::auto_spawn_filter_info::AutoSpawnFilterInfo),
+        "board_info"                     => s!(crate::tables::board_info::BoardInfo),
+        "breakable_object_info"          => s!(crate::tables::breakable_object_info::BreakableObjectInfo),
+        "category_group_info"            => s!(crate::tables::category_group_info::CategoryGroupInfo),
+        "category_info"                  => s!(crate::tables::category_info::CategoryInfo),
+        "character_appearance_index_info" => s!(crate::tables::character_appearance_index_info::CharacterAppearanceIndexInfo),
+        "character_group_info"           => s!(crate::tables::character_group_info::CharacterGroupInfo),
+        "craft_tool_group_info"          => s!(crate::tables::craft_tool_group_info::CraftToolGroupInfo),
+        "craft_tool_info"                => s!(crate::tables::craft_tool_info::CraftToolInfo),
+        "detect_detail_info"             => s!(crate::tables::detect_detail_info::DetectDetailInfo),
+        "detect_info"                    => s!(crate::tables::detect_info::DetectInfo),
+        "detect_reaction_info"           => s!(crate::tables::detect_reaction_info::DetectReactionInfo),
+        "dialog_voice_info"              => s!(crate::tables::dialog_voice_info::DialogVoiceInfo),
+        "dye_color_group_info"           => s!(crate::tables::dye_color_group_info::DyeColorGroupInfo),
+        "equip_type_info"                => s!(crate::tables::equip_type_info::EquipTypeInfo),
+        "faction_group_info"             => s!(crate::tables::faction_group_info::FactionGroupInfo),
+        "faction_relation_group_info"    => s!(crate::tables::faction_relation_group_info::FactionRelationGroupInfo),
+        "faction_waypoint_info"          => s!(crate::tables::faction_waypoint_info::FactionWaypointInfo),
+        "fail_message_info"              => s!(crate::tables::fail_message_info::FailMessageInfo),
+        "field_info"                     => s!(crate::tables::field_info::FieldInfo),
+        "field_level_name_table_info"    => s!(crate::tables::field_level_name_table_info::FieldLevelNameTableInfo),
+        "formation_info"                 => s!(crate::tables::formation_info::FormationInfo),
+        "game_advice_group_info"         => s!(crate::tables::game_advice_group_info::GameAdviceGroupInfo),
+        "game_advice_info"               => s!(crate::tables::game_advice_info::GameAdviceInfo),
+        "game_play_variable_info"        => s!(crate::tables::game_play_variable_info::GamePlayVariableInfo),
+        "gimmick_event_table_info"       => s!(crate::tables::gimmick_event_table_info::GimmickEventTableInfo),
+        "gimmick_gate_connection_info"   => s!(crate::tables::gimmick_gate_connection_info::GimmickGateConnectionInfo),
+        "gimmick_gate_info"              => s!(crate::tables::gimmick_gate_info::GimmickGateInfo),
+        "global_game_event_group_info"   => s!(crate::tables::global_game_event_group_info::GlobalGameEventGroupInfo),
+        "house_info"                     => s!(crate::tables::house_info::HouseInfo),
+        "item_group_info"                => s!(crate::tables::item_group_info::ItemGroupInfo),
+        "job_info"                       => s!(crate::tables::job_info::JobInfo),
+        "key_map_setting_list_info"      => s!(crate::tables::key_map_setting_list_info::KeyMapSettingListInfo),
+        "knowledge_group_info"           => s!(crate::tables::knowledge_group_info::KnowledgeGroupInfo),
+        "level_action_point_info"        => s!(crate::tables::level_action_point_info::LevelActionPointInfo),
+        "local_string_info"              => s!(crate::tables::local_string_info::LocalStringInfo),
+        "material_blood_decal_info"      => s!(crate::tables::material_blood_decal_info::MaterialBloodDecalInfo),
+        "material_match_info"            => s!(crate::tables::material_match_info::MaterialMatchInfo),
+        "material_relation_info"         => s!(crate::tables::material_relation_info::MaterialRelationInfo),
+        "mercenary_group_info"           => s!(crate::tables::mercenary_group_info::MercenaryGroupInfo),
+        "mercenary_info"                 => s!(crate::tables::mercenary_info::MercenaryInfo),
+        "part_prefab_dye_slot_info"      => s!(crate::tables::part_prefab_dye_slot_info::PartPrefabDyeSlotInfo),
+        "part_prefab_dye_texture_pallete_info" => s!(crate::tables::part_prefab_dye_texture_pallete_info::PartPrefabDyeTexturePalleteInfo),
+        "pattern_description_info"       => s!(crate::tables::pattern_description_info::PatternDescriptionInfo),
+        "platform_achievement_info"      => s!(crate::tables::platform_achievement_info::PlatformAchievementInfo),
+        "quest_gauge_info"               => s!(crate::tables::quest_gauge_info::QuestGaugeInfo),
+        "quest_group_info"               => s!(crate::tables::quest_group_info::QuestGroupInfo),
+        "quick_time_event_info"          => s!(crate::tables::quick_time_event_info::QuickTimeEventInfo),
+        "relation_info"                  => s!(crate::tables::relation_info::RelationInfo),
+        "reserve_slot_info"              => s!(crate::tables::reserve_slot_info::ReserveSlotInfo),
+        "skill_group_info"               => s!(crate::tables::skill_group_info::SkillGroupInfo),
+        "skill_tree_group_info"          => s!(crate::tables::skill_tree_group_info::SkillTreeGroupInfo),
+        "skill_tree_info"                => s!(crate::tables::skill_tree_info::SkillTreeInfo),
+        "socket_group_info"              => s!(crate::tables::socket_group_info::SocketGroupInfo),
+        "socket_info"                    => s!(crate::tables::socket_info::SocketInfo),
+        "status_group_info"              => s!(crate::tables::status_group_info::StatusGroupInfo),
+        "status_info"                    => s!(crate::tables::status_info::StatusInfo),
+        "string_info"                    => s!(crate::tables::string_info::StringInfo),
+        "terrain_region_navi_info"       => s!(crate::tables::terrain_region_navi_info::TerrainRegionNaviInfo),
+        "tribe_info"                     => s!(crate::tables::tribe_info::TribeInfo),
+        "trigger_region_info"            => s!(crate::tables::trigger_region_info::TriggerRegionInfo),
+        "ui_social_action_info"          => s!(crate::tables::ui_social_action_info::UISocialActionInfo),
+        "uifilter_group_info"            => s!(crate::tables::uifilter_group_info::UIFilterGroupInfo),
+        "uimap_texture_info"             => s!(crate::tables::uimap_texture_info::UIMapTextureInfo),
+        "valid_schedule_action_info"     => s!(crate::tables::valid_schedule_action_info::ValidScheduleActionInfo),
+        "vehicle_info"                   => s!(crate::tables::vehicle_info::VehicleInfo),
+        "vibrate_pattern_info"           => s!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
+        "wanted_info"                    => s!(crate::tables::wanted_info::WantedInfo),
+
+        _ => return Err(PyValueError::new_err(format!("unknown table: '{}'", table_name))),
+    })
+}
+
+fn dispatch_serialize_bytes(
+    table_name: &str,
+    json_items: &[serde_json::Value],
+) -> PyResult<Vec<u8>> {
+    use crate::tables::blob_runtime::serialize_typed_blob_table_from_json;
+
+    macro_rules! d {
+        ($ty:path) => {
+            serialize_typed_blob_table_from_json(json_items, |w, map| {
+                <$ty>::write_from_json_dict(w, map)
+            }).map_err(|e| PyValueError::new_err(e.to_string()))?
+        };
+    }
+
+    Ok(match table_name {
+        // ── pabgh-bounded tables ──────────────────────────────────────────
+        "ai_dialog_string_info"          => d!(crate::tables::ai_dialog_string_info::AIDialogStringInfo),
+        "bitmap_position_info"           => d!(crate::tables::bitmap_position_info::BitmapPositionInfo),
+        "buff_info"                      => d!(crate::tables::buff_info::BuffInfo),
+        "character_change_info"          => d!(crate::tables::character_change_info::CharacterChangeInfo),
+        "character_info"                 => d!(crate::tables::character_info::CharacterInfo),
+        "condition_info"                 => d!(crate::tables::condition_info::ConditionInfo),
+        "drop_set_info"                  => d!(crate::tables::drop_set_info::DropSetInfo),
+        "effect_info"                    => d!(crate::tables::effect_info::EffectInfo),
+        "elemental_material_info"        => d!(crate::tables::elemental_material_info::ElementalMaterialInfo),
+        "equip_info"                     => d!(crate::tables::equip_info::EquipInfo),
+        "equip_slot_info"                => {
+            crate::tables::equip_slot_info::serialize_equip_slot_info_from_json(json_items)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?
+        },
+        "faction_info"                   => d!(crate::tables::faction_info::FactionInfo),
+        "faction_node_info"              => d!(crate::tables::faction_node_info::FactionNodeInfo),
+        "faction_node_spawn_info"        => d!(crate::tables::faction_node_spawn_info::FactionNodeSpawnInfo),
+        "faction_spawn_data_info"        => d!(crate::tables::faction_spawn_data_info::FactionSpawnDataInfo),
+        "field_revive_info"              => d!(crate::tables::field_revive_info::FieldReviveInfo),
+        "frame_event_attr_group_info"    => d!(crate::tables::frame_event_attr_group_info::FrameEventAttrGroupInfo),
+        "game_event_handler_info"        => d!(crate::tables::game_event_handler_info::GameEventHandlerInfo),
+        "game_global_effect_info"        => d!(crate::tables::game_global_effect_info::GameGlobalEffectInfo),
+        "game_level_info"                => d!(crate::tables::game_level_info::GameLevelInfo),
+        "game_play_trigger_info"         => d!(crate::tables::game_play_trigger_info::GamePlayTriggerInfo),
+        "gimmick_group_info"             => d!(crate::tables::gimmick_group_info::GimmickGroupInfo),
+        "gimmick_info"                   => d!(crate::tables::gimmick_info::GimmickInfo),
+        "global_game_event_info"         => d!(crate::tables::global_game_event_info::GlobalGameEventInfo),
+        "global_stage_sequencer_info"    => d!(crate::tables::global_stage_sequencer_info::GlobalStageSequencerInfo),
+        "interaction_info"               => d!(crate::tables::interaction_info::InteractionInfo),
+        "inventory_info"                 => d!(crate::tables::inventory_info::InventoryInfo),
+        "item_use_info"                  => d!(crate::tables::item_use_info::ItemUseInfo),
+        "knowledge_info"                 => d!(crate::tables::knowledge_info::KnowledgeInfo),
+        "level_gimmick_scene_object_info" => d!(crate::tables::level_gimmick_scene_object_info::LevelGimmickSceneObjectInfo),
+        "mini_game_data_info"            => d!(crate::tables::mini_game_data_info::MiniGameDataInfo),
+        "mission_info"                   => d!(crate::tables::mission_info::MissionInfo),
+        "multi_change_info"              => d!(crate::tables::multi_change_info::MultiChangeInfo),
+        "npc_info"                       => d!(crate::tables::npc_info::NpcInfo),
+        "platform_entitlement_info"      => d!(crate::tables::platform_entitlement_info::PlatformEntitlementInfo),
+        "quest_info"                     => d!(crate::tables::quest_info::QuestInfo),
+        "region_info"                    => d!(crate::tables::region_info::RegionInfo),
+        "royal_supply_info"              => d!(crate::tables::royal_supply_info::RoyalSupplyInfo),
+        "sequencer_spawn_info"           => d!(crate::tables::sequencer_spawn_info::SequencerSpawnInfo),
+        "skill_info"                     => {
+            crate::tables::skill_info::serialize_skill_from_json(json_items)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?
+        },
+        "spawning_pool_auto_spawn_info"  => d!(crate::tables::spawning_pool_auto_spawn_info::SpawningPoolAutoSpawnInfo),
+        "special_mode_info"              => d!(crate::tables::special_mode_info::SpecialModeInfo),
+        "stage_info"                     => d!(crate::tables::stage_info::StageInfo),
+        "store_info"                     => d!(crate::tables::store_info::StoreInfo),
+        "sub_level_info"                 => d!(crate::tables::sub_level_info::SubLevelInfo),
+        "terrain_region_auto_spawn_info" => d!(crate::tables::terrain_region_auto_spawn_info::TerrainRegionAutoSpawnInfo),
+
+        // ── sequential tables ─────────────────────────────────────────────
+        "action_point_info"              => d!(crate::tables::action_point_info::ActionPointInfo),
+        "action_restriction_order_info"  => d!(crate::tables::action_restriction_order_info::ActionRestrictionOrderInfo),
+        "aiaction_attribute_info"        => d!(crate::tables::aiaction_attribute_info::AIActionAttributeInfo),
+        "aidialog_type_info"             => d!(crate::tables::aidialog_type_info::AIDialogTypeInfo),
+        "aievent_table_info"             => d!(crate::tables::aievent_table_info::AIEventTableInfo),
+        "aimemory_info"                  => d!(crate::tables::aimemory_info::AIMemoryInfo),
+        "aimove_speed_info"              => d!(crate::tables::aimove_speed_info::AIMoveSpeedInfo),
+        "ally_group_info"                => d!(crate::tables::ally_group_info::AllyGroupInfo),
+        "auto_spawn_filter_info"         => d!(crate::tables::auto_spawn_filter_info::AutoSpawnFilterInfo),
+        "board_info"                     => d!(crate::tables::board_info::BoardInfo),
+        "breakable_object_info"          => d!(crate::tables::breakable_object_info::BreakableObjectInfo),
+        "category_group_info"            => d!(crate::tables::category_group_info::CategoryGroupInfo),
+        "category_info"                  => d!(crate::tables::category_info::CategoryInfo),
+        "character_appearance_index_info" => d!(crate::tables::character_appearance_index_info::CharacterAppearanceIndexInfo),
+        "character_group_info"           => d!(crate::tables::character_group_info::CharacterGroupInfo),
+        "craft_tool_group_info"          => d!(crate::tables::craft_tool_group_info::CraftToolGroupInfo),
+        "craft_tool_info"                => d!(crate::tables::craft_tool_info::CraftToolInfo),
+        "detect_detail_info"             => d!(crate::tables::detect_detail_info::DetectDetailInfo),
+        "detect_info"                    => d!(crate::tables::detect_info::DetectInfo),
+        "detect_reaction_info"           => d!(crate::tables::detect_reaction_info::DetectReactionInfo),
+        "dialog_voice_info"              => d!(crate::tables::dialog_voice_info::DialogVoiceInfo),
+        "dye_color_group_info"           => d!(crate::tables::dye_color_group_info::DyeColorGroupInfo),
+        "equip_type_info"                => d!(crate::tables::equip_type_info::EquipTypeInfo),
+        "faction_group_info"             => d!(crate::tables::faction_group_info::FactionGroupInfo),
+        "faction_relation_group_info"    => d!(crate::tables::faction_relation_group_info::FactionRelationGroupInfo),
+        "faction_waypoint_info"          => d!(crate::tables::faction_waypoint_info::FactionWaypointInfo),
+        "fail_message_info"              => d!(crate::tables::fail_message_info::FailMessageInfo),
+        "field_info"                     => d!(crate::tables::field_info::FieldInfo),
+        "field_level_name_table_info"    => d!(crate::tables::field_level_name_table_info::FieldLevelNameTableInfo),
+        "formation_info"                 => d!(crate::tables::formation_info::FormationInfo),
+        "game_advice_group_info"         => d!(crate::tables::game_advice_group_info::GameAdviceGroupInfo),
+        "game_advice_info"               => d!(crate::tables::game_advice_info::GameAdviceInfo),
+        "game_play_variable_info"        => d!(crate::tables::game_play_variable_info::GamePlayVariableInfo),
+        "gimmick_event_table_info"       => d!(crate::tables::gimmick_event_table_info::GimmickEventTableInfo),
+        "gimmick_gate_connection_info"   => d!(crate::tables::gimmick_gate_connection_info::GimmickGateConnectionInfo),
+        "gimmick_gate_info"              => d!(crate::tables::gimmick_gate_info::GimmickGateInfo),
+        "global_game_event_group_info"   => d!(crate::tables::global_game_event_group_info::GlobalGameEventGroupInfo),
+        "house_info"                     => d!(crate::tables::house_info::HouseInfo),
+        "item_group_info"                => d!(crate::tables::item_group_info::ItemGroupInfo),
+        "job_info"                       => d!(crate::tables::job_info::JobInfo),
+        "key_map_setting_list_info"      => d!(crate::tables::key_map_setting_list_info::KeyMapSettingListInfo),
+        "knowledge_group_info"           => d!(crate::tables::knowledge_group_info::KnowledgeGroupInfo),
+        "level_action_point_info"        => d!(crate::tables::level_action_point_info::LevelActionPointInfo),
+        "local_string_info"              => d!(crate::tables::local_string_info::LocalStringInfo),
+        "material_blood_decal_info"      => d!(crate::tables::material_blood_decal_info::MaterialBloodDecalInfo),
+        "material_match_info"            => d!(crate::tables::material_match_info::MaterialMatchInfo),
+        "material_relation_info"         => d!(crate::tables::material_relation_info::MaterialRelationInfo),
+        "mercenary_group_info"           => d!(crate::tables::mercenary_group_info::MercenaryGroupInfo),
+        "mercenary_info"                 => d!(crate::tables::mercenary_info::MercenaryInfo),
+        "part_prefab_dye_slot_info"      => d!(crate::tables::part_prefab_dye_slot_info::PartPrefabDyeSlotInfo),
+        "part_prefab_dye_texture_pallete_info" => d!(crate::tables::part_prefab_dye_texture_pallete_info::PartPrefabDyeTexturePalleteInfo),
+        "pattern_description_info"       => d!(crate::tables::pattern_description_info::PatternDescriptionInfo),
+        "platform_achievement_info"      => d!(crate::tables::platform_achievement_info::PlatformAchievementInfo),
+        "quest_gauge_info"               => d!(crate::tables::quest_gauge_info::QuestGaugeInfo),
+        "quest_group_info"               => d!(crate::tables::quest_group_info::QuestGroupInfo),
+        "quick_time_event_info"          => d!(crate::tables::quick_time_event_info::QuickTimeEventInfo),
+        "relation_info"                  => d!(crate::tables::relation_info::RelationInfo),
+        "reserve_slot_info"              => d!(crate::tables::reserve_slot_info::ReserveSlotInfo),
+        "skill_group_info"               => d!(crate::tables::skill_group_info::SkillGroupInfo),
+        "skill_tree_group_info"          => d!(crate::tables::skill_tree_group_info::SkillTreeGroupInfo),
+        "skill_tree_info"                => d!(crate::tables::skill_tree_info::SkillTreeInfo),
+        "socket_group_info"              => d!(crate::tables::socket_group_info::SocketGroupInfo),
+        "socket_info"                    => d!(crate::tables::socket_info::SocketInfo),
+        "status_group_info"              => d!(crate::tables::status_group_info::StatusGroupInfo),
+        "status_info"                    => d!(crate::tables::status_info::StatusInfo),
+        "string_info"                    => d!(crate::tables::string_info::StringInfo),
+        "terrain_region_navi_info"       => d!(crate::tables::terrain_region_navi_info::TerrainRegionNaviInfo),
+        "tribe_info"                     => d!(crate::tables::tribe_info::TribeInfo),
+        "trigger_region_info"            => d!(crate::tables::trigger_region_info::TriggerRegionInfo),
+        "ui_social_action_info"          => d!(crate::tables::ui_social_action_info::UISocialActionInfo),
+        "uifilter_group_info"            => d!(crate::tables::uifilter_group_info::UIFilterGroupInfo),
+        "uimap_texture_info"             => d!(crate::tables::uimap_texture_info::UIMapTextureInfo),
+        "valid_schedule_action_info"     => d!(crate::tables::valid_schedule_action_info::ValidScheduleActionInfo),
+        "vehicle_info"                   => d!(crate::tables::vehicle_info::VehicleInfo),
+        "vibrate_pattern_info"           => d!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
+        "wanted_info"                    => d!(crate::tables::wanted_info::WantedInfo),
+
+        _ => return Err(PyValueError::new_err(format!("unknown table: '{}'", table_name))),
+    })
+}
+
+#[pyfunction]
+#[pyo3(signature = (table_name, pabgb, pabgh=None))]
+pub fn parse_table(
+    py: Python<'_>,
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+) -> PyResult<Py<PyAny>> {
+    let values = dispatch_parse(table_name, pabgb, pabgh)?;
+    let list = PyList::empty(py);
+    for v in values {
+        list.append(json_to_py(py, &v)?)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn serialize_table(
+    py: Python<'_>,
+    table_name: &str,
+    items: &Bound<'_, PyList>,
+) -> PyResult<Py<PyAny>> {
+    let json_items: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = dispatch_serialize_bytes(table_name, &json_items)?;
+    Ok(PyBytes::new(py, &data).into_any().unbind())
+}
+
+#[pyfunction]
+pub fn write_table_to_file(
+    table_name: &str,
+    items: &Bound<'_, PyList>,
+    path: &str,
+) -> PyResult<()> {
+    let json_items: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let data = dispatch_serialize_bytes(table_name, &json_items)?;
+    std::fs::write(path, &data).map_err(|e| PyIOError::new_err(e.to_string()))
+}
+
 // ── Registration ───────────────────────────────────────────────────────────
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -697,5 +1212,16 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paloc_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_paloc, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_skillinfo_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_skillinfo_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_skillinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(write_skillinfo_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_buffinfo_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_buffinfo_from_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_buffinfo, m)?)?;
+    m.add_function(wrap_pyfunction!(write_buffinfo_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_table, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_table, m)?)?;
+    m.add_function(wrap_pyfunction!(write_table_to_file, m)?)?;
     Ok(())
 }

@@ -9,6 +9,7 @@ pub mod paz;
 pub mod paloc;
 pub mod variant;
 pub mod variants;
+pub mod optional_game_condition;
 
 pub use types::*;
 
@@ -200,7 +201,7 @@ macro_rules! py_binary_struct {
             // then serialize back through `write_from_json_dict`. Field
             // names match Python's exactly.
             pub fn to_json_dict(&self) -> ::serde_json::Map<String, ::serde_json::Value> {
-                use $crate::json_traits::ToJsonValue;
+                #[allow(unused_imports)] use $crate::json_traits::ToJsonValue;
                 let mut d = ::serde_json::Map::new();
                 $(d.insert(stringify!($field).to_string(), self.$field.to_json_value());)*
                 d

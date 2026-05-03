@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Hand-corrected: IDA-derived parser for `RelationInfo.pabgb`.
 //!
 //! Per IDA sub_1410F4C70 + sub_14110AA70:
@@ -37,8 +38,8 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\relationinfo.pabgb";
-    const PABGH_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\relationinfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/relationinfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/relationinfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -73,5 +74,41 @@ mod tests {
             item.write_to(&mut out).unwrap();
         }
         assert_eq!(out, data, "relationinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let Ok(pabgh) = std::fs::read(PABGH_PATH) else {
+            eprintln!("SKIP: missing pabgh fixture");
+            return;
+        };
+        let count = u16::from_le_bytes(pabgh[0..2].try_into().unwrap()) as usize;
+        let mut offsets = Vec::with_capacity(count);
+        for i in 0..count {
+            let pos = 2 + i * 5;
+            let off = u32::from_le_bytes(pabgh[pos + 1..pos + 5].try_into().unwrap()) as usize;
+            offsets.push(off);
+        }
+        offsets.sort();
+
+        for (i, &start) in offsets.iter().enumerate() {
+            let mut o = start;
+            let item = RelationInfo::read_from(&data, &mut o).unwrap();
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            RelationInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
     }
 }

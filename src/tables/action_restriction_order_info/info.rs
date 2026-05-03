@@ -10,6 +10,17 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
+// Hand-corrected: the auto-extractor saw spawn_action_list elements as
+// [u8;12] but empirical sweep across all 29 vanilla elements shows the
+// trailing u32 is always 0, with the first 8 bytes carrying real data.
+// Promoted to (u64 + u32 reserved) for field-level JSON access.
+py_binary_struct! {
+    pub struct SpawnActionEntry {
+        pub hash: u64,
+        pub reserved: u32,
+    }
+}
+
 py_binary_struct! {
     pub struct ActionRestrictionOrderInfo<'a> {
         pub key: u32,
@@ -21,7 +32,7 @@ py_binary_struct! {
         pub action_restriction_type: u8,
         pub regist_type_status: u32,
         pub skill_info: u32,
-        pub spawn_action_list: CArray<[u8; 12]>,
+        pub spawn_action_list: CArray<SpawnActionEntry>,
         pub ai_event_tag_name_hash: u32,
         pub ignore_catch: u8,
         pub ignore_throw: u8,
@@ -37,7 +48,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\actionrestrictionorderinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/actionrestrictionorderinfo.pabgb";
 
     #[test]
     fn roundtrip() {
@@ -56,5 +67,34 @@ mod tests {
             item.write_to(&mut out).unwrap();
         }
         assert_eq!(out, data, "actionrestrictionorderinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(ActionRestrictionOrderInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+
+        for (i, item) in items.iter().enumerate() {
+            let _ = &item;
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            ActionRestrictionOrderInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
     }
 }

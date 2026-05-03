@@ -5,10 +5,22 @@
 //! Mac binary __cstring declaration order. Round-trip-validated against
 //! the vanilla pabgb dump from the live game install.
 //!
-//! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
+//! VibratePatternInfoData (13-byte element) per catalog: 4 fields
+//! `_vibrateDirection` + `_startTime` + `_duration` + `_power`. Type
+//! mapping is u8 + 3×f32 (1+4+4+4=13). Probed all 43 vanilla elements
+//! (129 f32 values across the live dump) — 0 NaN, safe for typed f32.
 
 use crate::binary::*;
 use crate::py_binary_struct;
+
+py_binary_struct! {
+    pub struct VibratePatternInfoData {
+        pub vibrate_direction: u8,
+        pub start_time: f32,
+        pub duration: f32,
+        pub power: f32,
+    }
+}
 
 py_binary_struct! {
     pub struct VibratePatternInfo<'a> {
@@ -17,7 +29,7 @@ py_binary_struct! {
         pub is_blocked: u8,
         pub ease_type: u8,
         pub reverse_ease: u8,
-        pub vibrate_pattern_data_list: CArray<[u8; 13]>,
+        pub vibrate_pattern_data_list: CArray<VibratePatternInfoData>,
     }
 }
 
@@ -25,7 +37,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\vibratepatterninfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/vibratepatterninfo.pabgb";
 
     #[test]
     fn roundtrip() {
@@ -44,5 +56,34 @@ mod tests {
             item.write_to(&mut out).unwrap();
         }
         assert_eq!(out, data, "vibratepatterninfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(VibratePatternInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+
+        for (i, item) in items.iter().enumerate() {
+            let _ = &item;
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            VibratePatternInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
     }
 }

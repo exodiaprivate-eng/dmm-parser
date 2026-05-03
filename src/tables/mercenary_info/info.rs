@@ -29,7 +29,7 @@ py_binary_struct! {
         pub default_limit_hire_count: u32,
         pub max_limit_hire_count: u32,
         pub far_from_leader_option: u8,
-        pub combat_targeting_flags: [u8; 4],
+        pub combat_targeting_flags: u32,
         pub is_controllable: u8,
         pub is_playable: u8,
         pub set_new_mercenary_is_main: u8,
@@ -48,7 +48,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\mercenaryinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/mercenaryinfo.pabgb";
 
     #[test]
     fn roundtrip() {
@@ -67,5 +67,33 @@ mod tests {
             item.write_to(&mut out).unwrap();
         }
         assert_eq!(out, data, "mercenaryinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let mut offset = 0;
+        let mut items = Vec::new();
+        while offset < data.len() {
+            items.push(MercenaryInfo::read_from(&data, &mut offset).unwrap());
+        }
+        assert_eq!(offset, data.len(), "did not consume all bytes");
+
+        for (i, item) in items.iter().enumerate() {
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            MercenaryInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, item.key
+            );
+        }
     }
 }

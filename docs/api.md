@@ -255,6 +255,212 @@ data = dmm_parser.serialize_iteminfo(items)
 
 ---
 
+## Localization (PALOC)
+
+### `parse_paloc_bytes(data: bytes) -> list[dict]`
+
+Parse a localization file (`.paloc` format) from raw bytes.
+
+```python
+with open("localstring_eng.paloc", "rb") as f:
+    entries = dmm_parser.parse_paloc_bytes(f.read())
+```
+
+**Returns:** List of dicts with fields: `unk_id` (`int`), `string_key` (`str`), `string_value` (`str`).
+
+### `serialize_paloc(items: list[dict]) -> bytes`
+
+Serialize a list of localization entries back to raw bytes.
+
+```python
+data = dmm_parser.serialize_paloc(entries)
+```
+
+---
+
+## SkillInfo (pabgb + pabgh)
+
+### `parse_skillinfo_from_file(pabgb_path: str, pabgh_path: str) -> list[dict]`
+
+Parse all skill records from binary files.
+
+```python
+skills = dmm_parser.parse_skillinfo_from_file("skill.pabgb", "skill.pabgh")
+```
+
+### `parse_skillinfo_from_bytes(pabgb: bytes, pabgh: bytes) -> list[dict]`
+
+Parse all skill records from raw bytes.
+
+### `serialize_skillinfo(items: list[dict]) -> bytes`
+
+Serialize a list of SkillInfo dicts to raw bytes.
+
+### `write_skillinfo_to_file(items: list[dict], path: str) -> None`
+
+Serialize and write to a file.
+
+**SkillInfo fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `int` | Unique skill ID (u32) |
+| `string_key` | `str` | String identifier |
+| `is_blocked` | `int` | Blocked flag (u8) |
+| `cooltime` | `int` | Cooldown (u32) |
+| `buff_level_list` | `list[list[dict]]` | Nested JSON array — `CArray<CArray<BuffDataOptional>>` per level; each BuffData dict has `base_fields` + `variant_payload_b64` |
+| `skill_group_key` | `int` | SkillGroupKey (u32) |
+| `parent_skill` | `int` | Parent SkillKey (u32) |
+| `learn_level` | `int` | Required level to learn (u32) |
+| `apply_type` | `int` | Apply type (u8) |
+| `icon_path` | `int` | StringInfoKey (u32) |
+| `need_upgrade_item_info` | `int` | ItemKey (u32) |
+| `need_upgrade_item_count_graph` | `dict` | See [GraphData](#graphdata) |
+| `need_upgrade_experience_graph` | `dict` | See [GraphData](#graphdata) |
+| `usable_character_info_list` | `list[int]` | CharacterKey list (u32) |
+| `usable_condition` | `list[int]` | ConditionKey list (u32) |
+| `learn_knowledge_info` | `int` | KnowledgeKey (u32) |
+| `faction_info` | `int` | FactionKey (u32) |
+| `use_resource_stat_list` | `list[dict]` | See [ResourceStat](#resourcestat) |
+| `use_resource_item_list` | `list[dict]` | See [ResourceItem](#resourceitem) |
+| `use_driver_resource_stat_list` | `list[dict]` | See [ResourceStat](#resourcestat) |
+| `use_battery_stat` | `int` | (u64) |
+| `is_ui_use_allowed` | `int` | (u8) |
+| `is_learn_use_artifact` | `int` | (u8) |
+| `allow_skill_with_low_resource` | `int` | (u8) |
+| `is_use_child_pattern_description_buff_data` | `int` | (u8) |
+| `damage_type` | `int` | (u8) |
+| `ui_type` | `int` | (u8) |
+| `reserve_slot_info_list` | `list[int]` | ReserveSlotKey list (u32) |
+| `max_level` | `int` | Maximum skill level (u32) |
+| `skill_group_key_list` | `list[int]` | SkillGroupKey list (u16) |
+| `buff_sustain_flag` | `int` | (u32) |
+| `dev_skill_name` | `str` | Internal dev name |
+| `dev_skill_desc` | `str` | Internal dev description |
+| `video_path` | `int` | StringInfoKey (u32) |
+
+---
+
+## BuffInfo (pabgb + pabgh)
+
+### `parse_buffinfo_from_file(pabgb_path: str, pabgh_path: str) -> list[dict]`
+
+Parse all buff records from binary files.
+
+```python
+buffs = dmm_parser.parse_buffinfo_from_file("buffinfo.pabgb", "buffinfo.pabgh")
+```
+
+### `parse_buffinfo_from_bytes(pabgb: bytes, pabgh: bytes) -> list[dict]`
+
+Parse all buff records from raw bytes.
+
+### `serialize_buffinfo(items: list[dict]) -> bytes`
+
+Serialize a list of BuffInfo dicts to raw bytes.
+
+### `write_buffinfo_to_file(items: list[dict], path: str) -> None`
+
+Serialize and write to a file.
+
+**BuffInfo fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `int` | Unique buff ID (u32) |
+| `string_key` | `str` | String identifier |
+| `is_blocked` | `int` | Blocked flag (u8) |
+| `buff_data_list` | `list[dict]` | Typed JSON array — `CArray<BuffDataEntry>`; each entry has `base_fields` dict + `variant_payload_b64` (variant body as base64 for unrecognized variants) |
+| `min_level` | `int` | Minimum buff level (u32) |
+| `max_level` | `int` | Maximum buff level (u32) |
+| `sequencer_file_name` | `str` | Sequencer asset path |
+| `buff_level_calculate_type` | `int` | Level calculation type (u8) |
+| `ui_template_name` | `int` | StringInfoKey (u32) |
+| `ui_component_name` | `int` | StringInfoKey (u32) |
+| `elemental_status_info` | `int` | ElementalStatusKey (u32) |
+| `is_use_skill_info_pattern_description` | `int` | (u8) |
+| `use_counting_by_global_timer` | `int` | (u8) |
+
+---
+
+## Generic Table API
+
+Three functions provide uniform read/write access to all 122 game data tables without needing
+table-specific helpers. Each function takes the table name as a lowercase snake_case string
+matching the `.pabgb` filename (without extension).
+
+### `parse_table(table_name: str, pabgb: bytes, pabgh: bytes | None = None) -> list[dict]`
+
+Parse all records from a table body. For pabgh-bounded tables `pabgh` is required; for
+sequential tables it is ignored.
+
+```python
+# pabgh-bounded table (pabgh required)
+items = dmm_parser.parse_table("drop_set_info", pabgb_bytes, pabgh_bytes)
+
+# sequential table (no pabgh needed)
+items = dmm_parser.parse_table("vehicle_info", pabgb_bytes)
+```
+
+Raises `ValueError` if `table_name` is unknown or a pabgh-bounded table is called without `pabgh`.
+
+### `serialize_table(table_name: str, items: list[dict]) -> bytes`
+
+Serialize a list of record dicts back to raw pabgb bytes.
+
+```python
+raw = dmm_parser.serialize_table("drop_set_info", items)
+```
+
+### `write_table_to_file(table_name: str, items: list[dict], path: str) -> None`
+
+Serialize and write directly to a file.
+
+```python
+dmm_parser.write_table_to_file("vehicle_info", items, "vehicle_info.pabgb")
+```
+
+### Supported tables
+
+**pabgh-bounded** (pabgh file required for parsing):
+
+`ai_dialog_string_info`, `bitmap_position_info`, `buff_info`, `character_change_info`,
+`character_info`, `condition_info`, `drop_set_info`, `effect_info`, `elemental_material_info`,
+`equip_info`, `equip_slot_info`, `faction_info`, `faction_node_info`, `faction_node_spawn_info`,
+`faction_spawn_data_info`, `field_revive_info`, `frame_event_attr_group_info`,
+`game_event_handler_info`, `game_global_effect_info`, `game_level_info`, `game_play_trigger_info`,
+`gimmick_group_info`, `gimmick_info`, `global_game_event_info`, `global_stage_sequencer_info`,
+`interaction_info`, `inventory_info`, `item_use_info`, `knowledge_info`,
+`level_gimmick_scene_object_info`, `mini_game_data_info`, `mission_info`, `multi_change_info`,
+`npc_info`, `platform_entitlement_info`, `quest_info`, `region_info`, `royal_supply_info`,
+`sequencer_spawn_info`, `skill_info`, `spawning_pool_auto_spawn_info`, `special_mode_info`,
+`stage_info`, `store_info`, `sub_level_info`, `terrain_region_auto_spawn_info`
+
+**sequential** (no pabgh needed):
+
+`action_point_info`, `action_restriction_order_info`, `aiaction_attribute_info`,
+`aidialog_type_info`, `aievent_table_info`, `aimemory_info`, `aimove_speed_info`,
+`ally_group_info`, `auto_spawn_filter_info`, `board_info`, `breakable_object_info`,
+`category_group_info`, `category_info`, `character_appearance_index_info`, `character_group_info`,
+`craft_tool_group_info`, `craft_tool_info`, `detect_detail_info`, `detect_info`,
+`detect_reaction_info`, `dialog_voice_info`, `dye_color_group_info`, `equip_type_info`,
+`faction_group_info`, `faction_relation_group_info`, `faction_waypoint_info`, `fail_message_info`,
+`field_info`, `field_level_name_table_info`, `formation_info`, `game_advice_group_info`,
+`game_advice_info`, `game_play_variable_info`, `gimmick_event_table_info`,
+`gimmick_gate_connection_info`, `gimmick_gate_info`, `global_game_event_group_info`, `house_info`,
+`item_group_info`, `job_info`, `key_map_setting_list_info`, `knowledge_group_info`,
+`level_action_point_info`, `local_string_info`, `material_blood_decal_info`, `material_match_info`,
+`material_relation_info`, `mercenary_group_info`, `mercenary_info`, `part_prefab_dye_slot_info`,
+`part_prefab_dye_texture_pallete_info`, `pattern_description_info`, `platform_achievement_info`,
+`quest_gauge_info`, `quest_group_info`, `quick_time_event_info`, `relation_info`,
+`reserve_slot_info`, `skill_group_info`, `skill_tree_group_info`, `skill_tree_info`,
+`socket_group_info`, `socket_info`, `status_group_info`, `status_info`, `string_info`,
+`terrain_region_navi_info`, `tribe_info`, `trigger_region_info`, `ui_social_action_info`,
+`uifilter_group_info`, `uimap_texture_info`, `valid_schedule_action_info`, `vehicle_info`,
+`vibrate_pattern_info`, `wanted_info`
+
+---
+
 ## Data Types
 
 All data is returned as plain Python dicts, lists, and primitives. No custom classes are used.
@@ -267,6 +473,7 @@ All data is returned as plain Python dicts, lists, and primitives. No custom cla
 | `i8`, `i64` | `int` | |
 | `f32` | `float` | |
 | `CString` | `str` | |
+| `CBytes` | `bytes` | Raw byte string (u32 len + bytes, no UTF-8 check) |
 | `CArray<T>` | `list[T]` | |
 | `COptional<T>` | `T \| None` | |
 | `LocalizableString` | `dict` | See [LocalizableString](#localizablestring) |
@@ -799,6 +1006,41 @@ Variant type with a type tag.
     "unit_data_list_map": [dict]    # MoneyUnitEntry list
 }
 ```
+
+### GraphData
+
+```python
+{
+    "a": int,  # u64
+    "b": int,  # u64
+    "c": int,  # u64
+    "d": int   # u32
+}
+```
+
+### ResourceStat
+
+```python
+{
+    "a": int,         # u8
+    "lookup_b": int,  # u32
+    "c": int,         # u8
+    "d": int,         # u64
+    "lookup_e": int,  # u32
+    "lookup_f": int   # u32
+}
+```
+
+### ResourceItem
+
+```python
+{
+    "lookup": int,  # u32
+    "value": int    # u64
+}
+```
+
+---
 
 ### MoneyUnitEntry
 

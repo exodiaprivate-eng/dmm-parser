@@ -10,12 +10,12 @@
 //!   1. u32 key
 //!   2. CString string_key
 //!   3. u8 is_blocked
-//!   4. [u8; 8] raw_24
+//!   4. u64 raw_24
 //!   5. u32 u32_32
 //!   6. u32 lookup_36 (sub_1410FF5C0 → qword_145F0DA00)
 //!   7. u32 lookup_38 (sub_1410FF5C0 → qword_145F0DA00)
 //!   8. CArray<ReserveSlotPairA> pair_list_a (inline: u32 lookup
-//!      sub_1410FF430 + [u8; 8])
+//!      sub_1410FF430 + u64)
 //!   9. CString second_string
 //!  10. u8 u8_64
 //!  11. u8 u8_65
@@ -33,7 +33,7 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct ReserveSlotPairA {
         pub lookup: u32,
-        pub raw_bytes: [u8; 8],
+        pub raw_bytes: u64,
     }
 }
 
@@ -49,7 +49,7 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub raw_24: [u8; 8],
+        pub raw_24: u64,
         pub u32_32: u32,
         pub lookup_36: u32,
         pub lookup_38: u32,
@@ -70,8 +70,8 @@ py_binary_struct! {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\reserveslot.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\reserveslot.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/reserveslot.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/reserveslot.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -90,5 +90,34 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "reserveslot roundtrip mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut c = *start;
+            let item = ReserveSlotInfo::read_from(&data, &mut c).unwrap();
+            assert_eq!(c, *end, "entry {} key=0x{:x}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            ReserveSlotInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
+            );
+        }
     }
 }

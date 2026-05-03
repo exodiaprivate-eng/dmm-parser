@@ -17,11 +17,11 @@
 //! serde_json::Number's full integer range (it stores them losslessly even
 //! though JSON proper has no integer type).
 
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{json, Map, Value};
 use std::io;
 
-use crate::binary::{CArray, COptional, CString, LocalizableString};
+use crate::binary::{CArray, CBytes, COptional, CString, LocalizableString};
 
 // ── Traits ────────────────────────────────────────────────────────────────────
 
@@ -207,6 +207,25 @@ impl WriteJsonValue for f32 {
 // ── Fixed-size arrays ─────────────────────────────────────────────────────────
 // [u8; N] base64 impl lives in `binary/arrays.rs` (predates this module).
 
+impl ToJsonValue for [f32; 2] {
+    fn to_json_value(&self) -> Value {
+        Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
+    }
+}
+impl WriteJsonValue for [f32; 2] {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            format!("expected array of 2 f32, got {}", type_name(v))))?;
+        if arr.len() != 2 {
+            return err(format!("expected 2 elements for [f32; 2], got {}", arr.len()));
+        }
+        for elem in arr {
+            f32::write_from_json(w, elem)?;
+        }
+        Ok(())
+    }
+}
+
 impl ToJsonValue for [f32; 3] {
     fn to_json_value(&self) -> Value {
         Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
@@ -218,6 +237,25 @@ impl WriteJsonValue for [f32; 3] {
             format!("expected array of 3 f32, got {}", type_name(v))))?;
         if arr.len() != 3 {
             return err(format!("expected 3 elements for [f32; 3], got {}", arr.len()));
+        }
+        for elem in arr {
+            f32::write_from_json(w, elem)?;
+        }
+        Ok(())
+    }
+}
+
+impl ToJsonValue for [f32; 4] {
+    fn to_json_value(&self) -> Value {
+        Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
+    }
+}
+impl WriteJsonValue for [f32; 4] {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            format!("expected array of 4 f32, got {}", type_name(v))))?;
+        if arr.len() != 4 {
+            return err(format!("expected 4 elements for [f32; 4], got {}", arr.len()));
         }
         for elem in arr {
             f32::write_from_json(w, elem)?;
@@ -241,6 +279,23 @@ impl WriteJsonValue for [u32; 2] {
         for elem in arr {
             u32::write_from_json(w, elem)?;
         }
+        Ok(())
+    }
+}
+
+impl ToJsonValue for [u32; 3] {
+    fn to_json_value(&self) -> Value {
+        Value::Array(self.iter().map(|x| Value::from(*x)).collect())
+    }
+}
+impl WriteJsonValue for [u32; 3] {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            format!("expected array of 3 u32, got {}", type_name(v))))?;
+        if arr.len() != 3 {
+            return err(format!("expected 3 elements for [u32; 3], got {}", arr.len()));
+        }
+        for elem in arr { u32::write_from_json(w, elem)?; }
         Ok(())
     }
 }
@@ -281,6 +336,28 @@ impl WriteJsonValue for CString<'_> {
         }
         w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
         w.extend_from_slice(bytes);
+        Ok(())
+    }
+}
+
+// ── CBytes ────────────────────────────────────────────────────────────────────
+
+impl ToJsonValue for CBytes<'_> {
+    fn to_json_value(&self) -> Value {
+        Value::String(B64.encode(self.data))
+    }
+}
+impl WriteJsonValue for CBytes<'_> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let s = v.as_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+            "expected base64 string for CBytes"))?;
+        let bytes = B64.decode(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+            format!("CBytes base64 decode: {}", e)))?;
+        if bytes.len() > u32::MAX as usize {
+            return err(format!("CBytes too long ({} bytes)", bytes.len()));
+        }
+        w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+        w.extend_from_slice(&bytes);
         Ok(())
     }
 }

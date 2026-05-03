@@ -15,7 +15,24 @@ use super::condition_gimmick_data::ConditionGimmickData;
 use super::global_effect_condition_data::GlobalEffectConditionData;
 use super::schedule_complete_condition_data::ScheduleCompleteConditionData;
 use crate::binary::*;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+fn decode_b64(v: &Value, ctx: &str) -> io::Result<Vec<u8>> {
+    let s = v.as_str().ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, format!("{}: expected base64 string", ctx))
+    })?;
+    B64.decode(s).map_err(|e| {
+        io::Error::new(io::ErrorKind::InvalidData, format!("{}: invalid base64: {}", ctx, e))
+    })
+}
+
+fn get_field<'a>(obj: &'a Map<String, Value>, name: &str) -> io::Result<&'a Value> {
+    obj.get(name).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, format!("missing field {:?}", name))
+    })
+}
 
 /// Full GameCondition wire format: a recursive tree + a 3-byte footer.
 ///
@@ -83,6 +100,70 @@ impl<'a> GameCondition<'a> {
             Self::Raw(bytes) => w.write_all(bytes),
         }
     }
+
+    /// JSON shape:
+    /// - `kind`: "decoded" | "raw"
+    /// - when "decoded": `tree` (recursive node JSON), `tail_a`, `tail_b`, `tail_c` (u8s)
+    /// - when "raw": `raw_b64` (base64 string of full wrapper bytes)
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        match self {
+            Self::Decoded { tree, tail_a, tail_b, tail_c } => {
+                m.insert("kind".into(), Value::String("decoded".into()));
+                m.insert("tree".into(), tree.to_json_value());
+                m.insert("tail_a".into(), Value::Number((*tail_a).into()));
+                m.insert("tail_b".into(), Value::Number((*tail_b).into()));
+                m.insert("tail_c".into(), Value::Number((*tail_c).into()));
+            }
+            Self::Raw(bytes) => {
+                m.insert("kind".into(), Value::String("raw".into()));
+                m.insert("raw_b64".into(), Value::String(B64.encode(bytes)));
+            }
+        }
+        Value::Object(m)
+    }
+
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "GameCondition: expected object")
+        })?;
+        let kind = get_field(obj, "kind")?
+            .as_str()
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "GameCondition.kind: expected string")
+            })?;
+        match kind {
+            "decoded" => {
+                GameConditionNode::write_from_json(w, get_field(obj, "tree")?)?;
+                for name in ["tail_a", "tail_b", "tail_c"] {
+                    let n = get_field(obj, name)?.as_u64().ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("GameCondition.{}: expected u8", name),
+                        )
+                    })?;
+                    if n > u8::MAX as u64 {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("GameCondition.{}: {} out of u8 range", name, n),
+                        ));
+                    }
+                    w.push(n as u8);
+                }
+            }
+            "raw" => {
+                let bytes = decode_b64(get_field(obj, "raw_b64")?, "GameCondition.raw_b64")?;
+                w.extend_from_slice(&bytes);
+            }
+            other => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("GameCondition.kind: unknown {:?}", other),
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -139,10 +220,24 @@ impl<'a> GameConditionNode<'a> {
             6 => Ok(Self::ConditionGimmickData(ConditionGimmickData::read_from(data, offset)?)),
             7 => Ok(Self::StageChart(ConditionDataStageChart::read_from(data, offset)?)),
             8 => Ok(Self::GlobalEffectConditionData(GlobalEffectConditionData::read_from(data, offset)?)),
-            other => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("unknown GameCondition case_tag: {}", other),
-            )),
+            other => {
+                // Capture surrounding wire bytes to help debug whether
+                // this is a real unhandled tag or a misalignment surfacing
+                // garbage. case_tag was at offset (*offset - 1).
+                let tag_off = offset.saturating_sub(1);
+                let ctx_start = tag_off.saturating_sub(8);
+                let ctx_end = (tag_off + 16).min(data.len());
+                let ctx = &data[ctx_start..ctx_end];
+                let ctx_hex: String = ctx.iter().map(|b| format!("{:02x}", b)).collect();
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "unknown GameCondition case_tag: {} at offset {} \
+                         (8 bytes before+16 after = {})",
+                        other, tag_off, ctx_hex,
+                    ),
+                ))
+            }
         }
     }
 
@@ -187,5 +282,139 @@ impl<'a> GameConditionNode<'a> {
                 g.write_to(w)
             }
         }
+    }
+
+    /// Tree-navigable JSON. Operator nodes recurse into typed children;
+    /// leaf nodes route through their family's typed `to_json_dict()`
+    /// (ConditionData, BranchConditionData, ScheduleCompleteConditionData,
+    /// ConditionGimmickData, StageChart, GlobalEffectConditionData).
+    pub fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        match self {
+            Self::BinaryOpA { left, right } => {
+                m.insert("case".into(), Value::String("BinaryOpA".into()));
+                m.insert("left".into(), left.to_json_value());
+                m.insert("right".into(), right.to_json_value());
+            }
+            Self::BinaryOpB { left, right } => {
+                m.insert("case".into(), Value::String("BinaryOpB".into()));
+                m.insert("left".into(), left.to_json_value());
+                m.insert("right".into(), right.to_json_value());
+            }
+            Self::UnaryOp { child } => {
+                m.insert("case".into(), Value::String("UnaryOp".into()));
+                m.insert("child".into(), child.to_json_value());
+            }
+            Self::ConditionData(c) => {
+                m.insert("case".into(), Value::String("ConditionData".into()));
+                m.insert("data".into(), Value::Object(c.to_json_dict()));
+            }
+            Self::BranchConditionData(b) => {
+                m.insert("case".into(), Value::String("BranchConditionData".into()));
+                m.insert("data".into(), Value::Object(b.to_json_dict()));
+            }
+            Self::ScheduleCompleteConditionData(s) => {
+                m.insert("case".into(), Value::String("ScheduleCompleteConditionData".into()));
+                m.insert("data".into(), Value::Object(s.to_json_dict()));
+            }
+            Self::ConditionGimmickData(g) => {
+                m.insert("case".into(), Value::String("ConditionGimmickData".into()));
+                m.insert("data".into(), Value::Object(g.to_json_dict()));
+            }
+            Self::StageChart(s) => {
+                m.insert("case".into(), Value::String("StageChart".into()));
+                m.insert("data".into(), Value::Object(s.to_json_dict()));
+            }
+            Self::GlobalEffectConditionData(g) => {
+                m.insert("case".into(), Value::String("GlobalEffectConditionData".into()));
+                m.insert("data".into(), Value::Object(g.to_json_dict()));
+            }
+        }
+        Value::Object(m)
+    }
+
+    /// Inverse of `to_json_value`. For operator nodes, recursively
+    /// constructs children. For leaf nodes, base64-decodes the wire
+    /// bytes and emits them after the case_tag byte.
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "GameConditionNode: expected object")
+        })?;
+        let case = get_field(obj, "case")?.as_str().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "GameConditionNode.case: expected string")
+        })?;
+        match case {
+            "BinaryOpA" => {
+                w.push(0u8);
+                Self::write_from_json(w, get_field(obj, "left")?)?;
+                Self::write_from_json(w, get_field(obj, "right")?)?;
+            }
+            "BinaryOpB" => {
+                w.push(1u8);
+                Self::write_from_json(w, get_field(obj, "left")?)?;
+                Self::write_from_json(w, get_field(obj, "right")?)?;
+            }
+            "UnaryOp" => {
+                w.push(2u8);
+                Self::write_from_json(w, get_field(obj, "child")?)?;
+            }
+            "ConditionData" => {
+                w.push(3u8);
+                let data_v = get_field(obj, "data")?;
+                let data_obj = data_v.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "GameConditionNode.ConditionData.data: expected object",
+                ))?;
+                ConditionData::write_from_json_dict(w, data_obj)?;
+            }
+            "BranchConditionData" => {
+                w.push(4u8);
+                let data_v = get_field(obj, "data")?;
+                let data_obj = data_v.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "GameConditionNode.BranchConditionData.data: expected object",
+                ))?;
+                BranchConditionData::write_from_json_dict(w, data_obj)?;
+            }
+            "ScheduleCompleteConditionData" => {
+                w.push(5u8);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ScheduleCompleteConditionData.data: expected object",
+                ))?;
+                ScheduleCompleteConditionData::write_from_json_dict(w, data_obj)?;
+            }
+            "ConditionGimmickData" => {
+                w.push(6u8);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ConditionGimmickData.data: expected object",
+                ))?;
+                ConditionGimmickData::write_from_json_dict(w, data_obj)?;
+            }
+            "StageChart" => {
+                w.push(7u8);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "StageChart.data: expected object",
+                ))?;
+                ConditionDataStageChart::write_from_json_dict(w, data_obj)?;
+            }
+            "GlobalEffectConditionData" => {
+                w.push(8u8);
+                let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "GlobalEffectConditionData.data: expected object",
+                ))?;
+                GlobalEffectConditionData::write_from_json_dict(w, data_obj)?;
+            }
+            other => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("GameConditionNode.case: unknown {:?}", other),
+                ));
+            }
+        }
+        Ok(())
     }
 }

@@ -1,9 +1,22 @@
 # ConditionInfo wiring roadmap
 
+> **Status note (2026-04-30)** — most of the actions below are DONE.
+> ConditionInfo is **Tier 1** (typed `game_condition: GameCondition<'a>`,
+> 100% byte-perfect round-trip on 8,934 entries; 99.8% Decoded into a
+> field-addressable tree, 0.2% Raw fallback for anti-disassembly tags).
+> The optional subcond block is wired in `ConditionData::read_from`
+> (see `condition_data.rs` `variant_skips_option_block` for class A/B/C
+> classification). The active per-tag recipe verification work has
+> moved upstream — see `docs/STATUS.md` "Stream-mode GameCondition"
+> section for live state and the `interaction_info::diag_raw_entries`
+> failure histogram. Keeping this file as a historical artifact of
+> how the rollout was scoped; do not action steps from below without
+> first confirming against current code.
+
 The GameCondition expression tree is fully mapped via IDA + Rust infrastructure.
-ConditionInfo currently remains blob-tail to preserve the 121/121 round-trip
-baseline. To finish wiring it as fully field-decoded, fix the per-variant byte
-recipes for the 53 VARIABLE-size ConditionData tags.
+Historical baseline: ConditionInfo originally remained blob-tail to preserve
+the 121/121 round-trip; that constraint is now resolved by the typed
+GameCondition wrapper.
 
 ## What's done
 
@@ -14,7 +27,7 @@ recipes for the 53 VARIABLE-size ConditionData tags.
 | 0 | sub_141E65740 | BinaryOp_A (recursive) | YES — `binary::variants::game_condition` |
 | 1 | sub_141E65D40 | BinaryOp_B (recursive) | YES |
 | 2 | sub_141E662D0 | UnaryOp (recursive) | YES |
-| 3 | sub_141C87CE0 | ConditionData (405 leaves) | partial — codegen done, ~55 wrong recipes |
+| 3 | sub_141C87CE0 | ConditionData (405 leaves) | YES — typed enum + per-tag dispatch; per-tag recipe verification ongoing (see `docs/STATUS.md`) |
 | 4 | sub_141D89730 | BranchConditionData (14 leaves) | codegen done — verify against data |
 | 5 | sub_141D8B1A0 | ScheduleCompleteConditionData | YES — `binary::variants::schedule_complete_condition_data` |
 | 6 | sub_141CB6480 | ConditionGimmickData | YES — `binary::variants::condition_gimmick_data` |
@@ -30,9 +43,14 @@ recipes for the 53 VARIABLE-size ConditionData tags.
 
 `binary::variants::game_condition::GameConditionNode<'a>` ties everything together with a recursive `read_from`/`write_to` matching the case table above.
 
-### Optional subcond on ConditionData
+### Optional subcond on ConditionData (DONE)
 
-`ConditionData` struct has fields `option_present: u8` and `option_data: Option<ConditionDataOptionData<'a>>`. Currently `read_from` does NOT consume these bytes (defaults to 0/None) because empirical testing showed the recipe's claim that slot 19 always reads them is wrong for at least some variants. Needs investigation.
+`ConditionData::option_block: Option<ConditionDataOptionBlock<'a>>` is
+now wired in `read_from`. Tags whose vtable[19] is the no-op
+`0x1402D3A80` (Class A) or anti-disassembly thunk `sub_14F0D...`
+(Class B) or empirical `0x1413B89E0` (Class C) skip the block via
+`variant_skips_option_block(disc)`; everything else reads
+`[u8 option_present][optional ConditionDataOptionData]`.
 
 ## What's blocking full wiring
 
@@ -65,9 +83,13 @@ The recipe `conditiondata_recipes.json` claims tag 206 has `tail_bytes: 0` — w
 
 3. **Verify the optional_subcond conditions**: Re-enable in `ConditionData::read_from`, identify breaks, determine if slot 19 is unconditional or has a guard.
 
-4. **Switch `ConditionInfo` to use `GameConditionNode`**: Replace `game_condition: Vec<u8>` with the typed enum. Run round-trip until 8934/8934 pass.
+4. **Switch `ConditionInfo` to use `GameConditionNode`** (DONE — see
+   `condition_info::info::ConditionInfo.game_condition: GameCondition<'a>`).
+   Round-trip is byte-perfect on 8,934/8,934 entries.
 
-5. **Update v3 docs**: Move ConditionInfo from blob-tail to fully field-decoded in `mod-authors-guide.md` (65 → 66 typed, 56 → 55 blob-tail).
+5. **Update v3 docs** (n/a — `mod-authors-guide.md` no longer exists in
+   this repo; per-table tier status now lives in `docs/STATUS.md` and
+   `docs/449_TABLE_CATALOG.md`).
 
 ## Why this matters
 
@@ -77,5 +99,5 @@ ConditionInfo is the highest-mod-author-value Tier 2 table — defines every que
 
 - `dmm-pabgb-aio/mac_extract/game_condition_tree_recipe.json` — full meta-dispatcher map
 - `dmm-pabgb-aio/mac_extract/conditiondata_empirical_observations.json` — per-tag byte counts from real data
-- `dmm-pabgb-aio/mac_extract/conditiondata_recipes.json` — auto-extracted recipe (has bugs in 53 VARIABLE tags)
-- Memory: `project_game_condition_tree.md`
+- `dmm-pabgb-aio/mac_extract/conditiondata_recipes.json` — auto-extracted recipe (had bugs in many VARIABLE tags; superseded by per-tag Win-IDA verification this session)
+- `docs/STATUS.md` — current state, per-tag fix log, regression-cycle history

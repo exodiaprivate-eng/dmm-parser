@@ -1,13 +1,13 @@
-//! Hand-corrected: IDA-derived parser for `SpawningPoolAutoSpawnInfo.pabgb`.
+//! Tier 1 — fully typed parser for `SpawningPoolAutoSpawnInfo.pabgb`.
 //!
-//! Per IDA sub_1410F9B80: 16 fields. _spawnList is polymorphic CArray via
-//! sub_1411092E0 (same as TerrainRegionAutoSpawnInfo). Tail probe reads
-//! CArray<u32> + CString + 4 u32 + 5 u8.
+//! Per IDA sub_1410F9B80: 16 fields. `_spawnList` is `CArray<AutoSpawnEntry>`
+//! via sub_1411092E0 + sub_1410FA2A0 (shared with
+//! TerrainRegionAutoSpawnInfo; element layout in
+//! `crate::binary::variants::auto_spawn_entry`).
 
-use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
+use crate::binary::variants::auto_spawn_entry::AutoSpawnEntry;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -16,7 +16,7 @@ pub struct SpawningPoolAutoSpawnInfo<'a> {
     pub key: u32,
     pub string_key: CString<'a>,
     pub is_blocked: u8,
-    pub spawn_list: Vec<u8>,
+    pub spawn_list: CArray<AutoSpawnEntry>,
     pub mesh_name_list: CArray<u32>,
     pub spawning_pool_data: CString<'a>,
     pub type_: u8,
@@ -31,47 +31,19 @@ pub struct SpawningPoolAutoSpawnInfo<'a> {
     pub collect_filter_dev: u8,
 }
 
-fn try_read_tail(data: &[u8], probe: usize, end: usize) -> Option<usize> {
-    let mut cursor = probe;
-    let _mesh = CArray::<u32>::read_from(data, &mut cursor).ok()?;
-    if cursor > end { return None; }
-    let _pool = CString::read_from(data, &mut cursor).ok()?;
-    if cursor > end { return None; }
-    if cursor + 1 + 4 + 4 + 4 + 4 + 5 > end { return None; }
-    let _t = u8::read_from(data, &mut cursor).ok()?;
-    let _lap = u32::read_from(data, &mut cursor).ok()?;
-    let _nir = u32::read_from(data, &mut cursor).ok()?;
-    let _nor = u32::read_from(data, &mut cursor).ok()?;
-    let _sd = u32::read_from(data, &mut cursor).ok()?;
-    let _urr = u8::read_from(data, &mut cursor).ok()?;
-    let _cfa = u8::read_from(data, &mut cursor).ok()?;
-    let _ats = u8::read_from(data, &mut cursor).ok()?;
-    let _eit = u8::read_from(data, &mut cursor).ok()?;
-    let _cfd = u8::read_from(data, &mut cursor).ok()?;
-    if cursor != end { return None; }
-    Some(cursor - probe)
-}
-
 impl<'a> SpawningPoolAutoSpawnInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
         offset: &mut usize,
         entry_size: usize,
     ) -> io::Result<Self> {
-        let entry_start = *offset;
-        let entry_end = entry_start + entry_size;
+        let _ = entry_size; // typed reader is byte-perfect; size is informational
 
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
 
-        let post_pre = *offset;
-        let variant_size = find_variant_boundary(data, post_pre, entry_end, 4, |probe| {
-            try_read_tail(data, probe, entry_end)
-        })?;
-
-        let spawn_list = data[post_pre..post_pre + variant_size].to_vec();
-        *offset = post_pre + variant_size;
+        let spawn_list = <CArray<AutoSpawnEntry>>::read_from(data, offset)?;
 
         let mesh_name_list = CArray::<u32>::read_from(data, offset)?;
         let spawning_pool_data = CString::read_from(data, offset)?;
@@ -99,7 +71,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        w.write_all(&self.spawn_list)?;
+        self.spawn_list.write_to(w)?;
         self.mesh_name_list.write_to(w)?;
         self.spawning_pool_data.write_to(w)?;
         self.type_.write_to(w)?;
@@ -120,7 +92,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("_spawn_list_b64".to_string(), Value::String(B64.encode(&self.spawn_list)));
+        m.insert("spawn_list".to_string(), self.spawn_list.to_json_value());
         m.insert("mesh_name_list".to_string(), self.mesh_name_list.to_json_value());
         m.insert("spawning_pool_data".to_string(), self.spawning_pool_data.to_json_value());
         m.insert("type_".to_string(), self.type_.to_json_value());
@@ -140,13 +112,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        let b64 = json_get_field(obj, "_spawn_list_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "SpawningPoolAutoSpawnInfo: _spawn_list_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("SpawningPoolAutoSpawnInfo: _spawn_list_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        <CArray<AutoSpawnEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mesh_name_list")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawning_pool_data")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "type_")?)?;
@@ -168,8 +134,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\spawningpoolautospawninfo.pabgb";
-    const PABGH_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\spawningpoolautospawninfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/spawningpoolautospawninfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/spawningpoolautospawninfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -189,5 +155,34 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "spawningpoolautospawninfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut cursor = *start;
+            let item = SpawningPoolAutoSpawnInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            SpawningPoolAutoSpawnInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
+            );
+        }
     }
 }

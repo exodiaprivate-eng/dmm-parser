@@ -1,30 +1,42 @@
-//! Tier 1.5 — typed prefix + tail blob.
+//! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader (Mac CrimsonDesert_Steam): `sub_10184B44C` at 0x10184B44C
-//! (size 0x220). No on-disk pabgb dump (`entitlementinfo.pabgb`
-//! doesn't exist) — table is runtime-allocated, test SKIPs.
+//! Reader (Win): `sub_1410F3830` in CrimsonDesert.exe, discovered via
+//! xref to "PlatformEntitlementInfo" string at 0x144b13490. Mac equivalent
+//! `sub_10184B44C` at 0x10184B44C (size 0x220).
 //!
-//! Wire reads, in order:
-//!   1. u16 key                      (sub_100F23704, width 2)
-//!   2. CString string_key           (sub_1006B3F50, struct +8)
-//!   3. u8 is_blocked                (sub_1006B3CC0, struct +16)
-//!   4. LocalizableString entitlement_name (sub_1006D8484, struct +24,
-//!      stride 32)
-//!   5. LocalizableString entitlement_desc (sub_1006D8484, struct +56)
-//!   6. u32 icon_path                (inline u32 hash → StringInfoKey
-//!      lookup → u16 index at struct +88, wire 4)
-//!   7. u8 type_                     (direct vtable[2] call width=1
-//!      at struct +90, wire 1)
-//!      ← TAIL STARTS HERE
-//!   8. (tail) _resultDropInfoList   (sub_101151B5C, struct +96,
-//!      unknown CArray-like helper)
-//!   9. (tail) _platformIdList       (sub_10187D538, struct +112,
-//!      unknown helper)
+//! Wire reads, in order (canonical names from Mac Korean error strings):
+//!   1. u16 key                            (_key, pabgh format 2)
+//!   2. CString string_key                 (_stringKey)
+//!   3. u8 is_blocked                      (_isBlocked)
+//!   4. LocalizableString entitlement_name (_entitlementName)
+//!   5. LocalizableString entitlement_desc (_entitlementDesc)
+//!   6. u32 icon_path                      (_iconPath, read_u32_lookup_DA30
+//!      — wire u32, mem u16)
+//!   7. u8 type_                           (_type)
+//!   8. CArray<u32> result_drop_info_list  (_resultDropInfoList,
+//!      sub_141100510 → qword_145F113C8 — wire u32, mem u16)
+//!   9. CArray<PlatformIdEntry> platform_id_list (_platformIdList; inline
+//!      CArray, per element CString platform (sub_1410A9D40 — reads
+//!      CString, hashes to u32 in mem) + CString sku/code)
+//!
+//! sub_1410A9D40 reads a CString (u32 len + bytes) and hashes to u32 for
+//! the in-memory key. Roundtrip stores both source CString + sku CString.
+//!
+//! All fields typed. JSON-addressable for full mod-editing.
 
 use crate::binary::*;
-use crate::pabgh_typed_blob_table;
+use crate::py_binary_struct;
 
-pabgh_typed_blob_table! {
+// _platformIdList inner element — sub_1410F3830 inline loop.
+// Wire: CString platform ("PS5"/"XBOX"/"EPIC"/...) + CString sku.
+py_binary_struct! {
+    pub struct PlatformIdEntry<'a> {
+        pub platform: CString<'a>,
+        pub sku: CString<'a>,
+    }
+}
+
+py_binary_struct! {
     pub struct PlatformEntitlementInfo<'a> {
         pub key: u16,
         pub string_key: CString<'a>,
@@ -33,17 +45,33 @@ pabgh_typed_blob_table! {
         pub entitlement_desc: LocalizableString<'a>,
         pub icon_path: u32,
         pub type_: u8,
+        pub result_drop_info_list: CArray<u32>,
+        pub platform_id_list: CArray<PlatformIdEntry<'a>>,
     }
-    tail: tail_blob;
+}
+
+impl<'a> PlatformEntitlementInfo<'a> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("PlatformEntitlementInfo: consumed {} bytes, expected {}", consumed, entry_size),
+            ));
+        }
+        Ok(item)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    // No on-disk pabgb dump for this table; test SKIPs.
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\entitlementinfo.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\entitlementinfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/entitlementinfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/entitlementinfo.pabgh";
+
     #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
@@ -61,5 +89,34 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "platformentitlementinfo roundtrip mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut cursor = *start;
+            let item = PlatformEntitlementInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            PlatformEntitlementInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
+            );
+        }
     }
 }

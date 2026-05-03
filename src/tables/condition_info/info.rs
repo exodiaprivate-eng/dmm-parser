@@ -16,14 +16,14 @@
 //! See `dmm-parser/src/binary/variants/game_condition.rs` for the wrapper
 //! and `condition_data.rs` for the 405 variant decoders.
 //!
-//! ### JSON exposure (current)
+//! ### JSON exposure
 //!
-//! `game_condition` rides as `_game_condition_b64` (base64-encoded
-//! wrapper bytes). Users can clone-between-entries but can't yet edit
-//! the recursive tree as nested JSON — that's a future enhancement
-//! requiring per-variant ToJsonValue/WriteJsonValue impls (tracked
-//! separately). All other fields (key, string_key, is_blocked,
-//! original_string, parser_type) are individually field-addressable.
+//! All six fields are field-addressable. `game_condition` ships as a
+//! tree-navigable object: `kind: "decoded"` exposes the recursive node
+//! tree (BinaryOpA/B, UnaryOp, and per-family leaf cases with fully
+//! typed `data` objects via `to_json_dict()`), plus `tail_a`/`b`/`c`
+//! u8s. `kind: "raw"` exposes `raw_b64` for the 0.2% of entries that
+//! hit anti-disassembly variants.
 //!
 //! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
 //! "Hand-corrected" header marker on line 1.
@@ -32,7 +32,6 @@ use crate::binary::variant::find_cstring_u8_trailer;
 use crate::binary::variants::game_condition::GameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -95,27 +94,21 @@ impl<'a> ConditionInfo<'a> {
         Ok(())
     }
 
-    /// JSON shape (pre-tree-exposure):
+    /// JSON shape:
     /// - `key`, `string_key`, `is_blocked`, `original_string`, `parser_type`:
     ///   field-addressable.
-    /// - `_game_condition_b64`: full wrapper as base64 (clone-between-entries
-    ///   round-trips byte-perfect). Tag-level introspection lives at
-    ///   `_game_condition_kind`: "decoded" or "raw".
+    /// - `game_condition`: tree-navigable JSON. For `kind: "decoded"` it
+    ///   exposes the recursive `tree` (BinaryOpA/B, UnaryOp, leaf cases
+    ///   with their family name + typed `data` dict via `to_json_dict()`)
+    ///   plus `tail_a`/`b`/`c` u8s. For `kind: "raw"` it exposes
+    ///   `raw_b64` for the 0.2% of entries hitting anti-disassembly
+    ///   variants.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        // Re-encode the typed wrapper to bytes, then base64. Always
-        // round-trips: Decoded re-emits typed bytes, Raw passes through.
-        let mut wrapper_bytes = Vec::new();
-        self.game_condition.write_to(&mut wrapper_bytes).expect("write_to Vec");
-        m.insert("_game_condition_b64".to_string(), Value::String(B64.encode(&wrapper_bytes)));
-        let kind = match &self.game_condition {
-            GameCondition::Decoded { .. } => "decoded",
-            GameCondition::Raw(_) => "raw",
-        };
-        m.insert("_game_condition_kind".to_string(), Value::String(kind.to_string()));
+        m.insert("game_condition".to_string(), self.game_condition.to_json_value());
         m.insert("original_string".to_string(), self.original_string.to_json_value());
         m.insert("parser_type".to_string(), self.parser_type.to_json_value());
         m
@@ -125,16 +118,7 @@ impl<'a> ConditionInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        // `_game_condition_kind` is read-only metadata; we re-decode from
-        // the b64 bytes on the way back. This keeps writes simple and
-        // ensures wrapper integrity (b64 must be a valid wrapper).
-        let b64 = json_get_field(obj, "_game_condition_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "ConditionInfo: _game_condition_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("ConditionInfo: _game_condition_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        GameCondition::write_from_json(w, json_get_field(obj, "game_condition")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "original_string")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parser_type")?)?;
         Ok(())
@@ -147,9 +131,9 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
     const PABGB_PATH: &str =
-        r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\conditioninfo.pabgb";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/conditioninfo.pabgb";
     const PABGH_PATH: &str =
-        r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\conditioninfo.pabgh";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/conditioninfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -164,6 +148,8 @@ mod tests {
         let ranges = entry_ranges(&entries, data.len());
 
         let mut items = Vec::with_capacity(ranges.len());
+        let mut decoded = 0usize;
+        let mut raw = 0usize;
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
             let item = ConditionInfo::read_with_size(&data, &mut cursor, end - start)
@@ -185,8 +171,13 @@ mod tests {
                 cursor - start,
                 end - start
             );
+            match &item.game_condition {
+                crate::binary::variants::game_condition::GameCondition::Decoded { .. } => decoded += 1,
+                crate::binary::variants::game_condition::GameCondition::Raw(_) => raw += 1,
+            }
             items.push(item);
         }
+        eprintln!("conditioninfo: decoded={} raw={} (total={})", decoded, raw, ranges.len());
 
         let mut out = Vec::with_capacity(data.len());
         for item in &items {
@@ -194,5 +185,138 @@ mod tests {
         }
         assert_eq!(out.len(), data.len(), "conditioninfo roundtrip size mismatch");
         assert_eq!(out, data, "conditioninfo roundtrip bytes mismatch");
+    }
+
+    /// Diagnostic: for each `GameCondition::Raw` fallback, re-run the
+    /// typed decode and capture the failing ConditionData tag. Prints
+    /// a histogram so each remaining Raw entry can be traced back to
+    /// the variant family that under/over-read.
+    #[test]
+    #[ignore]
+    fn diag_raw_entries() {
+        use std::collections::BTreeMap;
+        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
+        let mut count = 0usize;
+        for (i, (k, s, e)) in ranges.iter().enumerate() {
+            let mut cursor = *s;
+            let item = ConditionInfo::read_with_size(&data, &mut cursor, e - s).unwrap();
+            if let crate::binary::variants::game_condition::GameCondition::Raw(blob) = &item.game_condition {
+                let mut probe = 0usize;
+                let end = blob.len();
+                crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.set(None));
+                crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow_mut().clear());
+                let _ = (|| -> io::Result<()> {
+                    let _tree = crate::binary::variants::game_condition::GameConditionNode::read_from(blob, &mut probe)?;
+                    let _ta = u8::read_from(blob, &mut probe)?;
+                    let _tb = u8::read_from(blob, &mut probe)?;
+                    let _tc = u8::read_from(blob, &mut probe)?;
+                    if probe != end { return Err(io::Error::new(io::ErrorKind::InvalidData, "under-consume")); }
+                    Ok(())
+                })();
+                let tag = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.get());
+                if let Some(t) = tag { *hist.entry(t).or_insert(0) += 1; }
+                count += 1;
+                if count <= 16 {
+                    let trail = crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow().clone());
+                    let trail_str: Vec<String> = trail.iter().map(|(t, off)| format!("{}@{}", t, off)).collect();
+                    let last_off = trail.last().map(|(_, o)| *o).unwrap_or(0);
+                    let next_bytes: Vec<String> = blob[last_off..(last_off + 12).min(blob.len())].iter().map(|b| format!("{:02x}", b)).collect();
+                    let head_bytes: Vec<String> = blob[..16.min(blob.len())].iter().map(|b| format!("{:02x}", b)).collect();
+                    eprintln!("entry {} k=0x{:x} blob_len={} LAST={:?}: TRAIL=[{}], head=[{}], next_bytes=[{}]",
+                        i, k, blob.len(), tag, trail_str.join(", "), head_bytes.join(" "), next_bytes.join(" "));
+                }
+            }
+        }
+        eprintln!("\n=== Failure tag histogram (n={}) ===", count);
+        for (tag, c) in &hist { eprintln!("  tag {:>4}: {} entries", tag, c); }
+    }
+
+    #[test]
+    #[ignore]
+    fn diag_raw_entries_all_patches() {
+        use std::collections::BTreeMap;
+        let base = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb";
+        let patches = [
+            "2026-03-29", "2026-03-30", "2026-03-31",
+            "2026-4-4", "2026-4-11", "2026-4-12",
+            "2026-4-23", "2026-4-24",
+        ];
+        for patch in patches {
+            let pabgb = format!("{}/{}/conditioninfo.pabgb", base, patch);
+            let pabgh = format!("{}/{}/conditioninfo.pabgh", base, patch);
+            let Ok(data) = std::fs::read(&pabgb) else {
+                eprintln!("[{}] SKIP: missing pabgb", patch); continue;
+            };
+            let Some(entries) = load_pabgh_offsets(&pabgh) else {
+                eprintln!("[{}] SKIP: missing pabgh", patch); continue;
+            };
+            let ranges = entry_ranges(&entries, data.len());
+            let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
+            let mut raw_count = 0usize;
+            let total = ranges.len();
+            for (_i, (_k, s, e)) in ranges.iter().enumerate() {
+                let mut cursor = *s;
+                let item = ConditionInfo::read_with_size(&data, &mut cursor, e - s).unwrap();
+                if let crate::binary::variants::game_condition::GameCondition::Raw(blob) = &item.game_condition {
+                    let mut probe = 0usize;
+                    crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.set(None));
+                    let _ = (|| -> io::Result<()> {
+                        let _tree = crate::binary::variants::game_condition::GameConditionNode::read_from(blob, &mut probe)?;
+                        let _ta = u8::read_from(blob, &mut probe)?;
+                        let _tb = u8::read_from(blob, &mut probe)?;
+                        let _tc = u8::read_from(blob, &mut probe)?;
+                        if probe != blob.len() { return Err(io::Error::new(io::ErrorKind::InvalidData, "under-consume")); }
+                        Ok(())
+                    })();
+                    let tag = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.get());
+                    if let Some(t) = tag { *hist.entry(t).or_insert(0) += 1; }
+                    raw_count += 1;
+                }
+            }
+            let decoded = total - raw_count;
+            eprint!("[{}] {}/{} decoded ({:.2}%)", patch, decoded, total,
+                100.0 * decoded as f64 / total as f64);
+            if raw_count > 0 {
+                let tags: Vec<String> = hist.iter().map(|(t, c)| format!("{}×{}", c, t)).collect();
+                eprintln!("  raw=[{}]", tags.join(", "));
+            } else {
+                eprintln!("  -- all decoded");
+            }
+        }
+    }
+
+    /// JSON dict round-trip — typed write_to bytes must match
+    /// write_from_json_dict bytes for every entry. Validates the
+    /// tree-navigable GameCondition JSON shape preserves bytes.
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing pabgb fixture");
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+            eprintln!("SKIP: missing pabgh fixture");
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut cursor = *start;
+            let item = ConditionInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            ConditionInfo::write_from_json_dict(&mut from_json, &dict).unwrap_or_else(|e| {
+                panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e)
+            });
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
+                i, key,
+            );
+        }
     }
 }

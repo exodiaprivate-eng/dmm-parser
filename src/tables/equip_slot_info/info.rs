@@ -15,17 +15,22 @@
 //! modify. Field-level v3 mod intents address `entries[i].etl_hashes` to
 //! grant new equip permissions without rebuilding the full overlay.
 //!
-//! ## Wire format
+//! ## Wire format (post lane-c 2026-04-30 Tier 1.5 → Tier 1 promotion)
 //!
 //! Record (per pabgh key, length = pabgh-derived `entry_size`):
 //! ```text
-//!   key          u32
-//!   header_blob  u32 size + bytes      (sub_1410830B0 prefix opaque blob)
-//!   flag_u8      u8
-//!   flag_u16     u16
-//!   list_count   u32
-//!   entries      EquipInfoData[list_count]
-//!   footer       remaining bytes (entry_size - bytes consumed above)
+//!   key            u32
+//!   header         CArray<u8>            (sub_1410830B0 prefix; always
+//!                                          empty in vanilla but typed
+//!                                          for JSON addressability)
+//!   flag_u8        u8
+//!   flag_u16       u16
+//!   list_count     u32
+//!   entries        EquipInfoData[list_count]
+//!   extra_entries  CArray<EquipExtraEntry>   (5× u32 per entry; empty
+//!                                              in 12/13 vanilla records,
+//!                                              5 entries in k=0x2bd)
+//!   tail_magic     u32                    (always 0xb954d87c)
 //! ```
 //!
 //! `EquipInfoData` (sub_141048B40), 56 bytes plus variable etl_hashes + complex_blob:
@@ -41,18 +46,20 @@
 //!   complex_u8   u8
 //!   complex_u64  u64
 //!   complex_blob CArray<u8>            (u32 size + bytes)
-//!   tail_bytes   [u8; 11]
+//!   tail_byte_0..1 + tail_pad_u32 + tail_byte_6..10  (8 named tail fields)
 //! ```
 //!
 //! ## Self-delimitation
-//! Records are NOT self-delimiting — the trailing `footer` length is
-//! determined by the per-record entry boundary in the pabgh index. Always
-//! call `parse_equip_slot_info_to_json_with_pabgh` (or `read_with_size`
-//! directly with a known `entry_size`). The non-pabgh `parse_equip_slot_info_to_json`
-//! returns an explanatory error rather than guessing.
+//! Records are NOT self-delimiting — even with the `tail_magic` sentinel
+//! the record length must come from the pabgh index because
+//! `extra_entries` has variable size. Always call
+//! `parse_equip_slot_info_to_json_with_pabgh` or `read_with_size` with
+//! a known `entry_size`. The new typed `tail_magic` field is
+//! sanity-checked against `0xb954d87c` after the read.
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::py_binary_struct;
 use serde_json::{json, Value};
 use std::io::{self, Write};
 
@@ -72,7 +79,18 @@ pub struct EquipInfoData {
     pub complex_u8: u8,
     pub complex_u64: u64,
     pub complex_blob: CArray<u8>,
-    pub tail_bytes: [u8; 11],
+    /// 11-byte tail composite split into 8 named fields. Empirical sweep
+    /// shows: byte 0 = small flag (0/1), byte 1 = small count (0-9),
+    /// bytes 2-5 = u32 (always 0 in vanilla), bytes 6-10 = 5× small u8
+    /// flags (0/1).
+    pub tail_byte_0: u8,
+    pub tail_byte_1: u8,
+    pub tail_pad_u32: u32,
+    pub tail_byte_6: u8,
+    pub tail_byte_7: u8,
+    pub tail_byte_8: u8,
+    pub tail_byte_9: u8,
+    pub tail_byte_10: u8,
 }
 
 impl<'a> BinaryRead<'a> for EquipInfoData {
@@ -88,11 +106,20 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         let complex_u8 = u8::read_from(data, offset)?;
         let complex_u64 = u64::read_from(data, offset)?;
         let complex_blob = CArray::<u8>::read_from(data, offset)?;
-        let tail_bytes = <[u8; 11]>::read_from(data, offset)?;
+        let tail_byte_0 = u8::read_from(data, offset)?;
+        let tail_byte_1 = u8::read_from(data, offset)?;
+        let tail_pad_u32 = u32::read_from(data, offset)?;
+        let tail_byte_6 = u8::read_from(data, offset)?;
+        let tail_byte_7 = u8::read_from(data, offset)?;
+        let tail_byte_8 = u8::read_from(data, offset)?;
+        let tail_byte_9 = u8::read_from(data, offset)?;
+        let tail_byte_10 = u8::read_from(data, offset)?;
         Ok(Self {
             etl_hashes, category_a, category_b, name_hash, slot_index,
             field_u64, name_hash_2, fields_u32, complex_u8, complex_u64,
-            complex_blob, tail_bytes,
+            complex_blob,
+            tail_byte_0, tail_byte_1, tail_pad_u32,
+            tail_byte_6, tail_byte_7, tail_byte_8, tail_byte_9, tail_byte_10,
         })
     }
 }
@@ -110,7 +137,14 @@ impl BinaryWrite for EquipInfoData {
         self.complex_u8.write_to(w)?;
         self.complex_u64.write_to(w)?;
         self.complex_blob.write_to(w)?;
-        self.tail_bytes.write_to(w)?;
+        self.tail_byte_0.write_to(w)?;
+        self.tail_byte_1.write_to(w)?;
+        self.tail_pad_u32.write_to(w)?;
+        self.tail_byte_6.write_to(w)?;
+        self.tail_byte_7.write_to(w)?;
+        self.tail_byte_8.write_to(w)?;
+        self.tail_byte_9.write_to(w)?;
+        self.tail_byte_10.write_to(w)?;
         Ok(())
     }
 }
@@ -129,7 +163,14 @@ impl ToJsonValue for EquipInfoData {
             "complex_u8": self.complex_u8,
             "complex_u64": self.complex_u64,
             "complex_blob": self.complex_blob.to_json_value(),
-            "tail_bytes": self.tail_bytes.to_json_value(),
+            "tail_byte_0": self.tail_byte_0,
+            "tail_byte_1": self.tail_byte_1,
+            "tail_pad_u32": self.tail_pad_u32,
+            "tail_byte_6": self.tail_byte_6,
+            "tail_byte_7": self.tail_byte_7,
+            "tail_byte_8": self.tail_byte_8,
+            "tail_byte_9": self.tail_byte_9,
+            "tail_byte_10": self.tail_byte_10,
         })
     }
 }
@@ -149,31 +190,72 @@ impl WriteJsonValue for EquipInfoData {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u8")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u64")?)?;
         <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_blob")?)?;
-        <[u8; 11] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_bytes")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_0")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_1")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_pad_u32")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_6")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_7")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_8")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_9")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_10")?)?;
         Ok(())
     }
 }
+
+// ── Footer structure ────────────────────────────────────────────────────────
+//
+// Lane-c 2026-04-30: vanilla probe (13 records) showed `header_blob` is
+// always 0-length and `footer` is `CArray<EquipExtraEntry>(stride=20) +
+// u32 tail_magic = 0xb954d87c`. 12/13 records have count=0; record k=0x2bd
+// has count=5 (5 × 20-byte EquipExtraEntry rows). Field-typing brings the
+// trailing per-class data into JSON addressability.
+
+py_binary_struct! {
+    /// Trailing per-record extra entry (20 bytes / 5 × u32). Field semantics
+    /// not yet fully reversed (only 1 record has nonzero entries in vanilla);
+    /// generically exposed as 5 named u32 fields so JSON consumers can edit
+    /// any byte. Empirical layout from k=0x2bd's 5 rows:
+    ///   - field_a: small int / signed sentinel (e.g. 0, 2, 4, -744, -745)
+    ///   - field_b: small int OR hash (e.g. 1, 2, 0x4425304d, 0x0bb2ba9b)
+    ///   - field_c: u32 (often 0)
+    ///   - field_d: u32 hash-like (e.g. 0xa02a, 0x1550, 0xfc000, 0x750be4d5)
+    ///   - field_e: u8-style flag widened to u32 (0 or 1)
+    pub struct EquipExtraEntry {
+        pub field_a: u32,
+        pub field_b: u32,
+        pub field_c: u32,
+        pub field_d: u32,
+        pub field_e: u32,
+    }
+}
+
+/// Tail magic that terminates every EquipSlotInfo record. Constant
+/// `0xb954d87c` (wire bytes `7c d8 54 b9`). Preserved as a typed `u32`
+/// so JSON consumers can sanity-check it.
+pub const EQUIP_SLOT_TAIL_MAGIC: u32 = 0xb954d87c;
 
 // ── EquipSlotInfo (top-level record) ────────────────────────────────────────
 
 #[derive(Debug)]
 pub struct EquipSlotInfo {
     pub key: u32,
-    /// Opaque prefix blob (sub_1410830B0). Preserved byte-perfect.
-    pub header_blob: Vec<u8>,
+    /// Header byte list (sub_1410830B0). Wire format = `CArray<u8>` (u32 count
+    /// + bytes). Empirically always empty in vanilla 1.04 (count=0 across all
+    /// 13 records); typed to allow growth via mods.
+    pub header: CArray<u8>,
     pub flag_u8: u8,
     pub flag_u16: u16,
     pub entries: Vec<EquipInfoData>,
-    /// Trailing bytes from the end of `entries` to the pabgh-declared record
-    /// boundary. Universally ends with `00 00 00 00 7c d8 54 b9` (8 bytes);
-    /// some records carry additional opaque per-class data before the
-    /// terminator. Preserved byte-perfect — never decoded by this module.
-    pub footer: Vec<u8>,
+    /// Trailing per-class extra entries (typed via field_a..field_e per row).
+    /// Empty in 12/13 vanilla records; record k=0x2bd has 5 rows.
+    pub extra_entries: CArray<EquipExtraEntry>,
+    /// Constant tail terminator = `EQUIP_SLOT_TAIL_MAGIC` (0xb954d87c).
+    pub tail_magic: u32,
 }
 
 impl EquipSlotInfo {
     /// Parse a single record. `entry_size` is the pabgh-declared record length;
-    /// without it we cannot determine where the trailing `footer` ends.
+    /// without it we cannot validate the trailing magic terminator position.
     pub fn read_with_size(
         data: &[u8],
         offset: &mut usize,
@@ -189,14 +271,7 @@ impl EquipSlotInfo {
         }
 
         let key = u32::read_from(data, offset)?;
-        let blob_size = u32::read_from(data, offset)? as usize;
-        if *offset + blob_size > entry_end {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("EquipSlotInfo k={}: header_blob size {} extends past record end", key, blob_size)));
-        }
-        let header_blob = data[*offset..*offset + blob_size].to_vec();
-        *offset += blob_size;
-
+        let header = CArray::<u8>::read_from(data, offset)?;
         let flag_u8 = u8::read_from(data, offset)?;
         let flag_u16 = u16::read_from(data, offset)?;
         let list_count = u32::read_from(data, offset)? as usize;
@@ -210,27 +285,34 @@ impl EquipSlotInfo {
             entries.push(e);
         }
 
-        if *offset > entry_end {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("EquipSlotInfo k={}: entries over-consumed ({} > {})", key, *offset, entry_end)));
-        }
-        let footer = data[*offset..entry_end].to_vec();
-        *offset = entry_end;
+        let extra_entries = CArray::<EquipExtraEntry>::read_from(data, offset)?;
+        let tail_magic = u32::read_from(data, offset)?;
 
-        Ok(Self { key, header_blob, flag_u8, flag_u16, entries, footer })
+        if *offset != entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("EquipSlotInfo k={}: under/over-read ({} of {} bytes; tail_magic=0x{:x})",
+                    key, *offset - entry_start, entry_size, tail_magic)));
+        }
+        if tail_magic != EQUIP_SLOT_TAIL_MAGIC {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("EquipSlotInfo k={}: tail_magic = 0x{:x}, expected 0x{:x}",
+                    key, tail_magic, EQUIP_SLOT_TAIL_MAGIC)));
+        }
+
+        Ok(Self { key, header, flag_u8, flag_u16, entries, extra_entries, tail_magic })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
-        (self.header_blob.len() as u32).write_to(w)?;
-        w.write_all(&self.header_blob)?;
+        self.header.write_to(w)?;
         self.flag_u8.write_to(w)?;
         self.flag_u16.write_to(w)?;
         (self.entries.len() as u32).write_to(w)?;
         for e in &self.entries {
             e.write_to(w)?;
         }
-        w.write_all(&self.footer)?;
+        self.extra_entries.write_to(w)?;
+        self.tail_magic.write_to(w)?;
         Ok(())
     }
 }
@@ -246,11 +328,12 @@ impl ToJsonValue for EquipSlotInfo {
         json!({
             "key": self.key,
             "string_key": "",
-            "header_blob": self.header_blob.iter().copied().collect::<Vec<u8>>(),
+            "header": self.header.to_json_value(),
             "flag_u8": self.flag_u8,
             "flag_u16": self.flag_u16,
             "entries": Value::Array(self.entries.iter().map(|e| e.to_json_value()).collect()),
-            "footer": self.footer.iter().copied().collect::<Vec<u8>>(),
+            "extra_entries": self.extra_entries.to_json_value(),
+            "tail_magic": self.tail_magic,
         })
     }
 }
@@ -260,20 +343,10 @@ impl WriteJsonValue for EquipSlotInfo {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "EquipSlotInfo: expected object"))?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
-        // header_blob: array of u8 with explicit u32 length prefix.
-        let header = json_get_field(obj, "header_blob")?
-            .as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "EquipSlotInfo.header_blob: expected array"))?;
-        w.extend_from_slice(&(header.len() as u32).to_le_bytes());
-        for elem in header {
-            <u8 as WriteJsonValue>::write_from_json(w, elem)?;
-        }
+        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u8")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u16")?)?;
-        // entries: explicit u32 count + EquipInfoData each. Note that `entries`
-        // does NOT use CArray's WriteJsonValue impl directly because we need
-        // to emit `list_count` ourselves (CArray would too, but at this layer
-        // the field is conceptually `Vec<EquipInfoData>` not `CArray<...>`).
+        // entries: explicit u32 count + EquipInfoData each (Vec<...>, not CArray).
         let entries = json_get_field(obj, "entries")?
             .as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 "EquipSlotInfo.entries: expected array"))?;
@@ -282,13 +355,9 @@ impl WriteJsonValue for EquipSlotInfo {
             <EquipInfoData as WriteJsonValue>::write_from_json(w, e).map_err(|err| io::Error::new(
                 err.kind(), format!("entries[{}]: {}", i, err)))?;
         }
-        // footer: raw bytes, no length prefix (length implicit in record boundary).
-        let footer = json_get_field(obj, "footer")?
-            .as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "EquipSlotInfo.footer: expected array"))?;
-        for elem in footer {
-            <u8 as WriteJsonValue>::write_from_json(w, elem)?;
-        }
+        <CArray<EquipExtraEntry> as WriteJsonValue>::write_from_json(
+            w, json_get_field(obj, "extra_entries")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_magic")?)?;
         Ok(())
     }
 }
@@ -352,8 +421,9 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\equipslotinfo.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\equipslotinfo.pabgh";
+    const PABGB: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipslotinfo.pabgb";
+    const PABGH: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipslotinfo.pabgh";
+
 
     #[test]
     fn roundtrip_bytes() {

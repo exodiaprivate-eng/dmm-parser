@@ -1,1 +1,1 @@
-mod info; pub use info::GlobalStageSequencerInfo;
+pub mod info; pub use info::GlobalStageSequencerInfo;

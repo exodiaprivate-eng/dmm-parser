@@ -1,16 +1,51 @@
-//! Hand-corrected: IDA-derived parser for `LevelGimmickSceneObjectInfo.pabgb`.
+//! Tier 1 — fully typed parser for `LevelGimmickSceneObjectInfo.pabgb`.
 //!
-//! Per IDA sub_1410EB480: 25 fields. _levelGimmickSceneObjectDataList is a
-//! 160-byte stride polymorphic CArray (sub_14110ECD0 / sub_1410EB270).
-//! Captured as raw byte-blob via tail-fields probe. Tail = 15 fixed fields +
-//! CString guide_effect_socket_name + 4 trailing u32s.
+//! Per IDA sub_1410EB480: 25 fields. `_levelGimmickSceneObjectDataList`
+//! is a `CArray<LevelGimmickSceneObjectData>` via sub_14110ECD0 +
+//! sub_1410EB270. Despite the original "polymorphic" label, sub_1410EB270
+//! is a fixed-shape reader: 4× u32 (raw + 3 hash lookups) + CString +
+//! u32 + u32-hash + 16 raw + u32 + CString + 2× SceneObjectAA1B0Block
+//! (each = Vec3 + [u32;4] + Vec3) + 12 raw bytes. Mem stride 160.
 
-use crate::binary::variant::find_variant_boundary;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use crate::py_binary_struct;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// `sub_1410AA1B0` per-call. 40 wire bytes / 40 mem bytes.
+    /// Wire ORDER (mem-out-of-order in IDA): vec_a (12 bytes, written to
+    /// mem +28), block (16 bytes via sub_1410AA0D0, written to mem +12),
+    /// vec_b (12 bytes, written to mem +0).
+    pub struct SceneObjectAA1B0Block {
+        pub vec_a: [f32; 3],
+        pub block: [u32; 4],
+        pub vec_b: [f32; 3],
+    }
+}
+
+py_binary_struct! {
+    /// `sub_1410EB270` per-element. 144 wire bytes (excluding two CStrings)
+    /// / 160 mem bytes.
+    pub struct LevelGimmickSceneObjectData<'a> {
+        pub raw_a: u32,            // sub_141106210 (u32 wire / u32 mem)
+        pub raw_b: u32,            // sub_141100740 (u32 wire / u16 mem)
+        pub raw_c: u32,            // sub_1410FF5C0 (u32 wire / u16 mem)
+        pub raw_d: u32,            // u32 raw → hash via 145F169C0
+        pub name: CString<'a>,
+        pub raw_e: u32,            // sub_141103530 (u32 wire / u32 mem)
+        pub raw_f: u32,            // read_u32_lookup_DA30 (u32 wire / u16 mem)
+        pub block_32: [u32; 4],    // 16 raw bytes
+        pub raw_g: u32,            // 4 raw bytes
+        pub texture_id: CString<'a>,
+        pub block_a: SceneObjectAA1B0Block,  // sub_1410AA1B0 #1
+        pub block_b: SceneObjectAA1B0Block,  // sub_1410AA1B0 #2
+        pub trail_a: u32,
+        pub trail_b: u32,
+        pub trail_c: u32,
+    }
+}
 
 #[derive(Debug)]
 pub struct LevelGimmickSceneObjectInfo<'a> {
@@ -18,8 +53,7 @@ pub struct LevelGimmickSceneObjectInfo<'a> {
     pub string_key: CString<'a>,
     pub is_blocked: u8,
     pub level_name: CString<'a>,
-    /// Polymorphic CArray captured as raw bytes.
-    pub data_list: Vec<u8>,
+    pub data_list: CArray<LevelGimmickSceneObjectData<'a>>,
     pub map_icon_texture_info: u32,
     pub discover_near_fog: u8,
     pub fog_map_icon_texture_info: u32,
@@ -42,42 +76,20 @@ pub struct LevelGimmickSceneObjectInfo<'a> {
     pub discover_gimmick_state_hash: u32,
 }
 
-const TAIL_FIXED_BEFORE_CSTRING: usize = 42;
-const TAIL_FIXED_AFTER_CSTRING: usize = 16;
-const TAIL_FIXED: usize = TAIL_FIXED_BEFORE_CSTRING + TAIL_FIXED_AFTER_CSTRING + 4;
-
 impl<'a> LevelGimmickSceneObjectInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
         offset: &mut usize,
         entry_size: usize,
     ) -> io::Result<Self> {
-        let entry_start = *offset;
-        let entry_end = entry_start + entry_size;
+        let _ = entry_size; // typed reader is byte-perfect; size is informational
 
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let level_name = CString::read_from(data, offset)?;
 
-        let post_pre = *offset;
-        let variant_size = find_variant_boundary(data, post_pre, entry_end, 4, |probe| {
-            if probe + TAIL_FIXED > entry_end {
-                return None;
-            }
-            let cs_off = probe + TAIL_FIXED_BEFORE_CSTRING;
-            let cs_len_bytes = data.get(cs_off..cs_off + 4)?.try_into().ok()?;
-            let cs_len = u32::from_le_bytes(cs_len_bytes) as usize;
-            let total = TAIL_FIXED + cs_len;
-            if probe + total != entry_end {
-                return None;
-            }
-            std::str::from_utf8(data.get(cs_off + 4..cs_off + 4 + cs_len)?).ok()?;
-            Some(total)
-        })?;
-
-        let data_list = data[post_pre..post_pre + variant_size].to_vec();
-        *offset = post_pre + variant_size;
+        let data_list = <CArray<LevelGimmickSceneObjectData>>::read_from(data, offset)?;
 
         let map_icon_texture_info = u32::read_from(data, offset)?;
         let discover_near_fog = u8::read_from(data, offset)?;
@@ -118,7 +130,7 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.level_name.write_to(w)?;
-        w.write_all(&self.data_list)?;
+        self.data_list.write_to(w)?;
         self.map_icon_texture_info.write_to(w)?;
         self.discover_near_fog.write_to(w)?;
         self.fog_map_icon_texture_info.write_to(w)?;
@@ -148,7 +160,7 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("level_name".to_string(), self.level_name.to_json_value());
-        m.insert("_data_list_b64".to_string(), Value::String(B64.encode(&self.data_list)));
+        m.insert("data_list".to_string(), self.data_list.to_json_value());
         m.insert("map_icon_texture_info".to_string(), self.map_icon_texture_info.to_json_value());
         m.insert("discover_near_fog".to_string(), self.discover_near_fog.to_json_value());
         m.insert("fog_map_icon_texture_info".to_string(), self.fog_map_icon_texture_info.to_json_value());
@@ -177,13 +189,7 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "level_name")?)?;
-        let b64 = json_get_field(obj, "_data_list_b64")?
-            .as_str()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "LevelGimmickSceneObjectInfo: _data_list_b64 must be a base64 string"))?;
-        let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-            format!("LevelGimmickSceneObjectInfo: _data_list_b64 invalid base64: {}", e)))?;
-        w.extend_from_slice(&bytes);
+        <CArray<LevelGimmickSceneObjectData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "data_list")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "map_icon_texture_info")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_near_fog")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_map_icon_texture_info")?)?;
@@ -213,8 +219,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\levelgimmicksceneobjectinfo.pabgb";
-    const PABGH_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\levelgimmicksceneobjectinfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/levelgimmicksceneobjectinfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/levelgimmicksceneobjectinfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -234,5 +240,34 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "levelgimmicksceneobjectinfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let Ok(data) = std::fs::read(PABGB_PATH) else {
+            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut cursor = *start;
+            let item = LevelGimmickSceneObjectInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
+            assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            LevelGimmickSceneObjectInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
+            );
+        }
     }
 }

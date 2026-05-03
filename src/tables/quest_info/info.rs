@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed parser with variant-boundary probe for the polymorphic
 //! `_questDialogFilterDataList` field.
 //!
@@ -53,8 +54,91 @@
 //!  35. u32 debug_color                 (sub_1006B4CD0, vtable[2] width 4)
 
 use crate::binary::variant::find_variant_boundary;
+use crate::binary::variants::filter_condition::QuestDialogFilterData;
 use crate::binary::*;
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+use serde_json::{Map, Value};
+
+/// Decoded|Raw fallback for `_questDialogFilterDataList`. The
+/// `QuestDialogFilterData` decoder (binary::variants::filter_condition,
+/// shipped via lane-b) covers all 18 wire fields, but some entries may
+/// hit unmapped FilterCondition tags or nested helpers. The Raw arm
+/// preserves byte-perfect round-trip in those cases. (lane-c, 2026-04-30:
+/// initial wiring on top of lane-b's filter_condition family decoder.)
+#[derive(Debug)]
+pub enum QuestDialogFilterDataList<'a> {
+    Decoded(CArray<QuestDialogFilterData<'a>>),
+    Raw(Vec<u8>),
+}
+
+impl<'a> QuestDialogFilterDataList<'a> {
+    fn read_with_size(data: &'a [u8], offset: &mut usize, region_end: usize) -> io::Result<Self> {
+        let region_start = *offset;
+        let mut probe = region_start;
+        match <CArray<QuestDialogFilterData>>::read_from(data, &mut probe) {
+            Ok(list) if probe == region_end => {
+                *offset = probe;
+                Ok(Self::Decoded(list))
+            }
+            _ => {
+                let bytes = data[region_start..region_end].to_vec();
+                *offset = region_end;
+                Ok(Self::Raw(bytes))
+            }
+        }
+    }
+
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match self {
+            Self::Decoded(list) => list.write_to(w),
+            Self::Raw(b) => w.write_all(b),
+        }
+    }
+
+    fn to_json_value(&self) -> Value {
+        match self {
+            Self::Decoded(list) => {
+                let mut m = Map::new();
+                m.insert("kind".into(), Value::String("Decoded".into()));
+                m.insert("list".into(), list.to_json_value());
+                Value::Object(m)
+            }
+            Self::Raw(b) => {
+                let mut m = Map::new();
+                m.insert("kind".into(), Value::String("Raw".into()));
+                m.insert("_b64".into(), Value::String(B64.encode(b)));
+                Value::Object(m)
+            }
+        }
+    }
+
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "QuestDialogFilterDataList: expected object"))?;
+        let kind = json_get_field(obj, "kind")?.as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "QuestDialogFilterDataList.kind: expected string"))?;
+        match kind {
+            "Decoded" => <CArray<QuestDialogFilterData> as WriteJsonValue>::write_from_json(
+                w, json_get_field(obj, "list")?,
+            ),
+            "Raw" => {
+                let b64 = json_get_field(obj, "_b64")?.as_str()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                        "QuestDialogFilterDataList.Raw._b64: expected string"))?;
+                let bytes = B64.decode(b64).map_err(|e| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("QuestDialogFilterDataList.Raw._b64: invalid base64: {}", e)))?;
+                w.extend_from_slice(&bytes);
+                Ok(())
+            }
+            other => Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("QuestDialogFilterDataList.kind: unknown variant {:?}", other))),
+        }
+    }
+}
 use std::io::{self, Write};
 
 py_binary_struct! {
@@ -107,11 +191,13 @@ pub struct QuestInfo<'a> {
     pub game_start_stage: u32,
     pub game_start_sub_timeline: CString<'a>,
     pub memo: CString<'a>,
-    /// Polymorphic CArray<QuestDialog_FilterData> captured as raw wire bytes.
-    /// Round-trips byte-perfect; authors can clone this blob between entries
-    /// to copy dialog filter behavior. Full typed decode is gated on the
-    /// FilterCondition variant family (task #66).
-    pub quest_dialog_filter_data_list_blob: Vec<u8>,
+    /// Polymorphic CArray<QuestDialog_FilterData> with Decoded|Raw fallback.
+    /// Lane-c 2026-04-30: wired to consume the FilterCondition family decoder
+    /// (binary::variants::filter_condition::QuestDialogFilterData) shipped by
+    /// lane-b. Decoded entries get full field-level access via 18 typed wire
+    /// fields per QuestDialogFilterData; Raw fallbacks preserve byte-perfect
+    /// round-trip when an entry hits an unmapped FilterCondition tag.
+    pub quest_dialog_filter_data_list: QuestDialogFilterDataList<'a>,
     pub dialog_must_mission_info_list: CArray<u32>,
     pub npc_dialog_must_condition: u32,
     pub is_save: u8,
@@ -197,9 +283,9 @@ impl<'a> QuestInfo<'a> {
         let blob_size = find_variant_boundary(data, post_pre, entry_end, 0, |probe| {
             try_read_trailer(data, probe, entry_end)
         })?;
-        let quest_dialog_filter_data_list_blob =
-            data[post_pre..post_pre + blob_size].to_vec();
-        *offset = post_pre + blob_size;
+        let region_end = post_pre + blob_size;
+        let quest_dialog_filter_data_list =
+            QuestDialogFilterDataList::read_with_size(data, offset, region_end)?;
 
         let dialog_must_mission_info_list = CArray::<u32>::read_from(data, offset)?;
         let npc_dialog_must_condition = u32::read_from(data, offset)?;
@@ -237,7 +323,7 @@ impl<'a> QuestInfo<'a> {
             game_start_stage,
             game_start_sub_timeline,
             memo,
-            quest_dialog_filter_data_list_blob,
+            quest_dialog_filter_data_list,
             dialog_must_mission_info_list,
             npc_dialog_must_condition,
             is_save,
@@ -276,7 +362,7 @@ impl<'a> QuestInfo<'a> {
         self.game_start_stage.write_to(w)?;
         self.game_start_sub_timeline.write_to(w)?;
         self.memo.write_to(w)?;
-        w.write_all(&self.quest_dialog_filter_data_list_blob)?;
+        self.quest_dialog_filter_data_list.write_to(w)?;
         self.dialog_must_mission_info_list.write_to(w)?;
         self.npc_dialog_must_condition.write_to(w)?;
         self.is_save.write_to(w)?;
@@ -285,14 +371,103 @@ impl<'a> QuestInfo<'a> {
         self.debug_color.write_to(w)?;
         Ok(())
     }
+
+    /// JSON shape: every typed field is field-addressable. The polymorphic
+    /// 29th field rides as `_quest_dialog_filter_data_list_blob_b64` (the
+    /// raw wire bytes, base64) — clone-between-entries works, but the
+    /// per-variant typed exposure is gated on the FilterCondition family
+    /// decoder (task #66, see header doc).
+    pub fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("key".to_string(), self.key.to_json_value());
+        m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("quest_type".to_string(), self.quest_type.to_json_value());
+        m.insert("quest_category".to_string(), self.quest_category.to_json_value());
+        m.insert("name".to_string(), self.name.to_json_value());
+        m.insert("desc".to_string(), self.desc.to_json_value());
+        m.insert("quest_group_info".to_string(), self.quest_group_info.to_json_value());
+        m.insert("faction_info".to_string(), self.faction_info.to_json_value());
+        m.insert("faction_state_data".to_string(), self.faction_state_data.to_json_value());
+        m.insert("branch_data".to_string(), self.branch_data.to_json_value());
+        m.insert("start_player_list".to_string(), self.start_player_list.to_json_value());
+        m.insert("branch_data_list".to_string(), self.branch_data_list.to_json_value());
+        m.insert("executor_quest_list".to_string(), self.executor_quest_list.to_json_value());
+        m.insert("gauge_list".to_string(), self.gauge_list.to_json_value());
+        m.insert("mission_list".to_string(), self.mission_list.to_json_value());
+        m.insert("stage_list".to_string(), self.stage_list.to_json_value());
+        m.insert("start_mission".to_string(), self.start_mission.to_json_value());
+        m.insert("start_stage".to_string(), self.start_stage.to_json_value());
+        m.insert("stage_icon_path".to_string(), self.stage_icon_path.to_json_value());
+        m.insert("stage_text_icon_path".to_string(), self.stage_text_icon_path.to_json_value());
+        m.insert("stage_image_path".to_string(), self.stage_image_path.to_json_value());
+        m.insert("playable_mission_count".to_string(), self.playable_mission_count.to_json_value());
+        m.insert("playable_stage_count".to_string(), self.playable_stage_count.to_json_value());
+        m.insert("test_tag".to_string(), self.test_tag.to_json_value());
+        m.insert("game_start_stage".to_string(), self.game_start_stage.to_json_value());
+        m.insert("game_start_sub_timeline".to_string(), self.game_start_sub_timeline.to_json_value());
+        m.insert("memo".to_string(), self.memo.to_json_value());
+        m.insert(
+            "quest_dialog_filter_data_list".to_string(),
+            self.quest_dialog_filter_data_list.to_json_value(),
+        );
+        m.insert("dialog_must_mission_info_list".to_string(), self.dialog_must_mission_info_list.to_json_value());
+        m.insert("npc_dialog_must_condition".to_string(), self.npc_dialog_must_condition.to_json_value());
+        m.insert("is_save".to_string(), self.is_save.to_json_value());
+        m.insert("is_continuous_mission".to_string(), self.is_continuous_mission.to_json_value());
+        m.insert("is_repeatable".to_string(), self.is_repeatable.to_json_value());
+        m.insert("debug_color".to_string(), self.debug_color.to_json_value());
+        m
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_category")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "desc")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_group_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info")?)?;
+        <FactionStateData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_state_data")?)?;
+        <BranchData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_player_list")?)?;
+        <CArray<BranchData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "executor_quest_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gauge_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mission_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_mission")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_stage")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_icon_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_text_icon_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_image_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_mission_count")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_stage_count")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "test_tag")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_start_stage")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_start_sub_timeline")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "memo")?)?;
+        QuestDialogFilterDataList::write_from_json(
+            w, json_get_field(obj, "quest_dialog_filter_data_list")?,
+        )?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dialog_must_mission_info_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_dialog_must_condition")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_save")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_continuous_mission")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_repeatable")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "debug_color")?)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\questinfo.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\questinfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/questinfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/questinfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -310,5 +485,28 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "questinfo roundtrip mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (k, s, e)) in ranges.iter().enumerate() {
+            let mut c = *s;
+            let item = QuestInfo::read_with_size(&data, &mut c, e - s)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            QuestInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: write_from_json_dict: {}", i, k, er));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} k=0x{:x}: JSON round-trip diverges from typed write",
+                i, k
+            );
+        }
     }
 }

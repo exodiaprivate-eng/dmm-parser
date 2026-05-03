@@ -1,8 +1,8 @@
 use pyo3::exceptions::PyKeyError;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::{PyBytes, PyDict, PyList};
 
-use crate::binary::{CArray, COptional, CString, LocalizableString};
+use crate::binary::{CArray, CBytes, COptional, CString, LocalizableString};
 
 // ── Traits ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +67,23 @@ impl WritePyValue for u8 {
 
 // ── Fixed-size arrays ─────────────────────────────────────────────────────────
 
+impl ToPyValue for [f32; 2] {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
+    }
+}
+
+impl WritePyValue for [f32; 2] {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let list = obj.cast::<PyList>()?;
+        for item in list.iter() {
+            let v: f32 = item.extract()?;
+            w.extend_from_slice(&v.to_le_bytes());
+        }
+        Ok(())
+    }
+}
+
 impl ToPyValue for [f32; 3] {
     fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
@@ -84,6 +101,23 @@ impl WritePyValue for [f32; 3] {
     }
 }
 
+impl ToPyValue for [f32; 4] {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
+    }
+}
+
+impl WritePyValue for [f32; 4] {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let list = obj.cast::<PyList>()?;
+        for item in list.iter() {
+            let v: f32 = item.extract()?;
+            w.extend_from_slice(&v.to_le_bytes());
+        }
+        Ok(())
+    }
+}
+
 impl ToPyValue for [u32; 2] {
     fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
@@ -91,6 +125,23 @@ impl ToPyValue for [u32; 2] {
 }
 
 impl WritePyValue for [u32; 2] {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let list = obj.cast::<PyList>()?;
+        for item in list.iter() {
+            let v: u32 = item.extract()?;
+            w.extend_from_slice(&v.to_le_bytes());
+        }
+        Ok(())
+    }
+}
+
+impl ToPyValue for [u32; 3] {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(self.to_vec().into_pyobject(py)?.into_any().unbind())
+    }
+}
+
+impl WritePyValue for [u32; 3] {
     fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
         let list = obj.cast::<PyList>()?;
         for item in list.iter() {
@@ -153,6 +204,23 @@ impl WritePyValue for CString<'_> {
     }
 }
 
+// ── CBytes ────────────────────────────────────────────────────────────────────
+
+impl ToPyValue for CBytes<'_> {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(PyBytes::new(py, self.data).into_any().unbind())
+    }
+}
+
+impl WritePyValue for CBytes<'_> {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        let bytes: Vec<u8> = obj.extract()?;
+        w.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+        w.extend_from_slice(&bytes);
+        Ok(())
+    }
+}
+
 // ── LocalizableString ─────────────────────────────────────────────────────────
 
 impl ToPyValue for LocalizableString<'_> {
@@ -208,7 +276,7 @@ impl<T: ToPyValue> ToPyValue for COptional<T> {
     fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match &self.value {
             Some(v) => v.to_py_value(py),
-            None => Ok(py.None().into()),
+            None => Ok(py.None()),
         }
     }
 }

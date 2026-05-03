@@ -24,30 +24,8 @@
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{json, Value};
 use std::io::{self, Write};
-
-// Helper: serialize anything that implements BinaryWrite as base64 string.
-fn bw_to_b64<T: BinaryWrite>(v: &T) -> Value {
-    let mut bytes = Vec::new();
-    v.write_to(&mut bytes).expect("vec write infallible");
-    Value::String(B64.encode(&bytes))
-}
-
-// Helper: read base64 string and write its raw bytes to w.
-fn b64_to_w(w: &mut Vec<u8>, v: &Value, field: &str) -> io::Result<()> {
-    let s = v.as_str().ok_or_else(|| io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("{}: expected base64 string", field),
-    ))?;
-    let bytes = B64.decode(s).map_err(|e| io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("{}: invalid base64: {}", field, e),
-    ))?;
-    w.extend_from_slice(&bytes);
-    Ok(())
-}
 
 /// `[u8 absent_flag][BuffData if absent_flag == 0]` per sub_1419D9C70.
 /// 1 = absent (skip), 0 = present (read BuffData). Inverted from typical COptional.
@@ -74,6 +52,36 @@ impl<'a> BinaryWrite for BuffDataOptional<'a> {
         self.absent_flag.write_to(w)?;
         if let Some(d) = &self.data {
             d.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for BuffDataOptional<'a> {
+    fn to_json_value(&self) -> Value {
+        match &self.data {
+            None => json!({"absent_flag": self.absent_flag}),
+            Some(d) => {
+                let mut m = d.to_json_dict();
+                m.insert("absent_flag".into(), self.absent_flag.to_json_value());
+                Value::Object(m)
+            }
+        }
+    }
+}
+
+impl<'a> WriteJsonValue for BuffDataOptional<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "BuffDataOptional: expected object",
+        ))?;
+        let absent_flag = json_get_field(obj, "absent_flag")?
+            .as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "BuffDataOptional.absent_flag: expected u8"))? as u8;
+        absent_flag.write_to(w)?;
+        if absent_flag == 0 {
+            BuffData::write_from_json_dict(w, obj)?;
         }
         Ok(())
     }
@@ -305,12 +313,10 @@ impl<'a> SkillInfo<'a> {
 // SkillInfo's simple fields (key, string_key, is_blocked, etc.) are exposed
 // as JSON for direct field editing via v3 mods.
 //
-// The polymorphic field `buff_level_list` (CArray<CArray<BuffDataOptional>>)
-// is serialized as base64 of its raw bytes — Tier 2 blob-tail equivalent.
-// Mod authors can clone a whole `buff_level_list` from another skill via
-// `set` with the base64 value, but cannot drill into individual buffs yet.
-// Field-level BuffData JSON (per-variant ToJsonValue across 120 variants) is
-// the next step once needed.
+// `buff_level_list` (CArray<CArray<BuffDataOptional>>) ships as fully
+// typed JSON via the per-variant BuffData ToJsonValue/WriteJsonValue
+// impls in `binary::variants::buff_data`. Mod authors can drill into
+// any single buff at any level.
 
 impl ToJsonValue for GraphData {
     fn to_json_value(&self) -> Value {
@@ -373,7 +379,7 @@ impl<'a> ToJsonValue for SkillInfo<'a> {
             "string_key": self.string_key.data,
             "is_blocked": self.is_blocked,
             "cooltime": self.cooltime,
-            "buff_level_list": bw_to_b64(&self.buff_level_list),
+            "buff_level_list": self.buff_level_list.to_json_value(),
             "skill_group_key": self.skill_group_key,
             "parent_skill": self.parent_skill,
             "learn_level": self.learn_level,
@@ -415,7 +421,9 @@ impl<'a> WriteJsonValue for SkillInfo<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cooltime")?)?;
-        b64_to_w(w, json_get_field(obj, "buff_level_list")?, "buff_level_list")?;
+        <CArray<CArray<BuffDataOptional>> as WriteJsonValue>::write_from_json(
+            w, json_get_field(obj, "buff_level_list")?,
+        )?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_group_key")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parent_skill")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "learn_level")?)?;
@@ -505,8 +513,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\skill.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\skill.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/skill.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/skill.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -539,5 +547,25 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "SkillInfo roundtrip bytes mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (k, s, e)) in ranges.iter().enumerate() {
+            let mut c = *s;
+            let item = SkillInfo::read_with_size(&data, &mut c, e - s).unwrap();
+            assert_eq!(c, *e);
+            let json = item.to_json_value();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            <SkillInfo as WriteJsonValue>::write_from_json(&mut from_json, &json)
+                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: write_from_json: {}", i, k, er));
+            assert_eq!(from_json, from_typed,
+                "e{} k=0x{:x}: JSON roundtrip diverges from typed write", i, k);
+        }
     }
 }

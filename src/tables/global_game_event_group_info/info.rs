@@ -8,7 +8,8 @@
 //!   3. u8 is_blocked
 //!   4. CArray<u16> events (via sub_141104870: u32 count + N×u16
 //!      hash-keyed at qword_145F0E9D0; raw u16 round-trips)
-//!   5. [u8; 8] tail_bytes (read 8 raw bytes — likely u64 or 2× u32)
+//!   5. u64 tail_qword (8 raw bytes; promoted from [u8;8] for field-level
+//!      JSON access — semantic could be u64 or packed 2× u32)
 //!
 //! No polymorphic helpers, no COptional, no nested CArrays.
 
@@ -21,7 +22,7 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub events: CArray<u16>,
-        pub tail_bytes: [u8; 8],
+        pub tail_qword: u64,
     }
 }
 
@@ -29,8 +30,8 @@ py_binary_struct! {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\globalgameeventgroup.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\globalgameeventgroup.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/globalgameeventgroup.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/globalgameeventgroup.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -49,5 +50,34 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "globalgameeventgroup roundtrip mismatch");
+    }
+
+    #[test]
+    fn json_roundtrip() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let Ok(data) = std::fs::read(PABGB) else {
+            eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(PABGH) else {
+            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        for (i, (key, start, end)) in ranges.iter().enumerate() {
+            let mut c = *start;
+            let item = GlobalGameEventGroupInfo::read_from(&data, &mut c).unwrap();
+            assert_eq!(c, *end, "entry {} key=0x{:x}: under/over-read", i, key);
+            let dict = item.to_json_dict();
+            let mut from_typed = Vec::new();
+            item.write_to(&mut from_typed).unwrap();
+            let mut from_json = Vec::new();
+            GlobalGameEventGroupInfo::write_from_json_dict(&mut from_json, &dict)
+                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
+            assert_eq!(
+                from_json, from_typed,
+                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
+            );
+        }
     }
 }
