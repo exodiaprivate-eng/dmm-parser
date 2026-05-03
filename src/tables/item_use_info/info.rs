@@ -87,6 +87,7 @@ py_binary_struct! {
         pub group_lookup_a: u32,
         pub group_lookup_b: u32,
         pub flag_e: u8,
+        pub unk_new_flag: u8,
         pub flag_f: u8,
         pub group_id: u32,
         pub elements: CArray<BaseUseDataElem<'a>>,
@@ -606,8 +607,8 @@ impl<'a> ItemUseInfo<'a> {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/itemuseinfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/itemuseinfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgh";
 
     fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
         let count = u32::from_le_bytes(pabgh[..4].try_into().unwrap()) as usize;

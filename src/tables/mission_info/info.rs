@@ -115,6 +115,7 @@ py_binary_struct! {
         pub lookup_d: u32,         // sub_141101D50
         pub vec3: [f32; 3],
         pub raw_a: u32,
+        pub unk_new_u32: u32,
         pub flag_a: u8,
         pub flag_b: u8,
         pub flag_c: u8,
@@ -231,8 +232,8 @@ impl<'a> MissionInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/missioninfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/missioninfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/missioninfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/missioninfo.pabgh";
 
     #[test]
     fn roundtrip() {

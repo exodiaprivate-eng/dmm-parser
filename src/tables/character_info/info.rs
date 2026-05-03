@@ -593,6 +593,7 @@ pabgh_typed_blob_table! {
         pub list_b: CArray<u64>,
         pub list_c: CArray<u64>,
         pub list_d: CArray<u64>,
+        pub unk_new_u32_a: u32,            // new in 2026-5-1; between list_d and list_e
         pub list_e: CArray<u32>,
         pub raw_g: u32,
         pub lookup_84: u32,
@@ -670,6 +671,7 @@ pabgh_typed_blob_table! {
         pub flag_157: u8,                                 // a2 + 956
         pub raw_158: u32,                                 // a2 + 960
         pub flag_159: u8,                                 // a2 + 964
+        pub unk_new_u32_b: u32,                           // new in 2026-5-1; between flag_159 and raw_160
         pub raw_160: u32,                                 // a2 + 968
         pub lookup_161: u32,                              // sub_141100740 a2+972
         pub lookup_162: u32,                              // sub_141100370 a2+974
@@ -680,6 +682,7 @@ pabgh_typed_blob_table! {
         pub raw_165b: u32,                                // a2 + 1012
         pub raw_165c: u32,                                // a2 + 1016
         pub lookup_166: u32,                              // sub_141101A40 a2+1020 (u32 wire / u16 mem)
+        pub unk_new_u64_b: u64,                           // new in 2026-5-1; between lookup_166 and raw_167
         pub raw_167: u32,                                 // a2 + 1024
         pub flag_168: u8,                                 // a2 + 1028
         pub field_169a: CharacterField169Entry,           // 5-iter loop, a2+1032
@@ -701,8 +704,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/characterinfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/characterinfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/characterinfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/characterinfo.pabgh";
 
     #[test]
     fn roundtrip() {

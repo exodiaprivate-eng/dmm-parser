@@ -97,8 +97,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     // No on-disk pabgb dump for this table; test SKIPs.
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipinfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipinfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipinfo.pabgh";
     #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };

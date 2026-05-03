@@ -412,7 +412,7 @@ impl<'a> QuickTimeEventInfo<'a> {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/quicktimeeventinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/quicktimeeventinfo.pabgb";
 
     #[test]
     fn roundtrip() {

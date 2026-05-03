@@ -39,6 +39,8 @@ py_binary_struct! {
         pub use_camp_level: u8,
         pub apply_equip_item_stat: u8,
         pub spawn_position_type: u8,
+        pub unk_new_u8_a: u8,
+        pub unk_new_u8_b: u8,
         pub parent_mercenary_group_info: u8,
         pub hired_skill_info_list: CArray<HiredSkillData>,
     }
@@ -48,7 +50,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/mercenaryinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/mercenaryinfo.pabgb";
 
     #[test]
     fn roundtrip() {

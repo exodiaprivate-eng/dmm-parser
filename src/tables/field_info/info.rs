@@ -84,6 +84,7 @@ py_binary_struct! {
         pub lookup_u16_a: u16,
         pub byte_at_82: u8,
         pub byte_at_83: u8,
+        pub byte_at_84: u8,
 
         // 31-byte composite. Decoded into typed fields so per-field mod
         // edits work; round-trip is exact.
@@ -103,7 +104,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/fieldinfo.pabgb";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/fieldinfo.pabgb";
 
 
     #[test]

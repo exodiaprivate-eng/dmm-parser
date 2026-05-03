@@ -193,6 +193,7 @@ py_binary_struct! {
         pub learning_position: [f32; 3],
         pub learning_stage_info: u32,
         pub learn_apply_skill_info: u32,
+        pub unk_new_list: CArray<U32U32Pair>,
     }
 }
 
@@ -215,8 +216,8 @@ impl<'a> KnowledgeInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/knowledgeinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/knowledgeinfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/knowledgeinfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/knowledgeinfo.pabgh";
 
     #[test]
     fn roundtrip() {

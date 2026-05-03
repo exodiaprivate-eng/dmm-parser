@@ -89,7 +89,7 @@ impl<'a> DetectDetailInfo<'a> {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/detectdetailinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/detectdetailinfo.pabgb";
 
     #[test]
     fn roundtrip() {

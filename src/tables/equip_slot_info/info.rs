@@ -421,8 +421,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipslotinfo.pabgb";
-    const PABGH: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/equipslotinfo.pabgh";
+    const PABGB: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipslotinfo.pabgb";
+    const PABGH: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipslotinfo.pabgh";
 
 
     #[test]

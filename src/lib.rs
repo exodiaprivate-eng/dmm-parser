@@ -58,8 +58,8 @@ mod tests {
         first_existing(
             "DMM_PARSER_ITEMINFO_PATH",
             &[
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
-                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\iteminfo.pabgb",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\iteminfo.pabgb",
             ],
         )
     }

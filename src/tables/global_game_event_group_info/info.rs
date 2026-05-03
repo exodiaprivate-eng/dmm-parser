@@ -2,27 +2,42 @@
 //!
 //! Reader: `sub_1410E3C20` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
+//! Wire reads (2026-5-1 layout), in order:
 //!   1. u16 key (pabgh format 2)
 //!   2. CString string_key
 //!   3. u8 is_blocked
-//!   4. CArray<u16> events (via sub_141104870: u32 count + N×u16
-//!      hash-keyed at qword_145F0E9D0; raw u16 round-trips)
-//!   5. u64 tail_qword (8 raw bytes; promoted from [u8;8] for field-level
-//!      JSON access — semantic could be u64 or packed 2× u32)
-//!
-//! No polymorphic helpers, no COptional, no nested CArrays.
+//!   4. u32 unk_a
+//!   5. u64 unk_b  (old tail_qword relocated here)
+//!   6. u64 unk_c  (new field)
+//!   7. u32 unk_d
+//!   8. CArray<GGEGSubItem> sub_list  (each item: u32+u64+u64+u32 = 24 bytes)
+//!   9. CArray<u16> events
+//!  10. COptional<u32> tail_optional
 
 use crate::binary::*;
 use crate::py_binary_struct;
+
+py_binary_struct! {
+    pub struct GGEGSubItem {
+        pub field_a: u32,
+        pub field_b: u64,
+        pub field_c: u64,
+        pub field_d: u32,
+    }
+}
 
 py_binary_struct! {
     pub struct GlobalGameEventGroupInfo<'a> {
         pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
+        pub unk_a: u32,
+        pub unk_b: u64,
+        pub unk_c: u64,
+        pub unk_d: u32,
+        pub sub_list: CArray<GGEGSubItem>,
         pub events: CArray<u16>,
-        pub tail_qword: u64,
+        pub tail_optional: COptional<u32>,
     }
 }
 
@@ -30,8 +45,8 @@ py_binary_struct! {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/globalgameeventgroup.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/globalgameeventgroup.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/globalgameeventgroup.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/globalgameeventgroup.pabgh";
 
     #[test]
     fn roundtrip() {

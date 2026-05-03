@@ -357,8 +357,8 @@ mod tests {
     #[test]
     fn blob_table_roundtrip_u16_key() {
         for (pb, ph) in [
-            (r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/inventory.pabgb",
-             r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/inventory.pabgh"),
+            (r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgb",
+             r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgh"),
             (r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\inventory.pabgb",
              r"C:\Users\corin\Desktop\CD JSON Mod Manager\Unpacked\0008\gamedata\inventory.pabgh"),
         ] {

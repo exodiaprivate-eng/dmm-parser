@@ -1458,12 +1458,12 @@ mod tests {
     fn find_fixture() -> Option<(Vec<u8>, Vec<u8>)> {
         let candidates: &[(&str, &str)] = &[
             (
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/gimmickinfo.pabgb",
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/gimmickinfo.pabgh",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gimmickinfo.pabgb",
+                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gimmickinfo.pabgh",
             ),
             (
-                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\gimmickinfo.pabgb",
-                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-4-24\gimmickinfo.pabgh",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\gimmickinfo.pabgb",
+                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\gimmickinfo.pabgh",
             ),
         ];
         if let Ok(p) = std::env::var("DMM_PARSER_GIMMICKINFO_PABGB") {

@@ -12,8 +12,8 @@ mod tests {
     use crate::binary::variants::buff_data::GameConditionOptional;
     use crate::binary::*;
 
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/sequencerspawninfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/sequencerspawninfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/sequencerspawninfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/sequencerspawninfo.pabgh";
 
     /// Minimal chart_desc walker: parse fields one at a time and report
     /// offsets. Stops on first error.

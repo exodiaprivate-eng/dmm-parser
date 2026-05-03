@@ -33,7 +33,11 @@ py_binary_struct! {
         pub field_e: u32,
         pub field_f: u32,
         pub field_g: u32,
-        pub block_c: [f32; 3],
+        // block_c[2] (byte offset 84 of ActionPoint) carries NaN bit
+        // patterns in action_point_b entries; expose as u32 raw bits to
+        // survive serde_json (which serializes f32 NaN as null).
+        pub block_c_xy: [f32; 2],
+        pub block_c_nan_z: u32,
         pub field_h: u32,
     }
 }
@@ -45,6 +49,7 @@ py_binary_struct! {
         pub is_blocked: u8,
         pub action_point: ActionPoint,
         pub level_action_point_info: u32,
+        pub action_point_b: ActionPoint,
     }
 }
 
@@ -52,7 +57,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/actionpointinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/actionpointinfo.pabgb";
 
 
 

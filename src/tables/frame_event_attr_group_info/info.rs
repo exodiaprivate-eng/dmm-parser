@@ -141,9 +141,9 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
     const PABGB_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/frameeventattrgroupinfo.pabgb";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/frameeventattrgroupinfo.pabgb";
     const PABGH_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/frameeventattrgroupinfo.pabgh";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/frameeventattrgroupinfo.pabgh";
 
     #[test]
     fn roundtrip() {

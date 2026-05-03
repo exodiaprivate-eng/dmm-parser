@@ -16,6 +16,7 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub mercenarye_info_list: CArray<u8>,
+        pub unk_new_u32: u32,
         pub child_mercenary_group_info_list: CArray<u8>,
         pub parent_mercenary_group_info: u8,
     }
@@ -25,7 +26,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/mercenarygroupinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/mercenarygroupinfo.pabgb";
 
     #[test]
     fn roundtrip() {

@@ -22,8 +22,10 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct ItemIconData {
         pub icon_path: StringInfoKey,
+        pub unk_new_u32: u32,               // new in 2026-5-1
         pub check_exist_sealed_data: u8,
         pub gimmick_state_list: CArray<u32>,
+        pub unk_new_u8: u8,                 // new in 2026-5-1
     }
 }
 
@@ -296,7 +298,7 @@ impl<'a> BinaryRead<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_from(data, offset)?),
             3 => SubItemValue::Character(CharacterKey::read_from(data, offset)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_from(data, offset)?),
-            14 => SubItemValue::None,
+            14 | 15 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -324,7 +326,7 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_tracked(data, offset, path, ranges)?),
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
-            14 => SubItemValue::None,
+            14 | 15 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -373,7 +375,7 @@ impl WritePyValue for SubItem {
                 let v: u32 = get_field(d, "value")?.extract()?;
                 w.extend_from_slice(&v.to_le_bytes());
             }
-            14 => {}
+            14 | 15 => {}
             _ => {
                 return Err(PyValueError::new_err(format!(
                     "invalid SubItem type_id: {}",
@@ -433,7 +435,7 @@ impl WriteJsonValue for SubItem {
                 }
                 w.extend_from_slice(&(n as u32).to_le_bytes());
             }
-            14 => {} // no payload
+            14 | 15 => {} // no payload
             _ => {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("invalid SubItem.type_id: {}", type_id)));
