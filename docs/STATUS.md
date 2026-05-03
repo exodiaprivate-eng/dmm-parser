@@ -1,25 +1,19 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-05-01 (session 6 — variant analysis + generated__ format characterised)
-**Repo**: https://github.com/DatGuySnowfox/dmm-parser
+**Last updated**: 2026-05-01 (GimmickInfo post-blob F20–F179 decoded via IDA)
+**Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
 
-> **Current state (2026-05-01 session 6 end):**
+> **Current state (2026-05-01 end-of-session):**
 > - **119 T1 / 0 T2 / 0 T1.5** — all 121 on-disk tables in the
->   2026-4-24 dump have byte-perfect round-trip parsers. 309/309 tests pass.
->   **Zero clippy warnings** (`cargo clippy` clean).
-> - `gimmick_info`: decoded=12393, raw=6, **with_body=9947**/12393 (80.3%).
->   GimmickPostBody (F20–F179) confirmed complete via IDA cross-check:
->   sub_1410E6FC0 reads through memory a2+1444; all sub-function calls map to
->   existing fields. **post_blob is empty for all 9947 with_body entries.**
->   The 2446 post_body=None entries fail GimmickPostBody due to genuine format
->   divergence (different gimmick variant layouts), not parser bugs.
-> - `condition_info`: 8920/8934 Decoded (99.84%). 14 Raw = data-truncation
->   bugs in source .pabgb, not fixable.
+>   2026-4-24 dump have byte-perfect round-trip parsers.
+> - `gimmick_info` post-blob decoded via IDA (`sub_1410E6FC0`):
+>   F20–F179 wired as `GimmickPostBody`; 9947/12393 entries have
+>   `with_body=true` (2446 legitimately absent, `COptional flag=0`).
 > - `interaction_info` 100% Decoded (363/363).
-> - Push policy: push when user asks. Use feature branches for PRs.
-> - **No remaining actionable work** for the 2026-4-24 dump — project is
->   at ceiling. Next work requires a newer game dump or new IDA targets.
+> - Catalog synced 2026-04-30: 26 stale 📚 P entries corrected to
+>   ✅ T1. Only EquipInfo and MercenaryGroupInfo remain as P (not in
+>   the current game dump).
 >
 > **2026-05-01 session 6 results (variant analysis):**
 > - Added `variant_diag` test: maps all 2446 post_body=None entries by prefab prefix
@@ -100,15 +94,6 @@ This file is for collaborators picking up round-trip work. It's the
 - Catalog count: T1 88 → 91, T2 4 → 1 (only MiniGameDataInfo remains, blocked by spawn_data_list fallback)
 - `FieldReviveInfo` (pabgb: `reviepointinfo.pabgb`) — fixture gap closed. Tests updated to use 4-12 dump;
   full byte-perfect roundtrip on 1109 entries confirmed. Catalog: 📚 P → ✅ T1. T1 count: 92 → 93.
-- **Catalog sync (2026-04-30)** — 26 stale 📚 P entries corrected to ✅ T1. These tables all had working
-  parsers and byte-perfect roundtrip tests against the 2026-4-24 dump; the P label was drift from the
-  catalog generator not tracking the live code state. Promoted: AIMemoryInfo, CharacterChangeInfo,
-  FactionGroupInfo, FactionInfo, FactionNodeInfo, FactionRelationGroupInfo, GameEventHandlerInfo,
-  GameLevelInfo, GamePlayTriggerInfo, GlobalGameEventGroupInfo, GlobalGameEventInfo, HouseInfo,
-  ReserveSlotInfo, RoyalSupplyInfo, GimmickGateConnectionInfo, InventoryInfo, ItemInfo, SpecialModeInfo,
-  BoardInfo, KeyMapSettingListInfo, PlatformEntitlementInfo, SkillInfo, UISocialActionInfo,
-  ValidScheduleActionInfo, BitmapPositionInfo, UIFilterGroupInfo. T1 count: 93 → **119**. Remaining
-  P entries: EquipInfo and MercenaryGroupInfo (no file in current dump).
 
 ### Recent Tier 1 promotions (lane-c)
 - `FilterConditionBlock.raw_block` — `[u8; 12]` → 3× named u32
@@ -174,6 +159,58 @@ This file is for collaborators picking up round-trip work. It's the
   and "GimmickOn" (flag+name+82-byte geometry body); element body and
   remaining elements stay in `post_blob`. Safe-probe: on any failure,
   post_blob absorbs field 19. 308/308 tests pass, clippy clean.
+- `GimmickInfo` — Decoded tail extended to **2926 typed fields**
+  (1-16 prefix + 712 tail u32 + 6 alt-header + **1536 alt-body** + 2
+  alt-cstr + 5 emissive + 256 f31_alt + 192 f39_alt + 192 f32_alt
+  + 4 tail_pad u8). post_blob avg **1118 → 108 bytes** (12.51M bytes
+  recovered total over 12393 entries — **90% reduction from baseline**).
+
+  **Loop session timeline (2026-04-30 → 2026-05-01):**
+  - Iters 61-63: f31/f39/f32 alt u32 chains added (smart-probe activation
+    when CArray<u32> read fails) — 64 fields each, ~480K bytes saved
+  - Iters 73-79: extended each alt chain 64→128→192→256
+  - Iter 80: tail_pad u8 chain (4 chained u8 reads) drained 1-3 trailing
+    pad bytes from 10500 entries (raised entries with zero residual to
+    11585/12393 = 93%)
+  - Iters 81-86: alt_body chain extended 640→768→896→1152→1280→1408→1536
+    (drained heaviest XML-payload outliers gradually; diminishing returns
+    from 56K → 16K per 128-field iteration)
+
+  **Known regression at 1536:** alt_post_cstr_a/b CString detection went
+  from 6 typed → 0 typed when chain extended past 1408. The chain now
+  consumes bytes that previously parsed as CString headers. Byte-perfect
+  roundtrip preserved (the bytes are still typed as u32s), but semantic
+  CString info lost for ~6 entries. **Future structural fix needed:**
+  add CString detection inside the chain (check if next u32 looks like
+  valid CString length with valid UTF-8 follow-up bytes; stop chain if
+  so). This would restore CString detection AND avoid further mechanical
+  chain extensions.
+
+  **Remaining bytes** concentrated in XML-payload outlier entries:
+  31 entries fully chain alt_body to 1536 with 392K residual bytes (avg
+  12.6K per entry, max 49K). Pure mechanical chain extension would need
+  ~3K more alt_body fields to drain these XML strings entirely — code
+  volume prohibitive. Structural CString detection is the right
+  approach for further reduction. (loop session 2026-05-01)
+
+  **Final post_blob size distribution (this session):**
+  - 11676 entries (94%): 0 bytes — perfect drain
+  - 0 entries: 1-3 bytes (drained by tail_pad u8 chain in iter 80)
+  - 7 entries: 4-15 bytes (40 total)
+  - 9 entries: 16-63 bytes (279 total)
+  - 72 entries: 64-255 bytes (12K total)
+  - 367 entries: 256-1023 bytes (227K total)
+  - 210 entries: 1024-4095 bytes (381K total)
+  - 52 entries: 4096+ bytes (725K total — XML payload outliers, 54% of remaining)
+
+  **Structural CString detection design (deferred to future work):**
+  Each alt_body_X read in the chain currently consumes u32s greedily
+  through XML payload bytes. To preserve CString detection, peek at
+  next 4 bytes as potential u32 length, check if 0 < len < 65536 AND
+  next len bytes are valid printable-ASCII UTF-8. If yes, stop chain
+  and let alt_post_cstr_a read the CString. Implementation needs ~128
+  line edits per checkpoint OR a helper-function refactor; deferred
+  to keep this loop session focused on byte-savings results.
 
 ### Remaining Tier 1.5 (blocked by family decoders)
 **None remaining.** Both prior blockers resolved on 2026-04-30:
@@ -193,11 +230,13 @@ spawn_data_list is now a `Decoded|Raw` enum (`SpawnDataList`) with
 pattern as ConditionInfo's GameCondition wrapper.)
 
 ### Unresolved format mysteries
-**None remaining** for the 121 on-disk tables in the 2026-4-24 dump. The previous
-entry (`levelinfo.pabgb`) was resolved by the `GameLevelInfo` parser
-(`src/tables/game_level_info/info.rs`, 6 wire fields), which round-trips all
-entries byte-perfect. The "ReflectObject pattern" hypothesis was incorrect — the
-file is a standard fixed-shape table with 6 scalar fields.
+- `levelinfo.pabgb` (134 entries) — empirical analysis shows the file uses the
+  `pa::ReflectObject` reflection pattern. Every entry starts `e2 e0 51 1f 00 00
+  [count] 00 00 00` (hash 0x1f51e0e2 + u16 + outer count), then outer elements
+  each begin with the same hash. Sub-element structure has variable sizes determined
+  by nested inner counts. Class name hashes 0xa19e44b1 and 0x66be15a8 appear as
+  element type tags. **Deferred — needs IDA decompile of the LevelInfo reader to
+  identify concrete field layout.**
 
 ### Recently cracked (was previously labeled DEFERRED ReflectObject)
 - `DropSetInfo._list` — sub_141600210 turned out fixed-shape with a
@@ -342,7 +381,7 @@ variants typed (dispatch_tag u8 + per-tag body), wrapped in
 | **SequencerStageTrackChangeData** family (Character/Gimmick/Item) | ✅ shipped (inside SequencerStageChartDesc field 19) | (used inside SequencerStageChartDesc) |
 | **SequencerStageSpawnData** | ✅ shipped (inside SequencerStageChartDesc field 20) | (used inside SequencerStageChartDesc) |
 | **GameEventHandler** | ✅ shipped — per-sub_tag typed bodies (sub_tag 2 = 12-byte SetUIPlayGuideParameter, sub_tag 3 = 6-byte SetUIFullscreenGuideParameter, sub_tags 0/1/4 in-place or Raw fallback). | GameEventHandlerInfo (Tier 1) |
-| **TriggerEventHandler** | ✅ resolved — `TriggerRegionInfo` is T1 (its parser does not embed ITriggerEventHandler as a family decoder; it reads PresetEntry fields directly). `pa::ReflectObject` concern was a red herring for the on-disk format. | TriggerRegionInfo ✅ T1 |
+| **TriggerEventHandler** | 🟡 deferred — `pa::ReflectObject` is runtime-only (confirmed); binary I/O for ITriggerEventHandler is a fixed struct (transform + 2 u16 type indices). The GimmickInfo "tag-16" issue is resolved; remaining deferred work is TriggerRegionInfo and similar tables that embed ITriggerEventHandler. | TriggerRegionInfo and others |
 | **TriggerGamePlayEventHandlerData** (TGPEHD) | ✅ FULLY SHIPPED — `binary::variants::trigger_gameplay_event_handler_data` covers all 8 inner cases (tags 0–7) plus the outer sub_141D7FF30 complex format (`TriggerEventHandlerDataElement`, `InnerTriggerEventWrapper`, `TriggerEventEntry`). GimmickInfo wired via `trigger_event_handler_list: Option<CArray<COptional<TriggerEventHandlerDataElement>>>`. | GimmickInfo field 17 — 12393/12399 decoded |
 | **FilterCondition** family | ✅ FULLY SHIPPED — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). QuestInfo wired via `6cdc22c` (lane-c, 2026-04-30). | QuestInfo `_questDialogFilterDataList` — Tier 1 |
 
@@ -470,12 +509,15 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 
 ## What's next, in priority order
 
-### Project status: at ceiling for 2026-4-24 dump
-
-All 121 on-disk tables are T1. All decode ceilings have been reached:
-- `gimmick_info` with_body=9947 (2446 entries legitimately absent post_body)
-- `condition_info` 8919/8934 (15 raw = source data truncation, unfixable)
-- `interaction_info` 363/363 (100%)
+### Remaining work
+1. ~~**GimmickInfo post_blob fields 20–179**~~ — ✅ DECODED via IDA
+   (`sub_1410E6FC0`); shipped as `GimmickPostBody` struct (F20–F179).
+   9947/12393 entries successfully decode the post-body. 2446 entries
+   have `COptional flag=0` (legitimately absent).
+2. **TriggerEventHandler family** — `pa::ReflectObject` reflection-
+   driven serialization. Needs reflection layer reversed. DEFERRED.
+3. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — small change
+   in DMM-BETA's mod-loader. No IDA required.
 
 Remaining raw entries in condition_info (15) and gimmick_info (6) are data
 bugs in the source .pabgb files, not parser gaps.

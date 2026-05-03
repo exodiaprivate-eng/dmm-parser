@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 //! Helpers for pabgh-bounded variant payload reading.
 //!
 //! Many pabgb tables embed a polymorphic field (e.g. `_gameCondition`,
@@ -324,6 +333,8 @@ fn parse_pabgh_inline(data: &[u8]) -> Option<Vec<(u32, usize)>> {
         (2usize, c16, 4usize, 8usize)
     } else if 2 + c16 * 6 == data.len() {
         (2usize, c16, 2usize, 6usize)
+    } else if 2 + c16 * 5 == data.len() {
+        (2usize, c16, 1usize, 5usize)
     } else if 4 + c32 * 8 == data.len() {
         (4usize, c32, 4usize, 8usize)
     } else {
@@ -333,7 +344,9 @@ fn parse_pabgh_inline(data: &[u8]) -> Option<Vec<(u32, usize)>> {
     let mut out = Vec::with_capacity(count);
     for i in 0..count {
         let pos = idx_start + i * entry_size;
-        let key = if key_size == 2 {
+        let key = if key_size == 1 {
+            data[pos] as u32
+        } else if key_size == 2 {
             u16::from_le_bytes(data[pos..pos + 2].try_into().ok()?) as u32
         } else {
             u32::from_le_bytes(data[pos..pos + 4].try_into().ok()?)

@@ -131,9 +131,9 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
     const PABGB_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/conditioninfo.pabgb";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgb";
     const PABGH_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/conditioninfo.pabgh";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -242,7 +242,7 @@ mod tests {
         let patches = [
             "2026-03-29", "2026-03-30", "2026-03-31",
             "2026-4-4", "2026-4-11", "2026-4-12",
-            "2026-4-23", "2026-4-24",
+            "2026-4-23", "2026-5-1",
         ];
         for patch in patches {
             let pabgb = format!("{}/{}/conditioninfo.pabgb", base, patch);

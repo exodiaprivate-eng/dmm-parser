@@ -22,6 +22,7 @@ py_binary_struct! {
         pub ui_texture_name_string_info: u32,
         pub ui_video_path_string_info: u32,
         pub widget_id_string_info: u32,
+        pub sort_order: u32,
         pub is_once: u8,
         pub is_show_guide_list: u8,
         pub game_advice_group_info: u32,
@@ -34,7 +35,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/gameadviceinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gameadviceinfo.pabgb";
 
     #[test]
     fn roundtrip() {

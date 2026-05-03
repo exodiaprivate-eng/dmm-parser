@@ -1,1 +1,1 @@
-mod info; pub use info::{GimmickInfo, GimmickTail};
+pub mod info; pub use info::{GimmickInfo, GimmickTail};

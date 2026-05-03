@@ -3,7 +3,8 @@ target/
 
 # Python build artifacts
 .venv/
-python/dmm_parser/__pycache__/
+__pycache__/
+*.pyc
 python/dmm_parser/*.so
 dist/
 
@@ -18,8 +19,9 @@ pabgb/
 # Output files
 out/
 
-# Tools / game files
-tools/
+# Tools / game files (top-level only — Phase T mod-author CLIs live at
+# python/dmm_parser/tools/ and SHOULD be tracked)
+/tools/
 node_modules/
 package.json
 package-lock.json

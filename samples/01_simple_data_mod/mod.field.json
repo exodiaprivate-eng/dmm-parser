@@ -1,0 +1,18 @@
+{
+  "format": 3,
+  "format_minor": 1,
+  "name": "Bigger Potion Stacks",
+  "author": "potter",
+  "version": "1.0.0",
+  "description": "Healing potions stack to 99 instead of the vanilla limit.",
+
+  "targets": [
+    {
+      "kind": "table",
+      "table": "ItemInfo",
+      "ops": [
+        { "key": "id_4242", "field": "max_count", "value": 99 }
+      ]
+    }
+  ]
+}

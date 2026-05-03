@@ -1,0 +1,45 @@
+{
+  "format": 3,
+  "format_minor": 1,
+  "name": "Sword of Potter",
+  "author": "potter",
+  "version": "1.0.0",
+  "description": "A custom one-handed sword with a unique icon and localized strings.",
+
+  "targets": [
+    {
+      "kind": "table",
+      "table": "ItemInfo",
+      "ops": [
+        {
+          "op": "insert",
+          "key": "id_100001",
+          "fields": {
+            "name": "Sword of Potter",
+            "category": 1,
+            "max_count": 1,
+            "buy_price": 0,
+            "sell_price": 0,
+            "description_key": "STR_ITEM_100001_DESC"
+          }
+        }
+      ]
+    },
+
+    {
+      "kind": "asset",
+      "asset_type": "dds",
+      "file": "icons/sword_of_potter.dds",
+      "vpath": "/ui/icon/sword_of_potter.dds"
+    },
+
+    {
+      "kind": "paloc",
+      "language": "english(us)",
+      "entries": [
+        { "category": 0, "key": "STR_ITEM_100001_NAME", "value": "Sword of Potter" },
+        { "category": 0, "key": "STR_ITEM_100001_DESC", "value": "Forged in the loop." }
+      ]
+    }
+  ]
+}

@@ -67,6 +67,8 @@ pub struct LevelGimmickSceneObjectInfo<'a> {
     pub use_guide_effect: u8,
     pub is_sub_inner_gimmick: u8,
     pub check_game_level_load_state: u8,
+    pub unk_new_u8_a: u8,
+    pub unk_new_u8_b: u8,
     pub completed_discover_map_icon_texture_info: u32,
     pub over_abyss_completed_discover_map_icon_texture_info: u32,
     pub guide_effect_socket_name: CString<'a>,
@@ -104,6 +106,8 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         let use_guide_effect = u8::read_from(data, offset)?;
         let is_sub_inner_gimmick = u8::read_from(data, offset)?;
         let check_game_level_load_state = u8::read_from(data, offset)?;
+        let unk_new_u8_a = u8::read_from(data, offset)?;
+        let unk_new_u8_b = u8::read_from(data, offset)?;
         let completed_discover_map_icon_texture_info = u32::read_from(data, offset)?;
         let over_abyss_completed_discover_map_icon_texture_info = u32::read_from(data, offset)?;
         let guide_effect_socket_name = CString::read_from(data, offset)?;
@@ -119,6 +123,7 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
             over_abyss_fog_distance, discover_distance,
             show_icon_condition_type, use_teleport, use_guide_effect,
             is_sub_inner_gimmick, check_game_level_load_state,
+            unk_new_u8_a, unk_new_u8_b,
             completed_discover_map_icon_texture_info, over_abyss_completed_discover_map_icon_texture_info,
             guide_effect_socket_name, ore_vein_index, discover_type,
             ignore_same_gimmick_discover_distance, discover_gimmick_state_hash,
@@ -144,6 +149,8 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         self.use_guide_effect.write_to(w)?;
         self.is_sub_inner_gimmick.write_to(w)?;
         self.check_game_level_load_state.write_to(w)?;
+        self.unk_new_u8_a.write_to(w)?;
+        self.unk_new_u8_b.write_to(w)?;
         self.completed_discover_map_icon_texture_info.write_to(w)?;
         self.over_abyss_completed_discover_map_icon_texture_info.write_to(w)?;
         self.guide_effect_socket_name.write_to(w)?;
@@ -174,6 +181,8 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         m.insert("use_guide_effect".to_string(), self.use_guide_effect.to_json_value());
         m.insert("is_sub_inner_gimmick".to_string(), self.is_sub_inner_gimmick.to_json_value());
         m.insert("check_game_level_load_state".to_string(), self.check_game_level_load_state.to_json_value());
+        m.insert("unk_new_u8_a".to_string(), self.unk_new_u8_a.to_json_value());
+        m.insert("unk_new_u8_b".to_string(), self.unk_new_u8_b.to_json_value());
         m.insert("completed_discover_map_icon_texture_info".to_string(), self.completed_discover_map_icon_texture_info.to_json_value());
         m.insert("over_abyss_completed_discover_map_icon_texture_info".to_string(), self.over_abyss_completed_discover_map_icon_texture_info.to_json_value());
         m.insert("guide_effect_socket_name".to_string(), self.guide_effect_socket_name.to_json_value());
@@ -203,6 +212,8 @@ impl<'a> LevelGimmickSceneObjectInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_guide_effect")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_sub_inner_gimmick")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "check_game_level_load_state")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_u8_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_u8_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "completed_discover_map_icon_texture_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_completed_discover_map_icon_texture_info")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "guide_effect_socket_name")?)?;
@@ -219,8 +230,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/levelgimmicksceneobjectinfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/levelgimmicksceneobjectinfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/levelgimmicksceneobjectinfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/levelgimmicksceneobjectinfo.pabgh";
 
     #[test]
     fn roundtrip() {

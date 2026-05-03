@@ -38,8 +38,12 @@
 //!  26. u32 lookup_h                      (qword_145F11398 hash)
 //!  27. CArray<u32> list_b                (sub_1410FF890, qword_145F0DA08)
 //!  28. CArray<u32> list_c                (sub_1410FF890, qword_145F0DA08)
-//!  29. u32 lookup_i                      (sub_1410FF340)
-//!  30. u32 raw_d
+//! [2026-5-1 new fields, inserted between list_c and lookup_i]
+//!  29. CArray<u32> unk_new_carray_a
+//!  30. CBytes unk_new_cbytes
+//!  31. CArray<u32> unk_new_carray_b
+//!  32. u32 lookup_i                      (sub_1410FF340)
+//!  33. u32 raw_d
 //!  31. CString cstring_a                 (sub_1410A9D40 — wire CString)
 //!  32. u8 flag_c
 //!  33. u8 flag_d
@@ -365,6 +369,9 @@ pub struct StageInfo<'a> {
     pub lookup_h: u32,
     pub list_b: CArray<u32>,
     pub list_c: CArray<u32>,
+    pub unk_new_carray_a: CArray<u32>,
+    pub unk_new_cbytes: CBytes<'a>,
+    pub unk_new_carray_b: CArray<u32>,
     pub lookup_i: u32,
     pub raw_d: u32,
     pub cstring_a: CString<'a>,
@@ -468,6 +475,9 @@ impl<'a> StageInfo<'a> {
         let lookup_h = u32::read_from(data, offset)?;
         let list_b = CArray::<u32>::read_from(data, offset)?;
         let list_c = CArray::<u32>::read_from(data, offset)?;
+        let unk_new_carray_a = CArray::<u32>::read_from(data, offset)?;
+        let unk_new_cbytes = CBytes::read_from(data, offset)?;
+        let unk_new_carray_b = CArray::<u32>::read_from(data, offset)?;
         let lookup_i = u32::read_from(data, offset)?;
         let raw_d = u32::read_from(data, offset)?;
         let cstring_a = CString::read_from(data, offset)?;
@@ -549,7 +559,7 @@ impl<'a> StageInfo<'a> {
             disable_faction_spawn_party_name_hash_list, raw_a, raw_b, raw_c,
             list_a, flag_a, flag_b, lookup_c, lookup_d, lookup_e,
             close_filter_a, close_filter_b, close_filter_c, filter_entry_list,
-            lookup_f, lookup_g, lookup_h, list_b, list_c, lookup_i, raw_d,
+            lookup_f, lookup_g, lookup_h, list_b, list_c, unk_new_carray_a, unk_new_cbytes, unk_new_carray_b, lookup_i, raw_d,
             cstring_a, flag_c, flag_d, raw_e, raw_f, pair_a, pair_b,
             raw_g, raw_h, raw_i,
             mob_map_list, lookup_j, string_entry_list,
@@ -596,6 +606,9 @@ impl<'a> StageInfo<'a> {
         self.lookup_h.write_to(w)?;
         self.list_b.write_to(w)?;
         self.list_c.write_to(w)?;
+        self.unk_new_carray_a.write_to(w)?;
+        self.unk_new_cbytes.write_to(w)?;
+        self.unk_new_carray_b.write_to(w)?;
         self.lookup_i.write_to(w)?;
         self.raw_d.write_to(w)?;
         self.cstring_a.write_to(w)?;
@@ -693,6 +706,9 @@ impl<'a> StageInfo<'a> {
         m.insert("lookup_h".to_string(), self.lookup_h.to_json_value());
         m.insert("list_b".to_string(), self.list_b.to_json_value());
         m.insert("list_c".to_string(), self.list_c.to_json_value());
+        m.insert("unk_new_carray_a".to_string(), self.unk_new_carray_a.to_json_value());
+        m.insert("unk_new_cbytes".to_string(), self.unk_new_cbytes.to_json_value());
+        m.insert("unk_new_carray_b".to_string(), self.unk_new_carray_b.to_json_value());
         m.insert("lookup_i".to_string(), self.lookup_i.to_json_value());
         m.insert("raw_d".to_string(), self.raw_d.to_json_value());
         m.insert("cstring_a".to_string(), self.cstring_a.to_json_value());
@@ -789,6 +805,9 @@ impl<'a> StageInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_h")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_b")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_c")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_carray_a")?)?;
+        <CBytes as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_cbytes")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_carray_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_i")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_d")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_a")?)?;
@@ -861,8 +880,8 @@ impl<'a> StageInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/stageinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/stageinfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/stageinfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/stageinfo.pabgh";
 
     #[test]
     fn roundtrip() {

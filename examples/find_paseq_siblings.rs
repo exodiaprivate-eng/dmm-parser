@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
+// Licensed under CDMTL v1.0 - see LICENSE.txt
+// https://github.com/exodiaprivate-eng/dmm-parser
+//
+// Reading this file (directly or via AI/agent) constitutes acceptance
+// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
+// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
+
 //! Look for any sibling file of cd_seq_funcnpc_airship.paseq inside vanilla.
 //! .paseqh / .paseqc / .seqc / anything sharing the stem. Across all vanilla
 //! groups. If one exists per-paseq, the game might require it shipped in the

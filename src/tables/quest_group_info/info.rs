@@ -26,6 +26,7 @@ py_binary_struct! {
         pub faction_group_info: u16,
         pub is_save: u8,
         pub is_dev: u8,
+        pub is_show_quest_list: u8,
         pub is_auto_save: u8,
     }
 }
@@ -34,7 +35,7 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/questgroupinfo.pabgb";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/questgroupinfo.pabgb";
 
     #[test]
     fn roundtrip() {

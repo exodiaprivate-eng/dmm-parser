@@ -3,14 +3,35 @@
 Pabgb / pabgh / paz / pamt / papgt parser for the DMM mod loader.
 
 Forked from `crimson-rs` by `potter4208467` (Discord) with explicit permission.
-Distributed under a source-available license restricted to DMM-affiliated use — see [LICENSE](LICENSE).
+
+## License & Authorized Distribution
+
+Licensed under **CDMTL v1.0** (Crimson Desert Modding Tools License v1.0), effective 2026-05-01. See [LICENSE.txt](LICENSE.txt) for full terms.
+
+**This software is distributed exclusively through the following authorized channels:**
+
+- **Source**: https://github.com/exodiaprivate-eng/dmm-parser
+- **Releases**: https://github.com/exodiaprivate-eng/dmm-parser/releases
+- **NexusMods**: only via the official RicePaddySoftware author page when published
+
+Any copy of this software, or any derivative work based on it, found outside these channels is **unauthorized** and subject to DMCA takedown. This includes uploads to NexusMods, ModDB, GameBanana, CurseForge, file-sharing services, and third-party GitHub repositories not operated by RicePaddySoftware.
+
+**Trademarks**: "DMM", "Definitive Mod Manager", "SWISS", "SWISS Suite", "Field JSON v3.1", "Multi-Target Field Patching", "RicePaddySoftware", and "CrimsonGameMods" are trademarks of RicePaddySoftware. Use of these names — including confusingly similar variants such as "CDUMM", "DUMM", or "DMM2" — by competing tools is prohibited.
+
+**Found an unauthorized copy?** Open an issue on this repository with the URL and a brief description, or follow the platform's own abuse-reporting flow.
 
 ## Status
 
-- 162 / 162 tests pass (`cargo test --release`)
-- 121 pabgb tables round-trip byte-perfect
+- 402 / 402 Rust tests pass (`cargo test --release`)
+- 12 / 12 Python tools smoke tests pass (`python -m dmm_parser.tools._test_smoke`)
+- 122 pabgb tables round-trip byte-perfect (+ paloc localization format)
 - 67 fully field-decoded (every field individually addressable, including BuffInfo + SkillInfo with all 120 BuffData variants)
+- PALOC (localization) format supported with category-based JSON form: `parse_paloc_to_json` / `serialize_paloc_from_json`
 - 54 byte-perfect with `Vec<u8>` blob-tail for polymorphic regions still being decoded
+- **DDS** textures (Crimson quirks): `classify_dds`, `validate_dds`, `infer_dds_vpath`, `classify_vpath_last4`
+- **Wwise audio** (WEM + BNK): `classify_wem`, `parse_bnk`, `validate_audio`, `infer_audio_vpath`
+- **Save envelope** (S2): ChaCha20 + LZ4 + HMAC pipeline with caller-supplied keys (no embedded secrets)
+- **Field-JSON v3.1** mod-author CLIs: `dmm-mod-validate`, `dmm-mod-pack`, `dmm-mod-inspect`, `dmm-mod-diff`
 
 ## Python bindings
 
@@ -65,6 +86,23 @@ items = dmm_parser.parse_iteminfo_from_bytes(data)
 ### API reference
 
 See [docs/api.md](docs/api.md).
+
+## For mod authors
+
+If you're writing mods with the Field-JSON v3.1 manifest format, start at:
+
+- [docs/MOD_AUTHOR_GUIDE.md](docs/MOD_AUTHOR_GUIDE.md) — top-level entry, sections per mod type, common pitfalls
+- [docs/FORMATS.md](docs/FORMATS.md) — every binary format dmm-parser understands
+- [samples/](samples/) — five worked examples (data, texture, audio, custom item, mixed overhaul)
+
+Mod-author CLIs:
+
+```bash
+python -m dmm_parser.tools.validate <field.json> [--assets DIR] [--json]
+python -m dmm_parser.tools.pack     <field.json> [--out OUT.zip]
+python -m dmm_parser.tools.inspect  <field.json | mod.zip>
+python -m dmm_parser.tools.diff     <a> <b>
+```
 
 ## Rust crate
 

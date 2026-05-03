@@ -1,0 +1,17 @@
+{
+  "format": 3,
+  "format_minor": 1,
+  "name": "Custom Sword Icon",
+  "author": "potter",
+  "version": "1.0.0",
+  "description": "Replaces the UI icon for the iconic short sword.",
+
+  "targets": [
+    {
+      "kind": "asset",
+      "asset_type": "dds",
+      "file": "icons/sword.dds",
+      "vpath": "/ui/icon/sword.dds"
+    }
+  ]
+}

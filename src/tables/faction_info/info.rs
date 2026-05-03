@@ -177,6 +177,7 @@ py_binary_struct! {
         pub faction_event_data_list: FactionEventDataSlots<'a>,
         pub is_empty_misc: u8,
         pub faction_color: u32,
+        pub unk_new_u32: u32,
     }
 }
 
@@ -199,8 +200,8 @@ impl<'a> FactionInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/faction.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/faction.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/faction.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/faction.pabgh";
 
     #[test]
     fn roundtrip() {

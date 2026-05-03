@@ -151,3 +151,71 @@ mod files on disk
     → insert mod entry at front (upsert)
     → write updated 0.papgt
 ```
+
+## PALOC (Pearl Abyss Localization) — `*.paloc`
+
+Pearl Abyss localization format, used for item names, descriptions, UI text, and all in-game strings. Each language has its own paloc file (e.g. `localizationstring_eng.paloc`, `localizationstring_kor.paloc`).
+
+### Format
+
+```
++0x00  entries[]                    ← back-to-back entries until last 4 bytes
++...   entry_count: u32 LE          ← last 4 bytes of file
+```
+
+### Entry Layout (per record)
+
+```
++0x00  category: u64 LE             ← only low byte significant; upper 7 bytes always 0
++0x08  key_len: u32 LE              ← length of key string in bytes
++0x0C  key: u8[key_len]             ← UTF-8, no null terminator
++...   value_len: u32 LE            ← length of value string in bytes
++...   value: u8[value_len]         ← UTF-8, no null terminator
+```
+
+### Category Codes
+
+The low byte of the `category` u64 indicates the string's type. Observed values:
+
+| Code | Meaning |
+|---|---|
+| `0x03` | Character names + descriptions |
+| `0x07` | Items (currencies, materials) and their descriptions |
+| `0x2F` | UI / general game text |
+| `0x70` | Item name (matches `(item_key << 32) \| 0x70` formula) |
+| `0x71` | Item description (matches `(item_key << 32) \| 0x71` formula) |
+
+Other category codes exist for NPCs, quests, etc. (full enumeration TBD).
+
+### Key String Pattern
+
+For item-related entries, the `key` is the **decimal representation** of `(target_id << 32) | tag_byte`. For example, item key `1` (vanilla "Copper") has:
+- name lookup key: `"4294967408"` = `(1 << 32) | 0x70`
+- desc lookup key: `"4294967409"` = `(1 << 32) | 0x71`
+
+Custom items at `target_id = 999001` use:
+- name lookup key: `"4290772592"` = `(999001 << 32) | 0x70`
+- desc lookup key: `"4290772593"` = `(999001 << 32) | 0x71`
+
+### Encryption / Compression
+
+Paloc files stored inside `.paz` archives use the PAZ entry's compression (LZ4) and encryption (ChaCha20) — **NOT** a paloc-internal envelope. After extraction via PAZ tooling, the resulting bytes are plain and use the format documented above.
+
+### Rust API
+
+- `crate::binary::paloc::LocalizationFile::parse(data)` — parse from plain bytes
+- `crate::binary::paloc::LocalizationFile::to_bytes()` — serialize to plain bytes
+- `crate::binary::paloc::parse_paloc_to_json(data)` — parse to JSON form `[{category, key, value}]`
+- `crate::binary::paloc::serialize_paloc_from_json(items)` — inverse
+
+### Dispatch Names
+
+Recognized by `dmm_parser::dispatch::parse_table_to_json` and `serialize_table_from_json`: `"paloc"`, `"paloc.pamt"`, `"localizationstring"`.
+
+### Hex Pattern
+
+See `references/paloc.hexpat` for an ImHex pattern file documenting the format.
+
+### Sample File
+
+Verified against `localizationstring_eng.paloc` from PAZ group 0020: 15.4 MB, 172,152 entries, all parse cleanly with byte-perfect round-trip.

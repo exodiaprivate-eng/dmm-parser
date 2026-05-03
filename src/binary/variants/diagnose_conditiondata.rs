@@ -16,9 +16,9 @@ use crate::binary::*;
 use std::collections::BTreeMap;
 
 const PABGB_PATH: &str =
-    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/conditioninfo.pabgb";
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgb";
 const PABGH_PATH: &str =
-    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/conditioninfo.pabgh";
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgh";
 
 /// One walk of the GameCondition blob, recording byte counts per ConditionData tag.
 /// Returns Ok with the cursor position if the walk completed without overshooting

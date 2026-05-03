@@ -122,6 +122,8 @@ py_binary_struct! {
         pub is_blocked: u8,
         pub elemental_material_system_type: u8,
         pub elemental_material_key: CString<'a>,
+        pub unk_new_u32_a: u32,
+        pub unk_new_u32_b: u32,
         pub total_fuel_amount: u32,
         pub fuel_standard_obb_size: u32,
         pub fuel_end_passive_skill_key: u32,
@@ -166,8 +168,8 @@ impl<'a> ElementalMaterialInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/elementalmaterialinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/elementalmaterialinfo.pabgh";
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/elementalmaterialinfo.pabgb";
+    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/elementalmaterialinfo.pabgh";
 
     #[test]
     fn roundtrip() {

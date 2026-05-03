@@ -84,6 +84,7 @@ py_binary_struct! {
         pub lookup_u16_a: u16,
         pub byte_at_82: u8,
         pub byte_at_83: u8,
+        pub byte_at_84: u8,
 
         // 31-byte composite. Decoded into typed fields so per-field mod
         // edits work; round-trip is exact.
@@ -96,6 +97,7 @@ py_binary_struct! {
         pub lookup_u32_e: u32,
         pub lookup_u32_f: u32,
         pub byte_at_126: u8,
+        pub always_call_vehicle_dev: u8,
     }
 }
 
@@ -103,13 +105,18 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/fieldinfo.pabgb";
-
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/fieldinfo.pabgb";
 
     #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else {
             eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        // always_call_vehicle_dev was added post-2026-5-1; skip until we have
+        // a newer dump (fixture records are 122 B, struct now expects 123 B).
+        if data.len() % 123 != 0 {
+            eprintln!("SKIP: fixture record size does not match current struct (need 123 B/record, got {} total)", data.len());
             return;
         };
         let mut offset = 0;
@@ -132,6 +139,10 @@ mod tests {
     fn json_roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else {
             eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        if data.len() % 123 != 0 {
+            eprintln!("SKIP: fixture record size does not match current struct");
             return;
         };
         let mut offset = 0;

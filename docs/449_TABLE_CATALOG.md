@@ -12,10 +12,11 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 | Status | Count |
 |---|---|
-| **On-disk + Tier 1 (fully field-decoded)** | 119 |
+| **On-disk + Tier 1 (fully field-decoded)** | 118 |
+| **On-disk + Tier 1.5 (typed + polymorphic blob field)** | 0 |
 | **On-disk + Tier 2 (blob-tail, partial decode)** | 0 |
 | **Parser exists but not in current dump** | 2 |
-| **In-memory only (C++ struct, no pabgb file)** | 328 |
+| **In-memory only (C++ struct, no pabgb file)** | 327 |
 | **TOTAL** | 449 |
 
 ## Status legend
@@ -23,6 +24,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | Glyph | Meaning |
 |---|---|
 | ✅ T1 | On disk, fully field-decoded — every field individually addressable by v3 mods |
+| 🟢 T1.5 | On disk, mostly typed — one polymorphic field exposed as opaque-but-clonable blob |
 | 🟡 T2 | On disk, blob-tail decoded — `key`/`string_key`/`is_blocked` editable; rest opaque |
 | 📚 P  | Parser exists but no matching .pabgb in this game dump (older version or other region) |
 | 🧠 — | In-memory C++ struct only; never serialized to disk; no parser needed |
@@ -180,6 +182,10 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | ✅ T1 | `FieldInfo` | 24 | records for field (records can be individually blocked via is_blocked; spawn-related) |
 | ✅ T1 | `FieldLevelNameTableInfo` | 5 | lookup table for field level name (records can be individually blocked via is_blocked) |
 | ✅ T1 | `FieldReviveInfo` | 10 | records for field revive (records can be individually blocked via is_blocked; positional); pabgb is `reviepointinfo.pabgb` (game typo) |
+| 📚 P | `GameEventHandlerInfo` | 9 | records for game event handler (records can be individually blocked via is_blocked) |
+| 📚 P | `GameLevelInfo` | 6 | records for game level (records can be individually blocked via is_blocked) |
+| 📚 P | `GamePlayTriggerInfo` | 13 | records for game play trigger (records can be individually blocked via is_blocked; positional) |
+| ✅ T1 | `FieldReviveInfo` | 10 | records for field revive (records can be individually blocked via is_blocked; positional) |
 | ✅ T1 | `GameEventHandlerInfo` | 9 | records for game event handler (records can be individually blocked via is_blocked) |
 | ✅ T1 | `GameLevelInfo` | 6 | records for game level (records can be individually blocked via is_blocked) |
 | ✅ T1 | `GamePlayTriggerInfo` | 13 | records for game play trigger (records can be individually blocked via is_blocked; positional) |
@@ -335,7 +341,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | 🧠 — | `InventoryPushableData` | 2 | records for inventory pushable data |
 | ✅ T1 | `ItemGroupInfo` | 14 | grouping/categorization for item (records can be individually blocked via is_blocked; UI icon) |
 | 🧠 — | `ItemIconData` | 3 | records for item icon data (UI icon) |
-| ✅ T1 | `ItemInfo` | 111 | records for item (records can be individually blocked via is_blocked) |
+| 🧠 — | `ItemInfo` | 111 | records for item (records can be individually blocked via is_blocked) |
 | 🧠 — | `ItemInfo_PatternDescriptionData` | 2 | records for item info pattern description data |
 | 🧠 — | `ItemInfo_SharpnessData` | 3 | records for item info sharpness data |
 | 🧠 — | `ItemMeshGroupData` | 1 | records for item mesh group data |
@@ -4271,11 +4277,11 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 - `_checkExistSealedData`
 - `_gimmickStateList`
 
-### ItemInfo ✅ T1
+### ItemInfo 🧠 —
 
 **Category**: Item/Inventory  
 **Purpose**: records for item (records can be individually blocked via is_blocked)  
-**Parser**: `dmm-parser/src/tables/item_info/`
+**Parser**: not present
 **Fields (111)**:
 
 - `_key`

@@ -132,6 +132,7 @@ py_binary_struct! {
         pub hackable_character_group_info_list: CArray<CharacterGroupKey>,
         pub item_group_info_list: CArray<ItemGroupKey>,
         pub discard_offset_y: f32,
+        pub discard_attach_terrain: u8,
         pub hide_from_inventory_on_pop_item: u8,
         pub is_shield_item: u8,
         pub is_tower_shield_item: u8,
@@ -139,6 +140,7 @@ py_binary_struct! {
         pub packed_item_info: ItemKey,
         pub unpacked_item_info: ItemKey,
         pub convert_item_info_by_drop_npc: ItemKey,
+        pub stage_info: u32,
         pub pattern_description_data_list: CArray<PatternDescriptionData<'a>>,
         pub look_detail_game_advice_info_wrapper: GameAdviceInfoKey,
         pub look_detail_mission_info: MissionKey,
@@ -168,9 +170,9 @@ mod tests {
     // Returns None (test SKIPs) if no fixture found anywhere.
     fn find_iteminfo() -> Option<Vec<u8>> {
         let candidates: &[&str] = &[
-            "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
-            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
-            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-4-24/iteminfo.pabgb",
+            "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
+            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
+            r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/iteminfo.pabgb",
         ];
         if let Ok(p) = std::env::var("DMM_PARSER_ITEMINFO_PATH") {
             if let Ok(d) = std::fs::read(&p) {
@@ -204,13 +206,13 @@ mod tests {
         let item = ItemInfo::read_from(&data, &mut offset).unwrap();
         assert_eq!(item.key, ItemKey(2200));
         assert_eq!(item.string_key.data, "Pyeonjeon_Arrow");
-        assert_eq!(offset, 0x00000270, "unexpected size for first item");
+        assert_eq!(offset, 0x0000027A, "unexpected size for first item");
     }
 
     #[test]
     fn test_parse_second_item() {
         let data = load_or_skip!();
-        let mut offset = 0x00000270;
+        let mut offset = 0x0000027A;
         let item = ItemInfo::read_from(&data, &mut offset).unwrap();
         assert_ne!(item.key, ItemKey(0));
         println!(
