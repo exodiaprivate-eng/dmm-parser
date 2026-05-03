@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! Tier 1 — fully typed parser. All 174 wire fields editable; tail blob
 //! is empty for every vanilla entry (see `roundtrip` test which prints
 //! `0 nonempty tails`). The `pabgh_typed_blob_table!` macro now omits
@@ -602,6 +593,7 @@ pabgh_typed_blob_table! {
         pub list_b: CArray<u64>,
         pub list_c: CArray<u64>,
         pub list_d: CArray<u64>,
+        pub unk_new_u32_a: u32,            // new in 2026-5-1; between list_d and list_e
         pub list_e: CArray<u32>,
         pub raw_g: u32,
         pub lookup_84: u32,
@@ -679,6 +671,7 @@ pabgh_typed_blob_table! {
         pub flag_157: u8,                                 // a2 + 956
         pub raw_158: u32,                                 // a2 + 960
         pub flag_159: u8,                                 // a2 + 964
+        pub unk_new_u32_b: u32,                           // new in 2026-5-1; between flag_159 and raw_160
         pub raw_160: u32,                                 // a2 + 968
         pub lookup_161: u32,                              // sub_141100740 a2+972
         pub lookup_162: u32,                              // sub_141100370 a2+974
@@ -689,6 +682,7 @@ pabgh_typed_blob_table! {
         pub raw_165b: u32,                                // a2 + 1012
         pub raw_165c: u32,                                // a2 + 1016
         pub lookup_166: u32,                              // sub_141101A40 a2+1020 (u32 wire / u16 mem)
+        pub unk_new_u64_b: u64,                           // new in 2026-5-1; between lookup_166 and raw_167
         pub raw_167: u32,                                 // a2 + 1024
         pub flag_168: u8,                                 // a2 + 1028
         pub field_169a: CharacterField169Entry,           // 5-iter loop, a2+1032
@@ -710,8 +704,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\characterinfo.pabgb";
-    const PABGH_PATH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps\characterinfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/characterinfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/characterinfo.pabgh";
 
     #[test]
     fn roundtrip() {

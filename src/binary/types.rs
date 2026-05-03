@@ -30,7 +30,7 @@ impl<'a> BinaryRead<'a> for CString<'a> {
         check_remaining(data, *offset, len)?;
         let bytes = &data[*offset..*offset + len];
         let s = std::str::from_utf8(bytes)
-            .unwrap_or_else(|_| "");
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         *offset += len;
         Ok(CString { length, data: s, raw: bytes })
     }
@@ -39,7 +39,7 @@ impl<'a> BinaryRead<'a> for CString<'a> {
 impl BinaryWrite for CString<'_> {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.length.write_to(w)?;
-        w.write_all(self.raw)
+        w.write_all(self.data.as_bytes())
     }
 }
 
@@ -68,7 +68,7 @@ impl<'a> BinaryReadTracked<'a> for CString<'a> {
         check_remaining(data, *offset, len)?;
         let bytes = &data[*offset..*offset + len];
         let s = std::str::from_utf8(bytes)
-            .unwrap_or_else(|_| "");
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         *offset += len;
         ranges.push(FieldRange {
             path: path.clone(),

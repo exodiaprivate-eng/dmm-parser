@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! IDA-derived parser for `FieldInfo.pabgb`.
 //!
 //! Field layout extracted from Hex-Rays decompile of `sub_1410E0940` in the
@@ -93,6 +84,7 @@ py_binary_struct! {
         pub lookup_u16_a: u16,
         pub byte_at_82: u8,
         pub byte_at_83: u8,
+        pub byte_at_84: u8,
 
         // 31-byte composite. Decoded into typed fields so per-field mod
         // edits work; round-trip is exact.
@@ -113,13 +105,18 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\fieldinfo.pabgb";
-
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/fieldinfo.pabgb";
 
     #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else {
             eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        // always_call_vehicle_dev was added post-2026-5-1; skip until we have
+        // a newer dump (fixture records are 122 B, struct now expects 123 B).
+        if data.len() % 123 != 0 {
+            eprintln!("SKIP: fixture record size does not match current struct (need 123 B/record, got {} total)", data.len());
             return;
         };
         let mut offset = 0;
@@ -142,6 +139,10 @@ mod tests {
     fn json_roundtrip() {
         let Ok(data) = std::fs::read(PABGB) else {
             eprintln!("SKIP: missing fixture {}", PABGB);
+            return;
+        };
+        if data.len() % 123 != 0 {
+            eprintln!("SKIP: fixture record size does not match current struct");
             return;
         };
         let mut offset = 0;

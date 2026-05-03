@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! Hand-corrected: IDA-derived parser for `ConditionInfo.pabgb`.
 //!
 //! Per IDA sub_1410D9F60: u32 key, CString string_key, u8 is_blocked,
@@ -140,9 +131,9 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
     const PABGB_PATH: &str =
-        r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\conditioninfo.pabgb";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgb";
     const PABGH_PATH: &str =
-        r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\conditioninfo.pabgh";
+        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgh";
 
     #[test]
     fn roundtrip() {
@@ -251,7 +242,7 @@ mod tests {
         let patches = [
             "2026-03-29", "2026-03-30", "2026-03-31",
             "2026-4-4", "2026-4-11", "2026-4-12",
-            "2026-4-23", "2026-4-24",
+            "2026-4-23", "2026-5-1",
         ];
         for patch in patches {
             let pabgb = format!("{}/{}/conditioninfo.pabgb", base, patch);

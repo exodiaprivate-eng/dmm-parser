@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! Hand-corrected: IDA-derived polymorphic parser for `ItemUseInfo.pabgb`.
 //!
 //! ItemUseInfo entries have a polymorphic `item_use_info_data` payload
@@ -96,6 +87,7 @@ py_binary_struct! {
         pub group_lookup_a: u32,
         pub group_lookup_b: u32,
         pub flag_e: u8,
+        pub unk_new_flag: u8,
         pub flag_f: u8,
         pub group_id: u32,
         pub elements: CArray<BaseUseDataElem<'a>>,
@@ -615,8 +607,8 @@ impl<'a> ItemUseInfo<'a> {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\itemuseinfo.pabgb";
-    const PABGH_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\itemuseinfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgh";
 
     fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
         let count = u32::from_le_bytes(pabgh[..4].try_into().unwrap()) as usize;

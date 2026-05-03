@@ -97,8 +97,8 @@ impl DdsHeader {
             read_u32(data, 44),
         ];
         let mut reserved1_unused = [0u32; 7];
-        for i in 0..7 {
-            reserved1_unused[i] = read_u32(data, 48 + i * 4);
+        for (i, slot) in reserved1_unused.iter_mut().enumerate() {
+            *slot = read_u32(data, 48 + i * 4);
         }
 
         let pixel_format = DdsPixelFormat {

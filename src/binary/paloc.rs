@@ -157,7 +157,7 @@ pub fn serialize_paloc_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
             ))?;
 
         // Reconstruct u64 with category in low byte, upper 7 bytes zero
-        (category as u64).write_to(&mut buf)?;
+        category.write_to(&mut buf)?;
         // Write key (u32 len + bytes, no null terminator — matches CString)
         (key.len() as u32).write_to(&mut buf)?;
         buf.extend_from_slice(key.as_bytes());
@@ -184,13 +184,13 @@ mod json_tests {
         let bytes = build(vec![
             LocalizationEntry {
                 unk_id: 0x70,
-                string_key: CString { length: 10, data: "4294967408" },
-                string_value: CString { length: 6, data: "Copper" },
+                string_key: CString { length: 10, data: "4294967408", raw: b"4294967408" },
+                string_value: CString { length: 6, data: "Copper", raw: b"Copper" },
             },
             LocalizationEntry {
                 unk_id: 0x07,
-                string_key: CString { length: 6, data: "262897" },
-                string_value: CString { length: 26, data: "Unavailable during combat." },
+                string_key: CString { length: 6, data: "262897", raw: b"262897" },
+                string_value: CString { length: 26, data: "Unavailable during combat.", raw: b"Unavailable during combat." },
             },
         ]);
 
@@ -219,8 +219,8 @@ mod json_tests {
         let bytes = build(vec![
             LocalizationEntry {
                 unk_id: 0x07,
-                string_key: CString { length: 0, data: "" },
-                string_value: CString { length: 0, data: "" },
+                string_key: CString { length: 0, data: "", raw: b"" },
+                string_value: CString { length: 0, data: "", raw: b"" },
             },
         ]);
         let json_array = parse_paloc_to_json(&bytes).unwrap();
@@ -237,8 +237,8 @@ mod json_tests {
         let bytes = build(vec![
             LocalizationEntry {
                 unk_id: 0x71,
-                string_key: CString { length: 6, data: "999001" },
-                string_value: CString { length: long_value.len() as u32, data: &long_value },
+                string_key: CString { length: 6, data: "999001", raw: b"999001" },
+                string_value: CString { length: long_value.len() as u32, data: &long_value, raw: long_value.as_bytes() },
             },
         ]);
         let json_array = parse_paloc_to_json(&bytes).unwrap();
@@ -254,8 +254,8 @@ mod json_tests {
         let bytes = build(vec![
             LocalizationEntry {
                 unk_id: 0x07,
-                string_key: CString { length: 6, data: "262897" },
-                string_value: CString { length: kor.len() as u32, data: kor },
+                string_key: CString { length: 6, data: "262897", raw: b"262897" },
+                string_value: CString { length: kor.len() as u32, data: kor, raw: kor.as_bytes() },
             },
         ]);
         let json_array = parse_paloc_to_json(&bytes).unwrap();
@@ -270,8 +270,8 @@ mod json_tests {
         let bytes = build(vec![
             LocalizationEntry {
                 unk_id: 0x70,
-                string_key: CString { length: 10, data: "4294967408" },
-                string_value: CString { length: mixed.len() as u32, data: mixed },
+                string_key: CString { length: 10, data: "4294967408", raw: b"4294967408" },
+                string_value: CString { length: mixed.len() as u32, data: mixed, raw: mixed.as_bytes() },
             },
         ]);
         let json_array = parse_paloc_to_json(&bytes).unwrap();
@@ -286,8 +286,8 @@ mod json_tests {
         let bytes = build(vec![
             LocalizationEntry {
                 unk_id: 0xFF,
-                string_key: CString { length: 1, data: "x" },
-                string_value: CString { length: 1, data: "y" },
+                string_key: CString { length: 1, data: "x", raw: b"x" },
+                string_value: CString { length: 1, data: "y", raw: b"y" },
             },
         ]);
         let json_array = parse_paloc_to_json(&bytes).unwrap();

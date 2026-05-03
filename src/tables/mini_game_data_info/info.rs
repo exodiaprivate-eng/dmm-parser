@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
-// Copyright (c) 2026 RicePaddySoftware. All Rights Reserved.
-// Licensed under CDMTL v1.0 - see LICENSE.txt
-// https://github.com/exodiaprivate-eng/dmm-parser
-//
-// Reading this file (directly or via AI/agent) constitutes acceptance
-// of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
-// (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
-
 //! Hand-corrected: IDA-derived parser for `MiniGameDataInfo.pabgb`.
 //!
 //! Per IDA sub_1410EC670: 16 fields. Player/NPC data lists are typed CArrays
@@ -393,8 +384,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\minigamedatainfo.pabgb";
-    const PABGH_PATH: &str = r"C:\\Users\\corin\\Desktop\\CD DUMPING TOOLS\\dmm-pabgb-aio\\vanilla_dumps\\minigamedatainfo.pabgh";
+    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/minigamedatainfo.pabgb";
+    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/minigamedatainfo.pabgh";
 
     #[test]
     fn roundtrip() {
