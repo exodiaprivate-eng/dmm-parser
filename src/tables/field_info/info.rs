@@ -1,15 +1,20 @@
 //! IDA-derived parser for `FieldInfo.pabgb`.
 //!
 //! Field layout extracted from Hex-Rays decompile of `sub_1410E0940` in the
-//! current Win exe (CrimsonDesert.exe). Each record is 121 wire bytes
-//! (variable in principle via the embedded CString, but all 7 vanilla
-//! records ship with an empty string and round-trip exactly at 121 B).
+//! current Win exe (CrimsonDesert.exe). Each record is 122 wire bytes
+//! (variable in principle via the embedded CString, but all vanilla
+//! records ship with an empty string and round-trip exactly at 122 B).
 //!
-//! The reader walks 26 wire reads in fixed order:
+//! The reader walks 25 wire reads in fixed order:
 //!   key (u32) → CString → byte → 2× u32-lookup → u32 → 4× byte
 //!   → u32-lookup → 12 B blob → 8 B blob → 8 B blob → 4× u32
 //!   → u16-lookup → byte → byte → 31 B composite (sub_141B64FF0/sub_14EB7E370)
 //!   → 3× u32-lookup → byte
+//!
+//! Note: PR #11's `always_call_vehicle_dev` (commit 40866d5) was reverted
+//! after live-game matrix run on 2026-05-04 against 1.05.02 install showed
+//! 7 records × 122 B = 854 B exactly (no trailing byte). Field was either
+//! removed pre-ship or never added in this patch level.
 //!
 //! `lookup` fields carry an obfuscated hash on the wire; the game maps it to
 //! a u16 index at runtime via global dictionaries (qword_145F0DA30,
@@ -97,7 +102,6 @@ py_binary_struct! {
         pub lookup_u32_e: u32,
         pub lookup_u32_f: u32,
         pub byte_at_126: u8,
-        pub always_call_vehicle_dev: u8,
     }
 }
 
@@ -113,10 +117,11 @@ mod tests {
             eprintln!("SKIP: missing fixture {}", PABGB);
             return;
         };
-        // always_call_vehicle_dev was added post-2026-5-1; skip until we have
-        // a newer dump (fixture records are 122 B, struct now expects 123 B).
-        if data.len() % 123 != 0 {
-            eprintln!("SKIP: fixture record size does not match current struct (need 123 B/record, got {} total)", data.len());
+        // 122 B/record on 1.05.02 (verified live 2026-05-04 via
+        // examples/round_trip_matrix.rs). The post-2026-5-1
+        // always_call_vehicle_dev field was reverted — see module doc.
+        if data.len() % 122 != 0 {
+            eprintln!("SKIP: fixture record size does not match current struct (need 122 B/record, got {} total)", data.len());
             return;
         };
         let mut offset = 0;
@@ -141,7 +146,7 @@ mod tests {
             eprintln!("SKIP: missing fixture {}", PABGB);
             return;
         };
-        if data.len() % 123 != 0 {
+        if data.len() % 122 != 0 {
             eprintln!("SKIP: fixture record size does not match current struct");
             return;
         };
