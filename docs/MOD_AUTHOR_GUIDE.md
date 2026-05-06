@@ -128,6 +128,16 @@ catalogs.
 
 ## 3. Texture mods (DDS asset targets)
 
+> **For mod authors:** the dedicated guide
+> [`TEXTURE_MOD_AUTHORING.md`](TEXTURE_MOD_AUTHORING.md) covers everything
+> — five-minute quickstart, DDS format chart, vpath cheatsheet, DCC tool
+> exports (Photoshop / GIMP / Substance Painter / `nvtt_export`),
+> validation, packing, NexusMods page templates, recipes, and
+> troubleshooting. The one-page
+> [`TEXTURE_VPATH_CHEATSHEET.md`](TEXTURE_VPATH_CHEATSHEET.md) is the
+> printable reference card. The summary below is the minimum to know
+> textures exist as a v3.1 target type.
+
 A DDS asset target replaces a texture file in the game's archive
 overlay. The mounted vpath must match the in-game path exactly,
 **including the Crimson "last4" overlay class** (see `docs/api.md`
@@ -143,19 +153,18 @@ overlay. The mounted vpath must match the in-game path exactly,
 }
 ```
 
-**Rules:**
-- Crimson saves the DDS format ID in `dwReserved2[3]` and per-mip
-  sizes in `dwReserved1[0..4]`. Vanilla textures have these set;
-  yours must too. `dmm_parser.classify_dds(bytes)` reports both.
-- For character/armor textures, the path must contain
-  `/character/texture/` so the loader picks the right last4 class
-  (`0x1280` for diffuse, `0x0480` for normal, `0x1380` for tattoo).
-- For UI icons use `/ui/icon/<name>.dds` — these get last4 `0x1580`.
+**The 60-second version of the rules:**
+- Color textures (UI / armor / tattoo) → **BC7 SRGB** with mips
+- Normal maps (`*_n.dds`) → **BC5 Linear** with mips
+- vpath path-prefix decides the last4 (`/ui/*` → `0x1580`,
+  `/character/texture/*_n.dds` → `0x0480`, etc.)
+- `dmm-mod-pack` auto-fills sha256 + size + last4
+- `dmm-mod-validate` catches malformed DDS before users see it
 
 **Build pipeline:**
 1. Author your texture in your DCC tool.
-2. Export to DDS with the vanilla format (BC7 SRGB for albedo, BC5
-   for normal maps — match the original).
+2. Export to DDS with the right format per
+   [TEXTURE_VPATH_CHEATSHEET.md](TEXTURE_VPATH_CHEATSHEET.md).
 3. Run `python -m dmm_parser.tools.validate <manifest>` to catch
    format / vpath issues.
 4. Run `python -m dmm_parser.tools.pack <manifest>` to produce the
