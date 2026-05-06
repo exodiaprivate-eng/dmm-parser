@@ -5,6 +5,7 @@ pub mod binary;
 pub mod crypto;
 pub mod dds;
 pub mod dispatch;
+pub mod intents;
 pub mod item_info;
 pub mod json_traits;
 mod python;

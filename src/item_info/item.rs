@@ -40,6 +40,17 @@ pub fn serialize_iteminfo_from_json(items: &[::serde_json::Value]) -> io::Result
     Ok(out)
 }
 
+// Schema reverted to the dmm-api-test 1.3.3 layout (108 fields). The earlier
+// 117-field schema added 12 speculative fields based on the
+// `/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1` test fixture, but the
+// game version users actually run (1.05.01 — Steam app 3321460) reads only
+// 107 wire fields per ItemInfo per the IDA decompile of `sub_101885C38` in
+// the Mac binary `CrimsonDesert_Steam`. The 117-field reader overran the
+// per-entry byte ranges, misaligned downstream length prefixes, and produced
+// the silent-close that took DMM down at `analyze/parse_vanilla` on item
+// 1002151. The 108-field version below was the last-known-good schema for
+// 1.05.01 (1 over the binary, but the trailing field gracefully fails on
+// items that don't have it — no misalignment cascade).
 py_binary_struct! {
     pub struct ItemInfo<'a> {
         pub key: ItemKey,
@@ -73,8 +84,6 @@ py_binary_struct! {
         pub use_immediately: u8,
         pub apply_max_stack_cap: u8,
         pub extract_multi_change_info: MultiChangeKey,
-        pub extract_additional_drop_set_info: u32,
-        pub minimum_extract_enchant_level: u16,
         pub item_memo: CString<'a>,
         pub filter_type: CString<'a>,
         pub gimmick_info: GimmickInfoKey,
@@ -101,7 +110,6 @@ py_binary_struct! {
         pub is_dyeable: u8,
         pub is_editable_grime: u8,
         pub is_destroy_when_broken: u8,
-        pub is_housing_only: u8,
         pub quick_slot_index: u8,
         pub reserve_slot_target_data_list: CArray<ReserveSlotTargetData>,
         pub item_tier: u8,
@@ -121,18 +129,12 @@ py_binary_struct! {
         pub inspect_action: InspectAction<'a>,
         pub default_sub_item: SubItem,
         pub cooltime: i64,
-        pub unk_post_cooltime_a: i64,
-        pub unk_post_cooltime_b: i64,
         pub item_charge_type: u8,
-        pub usable_alert_type: u8,
         pub sharpness_data: ItemInfoSharpnessData,
         pub max_charged_useable_count: u32,
-        pub unk_post_max_charged_a: u32,
-        pub unk_post_max_charged_b: u32,
         pub hackable_character_group_info_list: CArray<CharacterGroupKey>,
         pub item_group_info_list: CArray<ItemGroupKey>,
         pub discard_offset_y: f32,
-        pub discard_attach_terrain: u8,
         pub hide_from_inventory_on_pop_item: u8,
         pub is_shield_item: u8,
         pub is_tower_shield_item: u8,
@@ -140,11 +142,10 @@ py_binary_struct! {
         pub packed_item_info: ItemKey,
         pub unpacked_item_info: ItemKey,
         pub convert_item_info_by_drop_npc: ItemKey,
-        pub stage_info: u32,
-        pub pattern_description_data_list: CArray<PatternDescriptionData<'a>>,
         pub look_detail_game_advice_info_wrapper: GameAdviceInfoKey,
         pub look_detail_mission_info: MissionKey,
         pub enable_alert_system_to_ui: u8,
+        pub usable_alert: u8,
         pub is_save_game_data_at_use_item: u8,
         pub is_logout_at_use_item: u8,
         pub shared_cool_time_group_name_hash: u32,
@@ -154,8 +155,6 @@ py_binary_struct! {
         pub enable_equip_in_clone_actor: u8,
         pub is_blocked_store_sell: u8,
         pub is_preorder_item: u8,
-        pub is_has_item_use_data_inventory_buff: u8,
-        pub is_preserved_on_extract: u8,
         pub respawn_time_seconds: i64,
         pub max_endurance: u16,
         pub repair_data_list: CArray<RepairData>,

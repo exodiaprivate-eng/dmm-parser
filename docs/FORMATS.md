@@ -22,27 +22,35 @@
 - [8. WEM — Wwise audio clip](#8-wem--wwise-audio-clip)
 - [9. BNK — Wwise soundbank](#9-bnk--wwise-soundbank)
 - [10. SAVE — save file envelope](#10-save--save-file-envelope)
-- [11. Hexpat conventions](#11-hexpat-conventions)
-- [12. Adding a new format](#12-adding-a-new-format)
+- [11. Sequencer & attack asset family (PAATT / PASEQ / PASEQC / PASTAGE / PASCHEDULE / PASCHEDULEPATH)](#11-sequencer--attack-asset-family)
+- [12. Decode tiers and the Tier 1 promotion goal](#12-decode-tiers-and-the-tier-1-promotion-goal)
+- [13. Hexpat conventions](#13-hexpat-conventions)
+- [14. Adding a new format](#14-adding-a-new-format)
 
 ---
 
 ## At a glance
 
-| Format         | Role                              | Notes ref                  | Hexpat                        | Rust module                  |
-|----------------|-----------------------------------|----------------------------|-------------------------------|------------------------------|
-| **PAPGT**      | Pack-group tree (root index)      | `docs/archive-format.md`   | `references/papgt.hexpat`     | `src/binary/papgt.rs`        |
-| **PAMT**       | Per-group pack metadata           | `docs/archive-format.md`   | `references/pamt.hexpat`      | `src/binary/pamt.rs`         |
-| **PAZ**        | Compressed/encrypted file blocks  | `docs/archive-format.md`   | —                             | `src/binary/paz.rs`          |
-| **Trie buffer**| Compact name index (radix tree)   | `docs/archive-format.md`   | —                             | `src/binary/trie.rs`         |
-| **PAOC / PALOC** | Localization string tables     | `references/paloc_notes.md`| `references/paloc.hexpat`     | `src/binary/paloc.rs`        |
-| **PABGB**      | Tabular game data containers      | `docs/archive-format.md`   | —                             | `src/item_info/`, `src/tables/` |
-| **DDS**        | DirectDraw Surface (textures)     | `references/dds_notes.md`  | `references/dds.hexpat`       | `src/dds/`                   |
-| **WEM**        | Wwise audio clip (RIFF-WAVE)      | `references/wwise_notes.md`| `references/wem.hexpat`       | `src/audio/wem.rs`           |
-| **BNK**        | Wwise soundbank                   | `references/wwise_notes.md`| `references/bnk.hexpat`       | `src/audio/bnk.rs`           |
-| **SAVE**       | Save file envelope (encrypted)    | `references/save_notes.md` | `references/save.hexpat`      | `src/save/envelope.rs`       |
+| Format         | Role                              | Tier  | Notes ref                  | Hexpat                        | Rust module                  |
+|----------------|-----------------------------------|-------|----------------------------|-------------------------------|------------------------------|
+| **PAPGT**      | Pack-group tree (root index)      | 1     | `docs/archive-format.md`   | `references/papgt.hexpat`     | `src/binary/papgt.rs`        |
+| **PAMT**       | Per-group pack metadata           | 1     | `docs/archive-format.md`   | `references/pamt.hexpat`      | `src/binary/pamt.rs`         |
+| **PAZ**        | Compressed/encrypted file blocks  | 1     | `docs/archive-format.md`   | —                             | `src/binary/paz.rs`          |
+| **Trie buffer**| Compact name index (radix tree)   | 1     | `docs/archive-format.md`   | —                             | `src/binary/trie.rs`         |
+| **PAOC / PALOC** | Localization string tables     | 1     | `references/paloc_notes.md`| `references/paloc.hexpat`     | `src/binary/paloc.rs`        |
+| **PABGB**      | Tabular game data containers      | 1     | `docs/archive-format.md`   | —                             | `src/item_info/`, `src/tables/` |
+| **DDS**        | DirectDraw Surface (textures)     | 1     | `references/dds_notes.md`  | `references/dds.hexpat`       | `src/dds/`                   |
+| **WEM**        | Wwise audio clip (RIFF-WAVE)      | 1     | `references/wwise_notes.md`| `references/wem.hexpat`       | `src/audio/wem.rs`           |
+| **BNK**        | Wwise soundbank                   | 1     | `references/wwise_notes.md`| `references/bnk.hexpat`       | `src/audio/bnk.rs`           |
+| **SAVE**       | Save file envelope (encrypted)    | 1 (envelope only — body deferred) | `references/save_notes.md` | `references/save.hexpat`      | `src/save/envelope.rs`       |
+| **PAATT**      | Per-weapon attack info            | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paatt.rs`        |
+| **PASEQ**      | Sequencer / cutscene script       | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paseq.rs`        |
+| **PASEQC**     | Compiled sequencer chart          | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paseqc.rs`       |
+| **PASTAGE**    | Sequencer stage chart             | **1.5 → goal: 1** | (see source) | —                             | `src/binary/pastage.rs`      |
+| **PASCHEDULE** | NPC time-of-day / activity schedule | **1.5 → goal: 1** | (see source) | —                           | `src/binary/paschedule.rs`   |
+| **PASCHEDULEPATH** | NPC waypoint / path data      | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paschedulepath.rs` |
 
-All formats are **little-endian**.
+All formats are **little-endian**. See [§12](#12-decode-tiers-and-the-tier-1-promotion-goal) for what the tier markers mean and the active Tier 1 promotion goal for the bottom six rows.
 
 ---
 
@@ -259,7 +267,96 @@ HMAC closures so the public crate doesn't embed save secrets. See
 
 ---
 
-## 11. Hexpat conventions
+## 11. Sequencer & attack asset family
+
+Six standalone asset formats live next to (but outside) the PABGB tabular
+data: `.paatt`, `.paseq`, `.paseqc`, `.pastage`, `.paschedule`,
+`.paschedulepath`. They drive scripted gameplay — attack hitboxes, cutscene
+playback, NPC schedules, stage-chart logic. All six round-trip byte-exact
+on every vanilla sample today, but field-level decode is incomplete (see
+[§12](#12-decode-tiers-and-the-tier-1-promotion-goal)).
+
+| Format | Loader (Mac binary) | Wire shape | Today | Goal |
+|---|---|---|---|---|
+| `.paatt` | `pa::sub_100C38E88` (loader) + `pa::sub_100C39A10` (per-info) | u32 info_count + per-info[u8 version + N-byte BaseData (264/528/296/288/264 by version) + 9× count-prefixed frame slots] + 7× LP-prefixed string table + frame-event buffer | Envelope decoded; **`base_data` payload still raw** (Tier 1.5) | Decode `pa::AttackInfoDataDesc` reflect-property setters → typed BaseData per version; sub-variants `AttackInfo_Attack` / `_AttackThrow` / `_AttackCatch` / `_ReleaseCatch` |
+| `.paseq` | TBD (find via "paseq" / `pa::Sequencer*` xref in IDA) | Reflection-driven, dispatches on type-name hashes | `lp_token_stream` tokenizer (LpString + RawBytes) — 4,659 samples roundtrip | Type-tag → reader map via IDA, recursive `Decoded\|Raw` enum like `GameCondition` |
+| `.paseqc` | TBD — likely shares paseq dispatcher | Header magic `FF FF 04 00` (or `FF FF 03 00` minority) + sequencer chart body | `lp_token_stream` tokenizer; magic lands in leading `RawBytes` | Verify dispatcher reuse from `.paseq`, then promote together |
+| `.pastage` | TBD — **likely reuses `sub_141D8C6D0`** (already-decoded `SequencerStageChartDesc`, 26 wire fields / 232 mem bytes — see `src/binary/variants/sequencer_stage_chart_desc.rs`) | Stage-path LP-string prefix + chart body | `lp_token_stream`; first LP-string is the stage path (e.g. `quest/stagechart_common`) — 3,320 samples roundtrip | Confirm `sub_141D8C6D0` reuse, prepend path prefix, ship — **fastest expected win** |
+| `.paschedule` | TBD (search `pa::Schedule*` / `pa::NPCSchedule` in IDA) | Header `01 00 00 00` (majority) or `00 00 00 00`; mostly numeric (waypoint hashes, frame counts) + a few asset path strings | `lp_token_stream` | Reflection-driven decode |
+| `.paschedulepath` | TBD — companion to paschedule | No fixed magic; per-NPC hash header; almost entirely numeric | `lp_token_stream` | Reflection-driven decode |
+
+**Why this works** — the engine uses `pa::ReflectObject`-style reflection
+to read these files. Every field is a registered reader function in the
+loaded binary; we already have the playbook (and IDA MCP access) to walk
+the dispatchers and translate them into typed Rust enums. Five family
+decoders have shipped this way (GameCondition, FilterCondition,
+TriggerGamePlayEventHandlerData, GameEventHandlerData, SequencerStageChartDesc).
+
+---
+
+## 12. Decode tiers and the Tier 1 promotion goal
+
+Decode coverage is tracked as three tiers, the same vocabulary
+`docs/STATUS.md` and `docs/449_TABLE_CATALOG.md` use:
+
+| Tier | Meaning | Mod-author capability |
+|---|---|---|
+| **1** | Every wire field is named, typed, and individually addressable through JSON. Round-trip is byte-perfect. | Edit any field by path (`item_name.default`, `enchant_data_list[0].value`, etc.) |
+| **1.5** | Round-trip byte-exact, but the body is exposed as raw bytes / opaque tokens (e.g. `Vec<u8>`, `LpToken::RawBytes`). | Edit only the parts that *are* typed (e.g. embedded strings); numeric fields stay opaque. |
+| **2** | Whole-tail blob — entire payload is one `Vec<u8>`. | Clone or replace only; no field-level edit. (No Tier 2 tables remain in the catalog.) |
+
+### Active goal — promote the sequencer + attack family from 1.5 to 1
+
+The six formats listed in [§11](#11-sequencer--attack-asset-family) are the
+only Tier 1.5 surface left in dmm-parser. Promoting them to Tier 1 is a
+prerequisite for letting mod authors edit:
+
+- **Cutscenes / scripted action** (`.paseq`, `.paseqc`)
+- **Stage-chart logic** (`.pastage`)
+- **NPC time-of-day routines** (`.paschedule` + `.paschedulepath`)
+- **Per-weapon attack data** — hitboxes, damage, frame events (`.paatt`)
+
+at the field level via the same Field-JSON v3.1 intent vocabulary already
+used for PABGB tables.
+
+**Attack order** (smallest scope first, validates the IDA workflow before
+the bigger formats):
+
+1. `.pastage` — likely reuses already-decoded `SequencerStageChartDesc`.
+2. `.paseq` — largest sample set (4,659); biggest payoff once cracked.
+3. `.paseqc` — sister to `.paseq`, expected to share dispatcher.
+4. `.paschedule` + `.paschedulepath` — paired NPC schedule decode.
+5. `.paatt` — finish per-version BaseData via `pa::AttackInfoDataDesc`
+   reflect-property setters.
+
+**Methodology** — the proven family-decoder playbook from
+`docs/STATUS.md` §"The reusable playbook":
+
+1. Find the loader / dispatcher in IDA (Mac binary preferred; vtables intact).
+2. Extract the tag → reader-function map (template at
+   `dmm-pabgb-aio/extract_conditiondata_dispatch.py`).
+3. Stand up a recursive enum in `src/binary/variants/<format>.rs`.
+4. Build a roundtrip validator in `examples/<format>_roundtrip.rs` with a
+   `LAST_ATTEMPTED_TAG` thread-local to pinpoint failing tags.
+5. Loop: validator → IDA decompile of the failing tag's reader → fix
+   recipe → repeat.
+6. Wrap the wrapper enum in a `Decoded | Raw` fallback so anti-disasm tags
+   preserve byte-perfect roundtrip even when un-decoded.
+
+**Definition of done per format:**
+
+- 100% byte-perfect roundtrip on all vanilla samples (no regression from
+  the current `lp_token_stream`-based baseline).
+- ≥99% Decoded share; remaining stays in `Raw(Vec<u8>)` arm.
+- `to_json_dict` / `write_from_json_dict` exposes every typed field.
+- New entry in `dispatch.rs` (parse + serialize + `supported_tables()`).
+- PyO3 binding in `src/python.rs`.
+- `docs/api.md` and this file (§11) updated.
+- `cargo test --release` clean; new `examples/<format>_roundtrip.rs` validator passes.
+
+---
+
+## 13. Hexpat conventions
 
 Every binary format above has a matching `references/<format>.hexpat`
 pattern. To explore in ImHex:
@@ -275,7 +372,7 @@ the pattern stabilizes, port it into a Rust struct with `BinaryRead` /
 
 ---
 
-## 12. Adding a new format
+## 14. Adding a new format
 
 The shortest path:
 

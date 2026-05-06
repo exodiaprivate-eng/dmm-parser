@@ -20,12 +20,16 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // Reverted to 1.3.3 3-field layout. The previous 5-field version added
+    // `highlight_icon_path` and `check_usable` based on the post-1.05.01
+    // game-data fixture; the user's 1.05.01 binary (per IDA decompile of
+    // `sub_101885C38` in `CrimsonDesert_Steam`) reads only these 3 fields
+    // per ItemIconData, so the 5-field version misaligned every downstream
+    // length prefix on any item with a non-empty `item_icon_list`.
     pub struct ItemIconData {
         pub icon_path: StringInfoKey,
-        pub highlight_icon_path: StringInfoKey,
         pub check_exist_sealed_data: u8,
         pub gimmick_state_list: CArray<u32>,
-        pub check_usable: u8,
     }
 }
 

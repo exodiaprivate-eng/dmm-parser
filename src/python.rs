@@ -1099,6 +1099,104 @@ pub fn write_table_to_file(
     std::fs::write(path, &data).map_err(|e| PyIOError::new_err(e.to_string()))
 }
 
+// ── Field-JSON v3.x intent application ────────────────────────────────────
+//
+// Single-target apply. Python callers iterate over the manifest's targets,
+// load each pabgb (+ pabgh sister) themselves, call this for each target,
+// and write the result. This keeps the binding simple and avoids the
+// complexity of a callback-based file-resolver model.
+
+/// Apply Field-JSON v3.x intents to a single table body.
+///
+/// Args:
+///   table_name: any recognized form — canonical (`character_info`),
+///     compact (`characterinfo`), with extension (`characterinfo.pabgb`).
+///   pabgb: raw `.pabgb` bytes.
+///   pabgh: raw `.pabgh` sister bytes for pabgh-bounded tables; `None`
+///     for sequential tables, iteminfo, or paloc.
+///   intents: list of intent dicts as appearing in a Field-JSON manifest's
+///     `intents` array (see FIELD_JSON_V3_SPEC.md / CUSTOM_ITEM_CREATOR_V3_1.md).
+///
+/// Returns a dict:
+///   `{"body": bytes, "pabgh": bytes | None, "outcomes": [{"op": str,
+///     "status": "applied" | "skipped", "reason"?: str}]}`
+///
+/// Raises `ValueError` for unknown table names, malformed intents, or
+/// any apply failure.
+#[pyfunction]
+#[pyo3(signature = (table_name, pabgb, pabgh, intents))]
+pub fn apply_intents(
+    py: Python<'_>,
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+    intents: &Bound<'_, PyList>,
+) -> PyResult<Py<PyAny>> {
+    // Convert Python list of intent dicts to Rust Intent values via
+    // JSON-faithful parser (handles every shape the spec allows).
+    let intent_list: Vec<crate::intents::Intent> = intents
+        .iter()
+        .map(|item| {
+            let v = py_to_json(&item)?;
+            crate::intents::Intent::from_value(&v)
+                .map_err(|e| PyValueError::new_err(format!("intent: {}", e)))
+        })
+        .collect::<PyResult<_>>()?;
+
+    let (new_body, new_pabgh, outcomes) = crate::dispatch::apply_intents_to_table_body(
+        table_name,
+        pabgb,
+        pabgh,
+        &intent_list,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, &new_body))?;
+    match new_pabgh {
+        Some(p) => result.set_item("pabgh", PyBytes::new(py, &p))?,
+        None => result.set_item("pabgh", py.None())?,
+    }
+
+    let outcome_list = PyList::empty(py);
+    for o in outcomes {
+        let d = PyDict::new(py);
+        d.set_item("op", &o.op)?;
+        match o.status {
+            crate::intents::ApplyStatus::Applied => {
+                d.set_item("status", "applied")?;
+            }
+            crate::intents::ApplyStatus::Skipped(reason) => {
+                d.set_item("status", "skipped")?;
+                d.set_item("reason", &reason)?;
+            }
+        }
+        outcome_list.append(d)?;
+    }
+    result.set_item("outcomes", outcome_list)?;
+
+    Ok(result.into_any().unbind())
+}
+
+/// Resolve a Field-JSON target name (e.g. `characterinfo.pabgb`) to its
+/// canonical dispatch identifier (e.g. `character_info`). Returns `None`
+/// for unrecognized names.
+#[pyfunction]
+pub fn normalize_target_name(name: &str) -> Option<&'static str> {
+    crate::dispatch::normalize_target_name(name)
+}
+
+/// Compute the v3 paloc index keys for a custom item's localized name
+/// and description. Returns `(name_index, desc_index)`.
+///
+/// Per CUSTOM_ITEM_CREATOR_V3_1.md: `name_index = (item_key << 32) | 0x70`
+/// and `desc_index = (item_key << 32) | 0x71`. SWISS / Stacker compute
+/// these when assigning a `new_key` for a clone_record intent.
+#[pyfunction]
+pub fn item_paloc_indices(item_key: u32) -> (u64, u64) {
+    crate::intents::item_paloc_indices(item_key)
+}
+
 // ── Registration ───────────────────────────────────────────────────────────
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1145,5 +1243,8 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_table, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_table, m)?)?;
     m.add_function(wrap_pyfunction!(write_table_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_intents, m)?)?;
+    m.add_function(wrap_pyfunction!(normalize_target_name, m)?)?;
+    m.add_function(wrap_pyfunction!(item_paloc_indices, m)?)?;
     Ok(())
 }
