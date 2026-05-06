@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "dmm-parser"
 requires-python = ">=3.12"
 dynamic = ["version"]
-license = { file = "LICENSE" }
+license = { file = "LICENSE.txt" }
 authors = [
     { name = "exodiaprivate-eng" },
     { name = "potter4208467 (Discord)" },
