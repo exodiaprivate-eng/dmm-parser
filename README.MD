@@ -22,7 +22,7 @@ Any copy of this software, or any derivative work based on it, found outside the
 
 ## Status
 
-- 402 / 402 Rust tests pass (`cargo test --release`)
+- **509 / 509** Rust tests pass (`cargo test --release --lib`) — up from 402
 - 12 / 12 Python tools smoke tests pass (`python -m dmm_parser.tools._test_smoke`)
 - 122 pabgb tables round-trip byte-perfect (+ paloc localization format)
 - 67 fully field-decoded (every field individually addressable, including BuffInfo + SkillInfo with all 120 BuffData variants)
@@ -32,6 +32,7 @@ Any copy of this software, or any derivative work based on it, found outside the
 - **Wwise audio** (WEM + BNK): `classify_wem`, `parse_bnk`, `validate_audio`, `infer_audio_vpath`
 - **Save envelope** (S2): ChaCha20 + LZ4 + HMAC pipeline with caller-supplied keys (no embedded secrets)
 - **Field-JSON v3.1** mod-author CLIs: `dmm-mod-validate`, `dmm-mod-pack`, `dmm-mod-inspect`, `dmm-mod-diff`
+- **Sequencer / schedule / attack-info Tier 1**: 6 formats round-trip byte-perfect across **18,952 vanilla samples (100%)** — `.pastage`, `.paseq`, `.paseqc`, `.paschedule`, `.paschedulepath`, `.paatt`. Field-level Python access for cutscene scripts, NPC schedules, and per-weapon attack data. Schema enumeration: 272 distinct classes for `.paseq`, 62 for `.paseqc`. End-to-end mod-tooling validated at 195/195 across walk+replace and JSON-path edit patterns.
 
 ## Python bindings
 
@@ -82,6 +83,36 @@ data = dmm_parser.serialize_iteminfo(items)
 # Parse from bytes
 items = dmm_parser.parse_iteminfo_from_bytes(data)
 ```
+
+### Sequencer / schedule editing (Tier 1 formats)
+
+```python
+import dmm_parser
+
+# Find every length-prefixed string in any .paseq / .paseqc / .pastage
+data = open("cd_seq_ui_appear_all.paseq", "rb").read()
+strings = dmm_parser.walk_lp_strings(data)
+for s in strings[:5]:
+    print(f"  0x{s['file_offset']:04x}  {s['value']!r}")
+
+# Edit one — length-flexible
+modified = dmm_parser.replace_cstring_at(
+    data, strings[0]['file_offset'],
+    new_value="my_renamed_value",
+    expected_value=strings[0]['value'],  # safety check
+)
+
+# For structured-header formats (.paschedule, .paatt) use the JSON path
+parsed = dmm_parser.parse_paschedule_from_file("npc_schedule.paschedule")
+parsed["name"] = "my_renamed_schedule"
+dmm_parser.write_paschedule_to_file(parsed, "npc_schedule.paschedule")
+
+# Enumerate the class hierarchy embedded in a .paseqc
+blocks = dmm_parser.parse_paseqc_all_class_blocks(data)
+print(f"{len(blocks)} class blocks in this sequencer chart")
+```
+
+See [docs/MOD_AUTHOR_GUIDE.md §12](docs/MOD_AUTHOR_GUIDE.md#12-sequencer--schedule--attack-info-mods-tier-1-formats) for the full reference.
 
 ### API reference
 

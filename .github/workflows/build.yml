@@ -14,7 +14,25 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    # Run the 475 lib unit tests on every push. These tests don't
+    # require the game install — they validate the parser/serializer
+    # logic against fixtures embedded in the source tree (per-table
+    # roundtrips, BNK fixture, dispatch resolution, etc.). The bulk
+    # round-trip validators that DO need the game install
+    # (`tier1_full_roundtrip`, `mod_tooling_e2e`, `json_path_mod_e2e`)
+    # run locally; their failure modes are captured in unit tests.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Run cargo test
+        run: cargo test --release --lib
+
   build-windows:
+    needs: [test]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6

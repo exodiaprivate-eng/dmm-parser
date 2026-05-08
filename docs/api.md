@@ -1485,3 +1485,137 @@ Variant type with a type tag.
     "item_desc": dict       # LocalizableString
 }
 ```
+
+---
+
+## Sequencer / Schedule / Attack-Info (Tier 1)
+
+Six formats round-trip byte-perfect with field-level Python access.
+Validated across 18,952 vanilla samples (100%).
+
+| Extension | Wire format | Edit pattern |
+|---|---|---|
+| `.pastage` | CString name + CString prefab_path + opaque body | walk + replace |
+| `.paseq` | Variable header + CString class_name + opaque body (schema + values) | walk + replace |
+| `.paseqc` | Variable header + CString class_name + opaque body (schema + values) | walk + replace |
+| `.paschedule` | Fixed 21-byte header + CString name + opaque body | JSON path |
+| `.paschedulepath` | Fixed 12-byte header + opaque records | structural |
+| `.paatt` | Header + AttackInfo array + 7 string tables + frame event buffer | JSON path |
+
+### Bytes-based parse / serialize
+
+Every format has a `parse_<format>_bytes(data) -> dict` and a
+`serialize_<format>(d) -> bytes`. The dict shape mirrors the Rust
+typed reader; binary fields use `*_b64` suffix with base64-encoded
+content.
+
+```python
+# .pastage
+parsed = dmm_parser.parse_pastage_bytes(data)
+# -> {"name": str, "prefab_path": str, "opaque_body_b64": str}
+modified = dmm_parser.serialize_pastage(parsed)
+
+# .paseq / .paseqc
+parsed = dmm_parser.parse_paseq_bytes(data)
+# -> {"header_b64": str, "class_name": str, "opaque_body_b64": str}
+modified = dmm_parser.serialize_paseq(parsed)
+
+# .paschedule
+parsed = dmm_parser.parse_paschedule_bytes(data)
+# -> {"version": int, "hash": int, "flag": int, "hash_repeated": int,
+#     "reserved_b64": str, "name": str, "opaque_body_b64": str}
+parsed["name"] = "my_renamed_schedule"
+modified = dmm_parser.serialize_paschedule(parsed)
+
+# .paschedulepath
+parsed = dmm_parser.parse_paschedulepath_bytes(data)
+# -> {"outer_id_b64": str, "record_count": int, "opaque_records_b64": str}
+modified = dmm_parser.serialize_paschedulepath(parsed)
+
+# .paatt — full structured access
+parsed = dmm_parser.parse_paatt_bytes(data)
+# -> {"infos": [...], "string_table": [...], "effect_name_table": [...],
+#     ...7 tables..., "frame_event_buffer_b64": str}
+parsed["effect_name_table"][0] = "MyCustomEffect"
+modified = dmm_parser.serialize_paatt(parsed)
+```
+
+### File-path convenience wrappers
+
+Equivalent to `parse(open(path).read())` / `open(path).write(serialize(d))`.
+
+```python
+parsed = dmm_parser.parse_pastage_from_file("file.pastage")
+dmm_parser.write_pastage_to_file(parsed, "file.pastage")
+
+# All 6 formats follow the same naming convention:
+# parse_paseq_from_file        / write_paseq_to_file
+# parse_paseqc_from_file       / write_paseqc_to_file
+# parse_paschedule_from_file   / write_paschedule_to_file
+# parse_paschedulepath_from_file / write_paschedulepath_to_file
+# parse_paatt_from_file        / write_paatt_to_file
+```
+
+### .paseq / .paseqc schema enumeration
+
+`.paseq` and `.paseqc` are reflection-based formats — the file embeds
+its own class schema before the values. These accessors expose the
+schema:
+
+```python
+# Outer-class field directory (just the root class's 15-ish fields)
+fields = dmm_parser.parse_paseq_field_directory(data)
+# -> [{"field_name": str, "type_name": str, "type_meta_b64": str}, ...]
+
+# Full class hierarchy (outer + linearly-following nested classes)
+blocks = dmm_parser.parse_paseq_all_class_blocks(data)
+# -> [{"class_name": str, "fields": [...]}, ...]
+# Validated: 272 distinct class names across 4,659 .paseq samples,
+#            62 distinct class names across 2,932 .paseqc samples.
+```
+
+### .paseq / .paseqc value section
+
+After the schema, raw value bytes:
+
+```python
+offset = dmm_parser.paseq_value_section_offset(data)  # bytes from file start
+values = dmm_parser.paseq_value_section(data)          # the raw bytes
+strings = dmm_parser.paseq_value_section_strings(data)
+# -> [{"file_offset": int, "value": str}, ...]
+
+# Sister functions exist for .paseqc:
+# paseqc_value_section_offset / paseqc_value_section / paseqc_value_section_strings
+```
+
+### Generic LP-string primitives
+
+Work on any byte slice from any format with `u32 length + bytes` strings.
+
+```python
+# Walk for length-prefixed strings
+strings = dmm_parser.walk_lp_strings(file_bytes)
+# -> [{"file_offset": int, "value": str}, ...]
+
+# Length-flexible edit at known offset
+modified = dmm_parser.replace_cstring_at(
+    file_bytes,
+    file_offset=strings[0]["file_offset"],
+    new_value="my_replacement",
+    expected_value=strings[0]["value"],  # optional safety check
+)
+```
+
+### Mod-tooling regression coverage
+
+| Test (run via `cargo run --release --example <name>`) | Pass rate |
+|---|---|
+| `tier1_full_roundtrip` (parse → to_bytes; parse → to_json → from_json) | 18,952 / 18,952 |
+| `mod_tooling_e2e` (walk + replace pattern) | 150 / 150 |
+| `json_path_mod_e2e` (JSON-path edit pattern) | 45 / 45 |
+
+### Reference
+
+- Engineering log: `docs/TIER1_PROMOTION_PROGRESS.md`
+- User-facing guide: `docs/MOD_AUTHOR_GUIDE.md` §12
+- `.paatt` BaseData field directory: `docs/PAATT_BASEDATA_FIELDS.md`

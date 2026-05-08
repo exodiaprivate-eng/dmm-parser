@@ -24,14 +24,21 @@
 //!  15. CArray<StoreStockData> stock_data_list   (_stockDataList,
 //!      sub_1410FC8F0; per element 88 mem bytes / variable wire incl.
 //!      Optional<StoreStockDataValue> 14-arm polymorphic)
-//!  16. CArray<u8> raw_list_a                    (sub_1411002A0)
-//!  17. CArray<u8> raw_list_b                    (sub_1411002A0)
-//!  18. u32 raw_a                                (mem a2+144)
-//!  19. u8 flag_a                                (mem a2+148)
-//!  20. u8 flag_b                                (mem a2+149)
-//!  21. u8 flag_c                                (mem a2+150)
+//!  16. CArray<u8> sale_item_type_list           (_saleItemTypeList,
+//!      sub_1411002A0)
+//!  17. CArray<u8> not_sale_item_type_list       (_notSaleItemTypeList,
+//!      sub_1411002A0)
+//!  18. u32 custom_mesh_obb_max_length           (_customMeshOBBMaxLength,
+//!      mem a2+144)
+//!  19. u8 fixed_price                            (_fixedPrice, mem a2+148)
+//!  20. u8 use_housing_gimmick                   (_useHousingGimmick,
+//!      mem a2+149)
+//!  21. u8 reduce_price_by_looted_dead_body      (_reducePriceByLootedDeadBody,
+//!      mem a2+150)
 //!
-//! All 21 wire fields typed.
+//! All 21 wire fields typed. Field names 16-21 were placeholders
+//! (`raw_list_a`, `flag_a`, …) before the 1.3.5 IDA audit; renamed to
+//! canonical so v3 store mods that target by canonical name resolve.
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
@@ -518,12 +525,12 @@ pub struct StoreInfo<'a> {
     pub sellable_stock_count: u32,
     pub sellable_type: u8,
     pub stock_data_list: Vec<StoreStockData>,
-    pub raw_list_a: CArray<u8>,
-    pub raw_list_b: CArray<u8>,
-    pub raw_a: u32,
-    pub flag_a: u8,
-    pub flag_b: u8,
-    pub flag_c: u8,
+    pub sale_item_type_list: CArray<u8>,
+    pub not_sale_item_type_list: CArray<u8>,
+    pub custom_mesh_obb_max_length: u32,
+    pub fixed_price: u8,
+    pub use_housing_gimmick: u8,
+    pub reduce_price_by_looted_dead_body: u8,
 }
 
 impl<'a> StoreInfo<'a> {
@@ -560,20 +567,21 @@ impl<'a> StoreInfo<'a> {
         for _ in 0..count {
             stock_data_list.push(StoreStockData::read_from(data, offset)?);
         }
-        let raw_list_a = CArray::<u8>::read_from(data, offset)?;
-        let raw_list_b = CArray::<u8>::read_from(data, offset)?;
-        let raw_a = u32::read_from(data, offset)?;
-        let flag_a = u8::read_from(data, offset)?;
-        let flag_b = u8::read_from(data, offset)?;
-        let flag_c = u8::read_from(data, offset)?;
+        let sale_item_type_list = CArray::<u8>::read_from(data, offset)?;
+        let not_sale_item_type_list = CArray::<u8>::read_from(data, offset)?;
+        let custom_mesh_obb_max_length = u32::read_from(data, offset)?;
+        let fixed_price = u8::read_from(data, offset)?;
+        let use_housing_gimmick = u8::read_from(data, offset)?;
+        let reduce_price_by_looted_dead_body = u8::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked,
             exchange_item_info_for_buy, exchange_item_info_list_for_sell,
             sell_percents, store_type, price_increase_percent_list,
             sellable_character_condition_logic, reset_hour, reset_day,
             buyable_stock_count, sellable_stock_count, sellable_type,
-            stock_data_list, raw_list_a, raw_list_b, raw_a,
-            flag_a, flag_b, flag_c,
+            stock_data_list, sale_item_type_list, not_sale_item_type_list,
+            custom_mesh_obb_max_length,
+            fixed_price, use_housing_gimmick, reduce_price_by_looted_dead_body,
         })
     }
 
@@ -594,12 +602,12 @@ impl<'a> StoreInfo<'a> {
         self.sellable_type.write_to(w)?;
         (self.stock_data_list.len() as u32).write_to(w)?;
         for sd in &self.stock_data_list { sd.write_to(w)?; }
-        self.raw_list_a.write_to(w)?;
-        self.raw_list_b.write_to(w)?;
-        self.raw_a.write_to(w)?;
-        self.flag_a.write_to(w)?;
-        self.flag_b.write_to(w)?;
-        self.flag_c.write_to(w)
+        self.sale_item_type_list.write_to(w)?;
+        self.not_sale_item_type_list.write_to(w)?;
+        self.custom_mesh_obb_max_length.write_to(w)?;
+        self.fixed_price.write_to(w)?;
+        self.use_housing_gimmick.write_to(w)?;
+        self.reduce_price_by_looted_dead_body.write_to(w)
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
@@ -620,12 +628,12 @@ impl<'a> StoreInfo<'a> {
         m.insert("sellable_type".to_string(), self.sellable_type.to_json_value());
         let stock_list: Vec<Value> = self.stock_data_list.iter().map(|s| s.to_json_value()).collect();
         m.insert("stock_data_list".to_string(), Value::Array(stock_list));
-        m.insert("raw_list_a".to_string(), self.raw_list_a.to_json_value());
-        m.insert("raw_list_b".to_string(), self.raw_list_b.to_json_value());
-        m.insert("raw_a".to_string(), self.raw_a.to_json_value());
-        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
-        m.insert("flag_b".to_string(), self.flag_b.to_json_value());
-        m.insert("flag_c".to_string(), self.flag_c.to_json_value());
+        m.insert("sale_item_type_list".to_string(), self.sale_item_type_list.to_json_value());
+        m.insert("not_sale_item_type_list".to_string(), self.not_sale_item_type_list.to_json_value());
+        m.insert("custom_mesh_obb_max_length".to_string(), self.custom_mesh_obb_max_length.to_json_value());
+        m.insert("fixed_price".to_string(), self.fixed_price.to_json_value());
+        m.insert("use_housing_gimmick".to_string(), self.use_housing_gimmick.to_json_value());
+        m.insert("reduce_price_by_looted_dead_body".to_string(), self.reduce_price_by_looted_dead_body.to_json_value());
         m
     }
 
@@ -649,12 +657,12 @@ impl<'a> StoreInfo<'a> {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "stock_data_list: expected array"))?;
         (arr.len() as u32).write_to(w)?;
         for v in arr { StoreStockData::write_from_json(w, v)?; }
-        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_list_a")?)?;
-        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_list_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
+        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sale_item_type_list")?)?;
+        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_sale_item_type_list")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "custom_mesh_obb_max_length")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fixed_price")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_housing_gimmick")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reduce_price_by_looted_dead_body")?)?;
         Ok(())
     }
 }

@@ -19,17 +19,269 @@ py_binary_struct! {
     }
 }
 
+// ItemInfo._cooltime is a 3 × i64 struct in the wire (24 bytes), not a single
+// i64. Confirmed via IDA decomp of sub_101886C44 (the cooltime reader called
+// from sub_101885C38): three sub_1006B90BC(a1, a2 + N) calls at memory
+// offsets 0/8/16, each reading 8 bytes.
+//
+// MANUAL IMPLS (not py_binary_struct!) so WriteJsonValue can accept BOTH:
+//   * legacy mod intent format: single number → {a:n, b:0, c:0}
+//   * current vanilla parse format: object {a, b, c}
+// SuperMod and other pre-existing v3 mods stored cooltime as a single i64.
+// Without the dual accept, those mods break on serialize after the schema
+// update.
+#[derive(Debug)]
+pub struct Cooltime {
+    pub a: i64,
+    pub b: i64,
+    pub c: i64,
+}
+
+impl<'a> BinaryRead<'a> for Cooltime {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(Cooltime {
+            a: i64::read_from(data, offset)?,
+            b: i64::read_from(data, offset)?,
+            c: i64::read_from(data, offset)?,
+        })
+    }
+}
+
+impl<'a> crate::binary::BinaryReadTracked<'a> for Cooltime {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<crate::binary::FieldRange>,
+    ) -> io::Result<Self> {
+        let a = {
+            let s = crate::binary::push_path(path, "a");
+            let v = i64::read_tracked(data, offset, path, ranges)?;
+            crate::binary::pop_path(path, s);
+            v
+        };
+        let b = {
+            let s = crate::binary::push_path(path, "b");
+            let v = i64::read_tracked(data, offset, path, ranges)?;
+            crate::binary::pop_path(path, s);
+            v
+        };
+        let c = {
+            let s = crate::binary::push_path(path, "c");
+            let v = i64::read_tracked(data, offset, path, ranges)?;
+            crate::binary::pop_path(path, s);
+            v
+        };
+        Ok(Cooltime { a, b, c })
+    }
+}
+
+impl BinaryWrite for Cooltime {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.a.write_to(w)?;
+        self.b.write_to(w)?;
+        self.c.write_to(w)
+    }
+}
+
+impl ToJsonValue for Cooltime {
+    fn to_json_value(&self) -> ::serde_json::Value {
+        let mut d = ::serde_json::Map::new();
+        d.insert("a".to_string(), ::serde_json::Value::from(self.a));
+        d.insert("b".to_string(), ::serde_json::Value::from(self.b));
+        d.insert("c".to_string(), ::serde_json::Value::from(self.c));
+        ::serde_json::Value::Object(d)
+    }
+}
+
+impl WriteJsonValue for Cooltime {
+    fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> io::Result<()> {
+        // Backward compat: legacy mod intents stored cooltime as a single
+        // number. Promote to {a: n, b: 0, c: 0}.
+        if let Some(n) = v.as_i64() {
+            return Cooltime { a: n, b: 0, c: 0 }.write_to(w);
+        }
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("expected object or number for Cooltime, got {:?}", v),
+        ))?;
+        let a = json_get_field(obj, "a")?.as_i64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "Cooltime.a: expected i64"))?;
+        let b = json_get_field(obj, "b")?.as_i64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "Cooltime.b: expected i64"))?;
+        let c = json_get_field(obj, "c")?.as_i64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "Cooltime.c: expected i64"))?;
+        Cooltime { a, b, c }.write_to(w)
+    }
+}
+
+impl ToPyValue for Cooltime {
+    fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        use pyo3::types::PyDictMethods;
+        let d = PyDict::new(py);
+        d.set_item("a", self.a)?;
+        d.set_item("b", self.b)?;
+        d.set_item("c", self.c)?;
+        Ok(d.into_any().unbind())
+    }
+}
+
+impl WritePyValue for Cooltime {
+    fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        // Accept both int (legacy) and dict.
+        if let Ok(n) = obj.extract::<i64>() {
+            Cooltime { a: n, b: 0, c: 0 }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            return Ok(());
+        }
+        let d = obj.cast::<PyDict>()?;
+        let a = get_field(d, "a")?.extract::<i64>()?;
+        let b = get_field(d, "b")?.extract::<i64>()?;
+        let c = get_field(d, "c")?.extract::<i64>()?;
+        Cooltime { a, b, c }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
+// ItemInfo._maxChargedUseableCount: 3 × u32 wire struct (12 bytes). Same
+// reasoning as Cooltime; same dual-accept JSON impl. Confirmed via IDA decomp
+// of sub_101886C94 (three sub_1006B907C calls at offsets 0/4/8, each 4 bytes).
+#[derive(Debug)]
+pub struct MaxChargedUseableCount {
+    pub a: u32,
+    pub b: u32,
+    pub c: u32,
+}
+
+impl<'a> BinaryRead<'a> for MaxChargedUseableCount {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(MaxChargedUseableCount {
+            a: u32::read_from(data, offset)?,
+            b: u32::read_from(data, offset)?,
+            c: u32::read_from(data, offset)?,
+        })
+    }
+}
+
+impl<'a> crate::binary::BinaryReadTracked<'a> for MaxChargedUseableCount {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<crate::binary::FieldRange>,
+    ) -> io::Result<Self> {
+        let a = {
+            let s = crate::binary::push_path(path, "a");
+            let v = u32::read_tracked(data, offset, path, ranges)?;
+            crate::binary::pop_path(path, s);
+            v
+        };
+        let b = {
+            let s = crate::binary::push_path(path, "b");
+            let v = u32::read_tracked(data, offset, path, ranges)?;
+            crate::binary::pop_path(path, s);
+            v
+        };
+        let c = {
+            let s = crate::binary::push_path(path, "c");
+            let v = u32::read_tracked(data, offset, path, ranges)?;
+            crate::binary::pop_path(path, s);
+            v
+        };
+        Ok(MaxChargedUseableCount { a, b, c })
+    }
+}
+
+impl BinaryWrite for MaxChargedUseableCount {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.a.write_to(w)?;
+        self.b.write_to(w)?;
+        self.c.write_to(w)
+    }
+}
+
+impl ToJsonValue for MaxChargedUseableCount {
+    fn to_json_value(&self) -> ::serde_json::Value {
+        let mut d = ::serde_json::Map::new();
+        d.insert("a".to_string(), ::serde_json::Value::from(self.a));
+        d.insert("b".to_string(), ::serde_json::Value::from(self.b));
+        d.insert("c".to_string(), ::serde_json::Value::from(self.c));
+        ::serde_json::Value::Object(d)
+    }
+}
+
+impl WriteJsonValue for MaxChargedUseableCount {
+    fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> io::Result<()> {
+        if let Some(n) = v.as_u64() {
+            if n > u32::MAX as u64 {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("MaxChargedUseableCount: number {} out of u32 range", n)));
+            }
+            return MaxChargedUseableCount { a: n as u32, b: 0, c: 0 }.write_to(w);
+        }
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("expected object or number for MaxChargedUseableCount, got {:?}", v),
+        ))?;
+        let a = json_get_field(obj, "a")?.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "MaxChargedUseableCount.a: expected u32"))? as u32;
+        let b = json_get_field(obj, "b")?.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "MaxChargedUseableCount.b: expected u32"))? as u32;
+        let c = json_get_field(obj, "c")?.as_u64().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData, "MaxChargedUseableCount.c: expected u32"))? as u32;
+        MaxChargedUseableCount { a, b, c }.write_to(w)
+    }
+}
+
+impl ToPyValue for MaxChargedUseableCount {
+    fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        use pyo3::types::PyDictMethods;
+        let d = PyDict::new(py);
+        d.set_item("a", self.a)?;
+        d.set_item("b", self.b)?;
+        d.set_item("c", self.c)?;
+        Ok(d.into_any().unbind())
+    }
+}
+
+impl WritePyValue for MaxChargedUseableCount {
+    fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        if let Ok(n) = obj.extract::<u32>() {
+            MaxChargedUseableCount { a: n, b: 0, c: 0 }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            return Ok(());
+        }
+        let d = obj.cast::<PyDict>()?;
+        let a = get_field(d, "a")?.extract::<u32>()?;
+        let b = get_field(d, "b")?.extract::<u32>()?;
+        let c = get_field(d, "c")?.extract::<u32>()?;
+        MaxChargedUseableCount { a, b, c }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
 py_binary_struct! {
-    // Reverted to 1.3.3 3-field layout. The previous 5-field version added
-    // `highlight_icon_path` and `check_usable` based on the post-1.05.01
-    // game-data fixture; the user's 1.05.01 binary (per IDA decompile of
-    // `sub_101885C38` in `CrimsonDesert_Steam`) reads only these 3 fields
-    // per ItemIconData, so the 5-field version misaligned every downstream
-    // length prefix on any item with a non-empty `item_icon_list`.
+    // 1.05.01 has 5 fields per ItemIconData. The earlier 3-field revert was
+    // wrong — empirical byte comparison of the 1.04 fixture (5358049 bytes,
+    // 3-field ItemIconData) vs the user's live 1.05.01 (5338778 bytes, this
+    // 5-field layout) shows 1.05.01 has 5 extra bytes per ItemIconData
+    // entry. The 5 bytes are `highlight_icon_path` (u32) + `check_usable`
+    // (u8). Confirmed via the diag_item1 example: with the 3-field schema
+    // the parser fails on item 1's `item_icon_list[0]` at offset 113
+    // ("CArray count 15386081 exceeds remaining bytes") because what the
+    // schema thinks is `gimmick_state_list.__count__` is actually
+    // `highlight_icon_path`. Adding the two fields back resolves the
+    // misalignment cascade.
+    //
+    // The earlier IDA decompile of `sub_101885C38` (Mac binary) that
+    // suggested 3 fields was misread or pointed at the wrong reader —
+    // the live Win 1.05.01 wire format clearly has 5 fields here.
+    // 2026-05-06: corrected wire field order per IDA decomp of sub_101884D3C
+    // (the ItemIconData wire reader). The reads are: iconPath, highlightIconPath,
+    // checkExistSealedData, gimmickStateList, checkUsable. Earlier order had
+    // check_exist_sealed_data and check_usable in the wrong positions.
     pub struct ItemIconData {
         pub icon_path: StringInfoKey,
+        pub highlight_icon_path: StringInfoKey,
         pub check_exist_sealed_data: u8,
         pub gimmick_state_list: CArray<u32>,
+        pub check_usable: u8,
     }
 }
 
@@ -302,7 +554,7 @@ impl<'a> BinaryRead<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_from(data, offset)?),
             3 => SubItemValue::Character(CharacterKey::read_from(data, offset)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_from(data, offset)?),
-            14 | 15 => SubItemValue::None,
+            14 | 15 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -330,7 +582,7 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_tracked(data, offset, path, ranges)?),
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
-            14 | 15 => SubItemValue::None,
+            14 | 15 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,

@@ -44,6 +44,31 @@ pabgb tables (118 + 2 stale = 120) are field-level typed.
 | MP4                |     695 |
 | **Tier 1.5 total** | **754,735** |
 
+## Live-game audit (2026-05-05)
+
+`examples/round_trip_matrix.rs` against live 1.05.02 install:
+
+```
+PASS clean round-trip:  121
+PARSE failed:           0
+SERIALIZE failed:       0
+Byte mismatch:          0
+Missing from PAZ:       1   (equip_info — removed in this game version)
+```
+
+Specifically confirmed parsed correctly:
+
+- **inventory_info** (Tier 1) — `_inventoryMoveDataList` polymorphic
+  via `OptionalGameCondition` + per-element `InventoryMoveData`. Round-
+  trip byte-perfect on 8 entries.
+- **drop_set_info** (Tier 1) — `_dropInfoData` polymorphic via
+  `OptionalDropTarget` (`crate::binary::variants::drop_target`).
+  Round-trip byte-perfect on 1004 entries.
+
+Both were previously flagged as "deferred polymorphic blockers" in the
+task list (#100, #102) but are in fact fully Tier-1 typed and round-
+trip clean. Task list was stale — this doc is now the source of truth.
+
 ## What's still open (for future, not loop-blocking)
 
 These are nice-to-have polish items, not part of the "all parsable
@@ -52,8 +77,12 @@ tables" goal. The loop deliberately stops short of starting them:
 ### Polymorphic family Tier 1.5 → Tier 1 polish (open tasks)
 - #92 / #93 / #94 / #107 / #113 — GameCondition family variant
   byte-recipe extraction (already partially done; remaining variants
-  ship as `Decoded | Raw` enum fallback per task #106's pattern)
-- #95 — TriggerEventHandler family decoder
+  ship as `Decoded | Raw` enum fallback per task #106's pattern).
+  Note: 0.2% Raw fallback still round-trips byte-perfect; this only
+  affects field-level decoding of those specific variants.
+- #95 — TriggerEventHandler family decoder (file exists at
+  `binary/variants/trigger_gameplay_event_handler_data.rs`, 667 lines,
+  all 8 dispatch cases mapped per Win-IDA — round-trip clean).
 
 ### Tier 1.5 → Tier 1 promotions (multi-week per format)
 - prefab (34k files, ReflectObject-based with variable headers + LZ4)
