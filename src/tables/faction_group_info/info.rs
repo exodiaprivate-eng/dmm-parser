@@ -2,15 +2,21 @@
 //!
 //! Reader: `sub_1410DDA70` in CrimsonDesert.exe (Win build).
 //!
-//! Wire reads, in order:
-//!   1. u16 key (pabgh format 2)
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. LocalizableString name (1+8+4+len)
-//!   5. CArray<u32> ref_list (via sub_1410FFC20 hash-keyed at qword_145F0DA48)
-//!   6. u32 lookup_b (via sub_1411006D0 single-shot lookup at qword_145F0DA28)
-//!   7. u32 lookup_c (via read_u32_lookup_DA30)
-//!   8. u32 lookup_d (via read_u32_lookup_DA30)
+//! Wire reads, in order (canonical names from Mac Korean error strings —
+//! 1.3.5 audit re-mapped placeholder names like `name`, `ref_list`,
+//! `lookup_b/c/d` to canonical):
+//!   1. u16 key (pabgh format 2)                 (_key)
+//!   2. CString string_key                       (_stringKey)
+//!   3. u8 is_blocked                            (_isBlocked)
+//!   4. LocalizableString faction_group_name     (_factionGroupName)
+//!   5. CArray<u32> faction_info_list            (_factionInfoList,
+//!      sub_1410FFC20 hash-keyed at qword_145F0DA48)
+//!   6. u32 knowledge_info                       (_knowledgeInfo,
+//!      sub_1411006D0 single-shot lookup at qword_145F0DA28)
+//!   7. u32 ui_icon_path                         (_uiIconPath,
+//!      read_u32_lookup_DA30)
+//!   8. u32 ui_daily_quest_image_path            (_uiDailyQuestImagePath,
+//!      read_u32_lookup_DA30)
 //!
 //! All helpers consult runtime hash dictionaries; raw wire u32 round-trips.
 
@@ -22,11 +28,11 @@ py_binary_struct! {
         pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub name: LocalizableString<'a>,
-        pub ref_list: CArray<u32>,
-        pub lookup_b: u32,
-        pub lookup_c: u32,
-        pub lookup_d: u32,
+        pub faction_group_name: LocalizableString<'a>,
+        pub faction_info_list: CArray<u32>,
+        pub knowledge_info: u32,
+        pub ui_icon_path: u32,
+        pub ui_daily_quest_image_path: u32,
     }
 }
 

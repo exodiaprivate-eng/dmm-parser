@@ -1,45 +1,44 @@
 {
+  "modinfo": {
+    "title": "Sword of Potter — Custom Item Demo",
+    "version": "1.1.0",
+    "author": "potter",
+    "description": "Canonical custom-item recipe: clone an existing item under a fresh key, retitle it, swap its icon, and register localized strings. Demonstrates clone_record + asset target + paloc target in one v3.1 manifest.",
+    "category": "custom_item"
+  },
   "format": 3,
   "format_minor": 1,
-  "name": "Sword of Potter",
-  "author": "potter",
-  "version": "1.0.0",
-  "description": "A custom one-handed sword with a unique icon and localized strings.",
-
   "targets": [
     {
-      "kind": "table",
-      "table": "ItemInfo",
-      "ops": [
+      "target": "iteminfo.pabgb",
+      "intents": [
         {
-          "op": "insert",
-          "key": "id_100001",
-          "fields": {
-            "name": "Sword of Potter",
-            "category": 1,
-            "max_count": 1,
-            "buy_price": 0,
-            "sell_price": 0,
-            "description_key": "STR_ITEM_100001_DESC"
-          }
+          "op": "clone_record",
+          "source_key": 12345,
+          "new_key": 999001,
+          "patches": [
+            { "path": "string_key", "new": "Sword_Of_Potter" },
+            { "path": "item_name.default", "new": "Sword of Potter" },
+            { "path": "item_name.index", "new": 4290676623671408 },
+            { "path": "item_desc.default", "new": "Forged in the loop." },
+            { "path": "item_desc.index", "new": 4290676623671409 },
+            { "path": "max_stack_count", "new": 1 }
+          ]
         }
       ]
     },
-
     {
-      "kind": "asset",
-      "asset_type": "dds",
-      "file": "icons/sword_of_potter.dds",
-      "vpath": "/ui/icon/sword_of_potter.dds"
-    },
-
-    {
-      "kind": "paloc",
-      "language": "english(us)",
-      "entries": [
-        { "category": 0, "key": "STR_ITEM_100001_NAME", "value": "Sword of Potter" },
-        { "category": 0, "key": "STR_ITEM_100001_DESC", "value": "Forged in the loop." }
+      "target": "paloc.pamt",
+      "intents": [
+        { "op": "set_localization", "key": 4290676623671408, "lang": "en", "value": "Sword of Potter" },
+        { "op": "set_localization", "key": 4290676623671409, "lang": "en", "value": "Forged in the loop." }
       ]
+    },
+    {
+      "target": "asset",
+      "asset_type": "dds",
+      "source": "icons/sword_of_potter.dds",
+      "vpath": "/ui/icon/sword_of_potter.dds"
     }
   ]
 }

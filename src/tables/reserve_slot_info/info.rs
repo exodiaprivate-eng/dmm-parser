@@ -6,26 +6,36 @@
 //! at qword_145F0DAxx / qword_145F0E9C0 / qword_145F0DA40 / qword_145F0DA20.
 //! Raw wire u16/u32 round-trip directly.
 //!
-//! Wire reads, in order:
-//!   1. u32 key
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u64 raw_24
-//!   5. u32 u32_32
-//!   6. u32 lookup_36 (sub_1410FF5C0 → qword_145F0DA00)
-//!   7. u32 lookup_38 (sub_1410FF5C0 → qword_145F0DA00)
-//!   8. CArray<ReserveSlotPairA> pair_list_a (inline: u32 lookup
-//!      sub_1410FF430 + u64)
-//!   9. CString second_string
-//!  10. u8 u8_64
-//!  11. u8 u8_65
-//!  12. CArray<u32> list_72 (sub_1410FF9A0 → qword_145F0DA50)
-//!  13. CArray<u16> list_88 (sub_1411075A0 → qword_145F0DA40)
-//!  14. CArray<ReserveSlotPairB> pair_list_b (inline: u32
-//!      read_u32_lookup_DA30 + u32 sub_1410FF430)
-//!  15. CArray<u16> list_120 (sub_1411022B0 → qword_145F0DA20)
-//!  16. u32 u32_136
-//!  17. u8 u8_140
+//! Wire reads, in order (canonical names from Mac Korean error strings —
+//! 1.3.5 audit re-mapped placeholder field names like `raw_24`, `lookup_36`,
+//! `u8_64`, `list_72` to canonical `_timeLimit`, `_autoUseItemInfo`,
+//! `_reserveSlotType`, `_enableTribeList`, etc.):
+//!   1. u32 key                                  (_key)
+//!   2. CString string_key                       (_stringKey)
+//!   3. u8 is_blocked                            (_isBlocked)
+//!   4. u64 time_limit                           (_timeLimit)
+//!   5. u32 cool_time                            (_coolTime)
+//!   6. u32 auto_use_item_info                   (_autoUseItemInfo,
+//!      sub_1410FF5C0 → qword_145F0DA00)
+//!   7. u32 convert_item_info                    (_convertItemInfo,
+//!      sub_1410FF5C0 → qword_145F0DA00)
+//!   8. CArray<ReserveSlotPairA> fill_data_list  (_fillDataList,
+//!      element: u32 lookup sub_1410FF430 + u64)
+//!   9. CString memo                             (_memo)
+//!  10. u8 reserve_slot_type                     (_reserveSlotType)
+//!  11. u8 using_type                            (_usingType)
+//!  12. CArray<u32> enable_tribe_list            (_enableTribeList,
+//!      sub_1410FF9A0 → qword_145F0DA50)
+//!  13. CArray<u16> enable_vehicle_list          (_enableVehicleList,
+//!      sub_1411075A0 → qword_145F0DA40)
+//!  14. CArray<ReserveSlotPairB> enable_special_name_hash_list
+//!      (_enableSpecialNameHashList, element: u32 read_u32_lookup_DA30 +
+//!      u32 sub_1410FF430)
+//!  15. CArray<u16> target_item_group_list       (_targetItemGroupList,
+//!      sub_1411022B0 → qword_145F0DA20)
+//!  16. u32 send_gimmick_event_key_for_slot_data_changed
+//!      (_sendGimmickEventKeyForSlotDataChanged)
+//!  17. u8 is_self_player_only                   (_isSelfPlayerOnly)
 
 use crate::binary::*;
 use crate::py_binary_struct;
@@ -49,20 +59,20 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub raw_24: u64,
-        pub u32_32: u32,
-        pub lookup_36: u32,
-        pub lookup_38: u32,
-        pub pair_list_a: CArray<ReserveSlotPairA>,
-        pub second_string: CString<'a>,
-        pub u8_64: u8,
-        pub u8_65: u8,
-        pub list_72: CArray<u32>,
-        pub list_88: CArray<u16>,
-        pub pair_list_b: CArray<ReserveSlotPairB>,
-        pub list_120: CArray<u16>,
-        pub u32_136: u32,
-        pub u8_140: u8,
+        pub time_limit: u64,
+        pub cool_time: u32,
+        pub auto_use_item_info: u32,
+        pub convert_item_info: u32,
+        pub fill_data_list: CArray<ReserveSlotPairA>,
+        pub memo: CString<'a>,
+        pub reserve_slot_type: u8,
+        pub using_type: u8,
+        pub enable_tribe_list: CArray<u32>,
+        pub enable_vehicle_list: CArray<u16>,
+        pub enable_special_name_hash_list: CArray<ReserveSlotPairB>,
+        pub target_item_group_list: CArray<u16>,
+        pub send_gimmick_event_key_for_slot_data_changed: u32,
+        pub is_self_player_only: u8,
     }
 }
 

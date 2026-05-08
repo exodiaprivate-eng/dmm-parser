@@ -401,6 +401,167 @@ variants typed (dispatch_tag u8 + per-tag body), wrapped in
 
 ---
 
+## Field-JSON v3.1 intent application — **shipped 2026-05-06**
+
+dmm-parser now applies Field-JSON v3.1 intents end-to-end. Module
+`src/intents/`:
+
+- **`path.rs`** — v3 dot+bracket field-path parser
+  (`enchant_data_list[0].enchant_stat_data.stat_list_static[2].value`),
+  with `set_value_at_path`, `get_value_at_path`, `array_append_at_path`.
+- **`types.rs`** — JSON-faithful `IntentDoc` / `Target` / `Intent` /
+  `Patch` parsed straight off `serde_json::Value` (no new deps —
+  matches the project's manual-JSON convention). Strongly-typed
+  `ResolvedIntentOp` enum dispatches the five ops at apply time.
+  `item_paloc_indices(item_key)` helper computes the
+  `(key << 32) | 0x70 / 0x71` paloc lookups for custom-item names.
+- **`apply.rs`** — `apply_resolved_intents(records, intents)` walks a
+  parsed table's JSON record list and dispatches:
+  - `set` (default) — replace a field at a path on a record matched by
+    `entry` (string_key) or `key`.
+  - `array_append` — append a value to an array at a path. Used by
+    storeinfo to add custom items to vendor item lists.
+  - `clone_record` — duplicate a record under a new key, then run patches
+    against the clone. Source untouched. Duplicate-new-key rejected.
+  - `new_record` — insert a record from a template at a new key. Accepts
+    legacy v3 `add_entry` spelling.
+  - `delete_record` — remove by key. Soft-skip on missing.
+- **`apply_intents_to_iteminfo(body, intents)`** — full
+  parse→apply→serialize for iteminfo (sequential format, no pabgh).
+  This is the canonical "add a new item" entry point.
+- **`dispatch::apply_intents_to_table_body`** — generic wrapper for
+  every supported table. Today: iteminfo + sequential tables + paloc
+  work end-to-end. Pabgh-bounded tables surface an explicit
+  `Unsupported` error pending the pabgh-rebuild path (task #13).
+
+39 unit tests cover the full surface (path parsing, type resolution,
+each op, `{"value": N}` ItemKey wrapper handling). 2 integration tests
+exercise a real iteminfo fixture when present (clone-record end-to-end +
+empty-intents byte-perfect round-trip). 462/462 lib tests pass.
+
+The minimum viable "add an item" recipe today:
+
+```rust
+use dmm_parser::intents::{Intent, Patch, apply_intents_to_iteminfo};
+
+let body = std::fs::read("iteminfo.pabgb")?;
+let intents = vec![Intent {
+    op: Some("clone_record".into()),
+    source_key: Some(12345),  // donor item
+    new_key: Some(999_001),
+    patches: Some(vec![
+        Patch { path: "string_key".into(),       op: None, new: "Custom_Sword".into() },
+        Patch { path: "max_stack_count".into(),  op: None, new: 999.into() },
+    ]),
+    ..Default::default()
+}];
+let (new_body, outcomes) = apply_intents_to_iteminfo(&body, &intents)?;
+std::fs::write("iteminfo_modded.pabgb", new_body)?;
+```
+
+PyO3 bindings + sample mod manifest + `dmm-mod-validate` op-awareness
+are next (task #14).
+
+### 2026-05-06 — Python binding + target-name aliases + SuperMod fixture (task #14)
+
+**`dmm_parser.apply_intents(table_name, pabgb, pabgh, intents)`** — top-
+level Python entry point for applying Field-JSON v3.x intents end-to-end
+on a single table. Returns a dict `{body, pabgh, outcomes}` mirroring
+the Rust API. `apply_intents` accepts intent dicts in any shape the v3
+spec recognizes.
+
+**`dmm_parser.normalize_target_name(name)`** — resolves alias spellings
+to the canonical dispatch identifier:
+
+| Input | Resolves to |
+|---|---|
+| `character_info` / `character_info.pabgb` | `character_info` |
+| `characterinfo.pabgb` (compact, SuperMod-style) | `character_info` |
+| `iteminfo.pabgb` | `iteminfo` |
+| `paloc` / `paloc.pamt` / `localizationstring` | `paloc` |
+| Unknown | `None` |
+
+**`dmm_parser.item_paloc_indices(item_key)`** — exposes the canonical
+custom-item paloc index formula
+(`((item_key as u64) << 32) | 0x70 / 0x71`) so SWISS / Stacker /
+hand-authored mods don't reinvent the bit math.
+
+**Target name normalization** is now wired into
+`dispatch::apply_intents_to_table_body` so SuperMod-class manifests
+(which use `characterinfo.pabgb` / `regioninfo.pabgb` /
+`spawningpoolautospawninfo.pabgb` / etc.) apply without manual rename.
+
+**SuperMod fixture validated.** A real production-class manifest
+(12,358 intents across 5 targets — iteminfo, characterinfo,
+regioninfo, spawningpoolautospawninfo, terrainregionautospawninfo)
+parses cleanly via `IntentDoc::from_slice` and every target resolves
+via `normalize_target_name`. Test
+`dispatch::tests::supermod_manifest_parses_cleanly` runs against
+`C:\Users\corin\Desktop\ZIPS\SuperMod (4).json` if available.
+
+**`samples/04_custom_item/`** rewritten to canonical v3.1 shape:
+- `clone_record` intent (donor 12345 → new_key 999001)
+- six patches (string_key, item_name.default + .index, item_desc.default
+  + .index, max_stack_count)
+- `paloc.pamt` target with the matching localization entries
+- `asset` target wiring the custom DDS icon at `/ui/icon/sword_of_potter.dds`
+- Updated README with the full Python authoring recipe.
+
+**Doc fix:** `docs/CUSTOM_ITEM_CREATOR_V3_1.md` had arithmetic typos in
+its paloc-index example (`4290772592` instead of `4290676623671408`).
+Corrected with a footnote pointing at `item_paloc_indices`.
+
+7 new tests this iteration: 6 normalize_target_name cases (canonical /
+compact / iteminfo aliases / paloc aliases / unknown / SuperMod parse)
+plus `samples_04_custom_item_manifest_round_trip`. **473/473 lib tests
+pass** (was 466).
+
+---
+
+### 2026-05-06 — pabgh rebuild for record-count-changing intents (task #13)
+
+Pabgh-bounded tables (buff_info, character_info, gimmick_info,
+store_info, etc. — 45 tables) now apply intents end-to-end with a
+fresh sister `.pabgh` index emitted alongside the modified `.pabgb`
+body.
+
+- **`tables::blob_runtime::serialize_typed_blob_table_from_json_tracked`**
+  — sister of the existing serializer that also returns
+  `Vec<(u32_key, u32_offset)>` per record.
+- **`tables::blob_runtime::serialize_blob_table_from_json_tracked`** —
+  same for the generic blob-fallback runtime.
+- **`tables::blob_runtime::extract_record_key`** — permissive key
+  reader (scalar `key` OR `key.value` wrapper, accepts u64/i64/integer
+  shapes; truncates to u32).
+- **`dispatch::serialize_table_from_json_with_pabgh`** — top-level
+  serializer that takes the original pabgh, parses it for the format
+  flag (`U16CountU32Key` / `U16CountU16Key` / `U32CountU32Key`), runs
+  the tracked serializer, and emits a new pabgh in the same on-disk
+  format. Catches u16-key overflow on Format 2 tables.
+- **`dispatch::apply_intents_to_table_body`** — pabgh-bounded path
+  now returns `(new_body, Some(new_pabgh), outcomes)` instead of
+  `Unsupported`. Sequential and iteminfo paths unchanged.
+
+`skill_info` and `equip_slot_info` use special-case serializers
+(buff_level_list nested base64; equip_slot footer/extra_entries) and
+are not yet wrapped by the tracked path — they still return
+`Unsupported` until the inner serializers are extended. Documented
+in the `serialize_table_from_json_tracked` match arm.
+
+4 new dispatch tests:
+- `buff_info_apply_empty_intents_byte_perfect` — pabgh-bounded
+  fixture: empty intents → byte-perfect body AND pabgh.
+- `equip_info_apply_empty_intents_byte_perfect` — same on the generic
+  blob-fallback path.
+- `buff_info_set_is_blocked_then_pabgh_offsets_align` — set u8 field
+  by key, re-parse with fresh pabgh, assert target record's field
+  matches.
+- `sequential_table_returns_no_pabgh` — contract check.
+
+466/466 lib tests pass (was 462, +4 in dispatch).
+
+---
+
 ## What just shipped (older session — see Active state banner above for current 2026-04-30 work)
 
 > Note: as of the current session local `main` is ~48 commits ahead of
@@ -519,36 +680,51 @@ obfuscated — those stay in the Raw bucket forever, which is fine.
 3. **Wire ConditionInfo Tier 1 into DMM v3 dispatch** — small change
    in DMM-BETA's mod-loader. No IDA required.
 
-Remaining raw entries in condition_info (15) and gimmick_info (6) are data
-bugs in the source .pabgb files, not parser gaps.
+### Active goal — promote sequencer + attack family Tier 1.5 → Tier 1
 
-### If a newer game dump arrives
-1. Run `cargo test` — any newly added table types will surface as missing parsers
-2. Run the roundtrip tests against the new dump; any format changes will fail fast
-3. New tables follow the T1 playbook in `docs/449_TABLE_CATALOG.md`
+Six standalone (non-PABGB) asset formats round-trip byte-exact today but
+expose only `LpToken::LpString` / `RawBytes` (or — for `.paatt` —
+typed envelope + opaque `base_data`). Promoting them to Tier 1 is the
+last remaining 1.5 surface in dmm-parser and the prerequisite for
+field-level mod intents on cutscenes, NPC schedules, stage charts, and
+attack data. See `docs/FORMATS.md` §11 (per-format wire + IDA pointers)
+and §12 (tier semantics + methodology).
 
-### Deferred (blocked, non-actionable)
-- ConditionData tags 54/286 — anti-disassembly obfuscated readers (`sub_14D3012D0`
-  family). Byte-perfect via the `GameCondition::Raw` fallback. Only recoverable
-  with a runtime debugger.
-- ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated debug entries
-  in the source data; not worth chasing.
-- condition_info 15 Raw entries — data-truncation bugs in the source .pabgb files.
-- gimmick_info 6 Raw entries — same.
-- GimmickInfo alt_trigger_list full element decoding — the full bodies of
-  UnnamedTrigger_0 and GimmickOn elements (beyond the first element's name/flag
-  prefix) remain in `post_blob`. Would need IDA work on the alt_trigger element
-  body readers. Low value: the post_blob roundtrip is already byte-perfect.
+Attack order, smallest scope first:
 
-### Previously listed, now done
-- ~~GimmickInfo post_blob fields 20–162~~ ✅ — F76–F130 decoded, with_body 9128 → 9947
-- ~~TriggerEventHandler / TriggerRegionInfo~~ ✅ — T1, was a red herring
-- ~~EffectData family~~ ✅ — `binary::variants::effect_data`, EffectInfo T1
-- ~~GameEventHandlerData/GlobalGameEventExecuteData per-sub_tag bodies~~ ✅
-- ~~GameCondition JSON tree exposure~~ ✅ — `GameConditionNode::to_json_value`
-- ~~QuestInfo FilterCondition family~~ ✅ — `6cdc22c`
-- ~~GimmickInfo TGPEHD post_blob~~ ✅ — `1fc44e8`
-- ~~Catalog sync (26 stale P entries)~~ ✅ — 2026-04-30, T1 count 93 → 119
+1. **`.pastage`** — likely reuses already-decoded `SequencerStageChartDesc`
+   (`sub_141D8C6D0`, 26 wire fields). Confirm via IDA, prepend the
+   stage-path LP-string prefix, ship. Fastest expected win and validates
+   the IDA workflow on standalone (non-PABGB) assets. 3,320 vanilla
+   samples must roundtrip byte-perfect.
+2. **`.paseq`** — largest sample set (4,659). Sequencer / cutscene /
+   scripted action. Find loader via `pa::Sequencer*` xrefs in the Mac
+   binary, walk the dispatcher, type each tag's body.
+3. **`.paseqc`** — sister to paseq (header magic `FF FF 04 00` /
+   `FF FF 03 00` minority). Expected to share the paseq dispatcher;
+   promote together.
+4. **`.paschedule` + `.paschedulepath`** — paired NPC schedule decode.
+   Mostly numeric (waypoint hashes, frame counts) with a few embedded
+   asset path strings. Smaller scope than the sequencer formats.
+5. **`.paatt`** — finish per-version BaseData decode via
+   `pa::AttackInfoDataDesc` reflect-property setters. Sub-variants
+   `AttackInfo_Attack` / `_AttackThrow` / `_AttackCatch` / `_ReleaseCatch`
+   each add their own fields; per-version sizes 264/528/296/288/264
+   bytes already known.
+
+Methodology — same family-decoder playbook used for GameCondition,
+FilterCondition, TriggerGamePlayEventHandlerData, GameEventHandlerData,
+and SequencerStageChartDesc. See "The reusable playbook" section above.
+Definition-of-done per format is in `docs/FORMATS.md` §12.
+
+### Deferred (need runtime debugger or are non-blocking)
+- ConditionData tags 54/286 — anti-disassembly obfuscated readers
+  (sub_14D3012D0 family). Currently round-trip via the Raw fallback,
+  which is fine. Recoverable later if anyone runs the game in a
+  debugger and observes the obfuscated reader's actual byte
+  consumption.
+- ConditionData tag 272 sub_tag holes (0x42, 0x1d) — likely truncated
+  debug entries in the source data; not worth chasing.
 
 ### Stream-mode GameCondition (mostly unblocked, 99.2% interaction_info)
 **Root cause identified**: The `variant_skips_option_block` list in

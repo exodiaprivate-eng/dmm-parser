@@ -138,8 +138,14 @@ Plus optional siblings for symmetry:
 ```
 
 **Paloc index formula** (preserved from Benreuveni's research):
-- `item_name.index = (new_key << 32) | 0x70` → `(999001 << 32) | 0x70 = 4290772592`
-- `item_desc.index = (new_key << 32) | 0x71` → `(999001 << 32) | 0x71 = 4290772593`
+- `item_name.index = ((new_key as u64) << 32) | 0x70` → for `new_key = 999001`: `4_290_676_623_671_408` (`0xF3E59_00000070`)
+- `item_desc.index = ((new_key as u64) << 32) | 0x71` → for `new_key = 999001`: `4_290_676_623_671_409` (`0xF3E59_00000071`)
+
+> Earlier revisions of this doc listed `4290772592` / `4290772593` as the
+> example values — those were arithmetic typos. The canonical formula
+> stands; the numerical example is fixed above. dmm-parser exposes the
+> computation directly via `dmm_parser.intents.item_paloc_indices(item_key)`
+> (Rust) and `dmm_parser.item_paloc_indices(item_key)` (Python).
 
 SWISS Stacker's UI computes these automatically when the user picks a `new_key`.
 

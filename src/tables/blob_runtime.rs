@@ -303,14 +303,99 @@ where
     for (i, v) in items.iter().enumerate() {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("typed_blob_table[{}]: expected object, got {}",
-                i, match v { Value::Null => "null", Value::Bool(_) => "bool",
-                    Value::Number(_) => "number", Value::String(_) => "string",
-                    Value::Array(_) => "array", Value::Object(_) => "object" })))?;
+            format!("typed_blob_table[{}]: expected object, got {}", i, type_name(v))))?;
         write_one(&mut out, obj).map_err(|e| io::Error::new(
             e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
     }
     Ok(out)
+}
+
+/// Same as [`serialize_typed_blob_table_from_json`] but also returns the
+/// `(key, byte_offset)` pair for each record. Used by the apply-intents
+/// pipeline to rebuild the sister `pabgh` index when records are added,
+/// removed, or change size.
+///
+/// The key is extracted permissively from each record's JSON via
+/// [`extract_record_key`] — accepts both scalar `key: <int>` and the
+/// iteminfo-style `key: {"value": <int>}` wrapper shape.
+pub fn serialize_typed_blob_table_from_json_tracked<F>(
+    items: &[Value],
+    mut write_one: F,
+) -> io::Result<(Vec<u8>, Vec<(u32, u32)>)>
+where
+    F: FnMut(&mut Vec<u8>, &serde_json::Map<String, Value>) -> io::Result<()>,
+{
+    let mut out = Vec::with_capacity(items.len() * 256);
+    let mut offsets = Vec::with_capacity(items.len());
+    for (i, v) in items.iter().enumerate() {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("typed_blob_table[{}]: expected object, got {}", i, type_name(v))))?;
+        let key = extract_record_key(v).ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("typed_blob_table[{}]: missing or non-integer 'key' field", i)))?;
+        let offset = u32::try_from(out.len()).map_err(|_| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("typed_blob_table[{}]: body offset {} exceeds u32 range", i, out.len())))?;
+        offsets.push((key, offset));
+        write_one(&mut out, obj).map_err(|e| io::Error::new(
+            e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+    }
+    Ok((out, offsets))
+}
+
+/// Tracked sister of [`serialize_blob_table_from_json`] — generic blob-
+/// fallback path. Same offsets contract as
+/// [`serialize_typed_blob_table_from_json_tracked`].
+pub fn serialize_blob_table_from_json_tracked(
+    items: &[Value],
+) -> io::Result<(Vec<u8>, Vec<(u32, u32)>)> {
+    let mut out = Vec::with_capacity(items.len() * 256);
+    let mut offsets = Vec::with_capacity(items.len());
+    for (i, v) in items.iter().enumerate() {
+        let key = extract_record_key(v).ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("blob_table[{}]: missing or non-integer 'key' field", i)))?;
+        let offset = u32::try_from(out.len()).map_err(|_| io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("blob_table[{}]: body offset {} exceeds u32 range", i, out.len())))?;
+        offsets.push((key, offset));
+        BlobTableRecord::write_from_json(&mut out, v).map_err(|e| io::Error::new(
+            e.kind(), format!("blob_table[{}]: {}", i, e)))?;
+    }
+    Ok((out, offsets))
+}
+
+/// Read a record's identifying key from its JSON. Permissive: accepts
+/// scalar `record["key"] = <int>` (most pabgh-bounded tables) and the
+/// `record["key"] = {"value": <int>}` wrapper shape (used by iteminfo's
+/// `ItemKey`). Returns `None` when neither shape is present or the value
+/// doesn't fit `u32`.
+pub fn extract_record_key(record: &Value) -> Option<u32> {
+    let key = record.get("key")?;
+    if let Some(n) = key.as_u64() {
+        return u32::try_from(n).ok();
+    }
+    if let Some(n) = key.as_i64() {
+        return u32::try_from(n).ok();
+    }
+    if let Some(inner) = key.get("value") {
+        if let Some(n) = inner.as_u64() { return u32::try_from(n).ok(); }
+        if let Some(n) = inner.as_i64() { return u32::try_from(n).ok(); }
+    }
+    None
+}
+
+#[inline]
+fn type_name(v: &Value) -> &'static str {
+    match v {
+        Value::Null => "null",
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
 }
 
 #[cfg(test)]

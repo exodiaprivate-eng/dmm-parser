@@ -1099,6 +1099,422 @@ pub fn write_table_to_file(
     std::fs::write(path, &data).map_err(|e| PyIOError::new_err(e.to_string()))
 }
 
+// ── Field-JSON v3.x intent application ────────────────────────────────────
+//
+// Single-target apply. Python callers iterate over the manifest's targets,
+// load each pabgb (+ pabgh sister) themselves, call this for each target,
+// and write the result. This keeps the binding simple and avoids the
+// complexity of a callback-based file-resolver model.
+
+/// Apply Field-JSON v3.x intents to a single table body.
+///
+/// Args:
+///   table_name: any recognized form — canonical (`character_info`),
+///     compact (`characterinfo`), with extension (`characterinfo.pabgb`).
+///   pabgb: raw `.pabgb` bytes.
+///   pabgh: raw `.pabgh` sister bytes for pabgh-bounded tables; `None`
+///     for sequential tables, iteminfo, or paloc.
+///   intents: list of intent dicts as appearing in a Field-JSON manifest's
+///     `intents` array (see FIELD_JSON_V3_SPEC.md / CUSTOM_ITEM_CREATOR_V3_1.md).
+///
+/// Returns a dict:
+///   `{"body": bytes, "pabgh": bytes | None, "outcomes": [{"op": str,
+///     "status": "applied" | "skipped", "reason"?: str}]}`
+///
+/// Raises `ValueError` for unknown table names, malformed intents, or
+/// any apply failure.
+#[pyfunction]
+#[pyo3(signature = (table_name, pabgb, pabgh, intents))]
+pub fn apply_intents(
+    py: Python<'_>,
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+    intents: &Bound<'_, PyList>,
+) -> PyResult<Py<PyAny>> {
+    // Convert Python list of intent dicts to Rust Intent values via
+    // JSON-faithful parser (handles every shape the spec allows).
+    let intent_list: Vec<crate::intents::Intent> = intents
+        .iter()
+        .map(|item| {
+            let v = py_to_json(&item)?;
+            crate::intents::Intent::from_value(&v)
+                .map_err(|e| PyValueError::new_err(format!("intent: {}", e)))
+        })
+        .collect::<PyResult<_>>()?;
+
+    let (new_body, new_pabgh, outcomes) = crate::dispatch::apply_intents_to_table_body(
+        table_name,
+        pabgb,
+        pabgh,
+        &intent_list,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, &new_body))?;
+    match new_pabgh {
+        Some(p) => result.set_item("pabgh", PyBytes::new(py, &p))?,
+        None => result.set_item("pabgh", py.None())?,
+    }
+
+    let outcome_list = PyList::empty(py);
+    for o in outcomes {
+        let d = PyDict::new(py);
+        d.set_item("op", &o.op)?;
+        match o.status {
+            crate::intents::ApplyStatus::Applied => {
+                d.set_item("status", "applied")?;
+            }
+            crate::intents::ApplyStatus::Skipped(reason) => {
+                d.set_item("status", "skipped")?;
+                d.set_item("reason", &reason)?;
+            }
+        }
+        outcome_list.append(d)?;
+    }
+    result.set_item("outcomes", outcome_list)?;
+
+    Ok(result.into_any().unbind())
+}
+
+/// Resolve a Field-JSON target name (e.g. `characterinfo.pabgb`) to its
+/// canonical dispatch identifier (e.g. `character_info`). Returns `None`
+/// for unrecognized names.
+#[pyfunction]
+pub fn normalize_target_name(name: &str) -> Option<&'static str> {
+    crate::dispatch::normalize_target_name(name)
+}
+
+/// Compute the v3 paloc index keys for a custom item's localized name
+/// and description. Returns `(name_index, desc_index)`.
+///
+/// Per CUSTOM_ITEM_CREATOR_V3_1.md: `name_index = (item_key << 32) | 0x70`
+/// and `desc_index = (item_key << 32) | 0x71`. SWISS / Stacker compute
+/// these when assigning a `new_key` for a clone_record intent.
+#[pyfunction]
+pub fn item_paloc_indices(item_key: u32) -> (u64, u64) {
+    crate::intents::item_paloc_indices(item_key)
+}
+
+// ── Tier 1 typed-reader bindings (Session 13) ────────────────────────────
+//
+// Each format exposes:
+//   - `parse_<format>_bytes(data: bytes) -> dict`   — typed parse to JSON-shaped dict
+//   - `serialize_<format>(obj: dict) -> bytes`      — write back to wire bytes
+//
+// Round-trip via these is byte-perfect for every vanilla sample (verified
+// by `examples/<format>_roundtrip.rs`). The JSON dict keys map 1:1 to the
+// `TypedXxxFile` Rust struct fields.
+
+macro_rules! bind_typed_format {
+    ($parse_fn:ident, $write_fn:ident, $parse_file_fn:ident, $write_file_fn:ident, $typed:path) => {
+        #[pyfunction]
+        pub fn $parse_fn(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+            use $typed as Typed;
+            use crate::json_traits::ToJsonValue;
+            let typed = Typed::parse(data)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            json_to_py(py, &typed.to_json_value())
+        }
+
+        #[pyfunction]
+        pub fn $write_fn(py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+            use $typed as Typed;
+            use crate::json_traits::WriteJsonValue;
+            let json = py_to_json(obj)?;
+            let mut out = Vec::new();
+            Typed::write_from_json(&mut out, &json)
+                .map_err(|e| PyIOError::new_err(e.to_string()))?;
+            Ok(PyBytes::new(py, &out).into_any().unbind())
+        }
+
+        /// Convenience: read the file at `path`, parse, return the
+        /// JSON-shaped dict. Equivalent to
+        /// `parse(open(path, "rb").read())`.
+        #[pyfunction]
+        pub fn $parse_file_fn(py: Python<'_>, path: &str) -> PyResult<Py<PyAny>> {
+            let data = std::fs::read(path)
+                .map_err(|e| PyIOError::new_err(format!("read {}: {}", path, e)))?;
+            $parse_fn(py, &data)
+        }
+
+        /// Convenience: serialize `obj` and write the bytes to `path`.
+        /// Atomic via tempfile + rename when supported by the filesystem.
+        #[pyfunction]
+        pub fn $write_file_fn(py: Python<'_>, obj: &Bound<'_, PyAny>, path: &str) -> PyResult<()> {
+            use $typed as Typed;
+            use crate::json_traits::WriteJsonValue;
+            let json = py_to_json(obj)?;
+            let mut out = Vec::new();
+            Typed::write_from_json(&mut out, &json)
+                .map_err(|e| PyIOError::new_err(e.to_string()))?;
+            let _ = py;
+            std::fs::write(path, &out)
+                .map_err(|e| PyIOError::new_err(format!("write {}: {}", path, e)))?;
+            Ok(())
+        }
+    };
+}
+
+bind_typed_format!(
+    parse_pastage_bytes, serialize_pastage,
+    parse_pastage_from_file, write_pastage_to_file,
+    crate::binary::pastage::TypedPastageFile
+);
+bind_typed_format!(
+    parse_paseq_bytes, serialize_paseq,
+    parse_paseq_from_file, write_paseq_to_file,
+    crate::binary::paseq::TypedPaseqFile
+);
+bind_typed_format!(
+    parse_paseqc_bytes, serialize_paseqc,
+    parse_paseqc_from_file, write_paseqc_to_file,
+    crate::binary::paseqc::TypedPaseqcFile
+);
+bind_typed_format!(
+    parse_paschedule_bytes, serialize_paschedule,
+    parse_paschedule_from_file, write_paschedule_to_file,
+    crate::binary::paschedule::TypedPascheduleFile
+);
+bind_typed_format!(
+    parse_paschedulepath_bytes, serialize_paschedulepath,
+    parse_paschedulepath_from_file, write_paschedulepath_to_file,
+    crate::binary::paschedulepath::TypedPaschedulePathFile
+);
+bind_typed_format!(
+    parse_paatt_bytes, serialize_paatt,
+    parse_paatt_from_file, write_paatt_to_file,
+    crate::binary::paatt::PaattFile
+);
+
+/// Parse the outer class field directory from a `.paseq` file. Returns
+/// a list of dicts: `[{"field_name": str, "type_name": str,
+/// "type_meta_b64": str}, ...]`. Every vanilla `.paseq` exposes the
+/// same 15-field `pa::Sequencer` schema; this lets mod authors
+/// enumerate the declared fields without parsing the recursive
+/// nested-class schema.
+#[pyfunction]
+pub fn parse_paseq_field_directory(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let fields = typed.outer_fields()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let list = PyList::empty(py);
+    for f in fields {
+        let dict = PyDict::new(py);
+        dict.set_item("field_name", f.field_name)?;
+        dict.set_item("type_name", f.type_name)?;
+        dict.set_item("type_meta_b64", B64.encode(f.type_meta))?;
+        list.append(dict)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+/// Parse the outer class field directory from a `.paseqc` file. Same
+/// schema as `parse_paseq_field_directory` — the two formats share the
+/// engine reflection serializer.
+#[pyfunction]
+pub fn parse_paseqc_field_directory(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let fields = typed.outer_fields()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let list = PyList::empty(py);
+    for f in fields {
+        let dict = PyDict::new(py);
+        dict.set_item("field_name", f.field_name)?;
+        dict.set_item("type_name", f.type_name)?;
+        dict.set_item("type_meta_b64", B64.encode(f.type_meta))?;
+        list.append(dict)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+fn class_blocks_to_pylist(
+    py: Python<'_>,
+    blocks: Vec<crate::binary::paseq::PaseqClassBlock>,
+) -> PyResult<Py<PyAny>> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let list = PyList::empty(py);
+    for block in blocks {
+        let block_dict = PyDict::new(py);
+        block_dict.set_item("class_name", block.class_name)?;
+        let fields_list = PyList::empty(py);
+        for f in block.fields {
+            let fd = PyDict::new(py);
+            fd.set_item("field_name", f.field_name)?;
+            fd.set_item("type_name", f.type_name)?;
+            fd.set_item("type_meta_b64", B64.encode(f.type_meta))?;
+            fields_list.append(fd)?;
+        }
+        block_dict.set_item("fields", fields_list)?;
+        list.append(block_dict)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+/// Walk all class blocks (outer + linearly-following nested classes) in
+/// a `.paseq` file. Returns a list of `{"class_name": str, "fields":
+/// [...]}` dicts. The walker stops when it encounters non-CString-shaped
+/// data (i.e. the value section starts). Every vanilla `.paseq`
+/// produces a complete walk (verified across 4,659 samples — 272
+/// distinct class names like `Sequencer`, `TimelineRootNode`,
+/// `TimelineFloatKeyFrameNode`, etc.).
+#[pyfunction]
+pub fn parse_paseq_all_class_blocks(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let blocks = typed.all_class_blocks()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    class_blocks_to_pylist(py, blocks)
+}
+
+/// Walk all class blocks in a `.paseqc` file. Same shape as
+/// `parse_paseq_all_class_blocks`. Verified across 2,932 samples
+/// (62 distinct class names like `GameData_Sequencer`, `GameData_Folder`,
+/// `SequencerGamePlayData_CharacterActor`, etc.).
+#[pyfunction]
+pub fn parse_paseqc_all_class_blocks(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let blocks = typed.all_class_blocks()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    class_blocks_to_pylist(py, blocks)
+}
+
+/// Get the byte offset of the value section within a `.paseq` file's
+/// `opaque_body`. Returns the index of the first byte of values
+/// (right after the last class block in the schema).
+#[pyfunction]
+pub fn paseq_value_section_offset(data: &[u8]) -> PyResult<usize> {
+    let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    typed.value_section_offset()
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Get the value-section bytes from a `.paseq` file (the bytes after
+/// the schema). Decoding these per-type is future work; for now the
+/// raw bytes are returned for tools that want to do their own analysis.
+#[pyfunction]
+pub fn paseq_value_section<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
+    let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let values = typed.value_section()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, values))
+}
+
+/// Get the byte offset of the value section within a `.paseqc` file.
+#[pyfunction]
+pub fn paseqc_value_section_offset(data: &[u8]) -> PyResult<usize> {
+    let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    typed.value_section_offset()
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Get the value-section bytes from a `.paseqc` file.
+#[pyfunction]
+pub fn paseqc_value_section<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
+    let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let values = typed.value_section()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, values))
+}
+
+fn strings_to_pylist<'py>(py: Python<'py>, strings: Vec<(usize, String)>) -> PyResult<Py<PyAny>> {
+    let list = PyList::empty(py);
+    for (offset, s) in strings {
+        let dict = PyDict::new(py);
+        dict.set_item("file_offset", offset)?;
+        dict.set_item("value", s)?;
+        list.append(dict)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+/// Walk the value section of a `.paseq` file and return every
+/// `u32 length + N printable bytes` pattern as a list of
+/// `{"file_offset": int, "value": str}` dicts. The byte offset is
+/// relative to the START OF THE FILE so callers can do surgical
+/// edits — overwrite a string at a known offset with a same-length
+/// replacement, or use `serialize_paseq` after editing the parsed
+/// dict.
+///
+/// Captures `staticstringA` field values, embedded asset path
+/// references, script-expression strings, and similar variable-length
+/// string data. Heuristic — strings must be 1..=4096 bytes of
+/// printable ASCII.
+#[pyfunction]
+pub fn paseq_value_section_strings(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let strings = typed.value_section_strings()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    strings_to_pylist(py, strings)
+}
+
+/// Sister to `paseq_value_section_strings` for `.paseqc` files.
+#[pyfunction]
+pub fn paseqc_value_section_strings(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let strings = typed.value_section_strings()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    strings_to_pylist(py, strings)
+}
+
+/// Walk `data` looking for `u32 length + N printable bytes` patterns
+/// (length-prefixed strings). Returns a list of
+/// `{"file_offset": int, "value": str}` dicts. Generic — works on any
+/// byte slice from any format (not just `.paseq`/`.paseqc`).
+///
+/// Pairs with `replace_cstring_at` for full string-level mod tooling:
+/// find strings → edit them by file offset → reserialize.
+///
+/// Heuristic: strings must be 1..=4096 bytes of printable ASCII (or
+/// `\n`, `\t`). The walker advances past matches so overlapping
+/// regions don't double-count.
+#[pyfunction]
+pub fn walk_lp_strings(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let strings = crate::binary::paseq::walk_u32_prefixed_strings(data, 0);
+    strings_to_pylist(py, strings)
+}
+
+/// Replace the `u32 length + N bytes` CString at `file_offset` in
+/// `data` with `new_value`. Length-flexible — the result is
+/// `len(new_value) - old_length` bytes larger or smaller. Works on
+/// any format where values are stored as length-prefixed strings.
+///
+/// Args:
+///   data: the input file bytes
+///   file_offset: where the u32 length prefix lives (typically from
+///     a `*_value_section_strings` lookup)
+///   new_value: the replacement string
+///   expected_value: optional safety check — if Some, parse will
+///     fail unless the existing bytes match this value
+///
+/// Returns the modified file bytes.
+#[pyfunction]
+#[pyo3(signature = (data, file_offset, new_value, expected_value=None))]
+pub fn replace_cstring_at<'py>(
+    py: Python<'py>,
+    data: &[u8],
+    file_offset: usize,
+    new_value: &str,
+    expected_value: Option<&str>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let result = crate::binary::paseq::replace_cstring_at(
+        data, file_offset, expected_value, new_value,
+    ).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &result))
+}
+
 // ── Registration ───────────────────────────────────────────────────────────
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1145,5 +1561,45 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_table, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_table, m)?)?;
     m.add_function(wrap_pyfunction!(write_table_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_intents, m)?)?;
+    m.add_function(wrap_pyfunction!(normalize_target_name, m)?)?;
+    m.add_function(wrap_pyfunction!(item_paloc_indices, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_pastage_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_pastage, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseq_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paseq, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseqc_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paseqc, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paschedule_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paschedule, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paschedulepath_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paschedulepath, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paatt_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paatt, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseq_field_directory, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseqc_field_directory, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseq_all_class_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseqc_all_class_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(paseq_value_section_offset, m)?)?;
+    m.add_function(wrap_pyfunction!(paseq_value_section, m)?)?;
+    m.add_function(wrap_pyfunction!(paseqc_value_section_offset, m)?)?;
+    m.add_function(wrap_pyfunction!(paseqc_value_section, m)?)?;
+    m.add_function(wrap_pyfunction!(paseq_value_section_strings, m)?)?;
+    m.add_function(wrap_pyfunction!(paseqc_value_section_strings, m)?)?;
+    m.add_function(wrap_pyfunction!(replace_cstring_at, m)?)?;
+    m.add_function(wrap_pyfunction!(walk_lp_strings, m)?)?;
+    // Tier 1 file-path convenience wrappers
+    m.add_function(wrap_pyfunction!(parse_pastage_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(write_pastage_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseq_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(write_paseq_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paseqc_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(write_paseqc_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paschedule_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(write_paschedule_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paschedulepath_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(write_paschedulepath_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paatt_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(write_paatt_to_file, m)?)?;
     Ok(())
 }

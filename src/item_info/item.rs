@@ -40,6 +40,17 @@ pub fn serialize_iteminfo_from_json(items: &[::serde_json::Value]) -> io::Result
     Ok(out)
 }
 
+// Schema reverted to the dmm-api-test 1.3.3 layout (108 fields). The earlier
+// 117-field schema added 12 speculative fields based on the
+// `/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1` test fixture, but the
+// game version users actually run (1.05.01 — Steam app 3321460) reads only
+// 107 wire fields per ItemInfo per the IDA decompile of `sub_101885C38` in
+// the Mac binary `CrimsonDesert_Steam`. The 117-field reader overran the
+// per-entry byte ranges, misaligned downstream length prefixes, and produced
+// the silent-close that took DMM down at `analyze/parse_vanilla` on item
+// 1002151. The 108-field version below was the last-known-good schema for
+// 1.05.01 (1 over the binary, but the trailing field gracefully fails on
+// items that don't have it — no misalignment cascade).
 py_binary_struct! {
     pub struct ItemInfo<'a> {
         pub key: ItemKey,
@@ -73,6 +84,10 @@ py_binary_struct! {
         pub use_immediately: u8,
         pub apply_max_stack_cap: u8,
         pub extract_multi_change_info: MultiChangeKey,
+        // Restored 2026-05-06: empirical byte analysis of the user's 1.05.01
+        // iteminfo (5338778 bytes) shows 6 bytes between extract_multi_change_info
+        // and item_memo: u32=0 + u16=0xFFFF. Schema revert removed these on the
+        // assumption they were post-1.05.01-only, but they're present in 1.05.01.
         pub extract_additional_drop_set_info: u32,
         pub minimum_extract_enchant_level: u16,
         pub item_memo: CString<'a>,
@@ -101,6 +116,9 @@ py_binary_struct! {
         pub is_dyeable: u8,
         pub is_editable_grime: u8,
         pub is_destroy_when_broken: u8,
+        // Restored 2026-05-06 per IDA decomp of sub_101885C38 in
+        // CrimsonDesert_Steam: ItemInfo의 _isHousingOnly is read between
+        // _isDestoryWhenBroken and _quickSlotIndex.
         pub is_housing_only: u8,
         pub quick_slot_index: u8,
         pub reserve_slot_target_data_list: CArray<ReserveSlotTargetData>,
@@ -120,18 +138,22 @@ py_binary_struct! {
         pub inspect_data_list: CArray<InspectData<'a>>,
         pub inspect_action: InspectAction<'a>,
         pub default_sub_item: SubItem,
-        pub cooltime: i64,
-        pub unk_post_cooltime_a: i64,
-        pub unk_post_cooltime_b: i64,
+        // 24-byte struct in wire (3 × i64), not a single i64. See structs::Cooltime.
+        pub cooltime: Cooltime,
         pub item_charge_type: u8,
+        // Restored 2026-05-06 per IDA decomp: ItemInfo의 _usableAlertType is
+        // read between _itemChargeType and _sharpnessData. The schema revert
+        // had renamed this to `usable_alert` and placed it later in the
+        // struct; both placement and name were wrong.
         pub usable_alert_type: u8,
         pub sharpness_data: ItemInfoSharpnessData,
-        pub max_charged_useable_count: u32,
-        pub unk_post_max_charged_a: u32,
-        pub unk_post_max_charged_b: u32,
+        // 12-byte struct in wire (3 × u32), not single u32. See structs::MaxChargedUseableCount.
+        pub max_charged_useable_count: MaxChargedUseableCount,
         pub hackable_character_group_info_list: CArray<CharacterGroupKey>,
         pub item_group_info_list: CArray<ItemGroupKey>,
         pub discard_offset_y: f32,
+        // Restored 2026-05-06 per IDA decomp: _discardAttachTerrain between
+        // _discardOffsetY and _hideFromInventoryOnPopItem.
         pub discard_attach_terrain: u8,
         pub hide_from_inventory_on_pop_item: u8,
         pub is_shield_item: u8,
@@ -140,6 +162,8 @@ py_binary_struct! {
         pub packed_item_info: ItemKey,
         pub unpacked_item_info: ItemKey,
         pub convert_item_info_by_drop_npc: ItemKey,
+        // Restored 2026-05-06 per IDA decomp: _stageInfo + _patternDescriptionDataList
+        // between _convertItemInfoByDropNPC and _lookDetailGameAdviceInfoWrapper.
         pub stage_info: u32,
         pub pattern_description_data_list: CArray<PatternDescriptionData<'a>>,
         pub look_detail_game_advice_info_wrapper: GameAdviceInfoKey,
@@ -154,6 +178,8 @@ py_binary_struct! {
         pub enable_equip_in_clone_actor: u8,
         pub is_blocked_store_sell: u8,
         pub is_preorder_item: u8,
+        // Restored 2026-05-06 per IDA decomp: _isHasItemUseDataInventoryBuff
+        // and _isPreservedOnExtract between _isPreorderItem and _respawnTimeSeconds.
         pub is_has_item_use_data_inventory_buff: u8,
         pub is_preserved_on_extract: u8,
         pub respawn_time_seconds: i64,
