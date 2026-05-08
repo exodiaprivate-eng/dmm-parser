@@ -28,6 +28,7 @@ package-lock.json
 
 # Claude Code local settings
 .claude/
+.mcp.json
 
 # OS files
 .DS_Store

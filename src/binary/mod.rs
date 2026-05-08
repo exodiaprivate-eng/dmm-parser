@@ -20,6 +20,7 @@ pub mod variant;
 pub mod variants;
 pub mod optional_game_condition;
 pub mod paatt;
+pub mod paatt_basedata;
 pub mod lp_token_stream;
 pub mod pastage;
 pub mod paseq;
