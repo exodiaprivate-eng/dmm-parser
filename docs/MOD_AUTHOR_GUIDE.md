@@ -527,7 +527,7 @@ promotion work in `docs/FORMATS.md` §12 finishes.
 | `.paseqc` | Compiled sequencer chart | 2,932 | 1.5 | walk + replace |
 | `.paschedule` | NPC time-of-day / activity schedule | 4,084 | 1.5 | JSON path (envelope only) |
 | `.paschedulepath` | Companion path data for a `.paschedule` | 3,737 | 1.5 | JSON path (envelope only) |
-| `.paatt` | Per-weapon attack info (hitboxes, damage, frame events) | 220 | 1.5 | JSON path (envelope only; body via `base_data_b64`) |
+| `.paatt` | Per-weapon attack info (hitboxes, damage, frame events) | 220 | **1** | JSON path (full field-level via `paatt_decode_base_data`) |
 
 ### 12.1 Two editing patterns
 
@@ -589,9 +589,30 @@ For `.paatt`:
 parsed = dmm_parser.parse_paatt_bytes(data)
 # parsed["string_table"], parsed["effect_name_table"], etc. are lists
 parsed["effect_name_table"][0] = "MyCustomEffect"
-parsed["infos"][0]["base_data_b64"] = base64.b64encode(new_basedata).decode()
+
+# Per-AttackInfo body is a versioned blob — decode it into named fields,
+# edit, and re-encode. Versions 0/1/2/3 are all field-decoded; version 4
+# (and any future version) round-trips opaquely via base_data_b64.
+info = parsed["infos"][0]
+raw  = base64.b64decode(info["base_data_b64"])
+fields = dmm_parser.paatt_decode_base_data(info["version"], raw)
+
+fields["physic_impulse_power"] = 2.5      # double knockback
+fields["repeat_count"]         = 3        # extra hit per swing
+# V2 (throw) extras: fields["projectile_key"], fields["frame_time"], …
+# V3 (release-catch) extras: fields["release_angle_rad"], fields["frame_time"], …
+
+info["base_data_b64"] = base64.b64encode(
+    dmm_parser.paatt_encode_base_data(info["version"], fields)
+).decode()
+
 modified = dmm_parser.serialize_paatt(parsed)
 ```
+
+See `docs/api.md` → "**.paatt — typed AttackInfo BaseData**" for the
+per-version dict shape and the most-commonly-edited field reference, and
+`docs/PAATT_BASEDATA_FIELDS.md` for the full per-byte layout including
+every `_unkXXXX` field still pending IDA-resolved C++ names.
 
 ### 12.2 Discovering what's in a sequencer file
 

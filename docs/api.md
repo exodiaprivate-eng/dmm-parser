@@ -1583,6 +1583,82 @@ parsed["effect_name_table"][0] = "MyCustomEffect"
 modified = dmm_parser.serialize_paatt(parsed)
 ```
 
+### .paatt — typed AttackInfo BaseData (V0/V1/V2/V3)
+
+Each `info` returned from `parse_paatt_bytes` carries a `version` (u8) and
+a `base_data_b64` blob whose layout depends on `version`. Use
+`paatt_decode_base_data` to lift it into a named-field dict, edit fields
+by name, then `paatt_encode_base_data` to round-trip back to bytes.
+
+```python
+import dmm_parser, base64
+
+with open("weapon.paatt", "rb") as f:
+    parsed = dmm_parser.parse_paatt_bytes(f.read())
+
+info = parsed["infos"][0]
+raw = base64.b64decode(info["base_data_b64"])
+
+fields = dmm_parser.paatt_decode_base_data(info["version"], raw)
+# fields is a dict with named entries — see "Decoded field reference" below.
+
+# Tweak hitbox + impulse on the first attack
+fields["physic_impulse_power"] = 2.5         # default 1.0 → doubled knockback
+fields["attack_degree"]        = 3.14159     # narrower 180° arc (was 2π = 360°)
+fields["repeat_count"]         = 3           # extra hit per swing
+
+new_raw = dmm_parser.paatt_encode_base_data(info["version"], fields)
+info["base_data_b64"] = base64.b64encode(new_raw).decode()
+
+with open("weapon.paatt", "wb") as f:
+    f.write(dmm_parser.serialize_paatt(parsed))
+```
+
+**Per-version dict shape** (every field is mutable; unrecognised positions
+keep their `_unkXXXX` placeholder name and round-trip identically):
+
+| `version` | Size | Dict keys |
+|---|---|---|
+| `0` | 264 B | Base AttackInfo fields (see below) |
+| `1` | 528 B | Base fields **+** `catch_desc` sub-dict (`AttackCatchDesc`) |
+| `2` | 296 B | Base fields **+** `projectile_key`, `action_hash_code`, `frame_time`, `ai_event_key` (+ small `_unkXXXX` tail) |
+| `3` | 288 B | Base fields **+** `release_angle_rad`, `frame_time`, `_unk0110`, `_unk0114`, `_unk0118` |
+| any other | ≤ raw | `{"version": N, "base_data_b64": "..."}` — opaque pass-through |
+
+**Most-commonly-edited base fields:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `weapon_key` | int (u32) | Weapon/action hash; do NOT change unless you know the binding |
+| `attack_pos_offset` | `[float, float, float]` | World-space hitbox origin (XYZ) |
+| `attack_degree` | float | Arc width in radians; vanilla default 2π = 360° |
+| `attack_yaw` | float | Yaw of the arc (radians) |
+| `physic_impulse_power` | float | Knockback impulse multiplier; default 1.0 |
+| `physics_impulse_mass` | float | Simulated mass for impulse; default 1.0 |
+| `physics_impulse_velocity` | float | Impulse velocity on hit; default 0.0 |
+| `repeat_degree_weight` | float | Repeat-hit angular weight; default −1.0 |
+| `attack_hit_check_type` | int (u16) | Hit-test mode; common value 4 |
+| `repeat_count` | int (u8) | Hit detections per frame event; common value 2 |
+| `attack_group_index` | int (u8) | Mutex group between attacks; common value 1 |
+| `ignore_safe_zone` | bool | Bypass safe-zone hit suppression |
+| `single_hit_pos_offset` | `[float, float, float]` | XYZ for single-hit anchor |
+| `single_hit_position_socket` | int (u16) | Socket name idx; `0xffff` = use offset |
+| `hit_effect_info_type` | int (u32) | Hit-effect hash; default `0xf177b780` |
+| `hit_degree` | float | Hit arc width (degrees) |
+| `hit_rotation_type` | int (u8) | `AttackHitDataDesc.HitRotationType` enum |
+| `equip_slot_name_key` | int (u8) | EquipSlot enum; default 12 (V0), 23 (V2/V3) |
+| `exclude_target_type_flag` | int (u32) | Target-type bitmask filter |
+
+V2-specific (throw): `projectile_key`, `action_hash_code`, `frame_time`,
+`ai_event_key`. V3-specific (release-catch): `release_angle_rad`, `frame_time`.
+V1-specific (catch): the nested `catch_desc` dict carries
+`catch_yaw_hi_rad` / `catch_yaw_lo_rad`, `catch_dist_a` / `catch_dist_b`,
+`catch_elevation_rad_a` / `catch_elevation_rad_b`, plus a `_cd_tail_b64`
+sentinel region preserved verbatim.
+
+The full per-byte layout including every `_unkXXXX` field, default values,
+and per-version distributions lives in `docs/PAATT_BASEDATA_FIELDS.md`.
+
 ### File-path convenience wrappers
 
 Equivalent to `parse(open(path).read())` / `open(path).write(serialize(d))`.

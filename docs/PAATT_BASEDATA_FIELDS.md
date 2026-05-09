@@ -187,15 +187,38 @@ fields (AttackCommonDataDesc + AttackHitDataDesc + AttackDelayDataDesc).
 
 This gives a constrained search space we can brute-force-validate.
 
-## Round-trip status (current — Session 17)
+## Round-trip status (current — Session 18, PR #14)
 
 `.paatt` is round-trip byte-perfect via `PaattFile::to_bytes()`.
 
-**`BaseDataV0` and `BaseDataV1` are now FIELD-DECODED** in
-`src/binary/paatt_basedata.rs`.  Mod authors can call
-`paatt_decode_base_data(version, data)` from Python to get a named-field
-dict, edit fields like `weapon_key`, `physic_impulse_power`, etc., then
-call `paatt_encode_base_data(version, fields)` to get bytes back.
+**All four typed BaseData variants are FIELD-DECODED** in
+`src/binary/paatt_basedata.rs`:
+
+| Variant | Size | Coverage |
+|---|---|---|
+| `BaseDataV0` (base AttackInfo) | 264 B | 60+ named fields + `_unkXXXX` placeholders for unresolved positions |
+| `BaseDataV1` (= V0 + AttackCatchDesc) | 528 B | V0 fields + 9 named catch fields (`catch_yaw_hi_rad`, `catch_dist_a`, `catch_elevation_rad_a`, …) inside a `catch_desc` sub-dict |
+| `BaseDataV2` (= V0 + ThrowDataDesc) | 296 B | V0 fields + `projectile_key`, `action_hash_code`, `frame_time`, `ai_event_key` |
+| `BaseDataV3` (= V0 + ReleaseCatchDataDesc) | 288 B | V0 fields + `release_angle_rad`, `frame_time`, plus `_unk0110` / `_unk0114` (release-catch type hashes) |
+
+Mod authors call `paatt_decode_base_data(version, data)` from Python to
+get a named-field dict, edit fields like `weapon_key`,
+`physic_impulse_power`, etc., then call
+`paatt_encode_base_data(version, fields)` to get bytes back. Every
+vanilla `.paatt` (220 files, 13,789 AttackInfo records) round-trips
+byte-perfect through this path. See `docs/api.md` →
+"**.paatt — typed AttackInfo BaseData**" for the Python entry-point
+reference and the most-commonly-edited field cheatsheet.
+
+**Session 18 addendum (PR #14):**
+- V2 throw payload: 4 named fields recovered via field analysis across
+  851 V2 records (`projectile_key`/`action_hash_code`/`frame_time`/`ai_event_key`).
+- V3 release-catch payload: 2 named fields recovered across 702 V3 records
+  (`release_angle_rad`/`frame_time`); release-catch-type hashes left as
+  `_unk0110` / `_unk0114` pending an IDA reflection-symbol pass.
+- AttackCatchDesc (the V1 264-byte tail): 9 catch-geometry fields named
+  (yaw range, throw distance, elevation cone) from differential entropy
+  on 1,674 V1 records; the trailing 176 bytes remain as `_cd_tail` blob.
 
 ### Confirmed V0 field offsets (264 bytes) — Session 17 state
 
