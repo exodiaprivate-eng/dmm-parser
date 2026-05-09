@@ -226,6 +226,27 @@ Coverage: 113 of 122 tables. The 9 remaining have zero extracted
 fields (the script's regex couldn't find a main struct or all fields
 are placeholders) — they round-trip identically regardless of shape.
 
+### Session 28 iter 6 — AttackHitData also blocked (same pattern as AttackCommonData)
+
+Win-binary verification ATTEMPTED. Same diagnostic as iter 5:
+
+- `AttackHitData` typeinfo at 0x144c3ec18 — exactly 1 xref, from
+  `sub_141957EC0` (parent AttackInfoDataDesc registrar)
+- `_attackHitData` at 0x144c3ec08 — 3 xrefs (2 small setters + parent),
+  no standalone bindProperty registrar
+- No separate registrar function for AttackHitDataDesc fields
+
+Conclusion: Same structural blocker. AttackHitData is a hand-parsed
+sub-struct embedded in AttackInfoDataDesc, not metaobject-registered.
+
+paatt_basedata.rs has partial decode coverage; v3.1 surface for those
+fields would need the generator-extension noted in iter 5.
+
+Pivoting to the BuffData / EffectData / ConditionData family decoders
+in `src/binary/variants/` for the next iter — those have clear source
+decodes (Decoded|Raw enum pattern with typed sub-structs) so the
+verify-and-ship potential is highest.
+
 ### Session 28 iter 5 — AttackCommonData hits structural blocker (no metaobject registrar on Win)
 
 Win-binary verification ATTEMPTED for `pa::AttackCommonData` (17 fields
