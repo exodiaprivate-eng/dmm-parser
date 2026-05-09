@@ -406,4 +406,61 @@ proof — once mapped, the corresponding `_unkXXXX` placeholders in
 `BaseDataV0` get renamed without any JSON-shape break (the rename is
 a pure documentation improvement; bytes round-trip identically).
 
+## Appendix: `.paatt` loader anchors (Session 20, IDA-confirmed)
+
+Located the `.paatt` file loader chain in the Mac binary. Useful as
+durable IDA anchors for future RE work.
+
+### Format anchors
+
+| Address | Symbol | Role |
+|---|---|---|
+| `0x100c46104` | `sub_100C46104` | `.paatt` LOADER. Walks `<resource_root>/attackinfo` for `*.paatt` files; per-file calls `sub_100C465A4`. |
+| `0x100c465a4` | `sub_100C465A4` | Per-`.paatt` parser. Reads `InfoCount` u32, allocates 88-byte AttackInfo records, then reads 9 trailing string tables in fixed order. |
+| `0x100c4712c` | `sub_100C4712C` | Per-AttackInfo record reader. Reads version byte, allocates BaseData blob (264/528/296/288/264 bytes for V0/V1/V2/V3/V4), then reads 9 child sub-structures. |
+| `0x1011a72d0` | `sub_1011A72D0` | Returns the literal `"paatt"` extension string. |
+| `0x10732d49e` | (string data) | Literal `"paatt"` (5 bytes). |
+
+### `.paatt` top-level wire layout (IDA-verified, error-message-derived)
+
+Korean error messages inside `sub_100C465A4` reveal the loader's read
+order — when a section fails to parse, it emits `AttackInfo 로드 실패(<section>)`.
+The order is therefore the WIRE order:
+
+1. **InfoCount** (u32) — number of AttackInfo records.
+2. **AttackInfo[InfoCount]** — each record per `sub_100C4712C`:
+   - u8 `version` (0/1/2/3/4)
+   - BaseData blob: 264 B (V0), 528 B (V1), 296 B (V2), 288 B (V3), 264 B (V4)
+   - 9× child 16-byte sub-structures (slot indices 0..8 in the per-record allocation)
+3. **StringTable**
+4. **EffectNameTable**
+5. **EffectInfoKeyTable**
+6. **SocketNameTable**
+7. **PartNameTable**
+8. **SequencerNameTable**
+9. **PrefabNameTable**
+10. **FrameEventBuffer**
+
+This matches the existing dmm-parser `PaattFile` parser exactly — the
+220/220 vanilla round-trip already validated this layout empirically.
+The IDA confirmation is a durable correctness anchor for future work.
+
+### Why wire ≠ in-memory class layout (resolved)
+
+`sub_10058F658(stream, size)` (called from `sub_100C4712C` line 50) is
+a stream-read primitive — it allocates `size` bytes and reads them
+contiguously from the input. The returned pointer is stored at
+AttackInfo slot `a1[9]` as the raw serialized blob. The C++ class
+`pa::AttackInfoDataDesc` at `a1[9]` having `weaponKey` at in-mem
+offset 0xA8 (168) describes the **deserialized in-memory layout** —
+that layout differs from the on-disk wire layout because Pearl Abyss
+parses each field via the metaobject's setter pipeline, not memcpy.
+
+This means the in-memory offsets recovered in Session 19 do **not**
+directly translate to wire offsets, even though both refer to the
+same logical fields. Wire→class field mapping still requires either
+(a) finding the `pa::AttackInfoDataDesc` `serialize` / `deserialize`
+member that walks the metaobject in registration order, or
+(b) field-by-field byte-signature analysis on a vanilla record.
+
 Use `examples/paatt_basedata_layout.rs` with per-version output to confirm field boundaries.
