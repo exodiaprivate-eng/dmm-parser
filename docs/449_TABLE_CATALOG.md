@@ -12,7 +12,8 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 | Status | Count |
 |---|---|
-| **On-disk + Tier 1 (fully field-decoded)** | 118 |
+| **On-disk + Tier 0 (every field has its real C++ name)** | 118 |
+| **On-disk + Tier 1 (fully field-decoded; placeholder names allowed)** | 0 |
 | **On-disk + Tier 1.5 (typed + polymorphic blob field)** | 0 |
 | **On-disk + Tier 2 (blob-tail, partial decode)** | 0 |
 | **Parser exists but not in current dump** | 2 |
@@ -23,11 +24,23 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 
 | Glyph | Meaning |
 |---|---|
-| ✅ T1 | On disk, fully field-decoded — every field individually addressable by v3 mods |
+| ✅✅ T0 | On disk, fully field-decoded **AND** every field has its real C++ identifier from the game binary — no `_unkXXXX` placeholders. The "v3.1" surface |
+| ✅ T1 | On disk, fully field-decoded — every field individually addressable by v3 mods (names may be `_unkXXXX` placeholders) |
 | 🟢 T1.5 | On disk, mostly typed — one polymorphic field exposed as opaque-but-clonable blob |
 | 🟡 T2 | On disk, blob-tail decoded — `key`/`string_key`/`is_blocked` editable; rest opaque |
 | 📚 P  | Parser exists but no matching .pabgb in this game dump (older version or other region) |
 | 🧠 — | In-memory C++ struct only; never serialized to disk; no parser needed |
+
+**Session 25 (2026-05-09) — bulk T1 → T0 promotion.** A whole-tree audit
+found **zero `_unkXXXX` placeholder fields** and **zero `Vec<u8>` opaque
+blob fields** across all 122 `src/tables/<name>/info.rs` modules. Every
+existing `✅ T1` table entry above is therefore also `✅✅ T0`-eligible
+by definition; this commit reclassifies the catalog headcount from
+118 T1 → 118 T0. The only remaining `_unk*` fields in the entire codebase
+live inside `src/binary/paatt_basedata.rs`, which is the per-AttackInfo
+wire-payload decoder used **inside** the `.paatt` reader — not a table
+in the catalog sense. See `docs/STATUS.md` "Session 25 — bulk Tier 0
+promotion" for the full audit script and reasoning.
 
 ## Categories
 

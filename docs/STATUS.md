@@ -72,6 +72,47 @@
 >   CString "fx_pc_weapon_exp_b__logout.system.effect" at offset 596-639. Decoding
 >   requires IDA to locate variant-specific reader function. Commit: `f675521`.
 >
+> **2026-05-09 Session 25 — bulk Tier 0 promotion (118/118 on-disk tables):**
+> Whole-tree audit found **zero `_unkXXXX` placeholder fields** and
+> **zero `Vec<u8>` opaque blob fields** across all 122
+> `src/tables/<name>/info.rs` modules. Every on-disk table that was
+> classified `✅ T1` is therefore *already* `✅✅ T0`-eligible — no code
+> changes needed, just a catalog reclassification.
+>
+> ```bash
+> # Audit script — reproducible:
+> grep -rcE "pub _unk[0-9a-fA-F_]+:" src/  # → only paatt_basedata.rs (37)
+> grep -lE "pub [a-z_]+: Vec<u8>" src/tables/*/info.rs  # → 0 matches
+> grep -lE "pub [a-z_]+_b64:" src/tables/*/info.rs  # → 0 matches
+> ```
+>
+> **Headcount after promotion:**
+> - 118 on-disk tables: T1 → **T0**
+> - 2 P (parser exists, no current pabgb): unchanged (EquipInfo, MercenaryGroupInfo)
+> - 0 T1.5, 0 T2 (already eliminated 2026-04-30)
+>
+> **The only remaining `_unk*` fields in the entire codebase** live in
+> `src/binary/paatt_basedata.rs` (37 fields, per Sessions 18–22's
+> cataloguing). This file decodes the per-AttackInfo wire-payload blob
+> *inside* `.paatt` records — it is **not a table** in the catalog
+> sense. The `.paatt` table itself (the file-format envelope) has zero
+> `_unk*` fields and is fully T0. Promoting `paatt_basedata`'s 37
+> placeholders to canonical names is its own follow-up work, blocked on
+> the wire→class mapping problem documented in Session 20 (genuine
+> static-analysis ceiling — needs runtime introspection or
+> differential-byte analysis).
+>
+> Catalog (`docs/449_TABLE_CATALOG.md`) updated to reflect the
+> promotion: T0 row added to the summary count, T0 glyph added to the
+> legend.
+>
+> **What this means for v3.1 / DMM v2.0.0-beta consumers:** every
+> on-disk table's JSON shape already matches the canonical T0 surface
+> when called with `shape='v3.1'`. The dual-shape projection
+> infrastructure shipped in Session 24 (`38df069`) is now load-bearing
+> only for the `paatt_basedata` rename work — every other table is
+> shape-invariant because its names are already canonical.
+>
 > **2026-05-09 Session 24 (Tier 0 scaffolding shipped):** New JSON-shape
 > dispatch lets a single dmm-parser binary serve both DMM v3 and a
 > future v3.1 consumer (e.g. DMM v2.0.0-beta) in parallel. Mechanism:
