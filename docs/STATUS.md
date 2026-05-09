@@ -72,6 +72,29 @@
 >   CString "fx_pc_weapon_exp_b__logout.system.effect" at offset 596-639. Decoding
 >   requires IDA to locate variant-specific reader function. Commit: `f675521`.
 >
+> **2026-05-09 Session 21 update (pointcontrol partial decode):** Mac IDA
+> resolves the variant bytes. The varying u32 at wire offset 281–284 is
+> `pa::EmitterCurveData::_splineID`. Confirmed via three Mac symbols:
+>   - `sub_102565B20` (the bindProperty equivalent) calls
+>     `sub_10063955C(&qword_107FC8080, "_splineID", "uint32", a1)` and
+>     stores the property at descriptor offset `qword_107FC80E8 = 40` —
+>     that's the IN-MEMORY class offset (NOT wire). It registers against
+>     `pa::ReflectDerive<pa::EmitterCurveData, pa::ReflectObjectExtension>`.
+>   - `sub_102565838` (setter) writes a u32 to `*(_DWORD *)(this+40)`
+>     and notifies observers under the literal name `"_splineID"`.
+>   - `sub_1025659A4` (move setter) mirrors the same write path with a
+>     separate observer guard.
+> The class has only ~4 reflected fields (a u32 `_splineID`, two
+> `staticstringA` bindings, and a `VectorReflectPropertyBind<…, u16>`),
+> so the 738-byte pointcontrol blob is **not** a flat EmitterCurveData —
+> it embeds EmitterCurveData (or a subclass instance) plus a larger
+> outer structure. Next IDA pass should look for a wrapper class whose
+> serializer references EmitterCurveData inline; the embedded
+> "fx_pc_weapon_exp_b__logout.system.effect" CString at offset 596-639
+> matches a default GlobalVariable initialised in `sub_101D0B1AC` (the
+> "ResourceReferencePathBase" GV-registration init) — pointcontrol blobs
+> hold per-instance overrides for those GV defaults.
+>
 > **2026-05-01 session 5 results (clippy clean + ceiling audit):**
 > - Fixed all 67 clippy warnings in `gimmick_info/info.rs` (`77e325c`):
 >   46 `///` → `//` on `py_binary_struct!` invocations; deleted dead
