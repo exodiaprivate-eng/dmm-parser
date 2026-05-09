@@ -406,6 +406,39 @@ proof — once mapped, the corresponding `_unkXXXX` placeholders in
 `BaseDataV0` get renamed without any JSON-shape break (the rename is
 a pure documentation improvement; bytes round-trip identically).
 
+## Session 27 update — Win-binary registrar fully enumerates all 25 fields
+
+The Win build of `CrimsonDesert.exe` (`bin64/CrimsonDesert.exe`) keeps
+property names as literal strings in `.rdata` AND emits the
+bindProperty registrar function as a single statically-addressable
+function per class. Decompiling **`sub_141957EC0`** (Win address)
+returned the complete AttackInfoDataDesc property list — exactly 25
+names, matching the C++ field count from the doc above.
+
+**The 8 Session-19 candidate names are all CONFIRMED as real C++
+identifiers** (no longer "candidates"):
+
+| Wire offset (BaseDataV0) | Was | C++ canonical | Status |
+|---|---|---|---|
+| 0x0073 | `_unk0073` | `_attackImpulseLevel` (u8) | ✅ Confirmed |
+| 0x0072 | `_unk0072` | `_noCheckCollision` (bool) | ✅ Confirmed |
+| TBD | (not in struct) | `_targetType` (enum) | ✅ Confirmed C++ name; wire position TBD |
+| TBD | (not in struct) | `_attackIndex` (u8) | ✅ Confirmed C++ name; wire position TBD |
+| TBD | (not in struct) | `_ignoreDefenceTypeFlag` (u32) | ✅ Confirmed C++ name; wire position TBD |
+| TBD | (not in struct) | `_ignoreWhenHitAction` (bool) | ✅ Confirmed C++ name; wire position TBD |
+| TBD | (not in struct) | `_isSingleHitPosition` (bool) | ✅ Confirmed C++ name; wire position TBD |
+| TBD | (not in struct) | `_attackDivideType` (enum) | ✅ Confirmed C++ name; wire position TBD |
+
+The remaining 17 names matched what BaseDataV0 already had named
+(canonical-with-snake_case-translation: `_weaponKey` →
+`weapon_key`, `_attackDir` → `attack_dir`, etc.). Snake_case is the
+Rust convention; the canonical names are the underscore-prefixed
+camelCase per Pearl Abyss.
+
+This unblocks the strict-T0 verification for AttackInfoDataDesc and
+proves the Win-binary recipe works at scale for the rest of the codebase.
+See `docs/T0_AUDIT_TRACKING.md` for the per-class loop work.
+
 ## Appendix: `.paatt` loader anchors (Session 20, IDA-confirmed)
 
 Located the `.paatt` file loader chain in the Mac binary. Useful as

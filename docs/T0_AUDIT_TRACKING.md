@@ -96,17 +96,52 @@ session entries. Targets include `AttackInfoDataDesc`,
 The rename work for these polishes the v3.1 embedded-blob surface
 but doesn't change any TABLE's tier classification.
 
-### Decision
+### ~~Decision~~ — RESCINDED 2026-05-09 Session 27
 
-**Loop stopped after this iteration.** Burning cycles trying to verify
-what can't be verified statically is waste. The 118 on-disk tables
-stay at "T0 (pragmatic)" per Session 25's promotion. Embedded-descriptor
-rename work continues per-target as IDA evidence exists.
+The Mac-binary ceiling does NOT apply to the Win build of
+`CrimsonDesert.exe` (~410 MB). The Win build keeps every property
+name as a plain literal string in `.rdata`, and emits a separately
+addressable setter function for each field that writes
+`*(TYPE *)(this+offset) = value` followed by a metaobject registration
+call passing the literal property-name string. That's exactly the
+data we need.
 
-If a runtime-introspection method later becomes available (in-game
-debugger trace, fuzzer-driven setter mapping, leaked PDB symbols),
-strict-T0 verification can resume — this tracking doc stays in place
-as the worklist for that future effort.
+**Proof-of-concept (Session 27 iter 0):** Decompiled
+`sub_141957EC0` (Win address) — the AttackInfoDataDesc bindProperty
+registrar. It referenced exactly 25 property names — matching the
+field count documented in PAATT_BASEDATA_FIELDS.md, and CONFIRMING
+all 8 of the "C++ fields not yet present in BaseDataV0" candidates
+from Session 19:
+
+`_attackImpulseLevel`, `_attackIndex`, `_attackDivideType`,
+`_noCheckCollision`, `_ignoreWhenHitAction`, `_isSingleHitPosition`,
+`_ignoreDefenceTypeFlag`, `_targetType` — all real C++ names.
+
+The remaining 17 names matched what BaseDataV0 already had named.
+
+### Per-class extraction recipe (Win-binary)
+
+1. Pick a unique-to-class property name (e.g., `_inventoryGroup` for
+   ItemInfo).
+2. `list_strings_filter` → returns address of the literal string.
+3. `get_xrefs_to(string_address)` → returns 2-3 small setter functions
+   + 1 large registrar function (typically several KB).
+4. `decompile_function(registrar_address)` → returns the full
+   property registration sequence; every `_xxx` literal in the body
+   is a real C++ field name belonging to this class.
+5. Per setter (small, ~125 bytes): decompile to extract
+   `*(TYPE *)(this + OFFSET) = value` → recovers in-mem offset + type.
+6. Cross-reference the recovered name set against the dmm-parser
+   Rust struct field names; mismatches go into `FIELD_ALIASES_V3`
+   per Session 24's mechanism. v3 names are preserved as legacy
+   aliases.
+
+### Loop is restarting
+
+The /loop will now work through the per-table audit using the
+Win-binary recipe. Per iteration: 1-3 classes audited, tracking doc
+updated, alias tables shipped, commit + push. Stop only when all 118
+on-disk tables are ✅ verified.
 
 ## Per-table tracking
 
