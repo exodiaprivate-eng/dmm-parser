@@ -41,9 +41,16 @@ use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_fiel
 /// `write_from_json` path normalizes incoming legacy → canonical so
 /// either name is accepted on input.
 ///
-/// **Currently empty.** Populate as Tier-0 renames ship — each
-/// confirmed `_unkXXXX` → real-C++-name rename adds one entry here.
-pub const FIELD_ALIASES_V3: FieldAliasTable = &[];
+/// Session 27 (2026-05-09) — first real entries land. The two renames
+/// below were confirmed by decompiling `sub_141957EC0` (Win) — the
+/// `pa::AttackInfoDataDesc` bindProperty registrar — which referenced
+/// these property names verbatim alongside the 23 already-named fields.
+/// See `docs/PAATT_BASEDATA_FIELDS.md` § Session 27 update.
+pub const FIELD_ALIASES_V3: FieldAliasTable = &[
+    // (canonical_T0_name, v3_legacy_name)
+    ("attack_impulse_level", "_unk0073"),
+    ("no_check_collision",   "_unk0072"),
+];
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -171,8 +178,8 @@ fn float3_to_json(v: [f32; 3]) -> serde_json::Value {
 /// 0x006c  _pad_ds1                    [u8;4]  [4]   always zero
 /// 0x0070  normal_string_index         u16     [2]   AttackCommonDataDesc.NormalStringIndex;
 ///                                                   V0: 0x0000 @70%; V2/V3: 0xffff (always)
-/// 0x0072  _unk0072                    bool    [1]   bool (B00@85% V0)
-/// 0x0073  _unk0073                    u8      [1]   u8 enum (mode=1 @49% V0)
+/// 0x0072  no_check_collision                    bool    [1]   bool (B00@85% V0)
+/// 0x0073  attack_impulse_level                    u8      [1]   u8 enum (mode=1 @49% V0)
 /// 0x0074  _pad0074                    [u8;4]  [4]   always zero
 /// 0x0078  _ds2_f0                     f32     [4]   AttackDelayDataDesc #2: trigger time (s);
 ///                                                   98.4% == ds1_f0
@@ -341,12 +348,12 @@ pub struct BaseDataV0 {
     /// (in-mem class offset 0xB5, single-byte bool sitting in the same
     /// register-cluster as ignoreSafeZone). The wire→class mapping isn't
     /// proven yet — see `docs/PAATT_BASEDATA_FIELDS.md` § Appendix.
-    pub _unk0072: bool,
+    pub no_check_collision: bool,
     /// u8 enum (mode=1 @49% V0).
     /// Session 19 IDA candidate: `pa::AttackInfoDataDesc::attackImpulseLevel`
     /// (in-mem class offset 0xB0, sole u8 enum field still unmapped).
     /// Wire→class mapping unproven; see PAATT_BASEDATA_FIELDS.md § Appendix.
-    pub _unk0073: u8,
+    pub attack_impulse_level: u8,
     pub _pad0074: [u8; 4],
     /// `ActionChartFrameEvent_AttackDelayDataDesc` #2 — same structure as ds1.
     /// V2 defaults: 0.01 / 1.0 / 0.0 / 0.0 / 0.0.
@@ -500,8 +507,8 @@ impl BaseDataV0 {
             _ds1_f4: read_f32(data, 0x0068),
             _pad_ds1: data[0x006c..0x0070].try_into().unwrap(),
             normal_string_index: read_u16(data, 0x0070),
-            _unk0072: data[0x0072] != 0,
-            _unk0073: data[0x0073],
+            no_check_collision: data[0x0072] != 0,
+            attack_impulse_level: data[0x0073],
             _pad0074: data[0x0074..0x0078].try_into().unwrap(),
             _ds2_f0: read_f32(data, 0x0078),
             _ds2_f1: read_f32(data, 0x007c),
@@ -612,8 +619,8 @@ impl BaseDataV0 {
         out[0x0068..0x006c].copy_from_slice(&self._ds1_f4.to_le_bytes());
         out[0x006c..0x0070].copy_from_slice(&self._pad_ds1);
         out[0x0070..0x0072].copy_from_slice(&self.normal_string_index.to_le_bytes());
-        out[0x0072] = self._unk0072 as u8;
-        out[0x0073] = self._unk0073;
+        out[0x0072] = self.no_check_collision as u8;
+        out[0x0073] = self.attack_impulse_level;
         out[0x0074..0x0078].copy_from_slice(&self._pad0074);
         out[0x0078..0x007c].copy_from_slice(&self._ds2_f0.to_le_bytes());
         out[0x007c..0x0080].copy_from_slice(&self._ds2_f1.to_le_bytes());
@@ -714,8 +721,8 @@ impl ToJsonValue for BaseDataV0 {
         m.insert("_ds1_f3".into(),                 f32_to_json(self._ds1_f3));
         m.insert("_ds1_f4".into(),                 f32_to_json(self._ds1_f4));
         m.insert("normal_string_index".into(),                (self.normal_string_index as u64).into());
-        m.insert("_unk0072".into(),                self._unk0072.into());
-        m.insert("_unk0073".into(),                self._unk0073.into());
+        m.insert("no_check_collision".into(),                self.no_check_collision.into());
+        m.insert("attack_impulse_level".into(),                self.attack_impulse_level.into());
         m.insert("_ds2_f0".into(),                 f32_to_json(self._ds2_f0));
         m.insert("_ds2_f1".into(),                 f32_to_json(self._ds2_f1));
         m.insert("_ds2_f2".into(),                 f32_to_json(self._ds2_f2));
@@ -832,8 +839,8 @@ impl WriteJsonValue for BaseDataV0 {
             _ds1_f4: json_f32(obj, "_ds1_f4")?,
             _pad_ds1: [0; 4],
             normal_string_index: json_u64(obj, "normal_string_index")? as u16,
-            _unk0072: json_get_field(obj, "_unk0072")?.as_bool().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BaseDataV0._unk0072: expected bool"))?,
-            _unk0073: json_u64(obj, "_unk0073")? as u8,
+            no_check_collision: json_get_field(obj, "no_check_collision")?.as_bool().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BaseDataV0.no_check_collision: expected bool"))?,
+            attack_impulse_level: json_u64(obj, "attack_impulse_level")? as u8,
             _pad0074: [0; 4],
             _ds2_f0: json_f32(obj, "_ds2_f0")?,
             _ds2_f1: json_f32(obj, "_ds2_f1")?,
@@ -1433,8 +1440,8 @@ mod tests {
             _ds1_f4: 0.0,
             _pad_ds1: [0; 4],
             normal_string_index: 0,
-            _unk0072: false,
-            _unk0073: 0,
+            no_check_collision: false,
+            attack_impulse_level: 0,
             _pad0074: [0; 4],
             _ds2_f0: 0.0,
             _ds2_f1: 0.0,

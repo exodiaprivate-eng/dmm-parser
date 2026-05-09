@@ -143,6 +143,65 @@ Win-binary recipe. Per iteration: 1-3 classes audited, tracking doc
 updated, alias tables shipped, commit + push. Stop only when all 118
 on-disk tables are ✅ verified.
 
+### ⚠️ Session 27 iter 1 — second structural finding
+
+The Win-binary recipe **only works for engine descriptor classes**
+(types like `pa::AttackInfoDataDesc`, `pa::EmitterCurveData`,
+`pa::SplineDecalComponent`) that use the metaobject reflection
+system. The 118 on-disk `pa::*Info` table classes do **NOT** go
+through metaobject reflection at all — they're read by dedicated
+parse functions and never register their fields with the runtime
+property system.
+
+Empirical evidence:
+- `_skillGroupKey`: only ` _skillGroupKey` (with leading space) in
+  the binary — that's a sprintf-style debug-log format string, not
+  a bindProperty literal. No bare `_skillGroupKey` exists.
+- `_buffLevelList`: same pattern — only the leading-space variant.
+- `_priceItemKey` (ItemInfo field): doesn't exist as any string at all.
+- Compare with `_attackImpulseLevel` (AttackInfoDataDesc engine
+  descriptor): bare literal exists at `0x144c3e428`, has 3 valid
+  xrefs, registrar enumerates the full class. Engine-class pattern.
+
+**Conclusion:** The Win-binary recipe expands what's verifiable
+beyond the Mac binary, but it expands it for **engine descriptors**,
+not for `*Info` tables. The 118 on-disk tables remain pragmatic-T0
+(stable descriptive names, no `_unkXXXX` placeholders) per Session
+25's bulk promotion. They cannot be strict-T0-verified via static
+analysis on either binary, because Pearl Abyss's table parsers
+don't expose the C++ field names at all.
+
+### Iteration 1 outcome
+
+Pivoted to the actual reachable T0 work: shipped the two
+**confirmed-by-Win-binary** AttackInfoDataDesc renames in
+`src/binary/paatt_basedata.rs`:
+
+- `_unk0073` → `attack_impulse_level` (canonical: `_attackImpulseLevel`)
+- `_unk0072` → `no_check_collision` (canonical: `_noCheckCollision`)
+
+Both shipped via the alias mechanism (Session 24 `JsonShape`):
+- shape='v3' default → emits `_unk0073` / `_unk0072` (v3 mods unaffected)
+- shape='v3.1' → emits `attack_impulse_level` / `no_check_collision`
+  (v3.1 consumers see canonical names)
+- write path accepts BOTH on input regardless of shape
+
+551 tests pass. The remaining 6 Session-27-confirmed names from
+AttackInfoDataDesc (`_targetType`, `_attackIndex`,
+`_ignoreDefenceTypeFlag`, `_ignoreWhenHitAction`,
+`_isSingleHitPosition`, `_attackDivideType`) need their wire
+positions resolved via setter decompilation before the rename can
+ship — separate per-field work.
+
+### Loop stop decision
+
+Continuing the loop on `*Info` tables would just produce ⚠️ markers
+for every entry (recipe doesn't apply to that class family). Better
+spend: ship the engine-descriptor renames where Win-binary evidence
+exists, plus the gap-fill setter-decompile work to surface wire
+positions for the 6 remaining AttackInfoDataDesc fields. Both are
+real progress; the table catalog stays at pragmatic-T0 per Session 25.
+
 ## Per-table tracking
 
 | # | Module | Status | Notes |
