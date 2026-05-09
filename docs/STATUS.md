@@ -72,6 +72,48 @@
 >   CString "fx_pc_weapon_exp_b__logout.system.effect" at offset 596-639. Decoding
 >   requires IDA to locate variant-specific reader function. Commit: `f675521`.
 >
+> **2026-05-09 Session 22 update (pointcontrol wrapper-class confirmed):**
+> The 738-byte pointcontrol blob is an instance of
+> **`pa::SplineDecalComponent`** — the name itself ("spline decal" +
+> "point") matches the `generated__/pointcontrol` asset path exactly.
+> Discovered by tracing the SECOND `_splineID` registration (the first
+> one was for `pa::EmitterCurveData`):
+>
+> - `sub_102CCA1A4` (bindProperty wrapper for the second registration)
+>   calls `sub_10063955C(&qword_108012088, "_splineID", "uint32", a1)`,
+>   stores in-mem field offset **448** in the descriptor, and registers
+>   against `pa::SplineDecalComponent::get_metaobject`. So _splineID
+>   lives at in-mem offset 448 inside SplineDecalComponent.
+> - The class has 13+ distinct typed PropertyBind categories per the
+>   `_ZTS.*SplineDecalComponent.*` symbol survey:
+>     * `staticstringA` (×2 bind flavours)
+>     * `ComponentReference<SplineComponent>` (×2)
+>     * `int32_t` (i)
+>     * `float`
+>     * `uint32_t` (j) — ← this is the `_splineID` family
+>     * `ResourceReferencePath_ITexture` (ReflectObject)
+>     * `IndexedStringA` (×3 bind flavours)
+>     * `Color`
+>     * `float2`
+>     * `bool`
+>     * `CArray<SplineDecalVolumeData>` (VectorReflectPropertyBind)
+>     * `CArray<SplineDecalPointData>` (VectorReflectPropertyBind)
+>     * `SplineDecalTextureSet` (nested ReflectObject)
+> - One field has explicit named symbols already: `splineComponentIndex`
+>   of type `ComponentReference<SplineComponent>` (set/move/get/
+>   bindProperty at `0x1076e05c8` / `0x1076e05d0` / `0x1076e3820` /
+>   `0x1076d1228`). Decompile that bindProperty wrapper to get its
+>   in-mem offset, then iterate the same getter/setter pattern across
+>   the remaining typed PropertyBind globals to surface every named
+>   field — same recipe that worked for AttackInfoDataDesc in Sessions
+>   19/21.
+> - Implication for mod authors: pointcontrol's 1833 entries hold
+>   `SplineDecalComponent` instances. The CArray<SplineDecalPointData>
+>   is the per-point payload that `_splineID` points into, and
+>   `SplineDecalTextureSet` is the embedded resource path block that
+>   carries the "fx_pc_weapon_exp_b__logout.system.effect" CString at
+>   wire offset 596–639.
+>
 > **2026-05-09 Session 21 update (pointcontrol partial decode):** Mac IDA
 > resolves the variant bytes. The varying u32 at wire offset 281–284 is
 > `pa::EmitterCurveData::_splineID`. Confirmed via three Mac symbols:
