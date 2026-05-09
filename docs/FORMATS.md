@@ -5,7 +5,15 @@
 > hexpat pattern, and Rust/Python entry point for that format.
 >
 > For format **uses** (mods, packing, validation) see
-> `docs/MOD_AUTHOR_GUIDE.md` and `docs/api.md`.
+> `docs/MOD_AUTHOR_GUIDE.md` and `docs/api.md`. The mod-author guide's
+> §0.5 is the canonical full-extension inventory (40+ `.pa*` and standard
+> formats) — this file covers only the ones dmm-parser parses end-to-end.
+>
+> **Naming.** Every `pa*` extension is from the **Pearl Abyss** engine
+> (`pa::` namespace; debug strings in the binary include
+> `PearlAbyssEngine.Debug.PauseFrameIndex` etc.). PABGB/PABGH specifically
+> = Pearl Abyss + **Binary Group** + Body/Header (confirmed by the
+> `"BinaryGroup"` string at `0x1072db1e9` in the Mac binary).
 
 ---
 
@@ -44,9 +52,9 @@
 | **BNK**        | Wwise soundbank                   | 1     | `references/wwise_notes.md`| `references/bnk.hexpat`       | `src/audio/bnk.rs`           |
 | **SAVE**       | Save file envelope (encrypted)    | 1 (envelope only — body deferred) | `references/save_notes.md` | `references/save.hexpat`      | `src/save/envelope.rs`       |
 | **PAATT**      | Per-weapon attack info            | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paatt.rs`        |
-| **PASEQ**      | Sequencer / cutscene script       | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paseq.rs`        |
+| **PASEQ**      | Sequencer / cutscene script       | **1**             | (see source) | —                             | `src/binary/paseq.rs`        |
 | **PASEQC**     | Compiled sequencer chart          | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paseqc.rs`       |
-| **PASTAGE**    | Sequencer stage chart             | **1.5 → goal: 1** | (see source) | —                             | `src/binary/pastage.rs`      |
+| **PASTAGE**    | Sequencer stage chart             | **1**             | (see source) | —                             | `src/binary/pastage.rs`      |
 | **PASCHEDULE** | NPC time-of-day / activity schedule | **1.5 → goal: 1** | (see source) | —                           | `src/binary/paschedule.rs`   |
 | **PASCHEDULEPATH** | NPC waypoint / path data      | **1.5 → goal: 1** | (see source) | —                             | `src/binary/paschedulepath.rs` |
 
@@ -61,21 +69,52 @@ about, plus the checksum that proves the PAMT hasn't been tampered
 with.
 
 ```
-+------- 0x00 ------- header (4-byte CRC + 2-byte count + 2-byte u0 + 1-byte ei + 3-byte enc) ---+
-| ...                                                                                            |
-+------- 0x10 ------- entries[count]                                                              |
-|   for each entry:                                                                              |
-|     u32 pack_meta_checksum  (Jenkins hashlittle2 of the PAMT post-header)                      |
-|     u32 language            (locale enum)                                                      |
-|     u8  is_optional                                                                            |
-|     BString group_name      (u32 len + bytes + null)                                           |
-+-------------------------------------------------------------------------------------------------+
++------- 0x00 ------- header (12 bytes total) -------------------------------+
+|  bytes 0-3   u32 platform_magic   (preserve, do NOT overwrite)             |
+|  bytes 4-7   u32 header_crc       (hashlittle of post-header data)         |
+|  byte  8     u8  entry_count                                               |
+|  bytes 9-10  u16 lang_type                                                 |
+|  byte  11    u8  reserved (zero)                                           |
++------- 0x0C ------- entries[entry_count] -----------------------------------+
+|   for each entry (12 bytes):                                               |
+|     u8  is_optional                                                        |
+|     u16 lang_type                                                          |
+|     u8  reserved                                                           |
+|     u32 name_offset            (offset into the names block below)         |
+|     u32 pamt_checksum          (hashlittle of the PAMT post-header)        |
++------- + N*12 ------ names block --------------------------------------- --+
+|     u32 names_block_length                                                 |
+|     <ASCII names, NUL-terminated>                                          |
++----------------------------------------------------------------------------+
 ```
 
 Round-trip via `PackGroupTreeMeta::parse(&bytes) → to_bytes()`.
 
 Front-insert during overlay merge — see `add_papgt_entry` in
 `src/binary/papgt.rs` for the upsert behavior.
+
+### 1.1 Header CRC offset gotcha (do not get this wrong)
+
+**The CRC field is at bytes 4–7, NOT 0–3.** Bytes 0–3 are the
+platform magic, which must be preserved verbatim across writes.
+
+```rust
+// CORRECT
+let crc = hashlittle(&papgt[12..], INTEGRITY_SEED);
+papgt[4..8].copy_from_slice(&crc.to_le_bytes());
+
+// WRONG — clobbers platform_magic, leaves real CRC stale
+papgt[0..4].copy_from_slice(&crc.to_le_bytes());
+```
+
+DMM shipped this exact bug in pre-release.11 (a `strip_first_dmm_entry`
+path that wrote to bytes 0–3); next mount failed parse with
+`Checksum mismatch`. Fixed in pre-release.12. Auto-repair on stale CRC
+landed in pre-release.13.
+
+Note: PAMT uses the *opposite* layout — its header CRC is at bytes 0–3,
+PazInfo CRC at bytes 16–19. Don't copy-paste between PAMT and PAPGT
+writers without checking which format you're touching.
 
 ---
 
@@ -162,15 +201,115 @@ JSON surface (Python): `parse_paloc_from_file`, `parse_paloc_from_bytes`,
 ## 6. PABGB / PABGH — tabular game data
 
 A pair of files that together describe a typed table (PABGB = packed
-binary, PABGH = headers/schema). Each table type
+binary "Body", PABGH = headers/schema). Each table type
 (`ItemInfo`, `SkillInfo`, `BuffInfo`, `CharacterInfo`, `StageInfo`,
 `GimmickInfo`, …) has its own typed parser under `src/tables/<name>/`
 or the legacy `src/item_info/`.
 
 Round-trip discipline: serialize must produce byte-identical output to
-the input (`test_full_roundtrip` enforces this for ItemInfo). Tables
-are added by writing the typed Rust struct + `BinaryRead` / `BinaryWrite`
+the input (`test_full_roundtrip` enforces this for ItemInfo, and the
+`round_trip_matrix` example covers every Tier-1 table). Tables are
+added by writing the typed Rust struct + `BinaryRead` / `BinaryWrite`
 impls and registering in `src/dispatch.rs`.
+
+### 6.1 Tier-1 PABGB inventory (post-1.3.3 promotions)
+
+Tables promoted from Tier 1.5 → Tier 1 since 1.3.3, in addition to
+the legacy ItemInfo / SkillInfo / BuffInfo / CharacterInfo /
+StageInfo / GimmickInfo set:
+
+| Table | Promoted in | Notes |
+|---|---|---|
+| ConditionInfo | task #114 | Tier 2 → Tier 1; full body byte-clonable; per-variant body JSON for **405 ConditionData variants** (#115, #117) |
+| BuffInfo (per-variant) | #116 | Per-variant body JSON for **120 BuffData variants** |
+| BranchConditionData (within ConditionData) | #118 | Per-variant body JSON for **14 variants** |
+| board_info | #99 | |
+| store_info | #120 | Polymorphic `_dropInfoData` body byte-clonable |
+| ElementalMaterialInfo | #121 | Polymorphic `_elementalMaterialStateDataList` byte-clonable |
+| SpecialModeInfo | #122 | |
+| FactionInfo | #119 / #123 | |
+| FactionNodeInfo | #124 | |
+| CharacterInfo | #125 | |
+| GimmickGroupInfo | #126 | |
+| GimmickInfo | #127 | Tier-1.5 prefix extended |
+| InteractionInfo | #128 | |
+| QuestInfo | #106 | 35/35 fields editable; polymorphic body byte-clonable |
+
+15 hand-rolled tables also exposed JSON-editable surfaces in #108/#109
+even where they remain Tier 1.5 internally.
+
+### 6.2 1.05.01 ItemInfo schema corrections
+
+Schema work on the user's 1.05.01 iteminfo (5,338,778 bytes,
+6,236 items) surfaced four real wire-layout corrections that bit
+pre-1.3.4 schemas. All four are now in `src/item_info/`:
+
+1. **`Cooltime` is 24 bytes (3 × i64), not 8.**
+   Confirmed via IDA decomp of `sub_101886C44`: three
+   `sub_1006B90BC(a1, a2 + N)` calls at memory offsets 0/8/16, each
+   reading 8 bytes. Modeled as `Cooltime { a, b, c: i64 }`. JSON layer
+   accepts BOTH legacy single-number form (`30`) AND the new object
+   form (`{a:30, b:0, c:0}`) so SuperMod-era intents keep working.
+
+2. **`MaxChargedUseableCount` is 12 bytes (3 × u32), not 4.**
+   Same wrapper pattern via `sub_101886C94`. Modeled as
+   `MaxChargedUseableCount { a, b, c: u32 }`. Same dual-form JSON
+   acceptance. **6,236 of 6,236** vanilla items have non-zero `b`/`c`,
+   so dropping them on parse breaks round-trip.
+
+3. **`ItemIconData` has 5 fields, not 3** — wire order:
+   `icon_path` (u32), `highlight_icon_path` (u32),
+   `check_exist_sealed_data` (u8), `gimmick_state_list` (CArray<u32>),
+   `check_usable` (u8). Wire field order matches the IDA decomp call
+   order in `sub_101884D3C`, NOT the in-memory C++ struct layout.
+
+4. **Restored fields** previously removed in a 1.04-target schema
+   revert, all confirmed via IDA decomp of `sub_101885C38`:
+   - `extract_additional_drop_set_info: u32`
+   - `minimum_extract_enchant_level: u16`
+   - `is_housing_only: u8`
+   - `usable_alert_type: u8` (renamed from `usable_alert`, moved
+     between `item_charge_type` and `sharpness_data`)
+   - `discard_attach_terrain: u8`
+   - `stage_info: u32`
+   - `pattern_description_data_list: CArray<PatternDescriptionData>`
+   - `is_has_item_use_data_inventory_buff: u8`
+   - `is_preserved_on_extract: u8`
+
+### 6.3 Wrapper-reader pattern
+
+Two ItemInfo fields decoded via wrapper functions that read 3 sub-fields
+each (Cooltime / MaxChargedUseableCount above). When auditing other
+tables, watch for IDA functions of the shape:
+
+```c
+__int64 sub_xxx(__int64 a1, __int64 a2) {
+    if ((sub_PRIM(a1, a2) & 1) && (sub_PRIM(a1, a2 + N) & 1))
+        return sub_PRIM(a1, a2 + 2*N);
+    return 0LL;
+}
+```
+
+That pattern means **3 chained reads at offsets 0/N/2N**, not "1 field, 1 read".
+Likely candidates for the same correction exist across other tables.
+
+### 6.4 Determining wire vs memory width
+
+The `pa::StaticInfoWrapper<Key, Info, Manager, unsigned short>` template
+parameter is the **memory** type (the in-game C++ struct holds u16
+after hash resolution). The **wire** type is whatever the inner vtable
+reader's third arg says:
+
+```c
+// 4-byte read on the wire (e.g. ItemKey, EquipTypeKey, MultiChangeKey)
+(*(...))(a1, &v4, 4LL);
+
+// 2-byte read on the wire (e.g. CraftToolKey, InventoryKey, CategoryKey)
+(*(...))(a1, &v4, 2LL);
+```
+
+Don't confuse the template arg (memory layout) with the wire reader's
+size constant. They're often different.
 
 ---
 
@@ -273,24 +412,27 @@ Six standalone asset formats live next to (but outside) the PABGB tabular
 data: `.paatt`, `.paseq`, `.paseqc`, `.pastage`, `.paschedule`,
 `.paschedulepath`. They drive scripted gameplay — attack hitboxes, cutscene
 playback, NPC schedules, stage-chart logic. All six round-trip byte-exact
-on every vanilla sample today, but field-level decode is incomplete (see
-[§12](#12-decode-tiers-and-the-tier-1-promotion-goal)).
+on every vanilla sample. **PASEQ and PASTAGE shipped Tier-1 field-level
+decode** (tasks #129, #130). Four remain on Tier 1.5 — see
+[§12](#12-decode-tiers-and-the-tier-1-promotion-goal) for the active
+promotion goal.
 
-| Format | Loader (Mac binary) | Wire shape | Today | Goal |
-|---|---|---|---|---|
-| `.paatt` | `pa::sub_100C38E88` (loader) + `pa::sub_100C39A10` (per-info) | u32 info_count + per-info[u8 version + N-byte BaseData (264/528/296/288/264 by version) + 9× count-prefixed frame slots] + 7× LP-prefixed string table + frame-event buffer | Envelope decoded; **`base_data` payload still raw** (Tier 1.5) | Decode `pa::AttackInfoDataDesc` reflect-property setters → typed BaseData per version; sub-variants `AttackInfo_Attack` / `_AttackThrow` / `_AttackCatch` / `_ReleaseCatch` |
-| `.paseq` | TBD (find via "paseq" / `pa::Sequencer*` xref in IDA) | Reflection-driven, dispatches on type-name hashes | `lp_token_stream` tokenizer (LpString + RawBytes) — 4,659 samples roundtrip | Type-tag → reader map via IDA, recursive `Decoded\|Raw` enum like `GameCondition` |
-| `.paseqc` | TBD — likely shares paseq dispatcher | Header magic `FF FF 04 00` (or `FF FF 03 00` minority) + sequencer chart body | `lp_token_stream` tokenizer; magic lands in leading `RawBytes` | Verify dispatcher reuse from `.paseq`, then promote together |
-| `.pastage` | TBD — **likely reuses `sub_141D8C6D0`** (already-decoded `SequencerStageChartDesc`, 26 wire fields / 232 mem bytes — see `src/binary/variants/sequencer_stage_chart_desc.rs`) | Stage-path LP-string prefix + chart body | `lp_token_stream`; first LP-string is the stage path (e.g. `quest/stagechart_common`) — 3,320 samples roundtrip | Confirm `sub_141D8C6D0` reuse, prepend path prefix, ship — **fastest expected win** |
-| `.paschedule` | TBD (search `pa::Schedule*` / `pa::NPCSchedule` in IDA) | Header `01 00 00 00` (majority) or `00 00 00 00`; mostly numeric (waypoint hashes, frame counts) + a few asset path strings | `lp_token_stream` | Reflection-driven decode |
-| `.paschedulepath` | TBD — companion to paschedule | No fixed magic; per-NPC hash header; almost entirely numeric | `lp_token_stream` | Reflection-driven decode |
+| Format | Loader (Mac binary) | Wire shape | Status |
+|---|---|---|---|
+| `.paseq` | Reflection-driven via `pa::Sequencer*` dispatchers | Type-name-hash dispatch | **Tier 1** — field-level round-trip, 4,659 vanilla samples (#129). `examples/round_trip_paseq.rs`, `examples/paseq_roundtrip.rs` |
+| `.pastage` | Reuses `sub_141D8C6D0` (`SequencerStageChartDesc`) plus a stage-path LP-string prefix | Path prefix + chart body | **Tier 1** — field-level round-trip, 3,320 vanilla samples (#130). `examples/round_trip_pastage.rs`, `examples/pastage_roundtrip.rs` |
+| `.paatt` | `pa::sub_100C38E88` (loader) + `pa::sub_100C39A10` (per-info) | u32 info_count + per-info[u8 version + N-byte BaseData (264/528/296/288/264 by version) + 9× count-prefixed frame slots] + 7× LP-prefixed string table + frame-event buffer | **Tier 1.5** — envelope decoded; `base_data` payload still raw. Goal: decode `pa::AttackInfoDataDesc` reflect-property setters → typed BaseData per version; sub-variants `AttackInfo_Attack` / `_AttackThrow` / `_AttackCatch` / `_ReleaseCatch` |
+| `.paseqc` | Likely shares paseq dispatcher | Header magic `FF FF 04 00` (or `FF FF 03 00` minority) + sequencer chart body | **Tier 1.5** — `lp_token_stream` tokenizer; magic lands in leading `RawBytes`. Goal: verify dispatcher reuse from `.paseq`, then promote |
+| `.paschedule` | TBD (search `pa::Schedule*` / `pa::NPCSchedule` in IDA) | Header `01 00 00 00` (majority) or `00 00 00 00`; mostly numeric (waypoint hashes, frame counts) + a few asset path strings | **Tier 1.5** — `lp_token_stream`. Goal: reflection-driven decode |
+| `.paschedulepath` | TBD — companion to paschedule | No fixed magic; per-NPC hash header; almost entirely numeric | **Tier 1.5** — `lp_token_stream`. Goal: reflection-driven decode |
 
 **Why this works** — the engine uses `pa::ReflectObject`-style reflection
 to read these files. Every field is a registered reader function in the
 loaded binary; we already have the playbook (and IDA MCP access) to walk
-the dispatchers and translate them into typed Rust enums. Five family
+the dispatchers and translate them into typed Rust enums. Seven family
 decoders have shipped this way (GameCondition, FilterCondition,
-TriggerGamePlayEventHandlerData, GameEventHandlerData, SequencerStageChartDesc).
+TriggerGamePlayEventHandlerData, GameEventHandlerData,
+SequencerStageChartDesc, plus the freshly-Tier-1 PASEQ and PASTAGE).
 
 ---
 
@@ -305,28 +447,27 @@ Decode coverage is tracked as three tiers, the same vocabulary
 | **1.5** | Round-trip byte-exact, but the body is exposed as raw bytes / opaque tokens (e.g. `Vec<u8>`, `LpToken::RawBytes`). | Edit only the parts that *are* typed (e.g. embedded strings); numeric fields stay opaque. |
 | **2** | Whole-tail blob — entire payload is one `Vec<u8>`. | Clone or replace only; no field-level edit. (No Tier 2 tables remain in the catalog.) |
 
-### Active goal — promote the sequencer + attack family from 1.5 to 1
+### Active goal — finish the sequencer + attack family
 
-The six formats listed in [§11](#11-sequencer--attack-asset-family) are the
-only Tier 1.5 surface left in dmm-parser. Promoting them to Tier 1 is a
-prerequisite for letting mod authors edit:
+Two of the six (`.paseq`, `.pastage`) are now Tier 1. The remaining
+four are still Tier 1.5 and are the *only* Tier 1.5 surface left in
+dmm-parser. Promoting them is a prerequisite for letting mod authors
+edit:
 
-- **Cutscenes / scripted action** (`.paseq`, `.paseqc`)
-- **Stage-chart logic** (`.pastage`)
+- **Compiled cutscene chart** (`.paseqc`)
 - **NPC time-of-day routines** (`.paschedule` + `.paschedulepath`)
 - **Per-weapon attack data** — hitboxes, damage, frame events (`.paatt`)
 
-at the field level via the same Field-JSON v3.1 intent vocabulary already
-used for PABGB tables.
+at the field level via the same Field-JSON v3.1 intent vocabulary
+already used for PABGB tables.
 
-**Attack order** (smallest scope first, validates the IDA workflow before
-the bigger formats):
+**Attack order** (smallest scope first, leveraging now-shipped PASEQ
+infrastructure):
 
-1. `.pastage` — likely reuses already-decoded `SequencerStageChartDesc`.
-2. `.paseq` — largest sample set (4,659); biggest payoff once cracked.
-3. `.paseqc` — sister to `.paseq`, expected to share dispatcher.
-4. `.paschedule` + `.paschedulepath` — paired NPC schedule decode.
-5. `.paatt` — finish per-version BaseData via `pa::AttackInfoDataDesc`
+1. `.paseqc` — expected to share `.paseq`'s dispatcher; verify reuse,
+   prepend the `FF FF 04 00` magic, ship.
+2. `.paschedule` + `.paschedulepath` — paired NPC schedule decode.
+3. `.paatt` — finish per-version BaseData via `pa::AttackInfoDataDesc`
    reflect-property setters.
 
 **Methodology** — the proven family-decoder playbook from

@@ -955,9 +955,9 @@ Each item is a dict with 105 fields. All fields are required for serialization.
 | `item_use_info_list` | `list[int]` | ItemUseKey list (u32) |
 | `use_immediately` | `int` | Auto-use flag (u8) |
 | `apply_max_stack_cap` | `int` | (u8) |
-| `cooltime` | `int` | Cooldown in ticks (i64) |
+| `cooltime` | `dict` | Cooldown struct — `{"a": int, "b": int, "c": int}` (3 × i64, 24 wire bytes). Legacy single-number form (`30`) is also accepted on write and promotes to `{a:30, b:0, c:0}` for backward compat with pre-1.3.4 mod intents. See [Cooltime](#cooltime). |
 | `item_charge_type` | `int` | Charge type (u8) |
-| `max_charged_useable_count` | `int` | Max charges (u32) |
+| `max_charged_useable_count` | `dict` | Max-charges struct — `{"a": int, "b": int, "c": int}` (3 × u32, 12 wire bytes). Same dual-accept rule as `cooltime`. See [MaxChargedUseableCount](#maxchargeduseablecount). |
 | `is_save_game_data_at_use_item` | `int` | (u8) |
 | `is_logout_at_use_item` | `int` | (u8) |
 | `shared_cool_time_group_name_hash` | `int` | Shared cooldown group (u32) |
@@ -1116,13 +1116,55 @@ Each item is a dict with 105 fields. All fields are required for serialization.
 
 ### ItemIconData
 
+5 fields in 1.05.01. Wire field order matches the IDA decomp call
+order in `sub_101884D3C`, NOT the in-memory C++ struct layout — don't
+re-order on serialize.
+
 ```python
 {
-    "icon_path": int,              # StringInfoKey (u32)
-    "check_exist_sealed_data": int,# u8
-    "gimmick_state_list": [int]    # list of u32
+    "icon_path": int,                # StringInfoKey (u32)
+    "highlight_icon_path": int,      # StringInfoKey (u32)
+    "check_exist_sealed_data": int,  # u8
+    "gimmick_state_list": [int],     # list of u32
+    "check_usable": int,             # u8
 }
 ```
+
+### Cooltime
+
+`ItemInfo.cooltime` is a 24-byte struct (3 × i64), not a single
+integer. Confirmed via IDA decomp of `sub_101886C44`.
+
+```python
+{
+    "a": int,  # i64
+    "b": int,  # i64
+    "c": int,  # i64
+}
+```
+
+**Backward compatibility:** the JSON deserializer also accepts a single
+integer — `30` is treated as `{"a": 30, "b": 0, "c": 0}`. Pre-1.3.4
+mod intents (e.g. SuperMod-era) keep working. New mods should write the
+object form to preserve `b`/`c` round-trip on items where they're
+non-zero (659 of 6,236 vanilla items have non-zero `cooltime.b` /
+`cooltime.c`).
+
+### MaxChargedUseableCount
+
+`ItemInfo.max_charged_useable_count` is a 12-byte struct (3 × u32),
+not a single integer. Confirmed via IDA decomp of `sub_101886C94`.
+
+```python
+{
+    "a": int,  # u32
+    "b": int,  # u32
+    "c": int,  # u32
+}
+```
+
+Same dual-accept rule as `Cooltime`. **All 6,236 vanilla items have
+non-zero `b`/`c`** — round-trip will fail if you drop them on parse.
 
 ### PassiveSkillLevel
 

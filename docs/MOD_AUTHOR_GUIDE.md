@@ -497,7 +497,12 @@ flow.
 ## 11. Where to look next
 
 - `docs/FORMATS.md` — binary format reference (PAPGT, PAMT, PAZ, paloc,
-  DDS, WEM, BNK, save).
+  DDS, WEM, BNK, save) including:
+  - §1.1 PAPGT header CRC offset gotcha (bytes 4–7, not 0–3).
+  - §6.1 Tier-1 PABGB inventory — all 14+ tables promoted post-1.3.3.
+  - §6.2 1.05.01 ItemInfo schema corrections (Cooltime,
+    MaxChargedUseableCount, ItemIconData 5-field, restored fields).
+  - §11/§12 canonical Tier status for the sequencer / attack family.
 - `docs/api.md` — full Python API.
 - `docs/CUSTOM_ITEM_CREATOR_V3_1.md` — end-to-end custom-item example.
 - `docs/TIER1_PROMOTION_PROGRESS.md` — Sequencer / schedule / attack
@@ -507,27 +512,36 @@ flow.
 
 ---
 
-## 12. Sequencer / schedule / attack-info mods (Tier 1 formats)
+## 12. Sequencer / schedule / attack-info mods
 
-Six formats round-trip byte-perfect with field-level Python access.
-These are the ones that drive cutscenes, NPC behavior, and combat:
+Six formats drive cutscenes, NPC behavior, and combat. All six
+round-trip byte-perfect on every vanilla sample. Two
+(`.paseq`, `.pastage`) shipped Tier-1 field-level decode; the
+remaining four are Tier 1.5 (envelope decoded, body opaque) until the
+promotion work in `docs/FORMATS.md` §12 finishes.
 
-| Extension | What it is | Vanilla samples | Editing pattern |
-|---|---|---|---|
-| `.pastage` | Stage-chart binary (timeline state machine) | 3,320 | walk + replace |
-| `.paseq` | Sequencer (cutscene/scripted action) | 4,659 | walk + replace |
-| `.paseqc` | Compiled sequencer chart | 2,932 | walk + replace |
-| `.paschedule` | NPC time-of-day / activity schedule | 4,084 | JSON path |
-| `.paschedulepath` | Companion path data for a `.paschedule` | 3,737 | JSON path |
-| `.paatt` | Per-weapon attack info (hitboxes, damage, frame events) | 220 | JSON path |
+| Extension | What it is | Vanilla samples | Tier | Editing pattern |
+|---|---|---|---|---|
+| `.paseq` | Sequencer (cutscene/scripted action) | 4,659 | **1** | JSON path (preferred) or walk + replace |
+| `.pastage` | Stage-chart binary (timeline state machine) | 3,320 | **1** | JSON path (preferred) or walk + replace |
+| `.paseqc` | Compiled sequencer chart | 2,932 | 1.5 | walk + replace |
+| `.paschedule` | NPC time-of-day / activity schedule | 4,084 | 1.5 | JSON path (envelope only) |
+| `.paschedulepath` | Companion path data for a `.paschedule` | 3,737 | 1.5 | JSON path (envelope only) |
+| `.paatt` | Per-weapon attack info (hitboxes, damage, frame events) | 220 | 1.5 | JSON path (envelope only; body via `base_data_b64`) |
 
 ### 12.1 Two editing patterns
 
-The 6 formats split into two groups based on their byte layout:
+The 6 formats split into two groups based on tier + byte layout:
 
-**All-opaque or schema+values** (`.pastage`, `.paseq`, `.paseqc`):
-strings are stored as `u32 length + bytes`. Use the **walk + replace**
-primitive — find any string, edit it by file offset:
+**Tier 1** (`.paseq`, `.pastage`) — full field-level JSON path. Parse,
+edit any named field, reserialize. Walk + replace still works as a
+fallback for surgical string edits, but the field-level workflow is
+preferred for any non-trivial change. See §12.5 for the typed
+PyO3 entry points.
+
+**Tier 1.5 walk + replace** (`.paseqc`): strings are stored as
+`u32 length + bytes`. Use the walk + replace primitive — find any
+string, edit it by file offset:
 
 ```python
 import dmm_parser

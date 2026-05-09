@@ -18,6 +18,7 @@ No coding experience needed.
 ## Contents
 
 - [Five-minute quickstart](#five-minute-quickstart)
+- [Anatomy of a texture mod](#anatomy-of-a-texture-mod)
 - [Picking the right DDS format](#picking-the-right-dds-format)
 - [Where do game textures live? (vpath cheatsheet)](#where-do-game-textures-live-vpath-cheatsheet)
 - [DCC tool exports](#dcc-tool-exports)
@@ -78,6 +79,109 @@ them.
 
 That's it. Everything below is helpful detail for when you want more
 than one icon or your texture isn't loading right.
+
+---
+
+## Anatomy of a texture mod
+
+Five rules that aren't obvious from a single example. Internalize these
+once and the rest of the doc makes more sense.
+
+### 1. The folder layout
+
+Source folder (what you author) and the packed `.zip` (what `dmm-mod-pack`
+produces) have **the same shape**:
+
+```
+my_mod/                       ← the .zip is just this folder, zipped
+├── mod.field.json            ← manifest at the root, REQUIRED
+└── assets/                   ← every file referenced by the manifest
+    ├── ui/
+    │   └── icon/
+    │       └── sword.dds
+    └── character/
+        └── texture/
+            ├── macduff_diffuse.dds
+            └── macduff_diffuse_n.dds
+```
+
+So the same `dmm-mod-pack` command both packs the zip *and* validates
+the same source layout. If your source builds cleanly, your zip works.
+
+### 2. The `file` field is relative to `assets/`
+
+Inside `mod.field.json`, every target's `file` field is a path
+**relative to the `assets/` folder**, not relative to the manifest or
+the project root. Forward slashes only.
+
+```jsonc
+"file": "ui/icon/sword.dds"          // ✅ correct — assets/ui/icon/sword.dds
+"file": "/assets/ui/icon/sword.dds"  // ❌ wrong — leading slash + redundant assets/
+"file": "C:/Users/.../sword.dds"     // ❌ wrong — must be relative
+```
+
+### 3. The `assets/` folder layout mirrors the `vpath`
+
+The convention (and the thing that lets `dmm-mod-pack` auto-fill `vpath`
+when you omit it): the path under `assets/` is the same as the in-game
+`vpath`, with the leading `/` dropped.
+
+| `vpath` in manifest | Path on disk |
+|---|---|
+| `/ui/icon/sword.dds` | `assets/ui/icon/sword.dds` |
+| `/character/texture/macduff.dds` | `assets/character/texture/macduff.dds` |
+| `/character/texture/macduff_n.dds` | `assets/character/texture/macduff_n.dds` |
+
+You can deviate (the `file` and `vpath` fields are independent), but
+mirroring is the convention everyone reads. Stick with it.
+
+### 4. Manifest filename
+
+Name it **`mod.field.json`**. That's the canonical name DMM and
+`dmm-mod-*` look for first. Tools accept any `*.field.json` name but
+you'll save yourself confusion if you stick with the canonical form.
+
+The `.field.json` double-extension is intentional — it signals "this is
+a Field-JSON v3.1 manifest" so DMM and other tools can recognize the
+format from the filename alone.
+
+### 5. Required vs optional manifest fields
+
+```jsonc
+{
+  "format": 3,                  // REQUIRED — must be the integer 3
+  "format_minor": 1,            // REQUIRED — pinned at 1 for v3.1, do NOT bump
+
+  "modinfo": {                  // REQUIRED block
+    "title":       "<string>",  // REQUIRED — appears in DMM's mod list
+    "author":      "<string>",  // REQUIRED — credit yourself
+    "version":     "<semver>",  // REQUIRED — `1.0`, `1.0.1`, etc.
+    "description": "<string>",  // optional but strongly recommended
+    "category":    "<string>"   // optional — `texture`, `custom_item`, etc.
+  },
+
+  "targets": [                  // REQUIRED — at least one entry
+    { /* see recipes below */ }
+  ]
+}
+```
+
+Anything else you want to track (changelog, contact, screenshots-url) is
+fine to add at the top level — DMM ignores unknown keys.
+
+### Where to put the packed zip
+
+After `dmm-mod-pack` produces `my_mod_v1.0.zip`, drop it into
+**`<DMM-install-folder>/mods/`**. DMM watches that folder and
+auto-imports new zips. From there:
+
+1. Open DMM
+2. Find your mod in the **Mods** list
+3. Click the toggle to enable it
+4. Click **Mount Mods**
+
+If you're publishing on NexusMods, that zip is what users download —
+they drop it into their own `mods/` folder.
 
 ---
 
@@ -530,6 +634,48 @@ sword with a unique icon), ship them together:
 ```
 
 See `docs/CUSTOM_ITEM_CREATOR_V3_1.md` for the full custom-item recipe.
+
+### Recipe 6: Auto-vpath — skip the `vpath` field for whole-folder ports
+
+If your `assets/` layout already mirrors the in-game vpaths exactly,
+omit the `vpath` field entirely. `dmm-mod-pack` infers it from `file`.
+
+Source folder:
+
+```
+icon_overhaul/
+├── mod.field.json
+└── assets/
+    └── ui/
+        └── icon/
+            ├── sword.dds
+            ├── shield.dds
+            ├── potion.dds
+            └── ... (50 more icons)
+```
+
+Manifest (no `vpath` fields needed):
+
+```json
+{
+  "format": 3,
+  "format_minor": 1,
+  "modinfo": { "title": "Icon Overhaul", "author": "you", "version": "1.0" },
+  "targets": [
+    { "kind": "asset", "asset_type": "dds", "file": "ui/icon/sword.dds" },
+    { "kind": "asset", "asset_type": "dds", "file": "ui/icon/shield.dds" },
+    { "kind": "asset", "asset_type": "dds", "file": "ui/icon/potion.dds" }
+  ]
+}
+```
+
+`dmm-mod-pack` reads each `file`, prepends `/`, and writes
+`vpath: /ui/icon/sword.dds` etc. into the packed manifest. The
+shipped zip has fully-resolved vpaths so consumers don't need to
+re-run inference.
+
+Use this when you have lots of textures and the layout is uniform.
+For a single-file mod the explicit-vpath form (Recipe 1) is clearer.
 
 ---
 

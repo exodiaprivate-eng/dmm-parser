@@ -24,11 +24,29 @@ Master index listing all pack groups in the game.
 ### Header (12 bytes)
 | Offset | Type | Field |
 |--------|------|-------|
-| 0 | u32 | unknown0 |
-| 4 | u32 | checksum (Jenkins hashlittle2 of post-header data) |
+| 0 | u32 | platform_magic (preserve verbatim — DO NOT overwrite) |
+| 4 | u32 | header_crc (Jenkins hashlittle2 of post-header data) |
 | 8 | u8 | entry_count |
-| 9 | u8 | unknown1 |
-| 10 | u16 | unknown2 |
+| 9 | u16 | lang_type (locale/language enum) |
+| 11 | u8 | reserved (zero) |
+
+**Header CRC offset gotcha.** The CRC field is at **bytes 4–7**, NOT
+bytes 0–3. Bytes 0–3 are the platform magic and must be preserved.
+DMM shipped a bug in pre-release.11 (a strip path wrote the recomputed
+hash to bytes 0–3, clobbering the magic and leaving the real CRC
+stale) which broke parse on next mount with `Checksum mismatch`.
+
+```rust
+// CORRECT
+let crc = hashlittle(&papgt[12..], INTEGRITY_SEED);
+papgt[4..8].copy_from_slice(&crc.to_le_bytes());
+
+// WRONG — clobbers platform_magic, leaves real CRC stale
+papgt[0..4].copy_from_slice(&crc.to_le_bytes());
+```
+
+PAMT uses the *opposite* layout (its CRC sits at bytes 0–3), so
+don't copy-paste between PAMT and PAPGT writers.
 
 ### Entry (repeated `entry_count` times)
 | Offset | Type | Field |

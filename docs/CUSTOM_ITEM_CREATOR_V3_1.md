@@ -27,10 +27,11 @@
 | `.pamt` (Pack Metadata) | Group metadata | ✅ dmm-parser has this in `binary/pamt.rs` |
 | `.paz` archives | Container format | ✅ dmm-parser has this via `PackGroupBuilder` |
 
-**Verified facts (2026-05-01):**
-- 122 PABGB tables in `dispatch.rs` — every one supports both parse and serialize
+**Verified facts (2026-05-08):**
+- 125+ table parsers wired in `src/tables/` — every one supports both parse and serialize
+- 121 / 121 byte-perfect round-trips on the live 1.05.02 corpus
 - iteminfo additionally exposed via `pub mod item_info` with dedicated `parse_iteminfo_to_json` / `serialize_iteminfo_from_json`
-- 308 tests pass; round-trip byte-perfect verified across all tables
+- 423 / 423 unit tests pass
 
 **The gap:** Paloc localization. Everything else needed for the custom-item workflow is already typed and writable.
 
