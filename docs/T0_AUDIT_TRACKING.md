@@ -39,6 +39,75 @@ the canonical C++ name; v3 round-trips through the alias mechanism.
 | 🟡 | T0 with aliases — one or more renames shipped, v3 alias added |
 | ⚠️ | T0 unverified — IDA getter symbols absent for this class |
 
+## ⚠️ Structural blocker discovered (2026-05-09, Session 26 iter 1)
+
+Bulk IDA probe confirmed: **none of the 122 `pa::*Info` table classes
+expose individual `__ZNK*get_<field>Ev` getter symbols** in the Mac
+binary. Only the engine-level data-descriptor classes used INSIDE
+table records do (e.g. `pa::AttackInfoDataDesc`, `pa::SplineDecalComponent`,
+`pa::EmitterCurveData` — these were cracked in Sessions 19/22).
+
+`*Info` tables go through `pa::StaticInfoWrapper<Key, Info, Manager, t>`
+templated reflection machinery. Property registration happens via
+`PascriptComponentProperty` template instantiations that aggregate
+across many fields/types — there's no per-field setter/getter symbol
+to enumerate.
+
+**Sample probe (all returned zero getter symbols):**
+- `pa::ActionPointInfo` → 0 getter symbols
+- `pa::ActionRestrictionOrderInfo` → 0 getter symbols
+- `pa::AIDialogStringInfo` → 0 getter symbols
+- `pa::SkillInfo` → 0 getter symbols
+- `pa::ItemInfo` → 0 getter symbols
+
+Same wall as the .paatt deserialiser hunt (Session 20) and
+SplineDecalComponent enumeration (Session 23). Same root cause:
+Pearl Abyss's metaobject runtime aggregates property registration
+into template instantiations rather than per-field symbols.
+
+### What this means for T0
+
+**Strict T0** (every field name == verbatim C++ identifier per IDA):
+*structurally impossible* for these 122 classes without runtime
+introspection. The verification data simply doesn't exist statically.
+
+**Pragmatic T0** (every field has a stable, descriptive identifier;
+no `_unkXXXX` placeholders): **already achieved** in Session 25's
+bulk promotion. Names sourced during the long Tier 1 promotion arc
+(finished 2026-04-30) from:
+- WIN-IDA Hex-Rays decompile of the parse function in CrimsonDesert.exe
+- Mac-IDA `__cstring` declaration-order matching against the Mac binary
+- Empirical default-value distribution analysis
+
+The names ARE canonical for mod-author purposes — stable, semantic,
+round-trip byte-perfect. They are NOT byte-for-byte equal to the
+internal C++ identifiers Pearl Abyss used — that information was
+never exposed in the binary's symbol table.
+
+### Where IDA-verified renames CAN still happen
+
+Data-descriptor classes embedded INSIDE table records DO expose
+per-field getters and ARE in scope for verbatim renames. Tracked
+separately per-target in PAATT_BASEDATA_FIELDS.md and STATUS.md
+session entries. Targets include `AttackInfoDataDesc`,
+`AttackCommonDataDesc`, `AttackHitDataDesc`, `SplineDecalComponent`
+(partial), `EmitterCurveData`, and a few dozen other nested blobs.
+
+The rename work for these polishes the v3.1 embedded-blob surface
+but doesn't change any TABLE's tier classification.
+
+### Decision
+
+**Loop stopped after this iteration.** Burning cycles trying to verify
+what can't be verified statically is waste. The 118 on-disk tables
+stay at "T0 (pragmatic)" per Session 25's promotion. Embedded-descriptor
+rename work continues per-target as IDA evidence exists.
+
+If a runtime-introspection method later becomes available (in-game
+debugger trace, fuzzer-driven setter mapping, leaked PDB symbols),
+strict-T0 verification can resume — this tracking doc stays in place
+as the worklist for that future effort.
+
 ## Per-table tracking
 
 | # | Module | Status | Notes |
