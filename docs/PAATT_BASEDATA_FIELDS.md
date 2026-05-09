@@ -327,4 +327,58 @@ Running per-version entropy across all 4 versions revealed:
 3. `_unk0036` (0x0036): confirm as `NormalStringIndex` from `AttackHitDataDesc` (0xffff=none)
 4. AttackCatchDesc (V1 `catch_desc` blob, 264 bytes): decode field by field
 
+## Appendix: In-memory class layout (Session 19, IDA-confirmed)
+
+Decompiled the `pa::AttackInfoDataDesc::get_<field>` zero-argument
+getters in the Mac binary. Each getter is 8 bytes and resolves to a
+single ARM64 instruction returning `this + offset`, so the in-memory
+class layout falls out for free. **These are class-instance offsets,
+NOT wire offsets** — Pearl Abyss serializes field-by-field through
+the metaobject's setter table rather than memcpy'ing the class, so
+the wire `BaseDataV0` layout (264 B) reorders fields freely. The
+in-memory map still confirms (a) every C++ field is real, (b) what
+size each leaf is, and (c) which fields cluster together — useful
+context when searching for a still-`_unkXXXX` wire field's identity.
+
+| In-mem offset | Field | C++ type | Wire offset (BaseDataV0) | Status |
+|---|---|---|---|---|
+| 0x94 (148) | `ignoreDefenceTypeFlag` | u32 | **TBD** | unmapped (could be `_unk00b8`-region u32 or one of the late `_unk` slots) |
+| 0xA0 (160) | `targetType` | enum (4 B) | **TBD** | unmapped |
+| 0xA4 (164) | `excludeTargetTypeFlag` | u32 | 0x00b0 | ✅ already named in `BaseDataV0` |
+| 0xA8 (168) | `weaponKey` | u32 | 0x0000 | ✅ already named |
+| 0xB0 (176) | `attackImpulseLevel` | u8 | **TBD** | likely candidate for `_unk0073` (u8 enum, mode=1 @49% V0) |
+| 0xB1 (177) | `attackIndex` | u8 | **TBD** | unmapped |
+| 0xB2 (178) | `attackGroupIndex` | u8 | 0x0044 | ✅ already named |
+| 0xB3 (179) | `attackDir` | u8 | 0x0004 | ✅ already named |
+| 0xB4 (180) | `repeatCount` | u8 | 0x0045 | ✅ already named |
+| 0xB5 (181) | `noCheckCollision` | bool | **TBD** | candidate for `_unk0072` (B00@85% V0) |
+| 0xB6 (182) | `ignoreWhenHitAction` | bool | **TBD** | candidate for one of the rare-true bools (`_unk00ad`, `_unk00bd`, `_unk00bf`, `_unk00c0`, `_unk00d0..d3`, `_unk00e9`) |
+| 0xB7 (183) | `isSingleHitPosition` | bool | **TBD** | candidate for one of the rare-true bools |
+| 0xB8 (184) | `ignoreSafeZone` | bool | 0x0040 | ✅ already named |
+
+**Reflection-symbol provenance:** addresses for the get/set/move/bindProperty
+function-pointer slots and the corresponding `bindProperty_<field>`
+implementations are listed under the table at `0x1076df1a0` (setters)
+and `0x1076e3338` (getters), with bindProperty wrappers at
+`0x1076d0560..0x1076d06e8`. The Mac equivalents of the runtime-filled
+setters are exposed as `__ZN2pa18AttackInfoDataDesc<N>set_<field>...`.
+
+**Why wire offsets remain unknown:** the contributor noted in
+"Per-byte offset extraction — TODO" above that bindProperty wrappers
+push the field offset into a *setter lambda* (inlined into the
+metaobject runtime); the offset is not stored anywhere in the
+descriptor, so static analysis can't recover it. The next step is
+to find the `.paatt` reader/writer pair (presumably a templated
+function over `pa::ReflectObjectPOD<AttackInfoDataDesc>`) and trace
+its iteration order — that gives the wire→class field map directly.
+
+**Newly-confirmed C++ fields not yet present in `BaseDataV0`:**
+`targetType`, `attackIndex`, `attackImpulseLevel`, `noCheckCollision`,
+`ignoreWhenHitAction`, `isSingleHitPosition`, `ignoreDefenceTypeFlag`,
+`attackDivideType` (no getter found, suggests it's enum stored
+inside an unnamed slot). Total: 8 C++ fields awaiting wire-position
+proof — once mapped, the corresponding `_unkXXXX` placeholders in
+`BaseDataV0` get renamed without any JSON-shape break (the rename is
+a pure documentation improvement; bytes round-trip identically).
+
 Use `examples/paatt_basedata_layout.rs` with per-version output to confirm field boundaries.

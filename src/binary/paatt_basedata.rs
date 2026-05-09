@@ -317,8 +317,15 @@ pub struct BaseDataV0 {
     /// `AttackCommonDataDesc.NormalStringIndex`. V0: 0x0000 @70%; V2/V3: 0xffff (always).
     pub normal_string_index: u16,
     /// bool (B00@85% V0).
+    /// Session 19 IDA candidate: `pa::AttackInfoDataDesc::noCheckCollision`
+    /// (in-mem class offset 0xB5, single-byte bool sitting in the same
+    /// register-cluster as ignoreSafeZone). The wire→class mapping isn't
+    /// proven yet — see `docs/PAATT_BASEDATA_FIELDS.md` § Appendix.
     pub _unk0072: bool,
     /// u8 enum (mode=1 @49% V0).
+    /// Session 19 IDA candidate: `pa::AttackInfoDataDesc::attackImpulseLevel`
+    /// (in-mem class offset 0xB0, sole u8 enum field still unmapped).
+    /// Wire→class mapping unproven; see PAATT_BASEDATA_FIELDS.md § Appendix.
     pub _unk0073: u8,
     pub _pad0074: [u8; 4],
     /// `ActionChartFrameEvent_AttackDelayDataDesc` #2 — same structure as ds1.
