@@ -417,7 +417,8 @@ durable IDA anchors for future RE work.
 |---|---|---|
 | `0x100c46104` | `sub_100C46104` | `.paatt` LOADER. Walks `<resource_root>/attackinfo` for `*.paatt` files; per-file calls `sub_100C465A4`. |
 | `0x100c465a4` | `sub_100C465A4` | Per-`.paatt` parser. Reads `InfoCount` u32, allocates 88-byte AttackInfo records, then reads 9 trailing string tables in fixed order. |
-| `0x100c4712c` | `sub_100C4712C` | Per-AttackInfo record reader. Reads version byte, allocates BaseData blob (264/528/296/288/264 bytes for V0/V1/V2/V3/V4), then reads 9 child sub-structures. |
+| `0x100c4712c` | `sub_100C4712C` | Per-AttackInfo record reader. Reads version byte, allocates BaseData blob (264/528/296/288/264 bytes for V0/V1/V2/V3/V4), then reads 9 child sub-structures via `sub_1014123DC`. |
+| `0x1014123dc` | `sub_1014123DC` | CArray<16B element> reader. Reads `u8 count`, then `16 × count` bytes as a contiguous buffer; returns 0 on alloc failure. Used by `sub_100C4712C` for each of the 9 child slots, and by `sub_10058F658` consumers throughout the binary as the canonical "16-byte element list" reader. |
 | `0x1011a72d0` | `sub_1011A72D0` | Returns the literal `"paatt"` extension string. |
 | `0x10732d49e` | (string data) | Literal `"paatt"` (5 bytes). |
 
