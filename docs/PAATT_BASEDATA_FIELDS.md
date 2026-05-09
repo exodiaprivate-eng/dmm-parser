@@ -406,7 +406,39 @@ proof — once mapped, the corresponding `_unkXXXX` placeholders in
 `BaseDataV0` get renamed without any JSON-shape break (the rename is
 a pure documentation improvement; bytes round-trip identically).
 
-## Session 27 update — Win-binary registrar fully enumerates all 25 fields
+## Session 27 iter 2 — all 6 remaining AttackInfoDataDesc setter offsets recovered
+
+Decompiled the per-field setter functions for the 6 confirmed C++
+names. Each is a tiny ~125-byte function of the form:
+
+```c
+sub_141XXXXXX(this, *value):
+    *(TYPE *)(this + OFFSET) = *value;
+    sub_140F330C0(guard, "_<name>", ...);  // metaobject registration
+```
+
+Recovered (in-mem class offsets, NOT wire offsets):
+
+| C++ name | Setter | In-mem offset | Type |
+|---|---|---|---|
+| `_targetType` | `sub_141950200` | 0xA0 (160) | u32 (enum TargetType) |
+| `_attackIndex` | `sub_141950990` | 0xB1 (177) | u8 |
+| `_ignoreDefenceTypeFlag` | `sub_14194FED0` | 0x94 (148) | u32 |
+| `_ignoreWhenHitAction` | `sub_141950F20` | 0xB6 (182) | bool |
+| `_isSingleHitPosition` | `sub_141951040` | 0xB7 (183) | bool |
+| `_attackDivideType` | `sub_141950760` | 0xAF (175) | u8 (enum) |
+
+**Wire-position mapping is the next step.** The in-mem class layout
+differs from the 264-byte `.paatt` wire layout (Session 19
+established `weaponKey` at in-mem 0xA8 ↔ wire 0x0000, etc.).
+Mapping each of these 6 to a `_unkXXXX` slot in `BaseDataV0` needs
+either byte-distribution analysis on a vanilla `.paatt` (match the
+type + observed value range to a wire-offset slot) or finding the
+`.paatt` deserializer iteration order.
+
+Renames cannot safely ship in `BaseDataV0` until wire offset is
+proven for each. Until then, these 6 names are known C++ identifiers
+with known in-mem offsets — half the data needed.
 
 The Win build of `CrimsonDesert.exe` (`bin64/CrimsonDesert.exe`) keeps
 property names as literal strings in `.rdata` AND emits the
