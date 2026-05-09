@@ -99,14 +99,28 @@
 >     * `CArray<SplineDecalVolumeData>` (VectorReflectPropertyBind)
 >     * `CArray<SplineDecalPointData>` (VectorReflectPropertyBind)
 >     * `SplineDecalTextureSet` (nested ReflectObject)
-> - One field has explicit named symbols already: `splineComponentIndex`
->   of type `ComponentReference<SplineComponent>` (set/move/get/
->   bindProperty at `0x1076e05c8` / `0x1076e05d0` / `0x1076e3820` /
->   `0x1076d1228`). Decompile that bindProperty wrapper to get its
->   in-mem offset, then iterate the same getter/setter pattern across
->   the remaining typed PropertyBind globals to surface every named
->   field — same recipe that worked for AttackInfoDataDesc in Sessions
->   19/21.
+> - Two fields with explicit named symbols already exposed:
+>   `splineComponentIndex` of type `ComponentReference<SplineComponent>`
+>   (set/move/get/bindProperty at `0x1076e05c8` / `0x1076e05d0` /
+>   `0x1076e3820` / `0x1076d1228`); and `_splineID` u32 at in-mem
+>   offset 448 (Session 21).
+> - Three nested data classes confirmed in the topology:
+>   `pa::SplineDecalTextureSet` (RTTI `0x106c46a32`), `pa::SplineDecalVolumeData`
+>   (`0x106c46b1c`), and `pa::SplineDecalPointData` (`0x106c46ddc`).
+>   None of them export individual `__ZNK*get_<field>Ev` getters,
+>   so per-field offsets aren't recoverable via the AttackInfoDataDesc
+>   recipe — same blocker as the .paatt deserialiser hunt
+>   (Session 20).
+>
+> **Session 23 outcome (2026-05-09):** SplineDecalComponent enumerated
+> via every available IDA angle — only 2 named fields exposed
+> statically. The 13 PropertyBind categories from the typeinfo survey
+> are TEMPLATE INSTANTIATIONS (one per type combo: `j`, `f`, `b`,
+> `Color`, `float2`, etc.) reused across multiple SplineDecalComponent
+> fields, NOT individual per-field bindings. To recover the remaining
+> ~25-30 fields, the same runtime-introspection or differential-byte
+> approach needed for .paatt would have to be applied here too —
+> static analysis is genuinely exhausted.
 > - Implication for mod authors: pointcontrol's 1833 entries hold
 >   `SplineDecalComponent` instances. The CArray<SplineDecalPointData>
 >   is the per-point payload that `_splineID` points into, and
