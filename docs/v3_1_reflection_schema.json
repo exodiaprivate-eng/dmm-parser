@@ -1,0 +1,39 @@
+{
+  "ResourceReferencePath_CharacterSkeleton": {
+    "fields": [],
+    "field_count": 0,
+    "files_observed_in": 502,
+    "first_observed_in": "p_003ab5edca66.json"
+  },
+  "ResourceReferencePath_SkinnedMesh": {
+    "fields": [
+      "_path"
+    ],
+    "field_count": 1,
+    "files_observed_in": 502,
+    "first_observed_in": "p_003ab5edca66.json"
+  },
+  "SceneObject": {
+    "fields": [
+      "_childSceneObjects",
+      "_components"
+    ],
+    "field_count": 2,
+    "files_observed_in": 502,
+    "first_observed_in": "p_003ab5edca66.json"
+  },
+  "SkinnedMeshComponent": {
+    "fields": [
+      "_boneOffsetTag",
+      "_modelPropertyIndex",
+      "_shrinkMaskDistance",
+      "_shrinkTag",
+      "_skeletonFileName",
+      "_skinnedMeshFile",
+      "_socketFileName"
+    ],
+    "field_count": 7,
+    "files_observed_in": 502,
+    "first_observed_in": "p_003ab5edca66.json"
+  }
+}
