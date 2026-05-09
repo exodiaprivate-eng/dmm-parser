@@ -1,10 +1,57 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-05-01 (GimmickInfo post-blob F20–F179 decoded via IDA)
+**Last updated**: 2026-05-08 (paatt typed BaseData merged + Session 19 reflection-symbol mining for nested AttackInfo structs)
 **Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
 
-> **Current state (2026-05-01 end-of-session):**
+> **Current state (2026-05-08 end-of-session):**
+> - PR #14 merged (`f96e17b` / `76d2a11`): paatt `BaseDataV0/V1/V2/V3`
+>   typed decoders shipped (60+ named fields in V0, plus typed throw /
+>   release-catch / catch-desc tails). Mod authors call
+>   `paatt_decode_base_data(version, data)` /
+>   `paatt_encode_base_data(version, fields)` from Python; the JSON
+>   shape carries every named field plus `_unkXXXX` placeholders for
+>   the still-unmapped wire positions. Round-trip byte-perfect on
+>   220/220 vanilla `.paatt` (13,789 AttackInfo records).
+> - Session 19 reflection-symbol mining (commits `272a11b` / `0ae24c9`):
+>   decompiled every zero-arg getter on the AttackInfo* class family
+>   in the Mac binary to recover **complete in-memory class layouts**
+>   (each getter is a single `return this+offset` ARM64 instruction):
+>     - `AttackInfoDataDesc`: 13 in-mem offsets confirmed; 8 C++ fields
+>       (`targetType`, `attackIndex`, `attackImpulseLevel`,
+>       `noCheckCollision`, `ignoreWhenHitAction`, `isSingleHitPosition`,
+>       `ignoreDefenceTypeFlag`, `attackDivideType`) confirmed real but
+>       wire-position TBD.
+>     - `AttackCommonDataDesc`: full 17 fields (was 12 in old estimate;
+>       the missed 5 include three bit-packed bools at byte 0x3D).
+>     - `AttackHitDataDesc`: full 8 fields with offsets.
+>   Six `BaseDataV0._unkXXXX` slots now have high-confidence rename
+>   candidates documented in `docs/PAATT_BASEDATA_FIELDS.md` (no
+>   renames yet — JSON shape held until the .paatt serializer iteration
+>   order is mapped).
+> - Doc surface refreshed: `docs/api.md` now has a dedicated
+>   ".paatt — typed AttackInfo BaseData (V0/V1/V2/V3)" section with a
+>   19-row most-commonly-edited field cheatsheet;
+>   `docs/MOD_AUTHOR_GUIDE.md` §12 .paatt example replaced with the
+>   typed-decode flow; `.paatt` Tier bumped 1.5 → 1.
+>
+> **Known still-blocked work:**
+> - .paatt wire→class mapping for the remaining `_unkXXXX` slots
+>   (~22 fields). Blocked on locating the in-game serializer that
+>   iterates the metaobject property table — bindProperty wrappers
+>   exist per field but the byte offset lives inside an inlined setter
+>   lambda, so static IDA analysis can't recover wire offsets directly.
+>   Next-pass approach: trace xrefs to the metaobject pointer storage
+>   at `0x107ed1a90` to find the .paatt loader; OR lift the existing
+>   PaattFile parser logic on a vanilla file with a debugger to
+>   observe call ordering.
+> - PR #14 docstring still calls TGPEHD "Tag 16 (0x10)" UNIMPLEMENTED;
+>   STATUS.md prior session-3 notes correctly identify these as
+>   `sub_141D7FF30` (no outer dispatcher tag) — the Rust decoder
+>   already covers them via `TriggerEventHandlerDataElement`. The
+>   PR #14 docstring is stale and should be reconciled.
+>
+> **Earlier state (2026-05-01 end-of-session):**
 > - **119 T1 / 0 T2 / 0 T1.5** — all 121 on-disk tables in the
 >   2026-4-24 dump have byte-perfect round-trip parsers.
 > - `gimmick_info` post-blob decoded via IDA (`sub_1410E6FC0`):
