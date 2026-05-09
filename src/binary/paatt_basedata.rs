@@ -28,7 +28,22 @@
 
 use std::io;
 
+use crate::json_shape::{
+    apply_v3_aliases, normalize_input_aliases, FieldAliasTable, JsonShape,
+};
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+
+/// Per-table v3-shape aliases for `BaseDataV0`.
+///
+/// Each entry is `(canonical_T0_name, v3_legacy_name)`. The `to_json_value`
+/// method emits canonical names; `to_json_value_shaped(JsonShape::V3)`
+/// post-processes the map to rename canonical → legacy. The
+/// `write_from_json` path normalizes incoming legacy → canonical so
+/// either name is accepted on input.
+///
+/// **Currently empty.** Populate as Tier-0 renames ship — each
+/// confirmed `_unkXXXX` → real-C++-name rename adds one entry here.
+pub const FIELD_ALIASES_V3: FieldAliasTable = &[];
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -747,8 +762,34 @@ impl ToJsonValue for BaseDataV0 {
     }
 }
 
+impl BaseDataV0 {
+    /// Emit JSON with the requested shape:
+    /// * `JsonShape::V3` — applies any v3-legacy renames from `FIELD_ALIASES_V3`.
+    ///   Until the alias table starts getting entries, this is byte-identical
+    ///   to `to_json_value()`.
+    /// * `JsonShape::V3_1` — emits canonical names verbatim (same as
+    ///   `to_json_value()` today).
+    pub fn to_json_value_shaped(&self, shape: JsonShape) -> serde_json::Value {
+        let mut v = self.to_json_value();
+        if shape == JsonShape::V3 {
+            if let Some(map) = v.as_object_mut() {
+                apply_v3_aliases(map, FIELD_ALIASES_V3);
+            }
+        }
+        v
+    }
+}
+
 impl WriteJsonValue for BaseDataV0 {
     fn write_from_json(w: &mut Vec<u8>, v: &serde_json::Value) -> io::Result<()> {
+        // Accept BOTH canonical and v3-legacy names on input. Normalize
+        // to canonical first so the per-field reads below find them under
+        // their authoritative names regardless of which shape the caller
+        // authored their JSON in.
+        let mut v_owned = v.clone();
+        normalize_input_aliases(&mut v_owned, FIELD_ALIASES_V3);
+        let v = &v_owned;
+
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "BaseDataV0: expected object",
         ))?;

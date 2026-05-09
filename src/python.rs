@@ -1541,15 +1541,30 @@ pub fn replace_cstring_at<'py>(
 /// For V4 the dict has only `{"version": 4, "base_data_b64": "..."}`.
 /// Pass the returned dict unmodified (or after editing named fields) to
 /// `paatt_encode_base_data` to get bytes back.
+///
+/// **shape** selects the JSON name set:
+/// * `"v3"` (default) — emits legacy `_unkXXXX` placeholder names.
+///   Existing DMM v3 mods are authored against these.
+/// * `"v3.1"` — emits canonical real-C++ field names from IDA. Use this
+///   when building a v3.1-aware consumer (e.g. DMM v2.0.0-beta).
+///
+/// `paatt_encode_base_data` accepts BOTH name sets on input regardless
+/// of which shape produced the dict, so authoring tools can switch
+/// freely.
 #[pyfunction]
+#[pyo3(signature = (version, data, shape=None))]
 pub fn paatt_decode_base_data<'py>(
     py: Python<'py>,
     version: u8,
     data: &[u8],
+    shape: Option<&str>,
 ) -> PyResult<Bound<'py, PyAny>> {
     use crate::binary::paatt_basedata::AttackInfoBaseData;
-    use crate::json_traits::ToJsonValue;
+    use crate::json_shape::JsonShape;
     use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+
+    let shape = JsonShape::from_str(shape.unwrap_or("v3"))
+        .map_err(PyValueError::new_err)?;
 
     let decoded = AttackInfoBaseData::decode(version, data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -1557,41 +1572,35 @@ pub fn paatt_decode_base_data<'py>(
     let dict = PyDict::new(py);
     dict.set_item("version", decoded.version())?;
 
-    match decoded {
-        AttackInfoBaseData::V0(v0) => {
-            let jv = v0.to_json_value();
-            let obj = jv.as_object().unwrap();
-            for (k, v) in obj {
-                let py_val = json_value_to_py(py, v)?;
-                dict.set_item(k, py_val)?;
-            }
-        }
-        AttackInfoBaseData::V1(v1) => {
-            let jv = v1.to_json_value();
-            let obj = jv.as_object().unwrap();
-            for (k, v) in obj {
-                let py_val = json_value_to_py(py, v)?;
-                dict.set_item(k, py_val)?;
-            }
-        }
-        AttackInfoBaseData::V2(v2) => {
-            let jv = v2.to_json_value();
-            let obj = jv.as_object().unwrap();
-            for (k, v) in obj {
-                let py_val = json_value_to_py(py, v)?;
-                dict.set_item(k, py_val)?;
-            }
-        }
-        AttackInfoBaseData::V3(v3) => {
-            let jv = v3.to_json_value();
-            let obj = jv.as_object().unwrap();
-            for (k, v) in obj {
-                let py_val = json_value_to_py(py, v)?;
-                dict.set_item(k, py_val)?;
-            }
-        }
+    // Build the JSON value via the existing per-version to_json_value, then
+    // project through the shape transform. The base-V0 alias table only
+    // touches V0-level field names; V1/V2/V3 trailing fields don't appear
+    // in the alias table and pass through unchanged regardless of shape.
+    use crate::json_traits::ToJsonValue;
+    let mut jv = match &decoded {
+        AttackInfoBaseData::V0(v0) => v0.to_json_value(),
+        AttackInfoBaseData::V1(v1) => v1.to_json_value(),
+        AttackInfoBaseData::V2(v2) => v2.to_json_value(),
+        AttackInfoBaseData::V3(v3) => v3.to_json_value(),
         AttackInfoBaseData::Raw { data, .. } => {
-            dict.set_item("base_data_b64", B64.encode(&data))?;
+            dict.set_item("base_data_b64", B64.encode(data))?;
+            return Ok(dict.into_any());
+        }
+    };
+
+    if shape == JsonShape::V3 {
+        if let Some(map) = jv.as_object_mut() {
+            crate::json_shape::apply_v3_aliases(
+                map,
+                crate::binary::paatt_basedata::FIELD_ALIASES_V3,
+            );
+        }
+    }
+
+    if let Some(obj) = jv.as_object() {
+        for (k, v) in obj {
+            let py_val = json_value_to_py(py, v)?;
+            dict.set_item(k, py_val)?;
         }
     }
 

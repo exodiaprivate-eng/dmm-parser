@@ -72,6 +72,37 @@
 >   CString "fx_pc_weapon_exp_b__logout.system.effect" at offset 596-639. Decoding
 >   requires IDA to locate variant-specific reader function. Commit: `f675521`.
 >
+> **2026-05-09 Session 24 (Tier 0 scaffolding shipped):** New JSON-shape
+> dispatch lets a single dmm-parser binary serve both DMM v3 and a
+> future v3.1 consumer (e.g. DMM v2.0.0-beta) in parallel. Mechanism:
+> `crate::json_shape::JsonShape::{V3, V3_1}` enum + per-table
+> `FIELD_ALIASES_V3` constants of `(canonical_name, v3_legacy_name)`
+> pairs. `to_json_value_shaped(shape)` projects canonical → legacy on
+> output when `shape == V3`; `write_from_json` normalizes legacy →
+> canonical on input regardless of shape, so either name set is
+> accepted. Currently a pure-scaffolding ship: every table's alias
+> table is empty, so default behavior is byte-identical to before.
+> Python: `paatt_decode_base_data(version, data, shape='v3' | 'v3.1')`.
+> Tests: 530 pass (+7 new json_shape unit tests, 0 regressions).
+>
+> **Tier 0 definition (added to the tier ladder):**
+> A table is **Tier 0** iff it is field-level (Tier 1 requirements) AND
+> every field has its IDA-confirmed real C++ name from the game binary.
+> Zero `_unkXXXX` placeholders remain. Tier 0 is the canonical "v3.1"
+> surface for any future mod-manager build.
+>
+> | Tier | Definition | Notes |
+> |---|---|---|
+> | **0** | Field-level + every name is the real C++ identifier | True v3.1; new |
+> | **1** | Field-level (typed, JSON-addressable). Names may be `_unkXXXX` placeholders. | What v3 mods are authored against |
+> | **1.5** | Sub-field opacity inside otherwise-T1 tables | Eliminated 2026-04-30 |
+> | **2** | Whole-tail opaque blob | Eliminated 2026-04-30 |
+>
+> Promotion path T1 → T0: rename each `_unk*` field to its IDA-confirmed
+> canonical name, add a `(canonical, _unkXXXX)` entry to the table's
+> `FIELD_ALIASES_V3` constant, ship. Existing v3 mods using the old name
+> keep working via the alias-tolerant input path.
+>
 > **2026-05-09 Session 22 update (pointcontrol wrapper-class confirmed):**
 > The 738-byte pointcontrol blob is an instance of
 > **`pa::SplineDecalComponent`** — the name itself ("spline decal" +

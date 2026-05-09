@@ -1614,6 +1614,25 @@ with open("weapon.paatt", "wb") as f:
     f.write(dmm_parser.serialize_paatt(parsed))
 ```
 
+**Optional `shape` parameter** (added 2026-05-09): selects the JSON name
+set the decoder emits.
+
+```python
+# Default — DMM v3 names. _unkXXXX placeholders preserved verbatim.
+fields = dmm_parser.paatt_decode_base_data(info["version"], raw)              # implicit shape='v3'
+fields = dmm_parser.paatt_decode_base_data(info["version"], raw, shape='v3')
+
+# DMM v2.0.0-beta / v3.1 — canonical real C++ names from the game binary.
+# Any field with a confirmed C++ name comes through under that name;
+# unmapped fields stay as `_unkXXXX`.
+fields = dmm_parser.paatt_decode_base_data(info["version"], raw, shape='v3.1')
+```
+
+`paatt_encode_base_data` accepts BOTH name sets on input regardless of
+which shape produced the dict — so a mod can be authored against either
+name set and round-trip cleanly. The two shapes are byte-identical
+through encode → decode; only the JSON keys differ.
+
 **Per-version dict shape** (every field is mutable; unrecognised positions
 keep their `_unkXXXX` placeholder name and round-trip identically):
 
