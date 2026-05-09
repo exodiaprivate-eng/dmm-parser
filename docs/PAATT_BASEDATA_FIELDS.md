@@ -187,42 +187,121 @@ fields (AttackCommonDataDesc + AttackHitDataDesc + AttackDelayDataDesc).
 
 This gives a constrained search space we can brute-force-validate.
 
-## Round-trip status (current)
+## Round-trip status (current — Session 17)
 
-`.paatt` is round-trip byte-perfect via `PaattFile::to_bytes()`
-(added Session 10) — BaseData is preserved verbatim as `Vec<u8>`.
-Mod authors can read every other field and the BaseData bytes; they
-just cannot YET set individual BaseData fields by name (would have
-to byte-edit the BaseData blob).
+`.paatt` is round-trip byte-perfect via `PaattFile::to_bytes()`.
 
-## Once per-byte offsets are known
+**`BaseDataV0` and `BaseDataV1` are now FIELD-DECODED** in
+`src/binary/paatt_basedata.rs`.  Mod authors can call
+`paatt_decode_base_data(version, data)` from Python to get a named-field
+dict, edit fields like `weapon_key`, `physic_impulse_power`, etc., then
+call `paatt_encode_base_data(version, fields)` to get bytes back.
 
-Convert `AttackInfo.base_data: Vec<u8>` into:
+### Confirmed V0 field offsets (264 bytes) — Session 17 state
 
-```rust
-pub enum AttackInfoBaseData {
-    V0(BaseDataV0),  // 264 bytes
-    V1(BaseDataV1),  // 528 bytes (V0 + AttackCatchDesc)
-    V2(BaseDataV2),  // 296 bytes (V0 + AttackThrow extra fields)
-    V3(BaseDataV3),  // 288 bytes (V0 + ReleaseCatch extra)
-    V4(BaseDataV4),  // 264 bytes (matches V0)
-}
+| Offset | Field | Type | Notes |
+|--------|-------|------|-------|
+| 0x0000 | `weapon_key` | u32 | Weapon/action hash; unique per record |
+| 0x0004 | `attack_dir` | u8 | 0=base, 1=catch, 3=release-catch |
+| 0x0005 | `_pad0005` | [u8;3] | Alignment |
+| 0x0008 | `attack_pos_offset` | [f32;3] | `AttackCommonDataDesc.AttackPosOffset` |
+| 0x0014 | `_unk_float3_0014` | [f32;3] | `AttackCommonDataDesc` unnamed float3 |
+| 0x0020 | `attack_degree` | f32 | `AttackCommonDataDesc.AttackDegree`; default ≈ 6.2832 (2π rad) |
+| 0x0024 | `attack_yaw` | f32 | `AttackCommonDataDesc.AttackYaw`; default 0.0 |
+| 0x0028 | `_unk_f32_0028` | f32 | `AttackCommonDataDesc` unnamed float |
+| 0x002c | `physic_impulse_power` | f32 | Vanilla default 1.0 |
+| 0x0030 | `physics_impulse_mass` | f32 | Vanilla default 1.0 |
+| 0x0034 | `attack_hit_check_type` | u16 | Enum; common value 4 |
+| 0x0036 | `hit_check_normal_str_idx` | u16 | `NormalStringIndex`; 0xffff=none; 0xffff@98% V0, always for V2/V3 |
+| 0x0038 | `repeat_degree_weight` | f32 | Vanilla default -1.0 |
+| 0x003c | `physics_impulse_velocity` | f32 | Vanilla default 0.0 |
+| 0x0040 | `ignore_safe_zone` | bool | + 3-byte pad |
+| 0x0044 | `attack_group_index` | u8 | Common value 1 |
+| 0x0045 | `repeat_count` | u8 | Common value 2; + 2-byte pad |
+| 0x0048 | `hit_effect_info_type` | u32 | Effect hash; 0xf177b780 most common |
+| 0x004c | `single_hit_pos_offset` | [f32;3] | `singleHitPositionOffset` XYZ; default (0,0,0); V2/V3 always zero |
+| 0x0058 | `_ds1_f0..f4` | f32×5 | `ActionChartFrameEvent_AttackDelayDataDesc` #1; f0=trigger time (s; 0.0/0.05/0.10), f1=blend/end (0.0/1.0), f2=secondary offset, f3=angle_rad (99.9% zero), f4=frame count (int; 0/6/9/11) |
+| 0x006c | `_pad_ds1` | [u8;4] | Always zero |
+| 0x0070 | `normal_string_index` | u16 | `AttackCommonDataDesc.NormalStringIndex`; V0: 0x0000 @70%; V2/V3: 0xffff (always) |
+| 0x0072 | `_unk0072` | bool | bool (B00@85% V0) |
+| 0x0073 | `_unk0073` | u8 | u8 enum (mode=1 @49% V0) |
+| 0x0074 | `_pad0074` | [u8;4] | Always zero |
+| 0x0078 | `_ds2_f0..f4` | f32×5 | `ActionChartFrameEvent_AttackDelayDataDesc` #2; f0-f3 identical to ds1 (98%+); f4 almost always 0.0 (non-zero: 1.1-1.53 scale) |
+| 0x008c | `_pad_ds2` | [u8;4] | Always zero |
+| 0x0090 | `_unk_f32_0090` | f32 | `AttackHitDataDesc.Degree` candidate; V0 mode=50.0; V2/V3=0.0 |
+| 0x0094 | `_pad0094` | [u8;8] | Always zero |
+| 0x009c | `_unk009c` | u8 | Attack-type enum; V0: mode=0; V2: 0x7a; V3: 0x5a |
+| 0x009d | `_pad009d` | [u8;3] | Always zero |
+| 0x00a0 | `_unk_f32_00a0` | f32 | `AttackHitDataDesc` unnamed float; usually 0.0 |
+| 0x00a4 | `_pad00a4` | [u8;4] | Always zero |
+| 0x00a8 | `_unk00a8` | u8 | `EquipSlotNameKey` candidate; V0 mode=12; V2/V3=23 |
+| 0x00a9 | `_pad00a9` | [u8;3] | Always zero |
+| 0x00ac | `_unk00ac` | [u8;4] | byte[0] u8 (≈0); byte[1] bool; bytes[2,3]=0 |
+| 0x00b0 | `_unk00b0` | u32 | Bitmask; 77.5% zero; 25 distinct; candidate: `excludeTargetTypeFlag` |
+| 0x00b4 | `single_hit_position_socket` | u16 | Socket name-table index; 0xffff=none |
+| 0x00b6 | `_pad00b6` | [u8;2] | Alignment |
+| 0x00b8 | `_unk00b8` | [u8;16] | Attack-type byte region; byte patterns differ by V0/V2/V3 |
+| 0x00c8 | `_unk00c8` | [u8;12] | Dense const/varying byte region (frame timing?) |
+| 0x00d4 | `_unk_f32_00d4` | f32 | Integer-valued f32; 5 distinct values; ≈0 |
+| 0x00d8 | `_pad00d8` | [u8;4] | Always zero |
+| 0x00dc | `_unk_f32_00dc` | f32 | ≈0.0; V2/V3 always 0; V0 sometimes non-zero |
+| 0x00e0 | `_unk_f32_00e0` | f32 | ≈0.0 |
+| 0x00e4 | `_unk_f32_00e4` | f32 | ≈0.0 |
+| 0x00e8 | `_unk00e8` | [u8;4] | byte[0]=CONST 1; byte[1]=bool; bytes[2,3]=0 |
+| 0x00ec | `_pad00ec` | [u8;4] | Always zero |
+| 0x00f0 | `hit_normal_string_index` | u16 | `AttackHitDataDesc.NormalStringIndex`; V0 often 1021 (0x03fd); V2/V3 often 0 |
+| 0x00f2 | `_pad00f2` | [u8;2] | Always zero |
+| 0x00f4 | `_unk00f4` | u8 | `AttackHitDataDesc` field 6 (unnamed u8); 1=no-rotation (pairs with hit_degree=0°); 5/2/6/4/3=rotation types |
+| 0x00f5 | `_pad00f5` | [u8;3] | Always zero |
+| 0x00f8 | `hit_data_str_idx` | u16 | `NormalStringIndex`; 0=none; 95%+ non-zero cases pair with attack_hit_check_type=4; V2/V3 always 0 |
+| 0x00fa | `_unk00fa` | bool | bool (99% false); likely `AttackHitDataDesc` field 7 (unnamed bool) |
+| 0x00fb | `_pad00fb` | u8 | Always zero |
+| 0x00fc | `_unk00fc` | u8 | `AttackHitDataDesc` field 7 candidate; 0=false (when _unk00f4=1); 1=true (rotation types) |
+| 0x00fd | `_pad00fd` | [u8;3] | Always zero |
+| 0x0100 | `hit_data_str_idx_b` | u16 | Secondary `NormalStringIndex`; 0=none; always co-present with `hit_data_str_idx`; values in same range (0x0450–0x046d) |
+| 0x0102 | `_pad0102` | [u8;2] | Always zero |
+| 0x0104 | `_unk0104` | u8 | u8; 4 values (98% zero); no clear correlation |
+| 0x0105 | `_pad0105` | [u8;3] | Always zero |
 
-pub struct BaseDataV0 {
-    pub attack_dir: u8,
-    pub weapon_key: u32,
-    pub target_type: u32,  // TargetType
-    pub attack_index: u8,
-    pub repeat_count: u8,
-    pub attack_hit_data: AttackHitDataDesc,
-    pub attacker_delay: AttackDelayDataDesc,
-    pub ignore_safe_zone: bool,
-    pub attack_common_data: AttackCommonDataDesc,
-    pub attack_divide_type: u32,
-    // ... etc, 25 fields total
-    pub _padding_or_unused: [u8; N],  // any leftover bytes
-}
-```
+V1 = V0 (264 bytes) + `catch_desc` blob (264 bytes).
 
-Each typed struct will round-trip byte-perfect against the existing
-13,789 vanilla AttackInfo records.
+## What the V2/V3 cross-version analysis confirmed (Session 14)
+
+Running per-version entropy across all 4 versions revealed:
+
+| Offset | V0 mode | V2 (throw) | V3 (rel-catch) | Interpretation |
+|--------|---------|------------|-----------------|----------------|
+| 0x004c–0x0057 | ≈0 (97%) | always 0 | almost 0 | `singleHitPositionOffset` ← **decoded** |
+| 0x0070–0x0071 | 0x0000 (70%) | 0xffff (always) | 0xffff (always) | `NormalStringIndex` (CommonData?) |
+| 0x0090 | 50.0 (68%) | 0.0 (always) | 0.0 (always) | `AttackHitDataDesc.Degree` candidate |
+| 0x009c | 0 (28%, 19 vals) | 0x7a (92%) | 0x5a (99%) | `AttackNameList` u8 candidate |
+| 0x00a8 | 12 (66%, 16 vals) | 23 (always) | 23 (always) | `EquipSlotNameKey` u8 candidate |
+| 0x00b8+3 | 5 (43%) | 5 (always) | 5 (89%) | unknown u8, consistent default |
+
+## Remaining decoding work
+
+1. `_unk0058`/`_unk0078` (0x0058–0x008f): two 24-byte delay sub-structs — confirm 5-float layout
+   - 0x0058–0x006b: 5 floats (likely `attackerDelay` sub-struct — V2 shows 0.01/1.0/0.0/x/0)
+   - 0x006c–0x006f: always-zero pad
+   - 0x0078–0x008b: second delay sub-struct (same pattern)
+   - 0x008c–0x008f: always-zero pad
+2. Sub-fields within blob regions still needing a name:
+   - `_unk0070`: confirm as `AttackCommonDataDesc.NormalStringIndex`
+   - `_unk0072`: confirm bool/enum split and field names
+   - `_unk009c`: confirm as `AttackNameList` or `HitRotationType`
+   - `_unk00a8`: confirm as `EquipSlotNameKey`
+   - `_unk00b0`: confirm as `excludeTargetTypeFlag` or `ignoreDefenceTypeFlag`
+   - `_unk00b8`/`_unk00c8`: 28-byte attack-type region — decode sub-bytes
+   - `_unk_f32_00d4`: identify field name (integer-valued float)
+   - `_unk_f32_00dc`/`_unk_f32_00e0`/`_unk_f32_00e4`: three adjacent floats — likely one struct member group
+   - `_unk00e8[1]`: confirm bool field name
+   - `_unk00f0`: confirm as `AttackHitDataDesc.NormalStringIndex`
+   - `_unk00f4`: confirm unnamed u8 field
+   - `_unk00f8`: decode u16 + bool sub-fields
+   - `_unk00fc`: identify u8 enum (8 values)
+   - `hit_data_str_idx_b`: secondary NormalStringIndex (resolved)
+   - `_unk0104`: identify u8 (4 values)
+3. `_unk0036` (0x0036): confirm as `NormalStringIndex` from `AttackHitDataDesc` (0xffff=none)
+4. AttackCatchDesc (V1 `catch_desc` blob, 264 bytes): decode field by field
+
+Use `examples/paatt_basedata_layout.rs` with per-version output to confirm field boundaries.

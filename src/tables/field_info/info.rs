@@ -109,7 +109,9 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/fieldinfo.pabgb";
+    // 2026-5-3 is the newest available dump; fieldinfo is still 122 B/record
+    // (identical to 5-1) so tests skip until always_call_vehicle_dev lands in wire format.
+    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-3/fieldinfo.pabgb";
 
     #[test]
     fn roundtrip() {

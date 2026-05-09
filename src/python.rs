@@ -8,7 +8,7 @@
 // (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyNone};
+use pyo3::types::{PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyNone, PyString};
 use pyo3::exceptions::{PyIOError, PyKeyError, PyValueError};
 
 use crate::binary::*;
@@ -1515,6 +1515,208 @@ pub fn replace_cstring_at<'py>(
     Ok(PyBytes::new(py, &result))
 }
 
+// ── .paatt BaseData typed decode/encode ────────────────────────────────────
+
+/// Decode a `.paatt` `BaseData` blob to a named-field dict.
+///
+/// **version** is the `AttackInfo.version` byte (0–4).
+/// **data** is the raw `base_data` bytes (264 / 528 / 296 / 288 / 264 bytes
+/// depending on version).
+///
+/// For V0 and V1 the returned dict has individual named fields:
+///   - `weapon_key` (int) — weapon hash key
+///   - `attack_dir` (int) — 0 = forward, 1 = catch direction
+///   - `physic_impulse_power` (float) — vanilla default 1.0
+///   - `physics_impulse_mass` (float) — vanilla default 1.0
+///   - `repeat_degree_weight` (float) — vanilla default -1.0
+///   - `ignore_safe_zone` (bool)
+///   - `single_hit_position_socket` (int) — 0xffff = no socket
+///   - `_unkXXXX_b64` (str) — undecoded regions as base64
+///   - V1 only: `catch_desc` (dict) — decoded AttackCatchDesc fields
+///
+/// For V2 (throw) the dict adds: `projectile_key` (int), `action_hash_code` (int),
+///   `frame_time` (float), `ai_event_key` (int), plus blob fields.
+/// For V3 (release-catch) the dict adds: `release_angle_rad` (float), `frame_time` (float),
+///   `_unk0110` (int), `_unk0114` (int), plus blob fields.
+/// For V4 the dict has only `{"version": 4, "base_data_b64": "..."}`.
+/// Pass the returned dict unmodified (or after editing named fields) to
+/// `paatt_encode_base_data` to get bytes back.
+#[pyfunction]
+pub fn paatt_decode_base_data<'py>(
+    py: Python<'py>,
+    version: u8,
+    data: &[u8],
+) -> PyResult<Bound<'py, PyAny>> {
+    use crate::binary::paatt_basedata::AttackInfoBaseData;
+    use crate::json_traits::ToJsonValue;
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+
+    let decoded = AttackInfoBaseData::decode(version, data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    let dict = PyDict::new(py);
+    dict.set_item("version", decoded.version())?;
+
+    match decoded {
+        AttackInfoBaseData::V0(v0) => {
+            let jv = v0.to_json_value();
+            let obj = jv.as_object().unwrap();
+            for (k, v) in obj {
+                let py_val = json_value_to_py(py, v)?;
+                dict.set_item(k, py_val)?;
+            }
+        }
+        AttackInfoBaseData::V1(v1) => {
+            let jv = v1.to_json_value();
+            let obj = jv.as_object().unwrap();
+            for (k, v) in obj {
+                let py_val = json_value_to_py(py, v)?;
+                dict.set_item(k, py_val)?;
+            }
+        }
+        AttackInfoBaseData::V2(v2) => {
+            let jv = v2.to_json_value();
+            let obj = jv.as_object().unwrap();
+            for (k, v) in obj {
+                let py_val = json_value_to_py(py, v)?;
+                dict.set_item(k, py_val)?;
+            }
+        }
+        AttackInfoBaseData::V3(v3) => {
+            let jv = v3.to_json_value();
+            let obj = jv.as_object().unwrap();
+            for (k, v) in obj {
+                let py_val = json_value_to_py(py, v)?;
+                dict.set_item(k, py_val)?;
+            }
+        }
+        AttackInfoBaseData::Raw { data, .. } => {
+            dict.set_item("base_data_b64", B64.encode(&data))?;
+        }
+    }
+
+    Ok(dict.into_any())
+}
+
+/// Encode a named-field dict (as returned by `paatt_decode_base_data`) back
+/// to raw `BaseData` bytes.
+///
+/// **version** must match the `version` field used when decoding.
+/// Returns the binary `base_data` bytes ready to replace `AttackInfo.base_data`.
+#[pyfunction]
+pub fn paatt_encode_base_data<'py>(
+    py: Python<'py>,
+    version: u8,
+    fields: &Bound<'py, PyDict>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    use crate::binary::paatt_basedata::{BaseDataV0, BaseDataV1, BaseDataV2, BaseDataV3};
+    use crate::json_traits::WriteJsonValue;
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+
+    // Convert the Python dict to a serde_json::Value so we can use WriteJsonValue.
+    let json_val = py_dict_to_json_value(fields)?;
+
+    let bytes = match version {
+        0 => {
+            let mut w = Vec::new();
+            BaseDataV0::write_from_json(&mut w, &json_val)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            w
+        }
+        1 => {
+            let mut w = Vec::new();
+            BaseDataV1::write_from_json(&mut w, &json_val)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            w
+        }
+        2 => {
+            let mut w = Vec::new();
+            BaseDataV2::write_from_json(&mut w, &json_val)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            w
+        }
+        3 => {
+            let mut w = Vec::new();
+            BaseDataV3::write_from_json(&mut w, &json_val)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            w
+        }
+        _ => {
+            // Raw pass-through: expect base_data_b64 key.
+            let b64_str = fields
+                .get_item("base_data_b64")
+                .map_err(|e| PyValueError::new_err(e.to_string()))?
+                .ok_or_else(|| PyValueError::new_err(
+                    "paatt_encode_base_data: raw version requires 'base_data_b64' key",
+                ))?;
+            let s: String = b64_str.extract()
+                .map_err(|e| PyValueError::new_err(format!("base_data_b64: {}", e)))?;
+            B64.decode(&s).map_err(|e| PyValueError::new_err(format!("base64 decode: {}", e)))?
+        }
+    };
+    let _ = py;
+    Ok(PyBytes::new(py, &bytes))
+}
+
+/// Convert a Python dict to serde_json::Value (handles nested dicts for catch_desc etc.).
+fn py_dict_to_json_value(dict: &Bound<'_, PyDict>) -> PyResult<serde_json::Value> {
+    let mut map = serde_json::Map::new();
+    for (k, v) in dict.iter() {
+        let key: String = k.extract()?;
+        let jv = if v.is_instance_of::<PyBool>() {
+            let b: bool = v.extract()?;
+            serde_json::Value::Bool(b)
+        } else if v.is_instance_of::<PyInt>() {
+            let n: i64 = v.extract().unwrap_or_else(|_| { let u: u64 = v.extract().unwrap_or(0); u as i64 });
+            serde_json::Value::Number(n.into())
+        } else if v.is_instance_of::<PyFloat>() {
+            let f: f64 = v.extract()?;
+            serde_json::Value::Number(
+                serde_json::Number::from_f64(f)
+                    .unwrap_or_else(|| serde_json::Number::from(0i64)),
+            )
+        } else if v.is_instance_of::<PyString>() {
+            let s: String = v.extract()?;
+            serde_json::Value::String(s)
+        } else if let Ok(d) = v.cast::<PyDict>() {
+            py_dict_to_json_value(d)?
+        } else {
+            serde_json::Value::Null
+        };
+        map.insert(key, jv);
+    }
+    Ok(serde_json::Value::Object(map))
+}
+
+/// Convert a serde_json::Value to a Python object.
+fn json_value_to_py<'py>(py: Python<'py>, v: &serde_json::Value) -> PyResult<Bound<'py, PyAny>> {
+    Ok(match v {
+        serde_json::Value::Bool(b) => PyBool::new(py, *b).to_owned().into_any(),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_u64() {
+                i.into_pyobject(py)?.into_any()
+            } else if let Some(i) = n.as_i64() {
+                i.into_pyobject(py)?.into_any()
+            } else {
+                n.as_f64().unwrap_or(0.0).into_pyobject(py)?.into_any()
+            }
+        }
+        serde_json::Value::String(s) => s.clone().into_pyobject(py)?.into_any(),
+        serde_json::Value::Object(obj) => {
+            let d = PyDict::new(py);
+            for (k, val) in obj {
+                d.set_item(k, json_value_to_py(py, val)?)?;
+            }
+            d.into_any()
+        }
+        serde_json::Value::Array(arr) => {
+            let items: PyResult<Vec<_>> = arr.iter().map(|val| json_value_to_py(py, val)).collect();
+            PyList::new(py, items?)?.into_any()
+        }
+        serde_json::Value::Null => py.None().into_bound(py).into_any(),
+    })
+}
+
 // ── Registration ───────────────────────────────────────────────────────────
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1601,5 +1803,7 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(write_paschedulepath_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paatt_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(write_paatt_to_file, m)?)?;
+    m.add_function(wrap_pyfunction!(paatt_decode_base_data, m)?)?;
+    m.add_function(wrap_pyfunction!(paatt_encode_base_data, m)?)?;
     Ok(())
 }

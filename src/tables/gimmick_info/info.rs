@@ -528,7 +528,7 @@ py_binary_struct! {
     }
 }
 
-// F126/F127 element: u8+u32+u8+u8+U32x10+u64+u32+u8×5+u32+u32+u8+u32.
+// F126/F127 element: u8+u32+u8+u8+U32x10+u64+u32+u8×5+u32+u32+u8+u32+u32.
 py_binary_struct! {
     pub struct GimmickF126Elem {
         pub a: u8,
@@ -543,6 +543,7 @@ py_binary_struct! {
         pub i: u32,
         pub j: u8,
         pub k: u32,
+        pub l: u32,
     }
 }
 
@@ -673,9 +674,9 @@ py_binary_struct! {
 ///   u64(→+120) · u8 type_tag(→+112) · u32(→+4) · u32(→+6) · u32(→+8) ·
 ///   u32(→+12)  · u64(→+16) · u32(→+24) · u64(→+32) · u64(→+40) ·
 ///   u64(→+48)  · u16(→+56) · variant(→+64):
-///     type ∈ {0,1,2,3,9}: u32 hash (4 bytes)
-///     type 0xB           : nothing (0 bytes)
-///     other              : unimplemented (parse fails → falls back to post_blob)
+///     type ∈ {0,1,2,3,4,9}: u32 hash (4 bytes)
+///     type 0xB            : nothing (0 bytes)
+///     other               : unimplemented (parse fails → falls back to post_blob)
 #[derive(Debug)]
 pub struct GimmickF76Inner {
     pub f120:     u64,
@@ -709,7 +710,7 @@ impl<'a> BinaryRead<'a> for GimmickF76Inner {
         let f48      = u64::read_from(data, offset)?;
         let f56      = u16::read_from(data, offset)?;
         let f64_hash = match type_tag {
-            0..=3 | 9 => Some(u32::read_from(data, offset)?),
+            0..=4 | 9 => Some(u32::read_from(data, offset)?),
             0xB       => None,
             t => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("GimmickF76Inner: unknown type_tag=0x{:02X}", t))),
@@ -789,7 +790,7 @@ impl WriteJsonValue for GimmickF76Inner {
         u16::write_from_json(w, json_get_field(obj, "f56")?)?;
         let hash_v = json_get_field(obj, "f64_hash")?;
         match type_tag {
-            0..=3 | 9 => u32::write_from_json(w, hash_v)?,
+            0..=4 | 9 => u32::write_from_json(w, hash_v)?,
             0xB       => {},
             t => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("GimmickF76Inner: unknown type_tag=0x{:02X}", t))),
@@ -843,7 +844,7 @@ impl crate::python_traits::WritePyValue for GimmickF76Inner {
         u16::write_from_py(w, &py_get_field(d, "f56")?)?;
         let hash_field = py_get_field(d, "f64_hash")?;
         match type_tag {
-            0..=3 | 9 => u32::write_from_py(w, &hash_field)?,
+            0..=4 | 9 => u32::write_from_py(w, &hash_field)?,
             0xB       => {},
             t => return Err(pyo3::exceptions::PyValueError::new_err(
                 format!("GimmickF76Inner: unknown type_tag=0x{:02X}", t))),

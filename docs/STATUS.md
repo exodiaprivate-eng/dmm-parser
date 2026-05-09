@@ -15,58 +15,62 @@
 >   ✅ T1. Only EquipInfo and MercenaryGroupInfo remain as P (not in
 >   the current game dump).
 >
-> **Local-only commits** — per user directive, do NOT push until all
-> tables are field-level parsed. The remote `origin/main` is currently
-> behind local `main`. Other instances (B, C) should rebase against
-> local main only when explicitly synced; do not pull from origin until
-> the user gives the go-ahead.
+> **2026-05-01 session 6 results (variant analysis):**
+> - Added `variant_diag` test: maps all 2446 post_body=None entries by prefab prefix
+>   and max_blob. Identified 48 distinct gimmick variant groups needing IDA work.
+> - Added `generated_blob_diag` test: characterized the 1833 `generated__/pointcontrol`
+>   entries (738-byte fixed-size blobs). 1713/1833 bitwise-identical (default config);
+>   only bytes 281-284 vary (likely a spline segment ID u32, values ≤ 0x1b45,
+>   non-default only in `abyssislandpipe_0018_phase00_00` entries). Blob contains
+>   CString "fx_pc_weapon_exp_b__logout.system.effect" at offset 596-639. Decoding
+>   requires IDA to locate variant-specific reader function. Commit: `f675521`.
 >
-> Per-tag verification template (Win-IDA derived), see commits
-> `8f01078` tag 174, `47c1697` tag 19, prior tag 27 reapply. Lookup
-> pattern (vtable starts at the matching `??_7ConditionData_<Name>@pa@@6B@`
-> RTTI symbol):
+> **2026-05-01 session 5 results (clippy clean + ceiling audit):**
+> - Fixed all 67 clippy warnings in `gimmick_info/info.rs` (`77e325c`):
+>   46 `///` → `//` on `py_binary_struct!` invocations; deleted dead
+>   `EmptyCArray`/`AbsentCOptional` types (all deferred fields resolved);
+>   removed 3 unused imports; fixed 14 needless-borrow patterns; added
+>   `#[allow(clippy::large_enum_variant)]` to `GimmickTail`.
+> - IDA audit of `sub_1410E6FC0`: all sub-function calls from a2+224 to
+>   a2+1444 map to existing GimmickPostBody fields. Last reads confirmed:
+>   `sub_1410E6A20` = F170 (u32+u64+CArray<{u64,u32}>);
+>   `sub_1411006D0` = F179 (u32 wire → u16 table lookup).
+>   post_blob is provably empty for all 9947 with_body entries.
+>
+> **2026-05-01 session 4 results (GimmickInfo post_blob F76–F130):**
+> - F76/F77 (`sub_141600210`): tagged optional struct, variant inner on type_tag.
+>   with_body 9128 → **9688** (+560). Commits: `5455a64`.
+> - F79 (`sub_141111CD0`): 80-byte inner, `CArray<CString>×2 + CBytes×2`.
+>   Adds `CBytes<'a>` type (u32 len + raw bytes, no UTF-8). `33144f2`.
+>   with_body → **9830** (+142).
+> - F87/F88 (`sub_141105260`/`sub_141105390`): 128/232-byte inner elements,
+>   hash strings, lookup scalars, optional sub-structs. `10c08a0`.
+>   with_body → **9947** (+117).
+> - F130 (`sub_1410E5E40`): last `EmptyCArray` deferred field; 6 structs
+>   covering optional polymorphic body (`sub_1410F2F90`). `b11df24`.
+>   count=0 in all current data; implementation correct for future data.
+> - **Total uplift this session: 9128 → 9947 (+819).**
+>
+> **2026-05-01 session 3 results (GimmickInfo TGPEHD + post_blob start):**
+> - `gimmick_info`: field-19 `alt_trigger_count/flag/name` prefix extracted; 12399 entries, all round-trip.
+> - The 1317 "tag-16" entries fully decoded: sub_1411125E0 uses sub_141D7FF30
+>   (no outer tag) — low byte of u32 BString length was misread as tag.
+>   gimmick_info with_body: ~0 → **9128** after TGPEHD + alt_trigger + post_blob start.
+>
+> **2026-04-30 session 2 results:**
+> - `interaction_info`: Decoded 248 → **363** (+115), Raw 115 → **0** (100% drop). **100% typed.**
+> - `condition_info`: 8918 / 8934 Decoded (99.82%). (Bumped from 99.78% by Mac-IDA recipe fixes for tags 54/214.)
+> - 13 ConditionData tag recipes touched: 7, 19, 27, 29, 54, 99, 116,
+>   135, 174, 358, 360, 370, 393.
+> - **QuestInfo Tier 1.5 → Tier 1** via `6cdc22c` (FilterCondition family decoder).
+> - **5 family decoders restructured** from `src/binary/` into `src/binary/variants/` (`12dd29e`).
+> - **Methodology breakthrough**: tag 54/214 vtables are anti-disasm stripped in the Win binary but intact in the Mac binary. Itanium ABI shifts vtable slots by +1 vs MSVC: Mac `vfn[17]` = body reader (vs Win `vfn[16]`). Details in `5fa0b06`.
+>
+> ConditionData vtable lookup pattern for future tag verification:
 >   - `vtable[16] = 0x141C9A550 → sub_14F18E780` reads 1 byte → `OneByteBodyPayload`
 >   - `vtable[16] = 0x1402D3A80` is no-op `return 1` → unit variant
 >   - `vtable[19] = 0x141C8D560` is standard option_block reader → NOT in skip-list
 >   - `vtable[19] = 0x1402D3A80` is no-op → IS in skip-list
->
-> Empirical guard: each fix must keep `cargo test --lib` at 308 pass
-> (was 304 before lane-b's diagnostic modules merged) AND not REDUCE
-> `interaction_info::roundtrip` decoded count. Tag 135
-> initially regressed in isolation (313 → 294 decoded); resolved by
-> retrying AFTER upstream tags (174, 99, 27, etc.) had cleaned up tree
-> alignment. **Final state: tag 135 with 1-byte body + standard option,
-> matches IDA.** Lesson: tag fixes have ordering dependencies because
-> upstream over/under-consumption corrupts downstream alignment.
->
-> **Session results (2026-04-30):**
-> - `interaction_info`: Decoded 248 → **363** (+115), Raw 115 → **0** (100% drop). **100% typed.**
-> - `condition_info`: 8918 / 8934 Decoded (99.82%); diagnostic counter added. (Bumped from 99.78% by the Mac-IDA recipe fixes for tags 54/214.)
-> - `gimmick_info`: 12393 / 12399 Decoded (99.95%).
-> - 13 ConditionData tag recipes touched: 7, 19, 27, 29, 54, 99, 116,
->   135, 174, 358, 360, 370, 393. Tag 54 was a best-effort u32-body
->   upgrade (`19d370c`) — byte-perfect but doesn't reduce the histogram.
-> - Catalog: **92 T1 / 0 T2** (3 stale T2s promoted).
-> - **QuestInfo Tier 1.5 → Tier 1** via `6cdc22c` (lane-c wired
->   FilterCondition family decoder shipped by lane-b in `2e416b4`).
-> - **5 family decoders restructured** from `src/binary/` into
->   `src/binary/variants/` for consistency (`12dd29e`).
-> - `[u8; N]` audit complete (1 remaining is genuinely opaque single 16-byte xmmword read per IDA).
-> - ~~Remaining 3 interaction_info Raw entries~~ — ✅ all cleared via
->   `171a00e` (tag 54 → TwoU32BodyPayload, tag 214 → new
->   CheckExistStealItemPayload struct). interaction_info is now 100%
->   Decoded.
-> - **Methodology breakthrough**: tag 54/214 vtables are anti-disasm
->   stripped in the Win binary but **intact in the Mac binary**
->   (CrimsonDesert_Steam.app). Itanium ABI uses TWO destructor slots
->   vs MSVC's one, shifting virtual slots by 1: Mac `vfn[17]` = body
->   reader (vs Win `vfn[16]`). Verified against tag 7 (Win-known)
->   matching Mac's vfn[17]. Recipe details landed in `5fa0b06`.
-> - **No remaining internal-Tier-1.5 sub-fields**: GimmickInfo `post_blob`
->   was unblocked when TGPEHD decoder shipped (`1fc44e8`); GimmickInfo
->   wires `trigger_event_handler_list: Option<CArray<OptionalTriggerGamePlayEventHandlerData>>`.
->   QuestInfo's `quest_dialog_filter_data_list_blob` was unblocked
->   earlier (`6cdc22c`) via the FilterCondition family decoder.
 
 This file is for collaborators picking up round-trip work. It's the
 "where are we, what's next" snapshot. For per-table specs see
@@ -382,11 +386,11 @@ variants typed (dispatch_tag u8 + per-tag body), wrapped in
 | **FilterCondition** family | ✅ FULLY SHIPPED — `binary::variants::filter_condition` covers FilterCondition (sub_141D8F740) + 8 sub-readers (FilterDataElement, FilterDataElementInner, FilterDataNamed, FilterDataF3F00, FilterDataF3D00, FilterDataB710, HashU64Pair, etc.). QuestInfo wired via `6cdc22c` (lane-c, 2026-04-30). | QuestInfo `_questDialogFilterDataList` — Tier 1 |
 
 ### Tables by tier
-- **Tier 1** (typed, all fields editable through JSON): all 92 on-disk
+- **Tier 1** (typed, all fields editable through JSON): all 119 on-disk
   tables in the catalog — see `docs/449_TABLE_CATALOG.md` for the
-  per-table list. ConditionInfo (commit `9f1be1d`), then EffectInfo,
-  CharacterInfo, MiniGameDataInfo, EquipSlotInfo and others have all
-  joined this tier in 2026-04-30 work.
+  per-table list. All 121 tables in the 2026-4-24 dump have byte-perfect
+  round-trip parsers (119 fully T1 in catalog; 2 absent from catalog
+  because their pabgb files are not in the current dump).
 - **Tier 1.5** (sub-field opacities inside otherwise-T1 tables):
   **None remaining.** Both prior blockers resolved on 2026-04-30:
   QuestInfo's `quest_dialog_filter_data_list` via FilterCondition
