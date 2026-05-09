@@ -258,17 +258,22 @@ pub struct BaseDataV0 {
     pub attack_dir: u8,
     pub _pad0005: [u8; 3],
 
-    /// `AttackCommonDataDesc.AttackPosOffset` — world-space origin of the attack hitbox.
+    /// `AttackCommonDataDesc.attackOffset` — world-space origin of the attack hitbox
+    /// (Mac binary names this `attackOffset`; older WIN-IDA notes used `AttackPosOffset`).
     pub attack_pos_offset: [f32; 3],
     /// `AttackCommonDataDesc` unnamed float3 (purpose TBD from further analysis).
+    /// Session 19 IDA candidate: `attackBoxSize` — the next 12-byte field after
+    /// `attackOffset` in the C++ class. See `docs/PAATT_BASEDATA_FIELDS.md`.
     pub _unk_float3_0014: [f32; 3],
-    /// `AttackCommonDataDesc.AttackDegree` — angular width of the attack arc in radians.
-    /// Vanilla default ≈ 6.2832 (2π = 360°, full-circle hitbox).
+    /// `AttackCommonDataDesc.attackAngle` — angular width of the attack arc in radians.
+    /// Vanilla default ≈ 6.2832 (2π = 360°, full-circle hitbox). Mac C++ name is
+    /// `attackAngle`; older WIN-IDA notes used `AttackDegree`.
     pub attack_degree: f32,
-    /// `AttackCommonDataDesc.AttackYaw` — yaw rotation of the attack arc (radians).
+    /// `AttackCommonDataDesc.attackYaw` — yaw rotation of the attack arc (radians).
     /// Vanilla default 0.0.
     pub attack_yaw: f32,
     /// `AttackCommonDataDesc` unnamed float (purpose TBD).
+    /// Session 19 IDA candidate: `innerAttackLength` (next f32 after `attackYaw`).
     pub _unk_f32_0028: f32,
 
     /// Scales the physics impulse applied to the target.  Vanilla default: 1.0.
@@ -336,13 +341,18 @@ pub struct BaseDataV0 {
     pub _ds2_f3: f32,
     pub _ds2_f4: f32,
     pub _pad_ds2: [u8; 4],
-    /// `AttackHitDataDesc.Degree` — hit arc width in degrees. V0 mode 50.0; V2/V3 always 0.0.
+    /// `AttackHitDataDesc.hitRotationAngle` — hit arc width in degrees. V0 mode 50.0;
+    /// V2/V3 always 0.0. Mac C++ name is `hitRotationAngle`; field stays as
+    /// `hit_degree` for backwards compatibility (rename pending serializer-order
+    /// confirmation).
     pub hit_degree: f32,
     pub _pad0094: [u8; 8],
-    /// `AttackHitDataDesc.HitRotationType` enum. V0 mode=0; V2=0x7a (122); V3=0x5a (90).
+    /// `AttackHitDataDesc.hitRotationType` enum. V0 mode=0; V2=0x7a (122); V3=0x5a (90).
     pub hit_rotation_type: u8,
     pub _pad009d: [u8; 3],
     /// Likely `AttackHitDataDesc` unnamed float. Usually 0.0.
+    /// Session 19 IDA candidate: `pushSpeed` — the next f32 after `hitRotationAngle`
+    /// in the C++ class layout (in-mem 0x10), tracking knockback velocity.
     pub _unk_f32_00a0: f32,
     pub _pad00a4: [u8; 4],
     /// `AttackCommonDataDesc.EquipSlotNameKey` enum. V0 mode=12; V2/V3 always 23.

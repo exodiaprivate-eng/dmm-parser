@@ -87,36 +87,61 @@ AttackInfo_AttackCatch       — base + AttackCatchDesc (~264 bytes)
 AttackInfo_ReleaseCatch      — base + (TBD; ~24 bytes extra)
 ```
 
-## `AttackCommonDataDesc` fields (12 fields)
+## `AttackCommonDataDesc` fields (17 fields, Mac-IDA confirmed)
 
-From `_ZN2pa20AttackCommonDataDesc...` symbols. Field types:
+Recovered Session 19 by decompiling every `__ZNK2pa20AttackCommonDataDesc...get_<field>Ev` getter
+in the Mac binary (each is a single `return this+offset` instruction).
+Earlier "12 fields" estimate from setter/getter symbol counting missed the
+three bit-packed bools and the equipSlot/attackNameCount group. **In-memory
+offsets, NOT wire offsets** (Pearl Abyss serializes via metaobject iteration).
 
-| Field | Type |
-|---|---|
-| `AttackPosOffset` | float3 (custom toString) |
-| (unnamed float3) | float3 |
-| `AttackDegree` | f32 (DegreeToString) |
-| `AttackYaw` | f32 (DegreeToString) |
-| (unnamed float) | f32 |
-| `AttackHitType` | enum |
-| (3× bool bitfield) | bool×3 (bit-packed) |
-| `AttackPositionType` | enum |
-| `NormalStringIndex` | u16 |
-| `AttackNameList` | u8 |
-| `EquipSlotNameKey` | enum |
-| (unnamed i32) | i32 |
+| In-mem offset | Field | C++ type | Wire-position candidate (BaseDataV0) |
+|---|---|---|---|
+| 0x00 (0) | `attackOffset` | float3 (12 B) | wire 0x08 — `attack_pos_offset` ✅ |
+| 0x0C (12) | `attackBoxSize` | float3 (12 B) | wire 0x14 — currently `_unk_float3_0014` |
+| 0x18 (24) | `attackAngle` | f32 | wire 0x20 — `attack_degree` ✅ |
+| 0x1C (28) | `attackYaw` | f32 | wire 0x24 — `attack_yaw` ✅ |
+| 0x20 (32) | `innerAttackLength` | f32 | wire 0x28 — currently `_unk_f32_0028` |
+| 0x24 (36) | `impulseLengthScale` | f32 | wire 0x2C — currently `physic_impulse_power` (PR #14 named — verify rename?) |
+| 0x28 (40) | `impulseAngleScale` | f32 | wire 0x30 — currently `physics_impulse_mass` (verify rename?) |
+| 0x2C (44) | `hitType` | enum (u8) | wire 0x34 — currently `attack_hit_check_type` (verify u16 vs u8) |
+| 0x2D (45) | `attackPositionType` | u8 | unmapped |
+| 0x2E (46) | `attackPositionBone` | u16 (2 B) | unmapped (string-table key?) |
+| 0x30 (48) | `detectEventDistance` | f32 | unmapped |
+| 0x34 (52) | `equipSlotNameKey` | enum (u8) | wire 0x00a8 — `equip_slot_name_key` ✅ |
+| 0x38 (56) | `equipSlotIndex` | u8 | unmapped |
+| 0x3C (60) | `attackNameCount` | u8 | unmapped |
+| 0x3D (61) bit0 | `ignoreDecreaseEndurance` | bool | unmapped (rare-true bool) |
+| 0x3D (61) bit1 | `checkBackGroundHit` | bool | unmapped (rare-true bool) |
+| 0x3D (61) bit2 | `isUseReserveSlot` | bool | unmapped (rare-true bool) |
 
-## `AttackHitDataDesc` fields (7 fields)
+⚠️ The `physic_impulse_power` / `physics_impulse_mass` rename candidacy
+needs double-checking — the wire-offset adjacency strongly suggests
+`impulseLengthScale` / `impulseAngleScale`, but the contributor named
+them from empirical defaults of 1.0 (which would also match length/angle
+scale defaults). Either name is functionally consistent. Hold off on
+renaming until the .paatt serializer iteration order is mapped.
 
-| Field | Type |
-|---|---|
-| `attackerDelay` | `ActionChartFrameEvent_AttackDelayDataDesc` |
-| `HitRotationType` | enum |
-| `Degree` | f32 (DegreeToString) |
-| (unnamed float) | f32 |
-| `NormalStringIndex` | u16 |
-| (unnamed u8) | u8 |
-| (unnamed bool) | bool |
+## `AttackHitDataDesc` fields (8 fields, Mac-IDA confirmed)
+
+| In-mem offset | Field | C++ type | Wire-position candidate |
+|---|---|---|---|
+| 0x00 (0) | `attackeeDelay` | nested struct (12 B) | wire 0x58–0x6f — currently `_ds1_*` (5 floats) |
+| 0x0C (12) | `hitRotationAngle` | f32 | wire 0x90 — currently `hit_degree` (rename candidate; "Degree" was a guess, the C++ name is `hitRotationAngle`) |
+| 0x10 (16) | `pushSpeed` | f32 | wire 0xA0 — currently `_unk_f32_00a0` (strong candidate) |
+| 0x14 (20) | `maxPushAngleRange` | f32 | wire 0xD4 / 0xDC / 0xE0 / 0xE4 — currently `_unk_f32_*` (one of these four) |
+| 0x18 (24) | `ragdollPresetName` | u16 (2 B) | unmapped (string-table key) |
+| 0x1A (26) | `hitRotationType` | enum (u8) | wire 0x9C — currently `hit_rotation_type` ✅ |
+| 0x1B (27) | `hitPower` | u8 | wire 0xF4 — currently `_unk00f4` (candidate) |
+| 0x1C (28) | `pushWithBoneVelocity` | bool | wire 0xFA / 0xFC — currently `_unk00fa` or `_unk00fc` |
+
+**High-confidence wire-mapping deltas** to apply *if* the serializer order is
+later proven:
+- `_unk_float3_0014` → `attack_box_size`
+- `_unk_f32_0028` → `inner_attack_length`
+- `_unk_f32_00a0` → `push_speed`
+- `_unk00f4` → `hit_power`
+- `hit_degree` → `hit_rotation_angle` (rename of an already-named field)
 
 ## IDA reference addresses
 
