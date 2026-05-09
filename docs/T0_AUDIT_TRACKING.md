@@ -226,6 +226,36 @@ Coverage: 113 of 122 tables. The 9 remaining have zero extracted
 fields (the script's regex couldn't find a main struct or all fields
 are placeholders) — they round-trip identically regardless of shape.
 
+### Session 28 iter 5 — AttackCommonData hits structural blocker (no metaobject registrar on Win)
+
+Win-binary verification ATTEMPTED for `pa::AttackCommonData` (17 fields
+per Session 22 Mac findings). Result: **same structural blocker as
+the *Info tables**.
+
+Evidence:
+- `AttackCommonData` typeinfo string at 0x144c3ebf0 has exactly 1 xref:
+  `sub_141957EC0` (the AttackInfoDataDesc parent registrar) — registering
+  AttackCommonData as a sub-property, not as its own metaobject.
+- `_attackCommonData` string at 0x144c3ec68 has 3 xrefs: 2 small setters
+  + the same parent registrar. No standalone bindProperty registrar.
+- Field-name strings like `_damageType` and `_damagePercent` exist in
+  `.rdata` but **only** as error-message fragments with a leading space
+  (`" _damageType"`, `" _damagePercent"`) — NOT as bare property
+  literals. This is the *Info-table pattern, not the EmitterCurveData/
+  SplineDecalComponent pattern.
+
+Conclusion: AttackCommonData fields are parsed by hand-written
+deserializers, not registered via metaobject. The Win-binary recipe
+does not apply.
+
+paatt_basedata.rs already has Korean-error-derived snake_case names for
+several AttackCommonData fields (`attack_pos_offset`, `attack_degree`,
+`attack_yaw`, `normal_string_index`, `equip_slot_name_key` per existing
+doc comments) — same mechanical-translation situation as the *Info
+tables. Could ship a v3.1 surface for paatt_basedata.rs in a future
+pass by extending `scripts/generate_v3_1_aliases.py` to walk
+`src/binary/paatt*.rs`, but that's separate from strict-T0 IDA work.
+
 ### Session 28 iter 4 — SplineDecalComponent enumerated (info only, no decode in dmm-parser)
 
 Win-binary recipe applied to SplineDecalComponent registrar at
