@@ -202,6 +202,53 @@ exists, plus the gap-fill setter-decompile work to surface wire
 positions for the 6 remaining AttackInfoDataDesc fields. Both are
 real progress; the table catalog stays at pragmatic-T0 per Session 25.
 
+### ✅ Session 28 — bulk v3.1 alias surface for *Info tables (commit 9e29e10)
+
+Pivot accepted. Rather than wait on per-class IDA work for 113
+*Info tables, the existing snake_case Rust struct fields are
+mechanically translated to `_camelCase` and shipped behind a v3.1
+alias table per-table.
+
+**Why mechanical conversion is sound for *Info tables:** the
+existing snake_case names were derived from IDA decompile of
+Korean error strings inside parse functions during the Tier 1
+promotion pass. Those identifiers ARE the canonical C++ names
+with the underscore-camelCase convention flipped (`_camelCase` →
+`snake_case`). External evidence: the FemaleAnimations.json mod
+in `Crimson Desert/bin64/` references names like `_skeletonName`,
+`_gender`, `_defaultActionActionIndex` which map exactly to
+dmm-parser's `skeleton_name`, `gender`, `default_action_action_index`.
+
+The v3.1 surface is opt-in via `shape="v3.1"` on
+`parse_table` / `serialize_table`. v3 mods see zero diff.
+
+Coverage: 113 of 122 tables. The 9 remaining have zero extracted
+fields (the script's regex couldn't find a main struct or all fields
+are placeholders) — they round-trip identically regardless of shape.
+
+### Session 28 iter 3 — EmitterCurveData enumerated (info only, no decode in dmm-parser)
+
+Win-binary recipe applied to `pa::EmitterCurveData` registrar at
+`sub_142C228D0` (0x5f4 bytes) + sibling `sub_15414B890` (registers
+the 4th field). All 4 properties recovered:
+
+| Property | Type | In-mem offset |
+|---|---|---|
+| `_splineID` | uint32 | +40 |
+| `_splineTextureIndex` | uint32 | +44 |
+| `_splineData` | uint16 vector (capacity 4096) | +0 (buffer base) |
+| `_presetName` | staticstringA | +48 |
+
+**No renames shipped:** EmitterCurveData is not currently decoded
+anywhere in `src/` (grep returns 0 source hits — only this doc and
+STATUS.md). Recorded here for future reference if a downstream
+table embeds this descriptor.
+
+Next engine descriptor in queue: SplineDecalComponent (~13 fields
+per Session 22), then AttackCommonDataDesc (17 fields), AttackHitDataDesc
+(8 fields). Same pattern applies — verify on Win, document, ship
+renames only if dmm-parser decodes the type.
+
 ## Per-table tracking
 
 | # | Module | Status | Notes |
