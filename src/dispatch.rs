@@ -228,6 +228,19 @@ pub fn parse_table_to_json(
         "vibrate_pattern_info"           => s!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
         "wanted_info"                    => s!(crate::tables::wanted_info::WantedInfo),
 
+        // ── file-format tables (non-pabgb) ────────────────────────────────
+        // Parsers ported from Workbench fork. Each returns a 1-element
+        // Vec<Value> where the single element carries the entire file
+        // shape plus `key: 0` / `string_key: ""` so v3 intent dispatch
+        // can find it. v3 field paths address nested arrays directly:
+        //   primary[5].key_a            (pappt)
+        //   sections.section_a[3]       (pamhc, when wired)
+        //   states[7].condition_id      (paac, when wired)
+        "pappt" => crate::tables::pappt::parse_pappt_to_json(pabgb)?,
+        "pamhc" => crate::tables::pamhc::parse_pamhc_to_json(pabgb)?,
+        "paatt" => crate::tables::paatt::parse_paatt_to_json(pabgb)?,
+        "paac" => crate::tables::paac::parse_paac_to_json(pabgb)?,
+
         _ => return Err(io::Error::new(io::ErrorKind::InvalidInput,
             format!("unknown table: '{}'", table_name))),
     })
@@ -393,6 +406,12 @@ pub fn serialize_table_from_json(
         "vehicle_info"                   => d!(crate::tables::vehicle_info::VehicleInfo),
         "vibrate_pattern_info"           => d!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
         "wanted_info"                    => d!(crate::tables::wanted_info::WantedInfo),
+
+        // ── file-format tables (non-pabgb) ────────────────────────────────
+        "pappt" => crate::tables::pappt::serialize_pappt_from_json(json_items)?,
+        "pamhc" => crate::tables::pamhc::serialize_pamhc_from_json(json_items)?,
+        "paatt" => crate::tables::paatt::serialize_paatt_from_json(json_items)?,
+        "paac" => crate::tables::paac::serialize_paac_from_json(json_items)?,
 
         _ => return Err(io::Error::new(io::ErrorKind::InvalidInput,
             format!("unknown table: '{}'", table_name))),
@@ -661,6 +680,11 @@ pub fn normalize_target_name(input: &str) -> Option<&'static str> {
 ///
 /// Useful for callers that want to detect supported targets without triggering
 /// a parse error. Cheaper than a real parse: just dispatches the match arm.
+///
+/// For file-format tables (paac, paatt, pamhc, pappt) this still returns
+/// true even though the JSON layer isn't wired yet — callers needing to
+/// know whether field-level apply works should attempt the parse and
+/// catch the `Unsupported` ErrorKind.
 pub fn is_supported_table(table_name: &str) -> bool {
     // Cheapest test: try a parse on empty bytes. If the table is recognized
     // but pabgh is missing, we get InvalidInput("requires a pabgh"). If the
@@ -670,6 +694,14 @@ pub fn is_supported_table(table_name: &str) -> bool {
         Ok(_) => true,  // empty body parsed OK (sequential tables)
         Err(e) => !e.to_string().starts_with("unknown table:"),
     }
+}
+
+/// True if the table is a file-format table (paac/paatt/pamhc/pappt) — i.e.
+/// recognized by the parser but JSON layer not yet implemented. Callers can
+/// use this to skip the v3 field-level apply path and route to byte-level
+/// passthrough instead. Returns false for pabgb tables and unknown names.
+pub fn is_file_format_table(table_name: &str) -> bool {
+    matches!(table_name, "paac" | "paatt" | "pamhc" | "pappt")
 }
 
 /// List every table_name supported by this dispatcher.
@@ -727,7 +759,65 @@ pub fn supported_tables() -> &'static [&'static str] {
         "ui_social_action_info", "uifilter_group_info", "uimap_texture_info",
         "valid_schedule_action_info", "vehicle_info", "vibrate_pattern_info",
         "wanted_info",
+        // file-format tables (Phase 1: parsers ported, JSON layer pending)
+        "paac", "paatt", "pamhc", "pappt",
     ]
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Shape-aware wrappers (v3 / v3.1 surface selector)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Parse a `.pabgb` body to typed JSON, then project field names according
+/// to the requested `JsonShape`. `JsonShape::V3` is identity (snake_case
+/// names emitted by the Rust struct's `to_json_dict` pass through). For
+/// `JsonShape::V3_1`, every field name covered by the table's
+/// `FIELD_ALIASES_V3_1` table is renamed to its canonical Pearl Abyss
+/// `_camelCase` identifier.
+///
+/// Tables with no v3.1 alias entry (or entries the generator skipped because
+/// the field name is a placeholder like `field_a` / `_unkXXXX`) round-trip
+/// unchanged regardless of shape.
+pub fn parse_table_to_json_shaped(
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+    shape: crate::json_shape::JsonShape,
+) -> io::Result<Vec<serde_json::Value>> {
+    let mut items = parse_table_to_json(table_name, pabgb, pabgh)?;
+    if matches!(shape, crate::json_shape::JsonShape::V3_1) {
+        if let Some(aliases) = crate::json_shape::lookup_table_aliases_v3_1(table_name) {
+            for item in items.iter_mut() {
+                if let serde_json::Value::Object(map) = item {
+                    crate::json_shape::apply_v3_1_aliases(map, aliases);
+                }
+            }
+        }
+    }
+    Ok(items)
+}
+
+/// Serialize typed JSON back to `.pabgb` bytes. Shape-tolerant on input —
+/// each item's keys are normalized from `_camelCase` (v3.1) to snake_case
+/// (the Rust struct's read form) before per-field deserialization, so a
+/// caller can submit either shape regardless of what `shape` they declare.
+/// The `shape` argument is currently advisory; both inputs accepted, output
+/// matches what the underlying serializer produces.
+pub fn serialize_table_from_json_shaped(
+    table_name: &str,
+    json_items: &[serde_json::Value],
+    _shape: crate::json_shape::JsonShape,
+) -> io::Result<Vec<u8>> {
+    if let Some(aliases) = crate::json_shape::lookup_table_aliases_v3_1(table_name) {
+        let mut normalized: Vec<serde_json::Value> =
+            json_items.iter().cloned().collect();
+        for item in normalized.iter_mut() {
+            crate::json_shape::normalize_input_aliases_v3_1(item, aliases);
+        }
+        serialize_table_from_json(table_name, &normalized)
+    } else {
+        serialize_table_from_json(table_name, json_items)
+    }
 }
 
 #[cfg(test)]
@@ -979,6 +1069,27 @@ mod tests {
             .expect("item_desc.index patch");
         assert_eq!(name_patch.new.as_u64(), Some(name_idx));
         assert_eq!(desc_patch.new.as_u64(), Some(desc_idx));
+    }
+
+    /// v3.1 shape projects snake_case → _camelCase for any aliased table.
+    /// The `skill_info` table has known aliases (`cooltime` → `_cooltime`,
+    /// `buff_level_list` → `_buffLevelList`, etc.) so confirm the lookup
+    /// returns a non-empty table and the rename direction is correct.
+    #[test]
+    fn v3_1_alias_lookup_returns_skill_info_aliases() {
+        let aliases = crate::json_shape::lookup_table_aliases_v3_1("skill_info")
+            .expect("skill_info should be indexed");
+        assert!(!aliases.is_empty(), "skill_info aliases should be non-empty");
+        let cooltime = aliases.iter().find(|(s, _)| *s == "cooltime");
+        assert_eq!(cooltime, Some(&("cooltime", "_cooltime")));
+        let buff = aliases.iter().find(|(s, _)| *s == "buff_level_list");
+        assert_eq!(buff, Some(&("buff_level_list", "_buffLevelList")));
+    }
+
+    /// Unknown table → no aliases. Caller treats as "no rename needed".
+    #[test]
+    fn v3_1_alias_lookup_returns_none_for_unknown_table() {
+        assert!(crate::json_shape::lookup_table_aliases_v3_1("not_a_table").is_none());
     }
 
     /// Sequential tables don't get a pabgh back — verify the contract.

@@ -9,3 +9,4 @@
 
 pub mod info;
 pub use info::ConditionInfo;
+pub mod field_aliases_v3_1;

@@ -1040,6 +1040,7 @@ pub fn write_buffinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult
 // for the 122-table match arms — adding a new table = one entry in
 // `dispatch.rs`, the Python side picks it up automatically.
 
+#[allow(dead_code)] // retained for non-shape-aware Rust callers within python.rs
 fn dispatch_parse(
     table_name: &str,
     pabgb: &[u8],
@@ -1058,14 +1059,20 @@ fn dispatch_serialize_bytes(
 }
 
 #[pyfunction]
-#[pyo3(signature = (table_name, pabgb, pabgh=None))]
+#[pyo3(signature = (table_name, pabgb, pabgh=None, shape=None))]
 pub fn parse_table(
     py: Python<'_>,
     table_name: &str,
     pabgb: &[u8],
     pabgh: Option<&[u8]>,
+    shape: Option<&str>,
 ) -> PyResult<Py<PyAny>> {
-    let values = dispatch_parse(table_name, pabgb, pabgh)?;
+    let shape_enum = crate::json_shape::JsonShape::from_str(shape.unwrap_or(""))
+        .map_err(PyValueError::new_err)?;
+    let values = crate::dispatch::parse_table_to_json_shaped(
+        table_name, pabgb, pabgh, shape_enum,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
     for v in values {
         list.append(json_to_py(py, &v)?)?;
@@ -1074,15 +1081,22 @@ pub fn parse_table(
 }
 
 #[pyfunction]
+#[pyo3(signature = (table_name, items, shape=None))]
 pub fn serialize_table(
     py: Python<'_>,
     table_name: &str,
     items: &Bound<'_, PyList>,
+    shape: Option<&str>,
 ) -> PyResult<Py<PyAny>> {
+    let shape_enum = crate::json_shape::JsonShape::from_str(shape.unwrap_or(""))
+        .map_err(PyValueError::new_err)?;
     let json_items: Vec<serde_json::Value> = items.iter()
         .map(|item| py_to_json(&item))
         .collect::<PyResult<_>>()?;
-    let data = dispatch_serialize_bytes(table_name, &json_items)?;
+    let data = crate::dispatch::serialize_table_from_json_shaped(
+        table_name, &json_items, shape_enum,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(PyBytes::new(py, &data).into_any().unbind())
 }
 

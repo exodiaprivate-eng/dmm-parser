@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""Generate v3.1 canonical-name alias entries for every table.
+
+Walks `src/tables/<name>/info.rs`, finds the main table struct (the one whose
+name matches the dir name in PascalCase), extracts `pub <field>: <type>,`
+lines, generates the canonical `_camelCase` form by mechanical conversion of
+the snake_case Rust name (prepend `_`, convert to camelCase).
+
+Output: one Rust file per table containing `pub const FIELD_ALIASES_V3_1` plus
+a central `src/json_shape_tables.rs` indexing them.
+
+Skips placeholder field names (`_a`, `field_a`, `raw_a`, `block_a_floats`,
+`lookup_a`, etc.) — these don't have a recovered C++ identifier so no alias
+projection is meaningful.
+
+v3 names are NEVER renamed. The Rust struct fields stay as-is. Aliases just
+let v3.1 consumers (DMM v2.0.0-beta etc.) request the canonical `_camelCase`
+form via shape='v3.1'.
+"""
+import re
+import os
+import sys
+from pathlib import Path
+
+REPO = Path(r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser")
+TABLES_DIR = REPO / "src" / "tables"
+
+# Field-name patterns that are clearly placeholders — skip them, no alias.
+PLACEHOLDER_PATTERNS = [
+    re.compile(r"^_[a-z]$"),                   # _a, _b
+    re.compile(r"^_pad[0-9a-fA-F]+$"),         # _pad0072 (typically used in engine descriptors)
+    re.compile(r"^_unk[0-9a-fA-F]+$"),         # _unk0073
+    re.compile(r"^field_[a-z]$"),              # field_a, field_b
+    re.compile(r"^raw_[a-z]$"),                # raw_a, raw_b
+    re.compile(r"^lookup_[a-z]$"),             # lookup_a, lookup_b
+    re.compile(r"^block_[a-z](_[a-z_]+)?$"),   # block_a_floats, block_b
+    re.compile(r"^flag_[a-z]$"),               # flag_a, flag_b
+    re.compile(r"^[a-z]_dword_\d+$"),          # block_a_dword_0
+    re.compile(r"^header_dword_\d+$"),         # header_dword_0
+    re.compile(r"^raw_block_[a-z]_dword_\d+$"),
+]
+
+def is_placeholder(name: str) -> bool:
+    for pat in PLACEHOLDER_PATTERNS:
+        if pat.match(name):
+            return True
+    return False
+
+def snake_to_underscore_camel(snake: str) -> str:
+    """Convert `buff_level_list` → `_buffLevelList` (Pearl Abyss convention).
+
+    Splits on underscores, keeps first segment lowercase, capitalizes the
+    rest, joins, prepends an underscore.
+
+    Edge cases:
+    - Single-segment names get `_` prefix only (`key` → `_key`)
+    - Empty segments collapse (multiple underscores in a row → single underscore)
+    - Already-prefixed names get treated as-is for the underscore (just camelize the rest)
+    """
+    parts = [p for p in snake.split("_") if p]  # drop empty segments
+    if not parts:
+        return ""
+    first = parts[0]
+    rest = [p[0].upper() + p[1:] if p else "" for p in parts[1:]]
+    return "_" + first + "".join(rest)
+
+def snake_to_pascal(snake: str) -> str:
+    return "".join(p[0].upper() + p[1:] for p in snake.split("_") if p)
+
+def extract_main_struct_fields(info_rs_path: Path, dir_name: str) -> list[tuple[str, str]]:
+    """Return list of (rust_snake_case, _camelCase) field-name tuples for the
+    main table struct. Returns [] if main struct not found or has no fields.
+    """
+    src = info_rs_path.read_text(encoding="utf-8")
+    main_struct_name = snake_to_pascal(dir_name)
+
+    # Match `pub struct <Name>[<lifetime>] { ... }` non-greedily.
+    # The struct body is between { and matching }.
+    pattern = re.compile(
+        r"pub\s+struct\s+" + re.escape(main_struct_name) + r"\s*(?:<[^>]+>)?\s*\{([^{}]*)\}",
+        re.DOTALL,
+    )
+    m = pattern.search(src)
+    if not m:
+        # Try inside py_binary_struct! { pub struct Name { ... } }
+        pattern2 = re.compile(
+            r"py_binary_struct!\s*\{\s*(?:[^{}]*?)pub\s+struct\s+"
+            + re.escape(main_struct_name)
+            + r"\s*(?:<[^>]+>)?\s*\{([^{}]*)\}",
+            re.DOTALL,
+        )
+        m = pattern2.search(src)
+    if not m:
+        return []
+
+    body = m.group(1)
+    field_pattern = re.compile(r"^\s*pub\s+([a-z_][a-z0-9_]*)\s*:", re.MULTILINE)
+    fields = field_pattern.findall(body)
+
+    aliases = []
+    for snake in fields:
+        if is_placeholder(snake):
+            continue
+        camel = snake_to_underscore_camel(snake)
+        if camel == "_" + snake.replace("_", ""):  # nothing meaningful changed
+            pass  # still ship — `_key` is a legitimate alias for `key`
+        aliases.append((snake, camel))
+
+    return aliases
+
+def main():
+    tables = sorted([p.name for p in TABLES_DIR.iterdir() if p.is_dir() and (p / "info.rs").exists()])
+    print(f"[generate] found {len(tables)} table modules")
+
+    rows = []         # (table_name, num_fields_aliased, num_fields_skipped_placeholder)
+    central = []      # central registry rows
+    for t in tables:
+        info_rs = TABLES_DIR / t / "info.rs"
+        aliases = extract_main_struct_fields(info_rs, t)
+        if aliases:
+            entries = ",\n    ".join(f'("{snake}", "{camel}")' for snake, camel in aliases)
+            const = f"""// Auto-generated by scripts/generate_v3_1_aliases.py — do NOT hand-edit.
+// To regenerate, re-run the script after any table struct field changes.
+//
+// Each entry maps the Rust struct field name (snake_case, what shape='v3'
+// emits today) to the canonical Pearl Abyss C++ identifier (with leading
+// underscore, what shape='v3.1' emits). Mechanical transliteration:
+// snake_case → prepend `_` + lowerCamelCase. v3 names are NEVER overwritten;
+// these aliases just enable v3.1 consumers (DMM v2.0.0-beta etc.) to request
+// the canonical names.
+
+pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
+    {entries},
+];
+"""
+            (TABLES_DIR / t / "field_aliases_v3_1.rs").write_text(const, encoding="utf-8")
+            central.append(f'    ("{t}", crate::tables::{t}::field_aliases_v3_1::FIELD_ALIASES_V3_1),')
+            rows.append((t, len(aliases)))
+        else:
+            rows.append((t, 0))
+
+    # Write central registry.
+    central_rs = REPO / "src" / "json_shape_table_registry.rs"
+    central_text = """// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
+// Auto-generated by scripts/generate_v3_1_aliases.py — do NOT hand-edit.
+//
+// Central index of per-table v3.1 alias tables. Maps table-dispatch name
+// (the snake_case identifier used by `dispatch::parse_table_to_json`) to
+// the table's `FIELD_ALIASES_V3_1` const.
+//
+// Lookup function: `crate::json_shape::lookup_table_aliases(name)`.
+
+pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
+""" + "\n".join(central) + """
+];
+"""
+    central_rs.write_text(central_text, encoding="utf-8")
+
+    print(f"[generate] wrote {len(central)} per-table alias files")
+    print(f"[generate] wrote central registry at {central_rs}")
+    print()
+    print(f"{'TABLE':40} {'FIELDS':>8}")
+    for t, n in rows:
+        print(f"{t:40} {n:>8}")
+
+if __name__ == "__main__":
+    main()

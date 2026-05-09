@@ -13,3 +13,4 @@ pub use info::{
     parse_equip_slot_info_to_json, parse_equip_slot_info_to_json_with_pabgh,
     serialize_equip_slot_info_from_json,
 };
+pub mod field_aliases_v3_1;

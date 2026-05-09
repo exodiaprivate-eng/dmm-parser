@@ -9,3 +9,4 @@
 
 mod info;
 pub use info::MaterialMatchInfo;
+pub mod field_aliases_v3_1;

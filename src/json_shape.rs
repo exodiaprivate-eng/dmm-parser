@@ -86,6 +86,52 @@ pub fn apply_v3_aliases(map: &mut Map<String, Value>, aliases: FieldAliasTable) 
     }
 }
 
+/// Look up a table's v3.1 alias table by dispatch-name. Returns `None` if
+/// the table isn't indexed (e.g. tables with no extractable fields, or
+/// table names that the v3.1 generator skipped). Callers should treat
+/// `None` and `Some(&[])` identically — both are "no rename".
+pub fn lookup_table_aliases_v3_1(
+    table_name: &str,
+) -> Option<FieldAliasTable> {
+    crate::json_shape_table_registry::TABLE_FIELD_ALIASES_V3_1
+        .iter()
+        .find(|(name, _)| *name == table_name)
+        .map(|(_, aliases)| *aliases)
+}
+
+/// Rewrite a JSON object's keys from Rust snake_case to Pearl Abyss
+/// canonical `_camelCase` (the v3.1 surface). The `aliases` table here
+/// uses `(rust_snake, _camelCase)` pairs — opposite semantics from
+/// `apply_v3_aliases`, which uses `(canonical, v3_legacy_name)`.
+///
+/// v3 (snake_case) is the default Rust struct emit. v3.1 callers project
+/// each key forward to its canonical C++ identifier.
+pub fn apply_v3_1_aliases(map: &mut Map<String, Value>, aliases: FieldAliasTable) {
+    for &(rust_snake, camel) in aliases {
+        if let Some(v) = map.remove(rust_snake) {
+            map.insert(camel.to_string(), v);
+        }
+    }
+}
+
+/// Accept either rust_snake_case or _camelCase on input, normalize to
+/// rust_snake_case (the form the typed read path expects). Used at the
+/// entry point of `serialize_table_from_json_shaped` so v3.1 mod authors
+/// can submit `_skeletonName` and v3 mod authors can submit `skeleton_name`
+/// against the same parser.
+pub fn normalize_input_aliases_v3_1(value: &mut Value, aliases: FieldAliasTable) {
+    if let Value::Object(map) = value {
+        for &(rust_snake, camel) in aliases {
+            if map.contains_key(rust_snake) {
+                continue; // caller used the snake form, leave alone
+            }
+            if let Some(v) = map.remove(camel) {
+                map.insert(rust_snake.to_string(), v);
+            }
+        }
+    }
+}
+
 /// Rewrite a JSON object's keys from v3 legacy to canonical (T0) names so
 /// the struct's typed read path finds them. Called by `write_from_json`
 /// at the entry point. Both names continue to round-trip identically;

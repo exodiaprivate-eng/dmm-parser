@@ -8,6 +8,7 @@ pub mod dispatch;
 pub mod intents;
 pub mod item_info;
 pub mod json_shape;
+pub mod json_shape_table_registry;
 pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;

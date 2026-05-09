@@ -8,3 +8,4 @@
 // (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
 
 pub mod info; pub use info::GlobalStageSequencerInfo;
+pub mod field_aliases_v3_1;
