@@ -226,6 +226,27 @@ Coverage: 113 of 122 tables. The 9 remaining have zero extracted
 fields (the script's regex couldn't find a main struct or all fields
 are placeholders) — they round-trip identically regardless of shape.
 
+### Session 28 iter 4 — SplineDecalComponent enumerated (info only, no decode in dmm-parser)
+
+Win-binary recipe applied to SplineDecalComponent registrar at
+`sub_1432329F0` (0x1e90 bytes). 17 properties recovered (Session 22's
+"13 PropertyBind types" undercount — Win view shows 17):
+
+`_splineComponentIndex`, `_groupName`, `_splineID`, `_textureFilename`,
+`_textureFileName2`, `_textureFilename3`, `_textureFilename4`,
+`_detailHeightTexture`, `_detailNormalTexture`, `_placementId`,
+`_exceptCapture`, `_volumeDatas`, `_pointDatas`, `_textureSet0`,
+`_textureSet1`, `_textureSet2`, `_textureSet3`.
+
+Partial in-mem offset map (registrar still has more `MEMORY[...] = N`
+writes beyond what the regex caught): 136, 144, 152, 160, 344, 420,
+424, 448, 456.
+
+**No renames shipped:** SplineDecalComponent is not decoded in
+`src/` — grep for `SplineDecal|spline_decal|splineDecal|_splineComponentIndex|
+_textureFilename|_pointDatas|_volumeDatas` returns 0 source hits.
+Recorded for future use.
+
 ### Session 28 iter 3 — EmitterCurveData enumerated (info only, no decode in dmm-parser)
 
 Win-binary recipe applied to `pa::EmitterCurveData` registrar at
