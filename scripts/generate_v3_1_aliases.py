@@ -3,20 +3,25 @@
 
 Walks `src/tables/<name>/info.rs`, finds the main table struct (the one whose
 name matches the dir name in PascalCase), extracts `pub <field>: <type>,`
-lines, generates the canonical `_camelCase` form by mechanical conversion of
-the snake_case Rust name (prepend `_`, convert to camelCase).
+lines.
+
+Schema-grounded mode (default): consults NattKh's `pabgb_complete_schema.json`
+(canonical PA field names extracted from Korean error strings in
+CrimsonDesert.exe) and ships an alias only if the mechanical snake→camel
+translation matches a known canonical name in the schema. Eliminates
+false-positive aliases on placeholder field names and unverified guesses.
+
+Mechanical-only fallback: for tables not present in the schema (4 of 113),
+falls back to pure mechanical translation with the placeholder filter.
 
 Output: one Rust file per table containing `pub const FIELD_ALIASES_V3_1` plus
-a central `src/json_shape_tables.rs` indexing them.
-
-Skips placeholder field names (`_a`, `field_a`, `raw_a`, `block_a_floats`,
-`lookup_a`, etc.) — these don't have a recovered C++ identifier so no alias
-projection is meaningful.
+a central `src/json_shape_table_registry.rs` indexing them.
 
 v3 names are NEVER renamed. The Rust struct fields stay as-is. Aliases just
 let v3.1 consumers (DMM v2.0.0-beta etc.) request the canonical `_camelCase`
 form via shape='v3.1'.
 """
+import json
 import re
 import os
 import sys
@@ -24,6 +29,7 @@ from pathlib import Path
 
 REPO = Path(r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser")
 TABLES_DIR = REPO / "src" / "tables"
+SCHEMA_PATH = Path(r"C:\Users\corin\Desktop\CD DUMPING TOOLS\_research_cache\pabgb_complete_schema.json")
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
 PLACEHOLDER_PATTERNS = [
@@ -67,9 +73,17 @@ def snake_to_underscore_camel(snake: str) -> str:
 def snake_to_pascal(snake: str) -> str:
     return "".join(p[0].upper() + p[1:] for p in snake.split("_") if p)
 
-def extract_main_struct_fields(info_rs_path: Path, dir_name: str) -> list[tuple[str, str]]:
+def extract_main_struct_fields(info_rs_path: Path, dir_name: str,
+                                schema_canonical_names: set[str] | None) -> list[tuple[str, str]]:
     """Return list of (rust_snake_case, _camelCase) field-name tuples for the
-    main table struct. Returns [] if main struct not found or has no fields.
+    main table struct.
+
+    If `schema_canonical_names` is provided, only ship an alias when the
+    mechanical translation matches a name in the set (schema-verified mode).
+    If None, fall back to pure mechanical translation with the placeholder
+    filter.
+
+    Returns [] if main struct not found or has no fields.
     """
     src = info_rs_path.read_text(encoding="utf-8")
     main_struct_name = snake_to_pascal(dir_name)
@@ -102,32 +116,77 @@ def extract_main_struct_fields(info_rs_path: Path, dir_name: str) -> list[tuple[
         if is_placeholder(snake):
             continue
         camel = snake_to_underscore_camel(snake)
-        if camel == "_" + snake.replace("_", ""):  # nothing meaningful changed
-            pass  # still ship — `_key` is a legitimate alias for `key`
+        if schema_canonical_names is not None:
+            # Schema-grounded: ship only verified canonical names.
+            if camel not in schema_canonical_names:
+                continue
         aliases.append((snake, camel))
 
     return aliases
 
+
+def load_schema_field_names(schema_entry) -> set[str]:
+    """Return canonical `_camelCase` field names from a schema entry."""
+    if not isinstance(schema_entry, list):
+        return set()
+    return {e["f"] for e in schema_entry if isinstance(e, dict) and "f" in e}
+
 def main():
+    schema = {}
+    schema_loaded = False
+    if SCHEMA_PATH.exists():
+        try:
+            schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+            schema_loaded = True
+            print(f"[generate] loaded schema: {len(schema)} canonical class entries")
+        except Exception as e:
+            print(f"[generate] WARNING: schema load failed: {e} — falling back to mechanical mode")
+    else:
+        print(f"[generate] WARNING: schema not found at {SCHEMA_PATH} — mechanical mode only")
+
     tables = sorted([p.name for p in TABLES_DIR.iterdir() if p.is_dir() and (p / "info.rs").exists()])
     print(f"[generate] found {len(tables)} table modules")
 
-    rows = []         # (table_name, num_fields_aliased, num_fields_skipped_placeholder)
+    schema_grounded_count = 0
+    fallback_count = 0
+    rows = []         # (table_name, num_fields_aliased, source)
     central = []      # central registry rows
     for t in tables:
         info_rs = TABLES_DIR / t / "info.rs"
-        aliases = extract_main_struct_fields(info_rs, t)
+        if schema_loaded:
+            schema_key = snake_to_pascal(t)
+            schema_entry = schema.get(schema_key)
+            schema_names = load_schema_field_names(schema_entry) if schema_entry else None
+        else:
+            schema_names = None
+        if schema_names:
+            schema_grounded_count += 1
+            source = "schema"
+        else:
+            fallback_count += 1
+            source = "mechanical"
+        aliases = extract_main_struct_fields(info_rs, t, schema_names)
         if aliases:
             entries = ",\n    ".join(f'("{snake}", "{camel}")' for snake, camel in aliases)
+            provenance = (
+                "Schema-verified: each canonical name was matched against\n"
+                "// NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`\n"
+                "// (canonical PA identifiers extracted from Korean error strings\n"
+                "// in CrimsonDesert.exe). Only fields whose mechanical snake→camel\n"
+                "// translation matched a known canonical name were shipped."
+            ) if source == "schema" else (
+                "Mechanical translation only: this table is not present in NattKh's\n"
+                "// pabgb_complete_schema.json, so canonical names could not be\n"
+                "// independently verified. Aliases are derived from the Rust struct\n"
+                "// field name via snake → `_camelCase` conversion."
+            )
             const = f"""// Auto-generated by scripts/generate_v3_1_aliases.py — do NOT hand-edit.
 // To regenerate, re-run the script after any table struct field changes.
 //
-// Each entry maps the Rust struct field name (snake_case, what shape='v3'
-// emits today) to the canonical Pearl Abyss C++ identifier (with leading
-// underscore, what shape='v3.1' emits). Mechanical transliteration:
-// snake_case → prepend `_` + lowerCamelCase. v3 names are NEVER overwritten;
-// these aliases just enable v3.1 consumers (DMM v2.0.0-beta etc.) to request
-// the canonical names.
+// {provenance}
+//
+// v3 (snake_case) is the default emit; v3.1 emits the canonical `_camelCase`
+// form. Round-trips identically — both names accepted on input.
 
 pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     {entries},
@@ -135,9 +194,19 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
 """
             (TABLES_DIR / t / "field_aliases_v3_1.rs").write_text(const, encoding="utf-8")
             central.append(f'    ("{t}", crate::tables::{t}::field_aliases_v3_1::FIELD_ALIASES_V3_1),')
-            rows.append((t, len(aliases)))
+            rows.append((t, len(aliases), source))
         else:
-            rows.append((t, 0))
+            # No aliases: write an empty file so the central registry can still
+            # link cleanly, and so re-runs don't leave stale per-field data.
+            empty_const = """// Auto-generated by scripts/generate_v3_1_aliases.py — do NOT hand-edit.
+// No v3.1 canonical aliases for this table (no schema match or no fields
+// match the canonical name set). v3 (snake_case) and v3.1 emit identically.
+
+pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[];
+"""
+            (TABLES_DIR / t / "field_aliases_v3_1.rs").write_text(empty_const, encoding="utf-8")
+            central.append(f'    ("{t}", crate::tables::{t}::field_aliases_v3_1::FIELD_ALIASES_V3_1),')
+            rows.append((t, 0, source))
 
     # Write central registry.
     central_rs = REPO / "src" / "json_shape_table_registry.rs"
@@ -157,11 +226,12 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     central_rs.write_text(central_text, encoding="utf-8")
 
     print(f"[generate] wrote {len(central)} per-table alias files")
+    print(f"[generate] schema-grounded: {schema_grounded_count}, mechanical fallback: {fallback_count}")
     print(f"[generate] wrote central registry at {central_rs}")
     print()
-    print(f"{'TABLE':40} {'FIELDS':>8}")
-    for t, n in rows:
-        print(f"{t:40} {n:>8}")
+    print(f"{'TABLE':40} {'FIELDS':>8}  {'SOURCE'}")
+    for t, n, src in rows:
+        print(f"{t:40} {n:>8}  {src}")
 
 if __name__ == "__main__":
     main()

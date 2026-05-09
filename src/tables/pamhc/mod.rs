@@ -27,3 +27,4 @@
 
 pub mod info;
 pub use info::{parse_pamhc_to_json, serialize_pamhc_from_json, PamhcFile};
+pub mod field_aliases_v3_1;

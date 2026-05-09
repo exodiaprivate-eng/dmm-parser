@@ -20,3 +20,4 @@
 
 pub mod info;
 pub use info::{parse_paatt_to_json, serialize_paatt_from_json, PaattFile};
+pub mod field_aliases_v3_1;

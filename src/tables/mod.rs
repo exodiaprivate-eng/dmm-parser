@@ -136,3 +136,15 @@ pub mod equip_info;
 pub mod field_revive_info;
 pub mod equip_slot_info;
 pub mod blob_runtime;
+
+// Phase 1 — file-format tables (non-pabgb). Byte-level parsers ported
+// from the Workbench fork (NattKh's mod-workbench dmm-parser-rust-only).
+// JSON layer pending (Phase 2). Recognized in dispatch as supported
+// table names that return a "field-level apply not yet implemented"
+// error when a v3 intent targets them. Byte-passthrough mods already
+// work via DMM's paz_inject / paz_replace regardless of dispatch
+// awareness — these arms exist so DMM stops printing "unknown table".
+pub mod paac;
+pub mod paatt;
+pub mod pamhc;
+pub mod pappt;

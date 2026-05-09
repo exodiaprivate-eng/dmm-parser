@@ -27,3 +27,4 @@ pub use info::{
     parse_pappt_to_json, serialize_pappt_from_json,
     PapptFile, PrimaryChild, PrimaryEntry, SecondaryEntry,
 };
+pub mod field_aliases_v3_1;

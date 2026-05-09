@@ -34,3 +34,4 @@ pub use info::{
     parse_paac_to_json, serialize_paac_from_json, ConditionRecord, Header, InlineTransition,
     PaacFile, PaacFormat, StateRecord, StringTableEntry, sniff_format,
 };
+pub mod field_aliases_v3_1;
