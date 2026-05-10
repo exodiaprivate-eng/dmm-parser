@@ -33,6 +33,9 @@ rust struct fields**, so a 1-to-1 alias entry can't express the mapping:
 | `ally_group_info` | `_relationTypeList` | 7× unrolled fields `relation_type_list_0` .. `relation_type_list_6` |
 | `elemental_material_info` | `_flag` | 8× unrolled fields `flag_0` .. `flag_7` |
 | `royal_supply_info` | `_royalSupplyRandomMap` | 2× unrolled fields `royal_supply_random_map_quest`, `royal_supply_random_map_mission` (semantic split: quest vs mission lookup) |
+| `equip_type_info` | `_destroyedAiEvent` | 4× packed-struct fields `destroyed_ai_event_head`, `_pad`, `_hash`, `_tail` (header/footer split for the AI event ref) |
+| `faction_node_spawn_info` | `_boundaryBox` | 2× typed bounds `boundary_box_min`, `boundary_box_max` |
+| `sub_level_info` | `_exp` | 4× unrolled fields `exp_a`, `exp_b`, `exp_c`, `exp_d` (placeholder names — likely 4-tier exp curve) |
 
 ### Wrapper-vs-unrolled (1 canonical → N named sub-fields)
 
