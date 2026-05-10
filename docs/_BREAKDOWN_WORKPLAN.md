@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 81: global_game_event_group_info partial close (1 of 2) — 2026-05-10 SUCCESS. Shipped MANUAL_OVERRIDES `events → _globalGameEventInfoList` (canonical type `reader_2B` matches rust `events: CArray<u16>` exactly). Tried IDA string xrefs for the deferred iter-80 `_onDiscoverOnlyEnable` first; schema metadata's "s" field points to a setter dispatch table not a name string, so plugin string xrefs alone won't resolve it. Pivoted to global_game_event_group_info. Remaining `_executePercent` (direct_u64) maps to one of `unk_b`/`unk_c` — needs sample-data range analysis; deferred. Schema verifier: total missing 552 → 551.
+
 - [x] GAP iter 80: level_gimmick_scene_object_info partial close (1 of 2) — 2026-05-10 SUCCESS. Shipped MANUAL_OVERRIDES entry `data_list → _levelGimmickSceneObjectDataList`. Decompiled sub_1410B7EB0 (iter 60 typeinfo registry) and confirmed the 7 sequential u8 reads at offsets 72-78 pair with 7 rust u8 fields. The remaining `_onDiscoverOnlyEnable` is one of `unk_new_u8_a/b` but resolving which needs string-xref work via function-string-associate plugin — deferred. Schema verifier: total missing 553 → 552.
 
 - [x] GAP iter 79: vehicle_info closure plan (2 wraps already structurally clear) — 2026-05-10 SUCCESS. The 2 missing canonicals are both pure structural wraps already documented in rust field comments: `_vehicleSeatDataList` is a 1-to-16 wrap around `vehicle_seat_data_00..15` (16 × u64), `_parentLinkAttachDataList` is a 1-to-2 wrap around `parent_link_attach_data_a` + `_b` (2 × u64). Closure path: 1-to-N alias entries when the alias mechanism is extended; no decoder work. Doc-comment updated in src/tables/vehicle_info/info.rs.

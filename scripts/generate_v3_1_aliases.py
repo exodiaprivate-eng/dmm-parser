@@ -118,6 +118,14 @@ MANUAL_OVERRIDES = {
     # owner of LevelGimmickSceneObjectInfo's main payload — separate from
     # the knowledge_info closure that aliases a different rust field.)
     ("level_gimmick_scene_object_info", "data_list"):                        "_levelGimmickSceneObjectDataList",
+
+    # Iter 81: global_game_event_group_info — `events: CArray<u16>` is the
+    # rust holding for the schema's `_globalGameEventInfoList` (canonical
+    # type `reader_2B` = CArray<u16> of GlobalGameEventInfo keys). Safe
+    # close. The remaining `_executePercent` (direct_u64) maps to one of
+    # `unk_b` or `unk_c` (both u64) — needs sample-data analysis to
+    # identify which u64 holds percent-range values; deferred.
+    ("global_game_event_group_info",   "events"):                            "_globalGameEventInfoList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
