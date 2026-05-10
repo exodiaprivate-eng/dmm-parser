@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 76: elemental_material_info `_flag` closure plan (1-to-8 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410A8FA0 (iter 58 typeinfo registry). The 8-iteration loop `for j in 0..8` reading u32 at `a2 + 4*(j+34)` (offsets 136..164) confirms `_flag` is a pure 1-to-8 wrapper around `flag_0..7`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/elemental_material_info/info.rs.
+
 - [x] GAP iter 75: ally_group_info `_relationTypeList` closure plan (1-to-7 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410A21A0 (iter 57 typeinfo registry). The 7-iteration outer loop reading 7×CArray<u32> at offsets 24..136 (16-byte stride per element) confirms `_relationTypeList` is a pure 1-to-7 wrapper around `relation_type_list_0..6`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/ally_group_info/info.rs.
 
 - [x] GAP iter 74: faction_node_spawn_info `_boundaryBox` closure plan (1-to-2 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410AB470 (iter 53 typeinfo registry). Two consecutive 12-byte raw reads at offsets 20 & 32 confirm `_boundaryBox` is a pure 1-to-2 wrapper around `boundary_box_min` ([f32;3]) + `boundary_box_max` ([f32;3]). Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/faction_node_spawn_info/info.rs.

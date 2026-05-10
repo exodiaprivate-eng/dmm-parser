@@ -1,6 +1,24 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410DC8F0` in CrimsonDesert.exe (Win build).
+//!
+//! ─── v3.1 closure analysis (iter 76) ────────────────────────────────────
+//! Cross-check via `sub_1410A8FA0` (typeinfo→record-reader path per the
+//! iter 58 typeinfo registry). The crucial wire pattern:
+//!
+//!   for j in 0..8 {
+//!       read 4 bytes at a2 + 4*(j+34)   → offsets 136, 140, …, 164
+//!   }
+//!
+//! Eight consecutive u32 reads at offsets 136..164 (8 × u32 = 32 bytes).
+//! This pairs exactly with the eight already-unrolled rust fields:
+//!
+//!   flag_0, flag_1, flag_2, flag_3, flag_4, flag_5, flag_6, flag_7  (u32)
+//!
+//! NattKh schema lists `_flag` as a single canonical at this position.
+//! Wire-level confirmation: **`_flag` is a pure 1-to-8 wrapper** around
+//! the eight `flag_*` rust fields. Closure path: 1-to-N alias entry.
+//! No new decoder work needed.
 //! Inner readers (decoded for full Tier 1):
 //!   - sub_1411166F0: outer CArray<ElementalMaterialStateData>
 //!     (24 mem bytes per outer = u32 lookup + nested CArray)
