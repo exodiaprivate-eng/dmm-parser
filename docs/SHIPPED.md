@@ -177,7 +177,7 @@ HexRaysPyTools, HRDevHelper (per iter 38 reference).
 | Per-table v3.1 verification | `V3_1_SCHEMA_VERIFICATION.md` (auto-generated) |
 | Per-table decoder gaps | `V3_1_DECODER_GAPS.md` |
 | pycrimson workflow | `V3_1_PYCRIMSON_WORKFLOW.md` |
-| 8,362-class catalogue | `ENGINE_INTERNALS.md` Master class index |
+| pycrimson reflection harvest (231 classes / 938 fields) | `ENGINE_INTERNALS.md` Master class index (iter 22 corrected the original "8,362" — 8,131 of those were prefab file paths dumped as `__pycr_type__` markers, not real classes) |
 | Variant decoder inventory | `ENGINE_INTERNALS.md` Variant decoder catalog |
 | Havok layer reference | `ENGINE_INTERNALS.md` Layer B section |
 | File-format byte layouts | `BINARY_FORMATS.md` |
@@ -197,11 +197,22 @@ Honest accounting of what's still blocked or future work:
   BuffData, EffectData, ConditionData) cannot have their canonical PA
   field names verified from any current source. Triple-blocked.
   Decoders work; only naming is unverified.
-- **398 schema-listed `_camelCase` fields** across 14 *Info tables are
-  not decoded by dmm-parser yet. Catalogued in info.rs comments and in
-  `V3_1_DECODER_GAPS.md`. Implementation requires per-field decoder
-  writing using NattKh's schema (byte offsets + reader function pointers
-  available).
+- **549 schema-listed `_camelCase` fields** across 23 *Info tables are
+  not decoded by dmm-parser yet (down from 584/41 at iter-35 baseline,
+  and from 398/14 in this doc's earlier draft — that figure was stale).
+  Per the 4-class taxonomy in `MOD_AUTHOR_GUIDE.md` § Residual coverage,
+  ~10 tables are 1-to-N wraps blocked on the alias-mechanism extension,
+  ~2 need real decoder work, ~2 have semantic ambiguity, 1 (faction_node_info,
+  14 gaps) is a larger un-audited table. Catalogued in info.rs comments
+  and in `V3_1_DECODER_GAPS.md`.
+
+- **iter 70-86 closure work (resumed-loop, 2026-05-10)**: shipped 7
+  PA-internal-typo MANUAL_OVERRIDES (`_complteDescription`,
+  `_overriedMaxHeight`, `_questGroupkey`, etc.) and 6 name-divergence
+  tuple-scoped overrides. Documented per-table closure plans for 11
+  single-missing-canonical tables (proven 1-to-N wraps via Win-IDA
+  per-record reader cross-checks). Schema verifier: 86 of 109
+  schema-covered tables are now 100% canonical-aliased (up from 68).
 - **Havok binary layer (`.pac`/`.pacc`/`.pam`/`.pami`/`.pamlod`)** has
   0% native parsing. Layer B in `ENGINE_INTERNALS.md`. Standard Havok
   2024.2 SDK, would need DCC-plugin-equivalent reader.

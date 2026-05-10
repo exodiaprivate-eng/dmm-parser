@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] DOCS iter 87: SHIPPED.md fact-corrections (8362→231/938 classes; 398→549 gaps; iter-70-86 closure addendum) — 2026-05-10 SUCCESS. Two stale facts corrected: (1) "8,362-class catalogue" replaced with the iter-22-corrected 231 classes / 938 fields (8,131 of original were prefab file paths dumped as `__pycr_type__` markers, not real classes); (2) "398 fields across 14 *Info tables" updated to current 549/23 with cross-reference to the MOD_AUTHOR_GUIDE.md 4-class taxonomy. Added a new "iter 70-86 closure work" bullet to acknowledge the resumed-loop overrides progress in the "What did NOT solve" section's history. Docs-only commit.
+
 - [x] DOCS iter 86: V3_1_DECODER_GAPS Summary refresh (584→549, 68→86 closed) — 2026-05-10 SUCCESS. Header was stale at 584 missing/41-with-gaps/68-fully-covered numbers (iter 35-era). Refreshed to 549/23/86 with a 3-row trend table showing pre-loop start → iter 36-65 audit → iter 70-82 resumed-loop overrides progression. Docs-only commit.
 
 - [x] DOCS iter 85: V3_1_README implementation-status refresh — 2026-05-10 SUCCESS. Section was stale (4 historical commits only). Added "Shipped milestones" subsection covering iters 70-82 closure work (7 PA-typo overrides, 6 name-divergence overrides, 11 single-missing-table closure plans). Added "Schema verifier snapshot" table with current numbers (109/126 schema, 86 fully-closed, 23-with-gaps, 549 residual, 1160 verified, 0 mismatches). Cross-references MOD_AUTHOR_GUIDE.md § Residual coverage. Docs-only commit.
