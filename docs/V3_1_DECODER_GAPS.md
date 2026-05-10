@@ -82,6 +82,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `action_point_info` | `0x144ab0380` | `sub_1410A16D0` | 0xf7 (247B — unusually small; possibly wrapper around real reader) | iter 51 |
 | `global_game_event_info` | `0x144ace140` | `sub_1410B2150` | 0x132 (306B — small, only 8 fields) | iter 52 |
 | `global_stage_sequencer_info` | `0x144ad5310` | `sub_1410B54A0` | 0x213 (531B) | iter 52 |
+| `faction_node_spawn_info` | `0x144ac1800` | `sub_1410AB470` | 0x18d (397B) | iter 53 |
+| `faction_relation_group_info` | `0x144ac1490` | `sub_1410E7CE0` | 0x318 (792B) | iter 53 |
 
 **Workflow:** for any future per-table decoder closure session:
 
