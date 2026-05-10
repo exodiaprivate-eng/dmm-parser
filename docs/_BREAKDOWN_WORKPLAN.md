@@ -65,6 +65,7 @@ descriptor class via Win-IDA).
 
 **Loop resumed at iter 44 (2026-05-10 18:30)** — user installed 4 IDA plugins (function-string-associate, AutoRE, HexRaysPyTools, HRDevHelper); cron `a51bccde` re-armed.
 
+- [x] REGISTRY-EXTEND: multi_change_info + ally_group_info added — 2026-05-10 19:13 SUCCESS. pa::MultiChangeInfo at 0x144adf1a0 → sub_1410BA4C0 (0x387 = 903B). pa::AllyGroupInfo at 0x144ab1670 → sub_1410A21A0 (0x380 = 896B). Registry now covers 24 of 27 gap tables (~89%).
 - [x] REGISTRY-EXTEND: royal_supply_info + sub_level_info added — 2026-05-10 19:10 SUCCESS. pa::RoyalSupplyInfo at 0x144aedf00 → sub_1410C3220 (0x12b = 299B). pa::SubLevelInfo at 0x144af8a10 → sub_1410C9FF0 (0x53f = 1.3KB). Registry now covers 22 of 27 gap tables (~81%).
 - [x] REGISTRY-EXTEND: equip_info + equip_type_info added — 2026-05-10 19:07 SUCCESS. pa::EquipInfo at 0x144abc440 → sub_1410A76F0 (0x130 = 304B). pa::EquipTypeInfo at 0x144abdfc0 → sub_1410A9500 (0x32b = 811B). Registry now covers 20 of 27 gap tables (~74%).
 - [x] REGISTRY-EXTEND: character_change_info + detect_reaction_info added — 2026-05-10 19:04 SUCCESS. pa::CharacterChangeInfo at 0x144ab2bf0 → sub_1410A2F10 (0x16e = 366B). pa::DetectReactionInfo at 0x144aba730 → sub_1410A7170 (0x1e6 = 486B). Registry now covers 18 of 27 gap tables (~67%).
