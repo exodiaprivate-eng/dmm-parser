@@ -241,6 +241,63 @@ mod authoring (DDS texture replacement + pabgb table editing) doesn't
 touch the skin pipeline. Document captured here so when the time comes,
 we have the receipts.
 
+## Variant decoder catalog (src/binary/variants/)
+
+Per-file inventory of dmm-parser's polymorphic decoders. Each "real
+variant decoder" handles a Pearl Abyss family-class with a
+discriminator tag → typed body pattern. Files marked diagnose/validate
+are debug helpers, not decoders.
+
+### Real variant decoders (13 files)
+
+| File | Lines | Typed variants | Raw branches | Notes |
+|---|---|---|---|---|
+| `condition_data.rs` | 5,086 | 258 | 0 | Largest decoder. ConditionData family — condition predicates used across info tables. Fully typed; no fallback. |
+| `buff_data.rs` | 2,345 | 127 | 0 | BuffData family (120-variant per CLAUDE.md, +7 internal helpers). Fully typed. |
+| `trigger_gameplay_event_handler_data.rs` | 677 | 29 | 0 | TGPEHD family — trigger event payloads (sub_141D7FF30 et al). Fully typed. |
+| `drop_target.rs` | 509 | 14 (Tag0..D) | 0 | DropTargetVariant — DropSetInfo + ItemUseInfo RandomBox payload. Fully typed. |
+| `effect_data.rs` | 488 | 8 | 0 | EffectData family (referenced from EffectInfo, EffectInfoData, etc.). Fully typed. |
+| `game_condition.rs` | 429 | 18 | 1 | GameCondition wrapper. 1 Raw fallback for unknown variants (current corpus: 0.2% hit rate per STATUS.md "GameCondition wrapper: 100.0% round-trip"). |
+| `game_expression.rs` | 424 | 14 | 0 | Expression-tree decoder. Fully typed. |
+| `filter_condition.rs` | 378 | 9 | 0 | FilterCondition family (QuestInfo). Fully typed. |
+| `branch_condition_data.rs` | 347 | 8 | 0 | BranchConditionData family. Fully typed. |
+| `global_game_event_execute_data.rs` | 343 | 11 | 1 | Global-game-event execute payloads. 1 Raw fallback. |
+| `game_event_handler_data.rs` | 318 | 8 | 1 | GameEventHandlerData family. 1 Raw fallback. |
+| `condition_pair.rs` | 277 | 7 | 0 | ConditionPair payload (used in QuestInfo). Fully typed. |
+| `ivariant_item.rs` | 260 | 6 | 0 | IVariantItem (item polymorphism). Fully typed. |
+| `mini_game_data.rs` | 134 | 4 | 0 | MiniGameDataVariant (4 pure-discriminator). Fully typed. |
+| `condition_data_stage_chart.rs` | 132 | 3 | 0 | StageChart-specific ConditionData wrapper. Fully typed. |
+
+### Helper / wrapper structs (7 files, no enum)
+
+| File | Lines | Purpose |
+|---|---|---|
+| `sequencer_stage_chart_desc.rs` | 787 | Full typed wrapper for SequencerStageChartDesc (sub_141D8C6D0). 26 wire fields, 232 mem bytes. |
+| `gimmick_interaction_override.rs` | 252 | GimmickInteractionOverride payload. |
+| `auto_spawn_entry.rs` | 84 | Per-element types for sub_1411092E0 (TerrainRegionAutoSpawnInfo + SpawningPoolAutoSpawnInfo). Fixed-shape, no Raw fallback. |
+| `schedule_complete_condition_data.rs` | 90 | ScheduleCompleteConditionData payload. |
+| `global_effect_condition_data.rs` | 25 | GlobalEffectConditionData payload. |
+| `condition_gimmick_data.rs` | 21 | ConditionGimmickData wrapper. |
+
+### Diagnose / validate helpers (7 files, debug utilities)
+
+`diagnose_conditiondata.rs`, `diagnose_filter_condition.rs`,
+`diagnose_game_level.rs`, `diagnose_sequencer_spawn.rs`,
+`diagnose_special_mode.rs`, `validate_buffdata.rs` — debug instrumentation
+runs, not part of the runtime decode path.
+
+### Summary
+
+- **Total variant decoders:** 13 (handling ~528 typed variants combined)
+- **Total Raw fallback branches:** 4 (game_condition, global_game_event_execute_data, game_event_handler_data — graceful degradation only)
+- **Decoder coverage:** 99.8%+ across the live corpus (per STATUS.md "GameCondition wrapper: 100.0% round-trip on 8,934 ConditionInfo entries (typed decode for 99.8%, raw-bytes fallback for 0.2%)")
+
+Canonical names for the inner data classes (BuffData, EffectData,
+ConditionData, AttackCommonData, etc.) are NOT recoverable via current
+sources — Session 28 iter 13 documented the triple-blocker (Win-IDA +
+Korean fragments + schema/reflection all confirm). The decoders work;
+only the field-naming layer is unverified.
+
 ## Updates from Session 28 (2026-05-10)
 
 The pycrimson reflection workflow lands a partial answer for Layer A.
