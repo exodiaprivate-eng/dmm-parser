@@ -468,6 +468,51 @@ Notable cross-validations:
 Look up any individual class in `docs/v3_1_reflection_schema.json`
 for its canonical field list.
 
+### Cross-source validation (NattKh schema ↔ pycrimson reflection)
+
+Sanity-check the reflection-class harvest against the independent
+NattKh schema. For each reflection class's canonical fields, count how
+many also appear (in any class) in NattKh's pabgb-table schema.
+
+**Aggregate result (top 50 reflection classes by field count):**
+**81 of 605 reflection fields = 13.4% appear in NattKh schema.**
+
+The two sources are mostly **disjoint by design** — reflection covers
+PA-side wrappers + scene components (which live in .prefab/.parg/.pasg
+files); NattKh covers .pabgb table fields. The 13.4% overlap is exactly
+where the domains meet (shared primitives like splines, environment
+constants, character-physics constraints).
+
+**Highest-overlap classes (cross-confirmed naming):**
+
+| Class | Fields | In NattKh | Overlap % |
+|---|---|---|---|
+| `RagdollConstraintData` | 6 | 5 | 83% |
+| `SplinePoint3D` | 8 | 4 | 50% |
+| `GameData_TimelineEvent_EquipmentInOut` | 11 | 5 | 46% |
+| `ScenePostProcessing` | 20 | 8 | 40% |
+| `GameData_TimelineEvent_ApplySkill` | 5 | 2 | 40% |
+| `AtmosphereConstant` | 54 | 18 | 33% |
+| `GameData_TimelineEvent_GimmickControl` | 8 | 2 | 25% |
+| `GameData_TimelineEvent_Control_Input` | 9 | 2 | 22% |
+| `FogComponent` | 5 | 1 | 20% |
+
+These are double-confirmed names: the canonical `_camelCase` identifier
+appears in both pycrimson reflection (parsed live from .prefab/.parg)
+AND NattKh's pabgb-table Korean error grep. Highest confidence.
+
+**Zero-overlap reflection classes** (purely PA-side, not in any pabgb):
+
+`EmitterSimulationData`, `EmitterSpawnData`, `EmitterVectorFieldData`,
+`SeaConstant`, `SequencerGamePlayDataFile`, `SkinnedMeshComponent`,
+`AudioComponent`, `GameData_Sequencer`, `SequencerGamePlayData_*`,
+`CameraComponent`, `BreakableSwitchComponent`, `MeshGroupInfo`,
+`SwitchComponent`, etc.
+
+These are reflection-only types — pycrimson is the *only* canonical-name
+source for them. Confidence rests entirely on pycrimson's parser
+correctness.
+
 ### Master class index (all-format combined harvest, 2026-05-10)
 
 Cron-loop harvest spans `.prefab` + `.parg` + `.pasg` + `.paseqc` +
