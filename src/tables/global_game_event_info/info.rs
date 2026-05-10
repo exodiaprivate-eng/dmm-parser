@@ -2,6 +2,30 @@
 //!
 //! Reader: `sub_1410E5840` in CrimsonDesert.exe (Win build).
 //!
+//! ─── v3.1 closure plan (iter 66) ────────────────────────────────────────
+//! Re-decompile of `sub_1410B2150` (Win, 0x132 = 306B, the per-record
+//! reader per the iter 52 typeinfo registry lookup) shows 7 wire reads
+//! in this exact byte order:
+//!
+//!   offset 0   2 bytes      → _key (u16)
+//!   offset 8   CString      → _stringKey (sub_141076050)
+//!   offset 16  1 byte       → _isBlocked
+//!   offset 18  sub_1410D1B60 → _globalGameEventGroupInfo (u16 lookup)
+//!   offset 24  8 bytes      → _eventDesc (direct_8B; ⏳ NOT in current rust struct)
+//!   offset 32  sub_1410E35E0 → either _uiIconPath or _executeDataList (⏳ partial)
+//!   offset 48  sub_141123F40 → either _targetRegionInfoList or _executeDataList (⏳ partial)
+//!
+//! 3 of 8 schema canonicals are NOT field-decoded by the current rust
+//! struct: `_eventDesc` (8 bytes at offset 24), `_uiIconPath`,
+//! `_targetRegionInfoList`. The `execute_data: GlobalGameEventExecuteData`
+//! wrapper currently absorbs reads 5+6+7 as a single typed wrapper —
+//! splitting it into 3 named fields would close the gap. To ship the
+//! closure: split the GlobalGameEventExecuteData wrapper into typed
+//! _eventDesc (u64), typed _uiIconPath/_executeDataList (per the
+//! sub_1410E35E0 + sub_141123F40 inner shape), typed _targetRegionInfoList.
+//! Then add v3.1 alias entries.
+//!
+//!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u16 key                              (_key, pabgh format 2)
 //!   2. CString string_key                   (_stringKey)
