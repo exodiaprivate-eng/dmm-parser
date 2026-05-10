@@ -88353,6 +88353,24 @@
     "files_observed_in": 21,
     "first_observed_in": "p_0381f5075201.json"
   },
+  "AiControlChangeShareValueData": {
+    "fields": [
+      "_shareValueName",
+      "_shareValueString"
+    ],
+    "field_count": 2,
+    "files_observed_in": 6,
+    "first_observed_in": "c_13784771b5db.json"
+  },
+  "AiControlPatrolGroupData": {
+    "fields": [
+      "_patrolPointList",
+      "_splineTarget"
+    ],
+    "field_count": 2,
+    "files_observed_in": 26,
+    "first_observed_in": "c_06a04dd37838.json"
+  },
   "AliasComponent": {
     "fields": [
       "_alias"
@@ -88660,6 +88678,14 @@
     "field_count": 1,
     "files_observed_in": 2,
     "first_observed_in": "p_46193166f440.json"
+  },
+  "CommonSequencerTarget": {
+    "fields": [
+      "_nodeId"
+    ],
+    "field_count": 1,
+    "files_observed_in": 103,
+    "first_observed_in": "c_01ec13b2cc2e.json"
   },
   "ConfinedLevelTriggerVolumeComponent": {
     "fields": [
@@ -89182,6 +89208,248 @@
     "field_count": 1,
     "files_observed_in": 2184,
     "first_observed_in": "p_00248f42d91c.json"
+  },
+  "GameData_Folder": {
+    "fields": [
+      "_childFolderNodeIdList",
+      "_childNodeIdList",
+      "_folderName",
+      "_nodeId"
+    ],
+    "field_count": 4,
+    "files_observed_in": 76,
+    "first_observed_in": "c_01ec13b2cc2e.json"
+  },
+  "GameData_GimmickLinkSignalGroup": {
+    "fields": [
+      "_gimmickLinkSignalStateList",
+      "_linkSignalGroupName"
+    ],
+    "field_count": 2,
+    "files_observed_in": 1,
+    "first_observed_in": "c_c1982b3c19b5.json"
+  },
+  "GameData_GimmickLinkSignalState": {
+    "fields": [
+      "_stateName",
+      "_targetGimmick"
+    ],
+    "field_count": 2,
+    "files_observed_in": 1,
+    "first_observed_in": "c_c1982b3c19b5.json"
+  },
+  "GameData_Sequencer": {
+    "fields": [
+      "_existObject",
+      "_filterBoundaryMax",
+      "_filterBoundaryMin",
+      "_isSequencerChart",
+      "_sequencerBoundaryMax",
+      "_sequencerBoundaryMin",
+      "_sequencerChartHash",
+      "_sequencerLargeBoundaryMax",
+      "_sequencerLargeBoundaryMin",
+      "_sequencerPivot",
+      "_stageSequencerType",
+      "_version"
+    ],
+    "field_count": 12,
+    "files_observed_in": 103,
+    "first_observed_in": "c_01ec13b2cc2e.json"
+  },
+  "GameData_Timeline": {
+    "fields": [
+      "_alterList",
+      "_endTimePiece",
+      "_hasSequencerCamera",
+      "_hasSequencerCamera_Jump",
+      "_nodeId",
+      "_playerVehicle",
+      "_reviveTransform",
+      "_startOffsetTimePiece",
+      "_startTimePiece",
+      "_tagList",
+      "_timelineName"
+    ],
+    "field_count": 11,
+    "files_observed_in": 103,
+    "first_observed_in": "c_01ec13b2cc2e.json"
+  },
+  "GameData_TimelineEvent_ApplySkill": {
+    "fields": [
+      "_endTimePiece",
+      "_key",
+      "_skillKey",
+      "_startTimePiece",
+      "_targetActorNodeIdList"
+    ],
+    "field_count": 5,
+    "files_observed_in": 2,
+    "first_observed_in": "c_59bcbb194361.json"
+  },
+  "GameData_TimelineEvent_BodyAnimation": {
+    "fields": [
+      "_animationName",
+      "_endTimePiece",
+      "_isLoop",
+      "_key",
+      "_playSpeed",
+      "_startOffset",
+      "_startTimePiece",
+      "_targetActorNodeIdList",
+      "_useFootIK"
+    ],
+    "field_count": 9,
+    "files_observed_in": 47,
+    "first_observed_in": "c_01ec13b2cc2e.json"
+  },
+  "GameData_TimelineEvent_Control_AI": {
+    "fields": [
+      "_actionFixedPositionList",
+      "_additionalTargetList",
+      "_aiControlType",
+      "_aiEventName",
+      "_autoMovingBlend",
+      "_changeShareValueList",
+      "_endActionNameHash",
+      "_endBehaviorType",
+      "_endTimePiece",
+      "_ingActionNameHash",
+      "_isGroupMove",
+      "_isTask",
+      "_key",
+      "_lowerActionChartName",
+      "_movePathFindType",
+      "_moveSpline",
+      "_patrolGroupData",
+      "_randomDelay",
+      "_randomDelayMin",
+      "_startBlendTime",
+      "_startTimePiece",
+      "_targetActor",
+      "_targetActorNodeIdList",
+      "_teleportTransform",
+      "_transform",
+      "_upperActionChartName",
+      "_useSplineEndTransform",
+      "_vehicleActor"
+    ],
+    "field_count": 28,
+    "files_observed_in": 26,
+    "first_observed_in": "c_06a04dd37838.json"
+  },
+  "GameData_TimelineEvent_Control_Input": {
+    "fields": [
+      "_catchPresetName",
+      "_endInputAction",
+      "_endTimePiece",
+      "_key",
+      "_moveSpline",
+      "_startTimePiece",
+      "_targetActor",
+      "_targetActorNodeIdList",
+      "_transform"
+    ],
+    "field_count": 9,
+    "files_observed_in": 65,
+    "first_observed_in": "c_01ec13b2cc2e.json"
+  },
+  "GameData_TimelineEvent_Control_Off": {
+    "fields": [
+      "_endTimePiece",
+      "_key",
+      "_startTimePiece",
+      "_targetActorNodeIdList",
+      "_useFade"
+    ],
+    "field_count": 5,
+    "files_observed_in": 10,
+    "first_observed_in": "c_11ac22178236.json"
+  },
+  "GameData_TimelineEvent_EquipmentInOut": {
+    "fields": [
+      "_childSocketName",
+      "_endTimePiece",
+      "_equipSlotName",
+      "_equipSlotNameIndex",
+      "_equipTypeKey",
+      "_isAllPartIn",
+      "_isPartsOut",
+      "_key",
+      "_socketName",
+      "_startTimePiece",
+      "_targetActorNodeIdList"
+    ],
+    "field_count": 11,
+    "files_observed_in": 22,
+    "first_observed_in": "c_0759ff3a7c97.json"
+  },
+  "GameData_TimelineEvent_GimmickControl": {
+    "fields": [
+      "_controlType",
+      "_endTimePiece",
+      "_eventTarget",
+      "_gimmickEventKey",
+      "_key",
+      "_moveSpline",
+      "_startTimePiece",
+      "_targetActorNodeIdList"
+    ],
+    "field_count": 8,
+    "files_observed_in": 11,
+    "first_observed_in": "c_13784771b5db.json"
+  },
+  "GameData_TimelineEvent_GlobalAIEvent": {
+    "fields": [
+      "_aiEventName",
+      "_endTimePiece",
+      "_key",
+      "_reactionTarget",
+      "_sendToChildStage",
+      "_startTimePiece",
+      "_targetActorNodeIdList",
+      "_targetTrigger"
+    ],
+    "field_count": 8,
+    "files_observed_in": 9,
+    "first_observed_in": "c_11ac22178236.json"
+  },
+  "GameData_TimelineEvent_RideVehicle": {
+    "fields": [
+      "_endTimePiece",
+      "_key",
+      "_riderActor",
+      "_startTimePiece",
+      "_targetActorNodeIdList"
+    ],
+    "field_count": 5,
+    "files_observed_in": 1,
+    "first_observed_in": "c_183304854715.json"
+  },
+  "GameData_TriggerEvent": {
+    "fields": [
+      "_gamePlayData",
+      "_gamePlayTriggerType",
+      "_nodeId",
+      "_triggerTagList"
+    ],
+    "field_count": 4,
+    "files_observed_in": 21,
+    "first_observed_in": "c_11ac22178236.json"
+  },
+  "GameData_Trigger_BattleBoundary": {
+    "fields": [
+      "_boundaryTargetList"
+    ],
+    "field_count": 1,
+    "files_observed_in": 6,
+    "first_observed_in": "c_11ac22178236.json"
+  },
+  "GameData_Trigger_CharacterBarrier": {
+    "fields": [],
+    "field_count": 0,
+    "files_observed_in": 13,
+    "first_observed_in": "c_11ac22178236.json"
   },
   "GameParticlePointInfoContainer": {
     "fields": [
@@ -90002,6 +90270,78 @@
     "field_count": 3,
     "files_observed_in": 95,
     "first_observed_in": "p_03310bae769e.json"
+  },
+  "SequencerGamePlayDataFile": {
+    "fields": [
+      "_controlAICatchDataList",
+      "_controlActorList",
+      "_dockingList",
+      "_folderList",
+      "_gameDataSequencer",
+      "_mercenaryActorList",
+      "_partyList",
+      "_pivotActor",
+      "_spawnActorList",
+      "_summonCharacterList",
+      "_timelineEventList",
+      "_timelineList",
+      "_triggerEventList",
+      "_vehicleList"
+    ],
+    "field_count": 14,
+    "files_observed_in": 103,
+    "first_observed_in": "c_01ec13b2cc2e.json"
+  },
+  "SequencerGamePlayData_CharacterActor": {
+    "fields": [
+      "_connectTrigger",
+      "_customType",
+      "_folderNodeId",
+      "_gimmickLinkSignalGroupList",
+      "_nodeId",
+      "_objectName",
+      "_randomAppearance",
+      "_spawnCharacterKey",
+      "_startTransform"
+    ],
+    "field_count": 9,
+    "files_observed_in": 67,
+    "first_observed_in": "c_01ec13b2cc2e.json"
+  },
+  "SequencerGamePlayData_GimmickActor": {
+    "fields": [
+      "_connectTrigger",
+      "_customType",
+      "_folderNodeId",
+      "_gimmickGimmickPointDataList",
+      "_gimmickKey",
+      "_gimmickLinkSignalGroupList",
+      "_gimmickTriggerCheckTargetDataList",
+      "_itemKey",
+      "_nodeId",
+      "_objectName",
+      "_spawnCharacterKey",
+      "_spawnReasonHash",
+      "_startTransform"
+    ],
+    "field_count": 13,
+    "files_observed_in": 29,
+    "first_observed_in": "c_0205610486fa.json"
+  },
+  "SequencerGamePlayData_Mercenary": {
+    "fields": [
+      "_connectTrigger",
+      "_customType",
+      "_folderNodeId",
+      "_gimmickLinkSignalGroupList",
+      "_nodeId",
+      "_objectName",
+      "_spawnCharacterKey",
+      "_startTransform"
+    ],
+    "field_count": 8,
+    "files_observed_in": 12,
+    "first_observed_in": "c_11ac22178236.json"
   },
   "SequencerPlayOption": {
     "fields": [

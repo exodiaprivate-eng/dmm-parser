@@ -53,7 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] REFLECT: extract + parse + harvest `.paseqc` files
 - [ ] REFLECT: extract + parse + harvest `.uianiminit` files
 - [ ] CATALOG: re-run `scripts/harvest_reflection_schema.py` against all parsed_reflection/ subdirs combined; produce a master class index in `ENGINE_INTERNALS.md`
 - [ ] GAP: add canonical-name doc-comment to `src/tables/gimmick_info/info.rs` listing 153 schema fields with status (decoded/missing)
@@ -91,6 +90,7 @@ descriptor class via Win-IDA).
 - [x] REFLECT: extract + parse + harvest `.pasg` files — 2026-05-10 12:35 SUCCESS. All 40 .pasg files parsed cleanly. Surfaces emitter simulation/spawn classes: `EmitterSimulationGroupData`, `EmitterMoveTrackData`, `EmitterSpawnData`, `EmitterSimulationData`. Combined catalog now: **8,337 classes / 32,190 fields**.
 - [x] REFLECT: extract + parse + harvest `.paa_metabin` files — 2026-05-10 12:38 SUCCESS-EMPTY. 137,856 .paa_metabin extracted, 501 sampled. Only `AnimationMetaData` class (0 fields — empty pointer wrapper). Animation metadata is NOT stored field-level here; the actual animation data lives in adjacent `.pam`/`.pami`/`.pamlod` files (Havok layer). Catalog: **8,338 classes / 32,190 fields** (+1 class, +0 fields).
 - [x] REFLECT: extract + parse + harvest `.paseq` files — 2026-05-10 12:39 BLOCKED (pycrimson `IndexError: list index out of range` on `self._types[type_index]` line 364 — type-table resolution bug, distinct from the parc-header issue). 4,659 .paseq files extracted to `_research_cache/extracted_paseq/`. Re-queue after pycrimson upstream fix.
+- [x] REFLECT: extract + parse + harvest `.paseqc` files — 2026-05-10 12:42 SUCCESS. 2,932 extracted, 59 parsed. **+24 classes, +173 fields**. Dense sequencer types: `GameData_Sequencer` (12), `GameData_Timeline` (11), `GameData_TimelineEvent_Control_AI` (28), `GameData_TimelineEvent_BodyAnimation` (9), `GameData_TimelineEvent_EquipmentInOut` (11), `GameData_TimelineEvent_GimmickControl` (8), plus 18 more. Catalog now: **8,362 classes / 32,363 fields**.
 
 ---
 
