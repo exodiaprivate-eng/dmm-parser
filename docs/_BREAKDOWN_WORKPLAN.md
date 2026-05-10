@@ -53,8 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] REFLECT: extract + parse + harvest `.meshinfo` files (highest-yield reflection format after .prefab; not yet sampled)
-- [ ] REFLECT: extract + parse + harvest `.palevel` files (level descriptors; references prefabs)
 - [ ] REFLECT: extract + parse + harvest `.pae` files (PA effect envelope, parc-based reflection)
 - [ ] REFLECT: extract + parse + harvest `.paem` files (PA effect emitter, parc-based reflection)
 - [ ] REFLECT: extract + parse + harvest `.parg` files (PA animation graph)
@@ -91,7 +89,8 @@ descriptor class via Win-IDA).
 
 ## Done
 
-(loop appends here with timestamp + commit hash)
+- [x] REFLECT: extract + parse + harvest `.meshinfo` files — 2026-05-10 12:25 BLOCKED (pycrimson `TransferInstructionFlags` enum value 8224 unmapped — fails on every .meshinfo). 34,715 files extracted to `_research_cache/extracted_meshinfo/` for future use once pycrimson updates. Re-queue after pycrimson upstream fix.
+- [x] REFLECT: extract + parse + harvest `.palevel` files — 2026-05-10 12:25 BLOCKED (pycrimson buffer-underflow error on `read_u16` — likely custom-header handling missing). 19,867 files extracted to `_research_cache/extracted_palevel/` for future use. Re-queue after pycrimson upstream fix.
 
 ---
 
