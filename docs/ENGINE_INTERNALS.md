@@ -265,17 +265,64 @@ Workflow doc: `docs/V3_1_PYCRIMSON_WORKFLOW.md`. Pipeline:
 `extract-pack-files` → `parse-serialized-file` →
 `scripts/harvest_reflection_schema.py` → `docs/v3_1_reflection_schema.json`.
 
-### Sample harvest result (commit `6273c7f`)
+### Initial harvest result (commit `6273c7f`)
 
-Parsing 502 character `.prefab` files yielded these PA-side wrapper
-classes with canonical fields:
+Parsing 502 character `.prefab` files yielded 4 PA-side wrapper
+classes (SceneObject, SkinnedMeshComponent, ResourceReferencePath_*).
 
-| Class | Fields |
-|---|---|
-| `SceneObject` | `_childSceneObjects`, `_components` |
-| `SkinnedMeshComponent` | `_boneOffsetTag`, `_modelPropertyIndex`, `_shrinkMaskDistance`, `_shrinkTag`, `_skeletonFileName`, `_skinnedMeshFile`, `_socketFileName` |
-| `ResourceReferencePath_SkinnedMesh` | `_path` |
-| `ResourceReferencePath_CharacterSkeleton` | (no fields — pointer-only) |
+### Expanded harvest (loop iter 3 — `.prefab` + `.parg` combined)
+
+After parsing 46,742 reflection-format files (.prefab + .parg) the
+combined catalog at `docs/v3_1_reflection_schema.json` contains:
+
+- **8,327 distinct PA reflection classes**
+- **32,091 canonical `_camelCase` field names** total
+
+Top 15 classes by field count:
+
+| Class | Fields | Files seen in |
+|---|---|---|
+| `AtmosphereConstant` | 54 | 17 |
+| `EmitterRenderGroupData` | 39 | 692 |
+| `DecalInfo` | 27 | 547 |
+| `SplineDecalComponent` | 25 | 101 |
+| `LightInfo` | 20 | 106 |
+| `ScenePostProcessing` | 20 | 23 |
+| `WeatherConstant` | 18 | 17 |
+| `SeaConstant` | 16 | 17 |
+| `SkinnedMeshComponent` | 13 | 14,961 |
+| `AudioComponent` | 12 | 718 |
+| `MeshComponent` | 11 | 22,815 |
+| `EffectComponent` | 9 | 2,066 |
+| `SplinePoint3D` | 8 | 4,944 |
+| `AudioEventData` | 7 | 661 |
+| `SceneObject` | 7 | 46,013 |
+
+Notable cross-validations:
+
+- `SplineDecalComponent` here has 25 fields. Session 28 iter 4
+  enumerated 17 properties from the IDA registrar; the .prefab /
+  .parg samples surfaced 8 additional fields the registrar didn't
+  include (likely inherited base-class fields registered
+  separately). Combined picture: 25-field class.
+- `EmitterRenderGroupData` (39 fields) is the dense particle-render
+  spec. Connects directly to the .parg "Render Group" tab in PA's
+  effect editor.
+- `Material` (3 fields), `MaterialParameter*` (2 fields each) — the
+  material parameter system. 8 parameter-type variants observed
+  (Uint, Float, Float2, Float3, Color, BitFlag32, Texture,
+  SplineRef). Each has just `_name` + `_value`; full class catalog
+  is in `docs/v3_1_reflection_schema.json`.
+
+Look up any individual class in `docs/v3_1_reflection_schema.json`
+for its canonical field list.
+
+### Initial harvest sample (legacy reference)
+
+The first 4 wrapper classes (SceneObject, SkinnedMeshComponent,
+ResourceReferencePath_SkinnedMesh, ResourceReferencePath_CharacterSkeleton)
+are part of the 8,327 above; preserved here for the original sample
+context.
 
 Important: these are the **PA-side wrappers**. The actual Havok mesh +
 skeleton bytes still need a Havok deserializer (Layer B).

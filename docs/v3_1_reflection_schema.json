@@ -88907,6 +88907,16 @@
     "files_observed_in": 2062,
     "first_observed_in": "p_00085d180d4b.json"
   },
+  "EmitterCurveData": {
+    "fields": [
+      "_presetName",
+      "_splineData",
+      "_splineID"
+    ],
+    "field_count": 3,
+    "files_observed_in": 692,
+    "first_observed_in": "g_012c5ec14c20.json"
+  },
   "EmitterOverrideObject": {
     "fields": [
       "_emitterData"
@@ -88923,6 +88933,52 @@
     "field_count": 2,
     "files_observed_in": 49,
     "first_observed_in": "p_01d85e3d54c6.json"
+  },
+  "EmitterRenderGroupData": {
+    "fields": [
+      "_alignMode",
+      "_blendMode",
+      "_cameraDistanceMin",
+      "_color",
+      "_curveEntryDataList",
+      "_distortionType",
+      "_distortionUVTilingAndOffset",
+      "_effectMaterialData2",
+      "_emissiveAdaptationRatio",
+      "_emissiveColor",
+      "_emissiveLightPreset",
+      "_fixedParticleScaleRatio",
+      "_geometryType",
+      "_gpuParticleDecalFlags",
+      "_gpuParticleRenderingFlags",
+      "_ignoreDecalVRS",
+      "_initialSequenceIndex",
+      "_injectLightIntensity",
+      "_meshLodBias",
+      "_meshObjectFileName",
+      "_offscreenParticleType",
+      "_opacity",
+      "_particleLightMip",
+      "_particleRenderCategory",
+      "_particleRenderingFlags",
+      "_particleSegmentCount",
+      "_renderGroup",
+      "_ribbonFixedUVScale",
+      "_ribbonXAxisSegmentationLevel",
+      "_sequenceCountX",
+      "_sequenceCountY",
+      "_sequencePlaySpeed",
+      "_shadingRate",
+      "_texelDensity",
+      "_useDisplacement",
+      "_useEmitterBaseUVAnimation",
+      "_useLinearBeam",
+      "_uvTilingAndOffset",
+      "_velocityStretch"
+    ],
+    "field_count": 39,
+    "files_observed_in": 692,
+    "first_observed_in": "g_012c5ec14c20.json"
   },
   "EmitterSpawnData": {
     "fields": [
@@ -89332,8 +89388,17 @@
       "_permutations"
     ],
     "field_count": 3,
-    "files_observed_in": 20,
-    "first_observed_in": "p_03ada4e88cbb.json"
+    "files_observed_in": 712,
+    "first_observed_in": "g_012c5ec14c20.json"
+  },
+  "MaterialParameterBitFlag32": {
+    "fields": [
+      "_name",
+      "_value"
+    ],
+    "field_count": 2,
+    "files_observed_in": 692,
+    "first_observed_in": "g_012c5ec14c20.json"
   },
   "MaterialParameterColor": {
     "fields": [
@@ -89341,8 +89406,8 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 19,
-    "first_observed_in": "p_03ada4e88cbb.json"
+    "files_observed_in": 55,
+    "first_observed_in": "g_082632575872.json"
   },
   "MaterialParameterFloat": {
     "fields": [
@@ -89350,8 +89415,8 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 20,
-    "first_observed_in": "p_03ada4e88cbb.json"
+    "files_observed_in": 706,
+    "first_observed_in": "g_012c5ec14c20.json"
   },
   "MaterialParameterFloat2": {
     "fields": [
@@ -89359,8 +89424,8 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 19,
-    "first_observed_in": "p_03ada4e88cbb.json"
+    "files_observed_in": 112,
+    "first_observed_in": "g_027b2ecbbde5.json"
   },
   "MaterialParameterFloat3": {
     "fields": [
@@ -89368,8 +89433,17 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 19,
-    "first_observed_in": "p_03ada4e88cbb.json"
+    "files_observed_in": 46,
+    "first_observed_in": "g_13d213987d14.json"
+  },
+  "MaterialParameterSplineRef": {
+    "fields": [
+      "_name",
+      "_value"
+    ],
+    "field_count": 2,
+    "files_observed_in": 425,
+    "first_observed_in": "g_0156d567c5fa.json"
   },
   "MaterialParameterTexture": {
     "fields": [
@@ -89377,8 +89451,17 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 20,
-    "first_observed_in": "p_03ada4e88cbb.json"
+    "files_observed_in": 706,
+    "first_observed_in": "g_012c5ec14c20.json"
+  },
+  "MaterialParameterUint": {
+    "fields": [
+      "_name",
+      "_value"
+    ],
+    "field_count": 2,
+    "files_observed_in": 689,
+    "first_observed_in": "g_012c5ec14c20.json"
   },
   "MeshComponent": {
     "fields": [
@@ -89645,8 +89728,8 @@
       "_path"
     ],
     "field_count": 1,
-    "files_observed_in": 124,
-    "first_observed_in": "p_00634779bda1.json"
+    "files_observed_in": 810,
+    "first_observed_in": "g_012c5ec14c20.json"
   },
   "ResourceReferencePath_SequenceData": {
     "fields": [
@@ -89897,6 +89980,23 @@
     "files_observed_in": 2,
     "first_observed_in": "p_1f85fddc5a8f.json"
   },
+  "SplineData": {
+    "fields": [
+      "_pointListForSerialize"
+    ],
+    "field_count": 1,
+    "files_observed_in": 417,
+    "first_observed_in": "g_0156d567c5fa.json"
+  },
+  "SplineDataInstance": {
+    "fields": [
+      "_dataForSerialize",
+      "_dataType"
+    ],
+    "field_count": 2,
+    "files_observed_in": 417,
+    "first_observed_in": "g_0156d567c5fa.json"
+  },
   "SplineDecalComponent": {
     "fields": [
       "_detailHeightIntensity",
@@ -89968,6 +90068,17 @@
     "files_observed_in": 21,
     "first_observed_in": "p_0581faad86e5.json"
   },
+  "SplinePoint": {
+    "fields": [
+      "_innerTangent",
+      "_interpolateType",
+      "_outterTangent",
+      "_position"
+    ],
+    "field_count": 4,
+    "files_observed_in": 417,
+    "first_observed_in": "g_0156d567c5fa.json"
+  },
   "SplinePoint3D": {
     "fields": [
       "_customkey",
@@ -89982,6 +90093,16 @@
     "field_count": 8,
     "files_observed_in": 4944,
     "first_observed_in": "p_00085d180d4b.json"
+  },
+  "SplineRef": {
+    "fields": [
+      "_splineDataInstance",
+      "_splineDataType",
+      "_splinePresetName"
+    ],
+    "field_count": 3,
+    "files_observed_in": 425,
+    "first_observed_in": "g_0156d567c5fa.json"
   },
   "SubLevelPriorityComponent": {
     "fields": [],
