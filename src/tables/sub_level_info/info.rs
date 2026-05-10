@@ -1,6 +1,27 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410FD200` in CrimsonDesert.exe (Win build).
+//!
+//! ─── v3.1 closure analysis (iter 72) ────────────────────────────────────
+//! Cross-check via `sub_1410C9FF0` (typeinfo→record-reader path per the
+//! iter 56 typeinfo registry). Wire reads in source order (excerpt):
+//!
+//!   offset 0    4 bytes          _key
+//!   offset 8    CString          _stringKey
+//!   offset 16   1 byte           _isBlocked
+//!   offset 20   4 bytes          _minLevel
+//!   offset 24   4 bytes          _maxLevel
+//!   offset 32   sub_141DFB780    EXP COMPOSITE (32 bytes consumed,
+//!                                aligned 28-byte payload = 3×u64 + u32)
+//!   offset 64   …                rest of struct (condition_info,
+//!                                alert components, lists, etc.)
+//!
+//! NattKh schema lists `_exp` as a single canonical at this position;
+//! the rust struct already unrolls it as `exp_a, exp_b, exp_c, exp_d`
+//! (the doc-comment on those fields explicitly notes the 28-byte
+//! composite split). Wire-level confirmation: **`_exp` is a pure 1-to-4
+//! wrapper** around `exp_a..d`. Closure path: 1-to-N alias entry
+//! mapping `_exp` → `[exp_a, exp_b, exp_c, exp_d]`. No new decoder work.
 //! Inner sub-readers (all decoded for the Tier 1.5 → 1 promotion):
 //!   - sub_141108870 → CArray<SubLevelExpData> (each element wraps
 //!     two nested CArrays — sub_141103310 + sub_1411142E0)

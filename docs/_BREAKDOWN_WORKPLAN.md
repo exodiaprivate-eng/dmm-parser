@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 72: sub_level_info `_exp` closure plan (1-to-4 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410C9FF0 (iter 56 typeinfo registry). The single sub_141DFB780 call at offset 32 consumes 32 bytes spanning the 28-byte exp composite (3×u64 + u32). Confirmed `_exp` is a pure 1-to-4 wrapper around the unrolled `exp_a, exp_b, exp_c, exp_d` rust fields. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/sub_level_info/info.rs.
+
 - [x] GAP iter 71: royal_supply_info closure plan (1-to-2 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410C3220 (iter 56 typeinfo registry). 7 wire reads. Two consecutive sub_1410D7290 calls at offsets 24 and 56 confirm `_royalSupplyRandomMap` is a pure 1-to-2 wrapper around `royal_supply_random_map_quest` + `royal_supply_random_map_mission`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/royal_supply_info/info.rs.
 
 - [x] GAP iter 70: multi_change_info `_complteDescription` typo alias — 2026-05-10 SUCCESS. Decompiled sub_1410BA4C0 (iter 57 typeinfo registry). 22 wire reads pair with 27 rust fields; LocalizableString at offset 192 maps to `_complteDescription` canonical (PA typo, missing 'e'). Added MANUAL_OVERRIDES entry mapping `complete_description` → `_complteDescription`. Regenerated aliases. Schema verifier: multi_change_info now 25/25 verified, 0 missing. Total missing-canonicals count: 557 → 556.
