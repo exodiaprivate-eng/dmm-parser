@@ -23,6 +23,26 @@
 //! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
 //! "Hand-corrected" header marker on line 1.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::QuickTimeEventInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  4
+// Decoded by dmm-parser:   4
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _quickTimeEventDataList
+
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;

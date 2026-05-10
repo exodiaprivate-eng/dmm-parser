@@ -15,6 +15,26 @@
 //!     sub_100667710 = CArray<CString>)
 //!   - CArray<CString> gamepad_map_list  (_gamePadMapList, same helper)
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::KeyMapSettingListInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  4
+// Decoded by dmm-parser:   4
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _keyMapSettingList
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

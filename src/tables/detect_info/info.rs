@@ -5,6 +5,29 @@
 //! that are themselves DetectSenseData. Use Box<CArray<...>> indirection
 //! since CArray<T> already heap-allocates the element backing.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::DetectInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  7
+// Decoded by dmm-parser:   7
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _isDetectableAttachedDocking (direct_u8, stream=1)
+// ✅ _decreaseValuePerSec (direct_u32, stream=4)
+// ✅ _detectSenseData (array_or_complex, stream=4)
+// ✅ _targetLostDistance (direct_u32, stream=4)
+// ✅ _key (array_or_complex, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

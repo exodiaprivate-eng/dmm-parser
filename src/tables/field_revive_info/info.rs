@@ -29,6 +29,32 @@
 //! prefix fields (`name`, `raw_a`, `prefab_path`, `position`, `raw_b`,
 //! 8× `flag_*`) are individually editable as of this commit.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::FieldReviveInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  10
+// Decoded by dmm-parser:   10
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _knowledgeInfo (reader_4B, stream=4)
+// ✅ _fieldInfoKey (direct_u8, stream=1)
+// ✅ _useDefaultRevive (direct_u8, stream=1)
+// ✅ _knowledgeLevel (direct_u32, stream=4)
+// ✅ _stringKey
+// ✅ _key (direct_u8, stream=1)
+// ✅ _position (direct_12B, stream=12)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _sequencerStageChartDesc (array_or_complex, stream=12)
+// ✅ _rotationY (direct_u32, stream=4)
+
 use crate::binary::*;
 use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

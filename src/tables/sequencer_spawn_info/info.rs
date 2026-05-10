@@ -25,6 +25,30 @@
 //!     u8 flag_b
 //!     u8 flag_c
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::SequencerSpawnInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  8
+// Decoded by dmm-parser:   8
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _isRandom (direct_u8, stream=1)
+// ✅ _stageType (direct_u8, stream=1)
+// ✅ _matchTagHash (direct_u32, stream=4)
+// ✅ _key (direct_u32, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _sequencerSpawnDataList
+// ✅ _description
+
 use crate::binary::*;
 use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

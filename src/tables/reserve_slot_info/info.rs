@@ -37,6 +37,39 @@
 //!      (_sendGimmickEventKeyForSlotDataChanged)
 //!  17. u8 is_self_player_only                   (_isSelfPlayerOnly)
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::ReserveSlotInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  17
+// Decoded by dmm-parser:   17
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _sendGimmickEventKeyForSlotDataChanged (direct_u32, stream=4)
+// ✅ _targetItemGroupList (reader_2B, stream=2)
+// ✅ _isSelfPlayerOnly
+// ✅ _fillDataList
+// ✅ _convertItemInfo (reader_4B, stream=4)
+// ✅ _reserveSlotType (direct_13B, stream=13)
+// ✅ _memo
+// ✅ _enableTribeList
+// ✅ _usingType (direct_13B, stream=13)
+// ✅ _enableSpecialNameHashList
+// ✅ _enableVehicleList (reader_2B, stream=2)
+// ✅ _stringKey
+// ✅ _key
+// ✅ _timeLimit (direct_u64, stream=8)
+// ✅ _isBlocked (direct_13B, stream=13)
+// ✅ _autoUseItemInfo (reader_4B, stream=4)
+// ✅ _coolTime (direct_u32, stream=4)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

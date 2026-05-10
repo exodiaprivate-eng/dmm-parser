@@ -9,6 +9,26 @@
 //! Memory stride = 128 bytes (sub_1411084A0 << 7), but disk format is
 //! length-prefixed CString followed by all u32/u8 fields in read order.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::TriggerRegionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  4
+// Decoded by dmm-parser:   4
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _presetList
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

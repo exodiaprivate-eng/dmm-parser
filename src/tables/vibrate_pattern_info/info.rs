@@ -10,6 +10,28 @@
 //! mapping is u8 + 3×f32 (1+4+4+4=13). Probed all 43 vanilla elements
 //! (129 f32 values across the live dump) — 0 NaN, safe for typed f32.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::VibratePatternInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  6
+// Decoded by dmm-parser:   6
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key (array_or_complex, stream=4)
+// ✅ _easeType (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _vibratePatternDataList (array_or_complex, stream=4)
+// ✅ _reverseEase (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

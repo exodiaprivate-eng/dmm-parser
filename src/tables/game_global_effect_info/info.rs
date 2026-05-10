@@ -31,6 +31,39 @@
 //!       inline u8 presence + 88-byte struct)
 //!  17.  u8 is_advanced                             (_isAdvanced)
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GameGlobalEffectInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  17
+// Decoded by dmm-parser:   17
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _projectileKey (direct_u32, stream=4)
+// ✅ _condition (reader_1B, stream=1)
+// ✅ _projectileChasePhysicsMaterialHash (direct_u32, stream=4)
+// ✅ _projectileShotKey (direct_u32, stream=4)
+// ✅ _isAdvanced (direct_u8, stream=1)
+// ✅ _postProcessData (direct_u8, stream=1)
+// ✅ _projectileShotInterval (direct_u64, stream=8)
+// ✅ _projectileShotSpread (direct_12B, stream=12)
+// ✅ _projectileCreateDelayTime (direct_u32, stream=4)
+// ✅ _projectileHeightOffset (direct_u32, stream=4)
+// ✅ _projectileShotCount (direct_u8, stream=1)
+// ✅ _projectileHitRate (direct_u8, stream=1)
+// ✅ _weatherData (reader_1B, stream=1)
+// ✅ _effectData (direct_u8, stream=1)
+
 use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

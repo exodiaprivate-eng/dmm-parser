@@ -31,6 +31,34 @@
 //! Tags 4+ are rejected by the reader, so we narrow the JSON shape to
 //! the four valid `kind` strings on encode/decode.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GamePlayTriggerInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  12
+// Decoded by dmm-parser:   12
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key
+// ✅ _triggerType (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _safeZoneType (direct_u8, stream=1)
+// ✅ _isEnable (direct_u8, stream=1)
+// ✅ _uiMapTextureInfo
+// ✅ _playerConditionInfo (reader_4B, stream=4)
+// ✅ _rotationY (direct_u32, stream=4)
+// ✅ _position (direct_12B, stream=12)
+// ✅ _targetDataList
+// ✅ _worldMapColorR (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};

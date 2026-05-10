@@ -10,6 +10,35 @@
 //! from Mac-binary symbols + Win-binary parser introspection.
 //! All 48 variant tags observed in vanilla data validate cleanly.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::BuffInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  13
+// Decoded by dmm-parser:   13
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key (direct_u32, stream=4)
+// ✅ _buffDataList (direct_u32, stream=4)
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _maxLevel (direct_u32, stream=4)
+// ✅ _minLevel (direct_u32, stream=4)
+// ✅ _buffLevelCalculateType (direct_15B, stream=15)
+// ✅ _sequencerFileName
+// ✅ _uiComponentName (reader_4B, stream=4)
+// ✅ _uiTemplateName (reader_4B, stream=4)
+// ✅ _isUseSkillInfoPatternDescription (direct_15B, stream=15)
+// ✅ _elementalStatusInfo (reader_4B, stream=4)
+// ✅ _useCountingByGlobalTimer (direct_15B, stream=15)
+
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

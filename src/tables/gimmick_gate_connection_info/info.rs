@@ -23,6 +23,31 @@
 //! All helpers are non-polymorphic single-shot u32 lookups; raw wire
 //! u32 round-trips. No CArrays, no COptional.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GimmickGateConnectionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  9
+// Decoded by dmm-parser:   9
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _pushKnowledgeToGimmick (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _key
+// ✅ _materialItemInfo (reader_4B, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _knowledgeInfo (reader_4B, stream=4)
+// ✅ _resultItemInfo (reader_4B, stream=4)
+// ✅ _destGateInfo (direct_u8, stream=1)
+// ✅ _srcGateInfo
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

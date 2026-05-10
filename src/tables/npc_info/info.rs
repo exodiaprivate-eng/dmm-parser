@@ -1,3 +1,34 @@
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::NpcInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  15
+// Decoded by dmm-parser:   15
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key
+// ✅ _isBlocked (direct_12B, stream=12)
+// ✅ _stringKey
+// ✅ _interactionName (reader_8B, stream=8)
+// ✅ _shopName (reader_8B, stream=8)
+// ✅ _dyeTextureSetDataList
+// ✅ _dyeColorGroupDataList
+// ✅ _storeInfo (reader_2B, stream=2)
+// ✅ _iconPath (reader_4B, stream=4)
+// ✅ _npcGreetFriendly (direct_u32, stream=4)
+// ✅ _couponItemInfo (reader_4B, stream=4)
+// ✅ _shopScenekey
+// ✅ _npcFunctionTypeFlag
+// ✅ _exchangeButtonText (reader_8B, stream=8)
+// ✅ _exchangeGroupKey
+
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed (no _tail_b64).
 //!

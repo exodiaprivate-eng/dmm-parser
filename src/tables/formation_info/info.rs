@@ -7,6 +7,28 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::FormationInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  6
+// Decoded by dmm-parser:   6
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _isSuperStrict (direct_15B, stream=15)
+// ✅ _key
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _stringKey
+// ✅ _absoluteOffset (direct_15B, stream=15)
+// ✅ _memberDataList (direct_15B, stream=15)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

@@ -7,6 +7,35 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::DialogVoiceInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  13
+// Decoded by dmm-parser:   13
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _footStepGroundSoundOffset (direct_u8, stream=1)
+// ✅ _footStepLandSoundOffset (direct_u8, stream=1)
+// ✅ _jobInfoList (reader_2B, stream=2)
+// ✅ _soundEvent
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _footStepCrouchSoundEvent
+// ✅ _footStepSoundEvent
+// ✅ _footStepGroundSoundEvent
+// ✅ _footStepLandSoundEvent
+// ✅ _footStepCrouchSoundOffset (direct_u8, stream=1)
+// ✅ _footStepSoundOffset (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _key (reader_2B, stream=2)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

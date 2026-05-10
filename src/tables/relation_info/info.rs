@@ -1,3 +1,30 @@
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::RelationInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  11
+// Decoded by dmm-parser:   11
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _detectRestrictCount (direct_u8, stream=1)
+// ✅ _order (direct_u8, stream=1)
+// ✅ _doCompleteNotPriorityActor (direct_u8, stream=1)
+// ✅ _detectMemorizeTime (direct_u64, stream=8)
+// ✅ _isDetectEventOnly (direct_u8, stream=1)
+// ✅ _detectValueRatio (direct_u32, stream=4)
+// ✅ _gimmickTagDataList
+// ✅ _stringKey
+// ✅ _key
+// ✅ _relationReactionType (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+
 #![allow(clippy::doc_overindented_list_items)]
 //! Hand-corrected: IDA-derived parser for `RelationInfo.pabgb`.
 //!

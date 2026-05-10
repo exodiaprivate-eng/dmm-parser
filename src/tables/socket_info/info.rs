@@ -7,6 +7,27 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::SocketInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  5
+// Decoded by dmm-parser:   5
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key (reader_4B, stream=4)
+// ✅ _socketName (reader_8B, stream=8)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _iconPath (reader_4B, stream=4)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

@@ -7,6 +7,26 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::MaterialRelationInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  4
+// Decoded by dmm-parser:   4
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _materialRelationMatchUpDataList (reader_8B, stream=8)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _key (reader_8B, stream=8)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

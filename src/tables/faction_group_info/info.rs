@@ -20,6 +20,30 @@
 //!
 //! All helpers consult runtime hash dictionaries; raw wire u32 round-trips.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::FactionGroupInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  8
+// Decoded by dmm-parser:   8
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _uiIconPath (reader_4B, stream=4)
+// ✅ _knowledgeInfo (reader_4B, stream=4)
+// ✅ _uiDailyQuestImagePath (reader_4B, stream=4)
+// ✅ _key (reader_4B, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _factionInfoList (reader_4B, stream=4)
+// ✅ _factionGroupName (reader_8B, stream=8)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

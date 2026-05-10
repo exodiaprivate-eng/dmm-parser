@@ -7,6 +7,40 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::ActionRestrictionOrderInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  18
+// Decoded by dmm-parser:   18
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _stringKey
+// ✅ _ignoreThrow (direct_15B, stream=15)
+// ✅ _ignoreCatch (direct_15B, stream=15)
+// ✅ _delayKnockOut (direct_15B, stream=15)
+// ✅ _delayDeadFatal (direct_15B, stream=15)
+// ✅ _useAutoAttackThrow (direct_15B, stream=15)
+// ✅ _useRandomHitDir (direct_15B, stream=15)
+// ✅ _additiveSkill (direct_u64, stream=8)
+// ✅ _endAiEventHash (direct_u32, stream=4)
+// ✅ _startAiEventHash (direct_u32, stream=4)
+// ✅ _actionRestrictionType (direct_15B, stream=15)
+// ✅ _order (direct_u16, stream=2)
+// ✅ _skillInfo (reader_4B, stream=4)
+// ✅ _registTypeStatus (reader_4B, stream=4)
+// ✅ _aiEventTagNameHash (direct_u32, stream=4)
+// ✅ _spawnActionList (direct_u64, stream=8)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

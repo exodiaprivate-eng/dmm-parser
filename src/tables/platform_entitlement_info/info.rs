@@ -24,6 +24,31 @@
 //!
 //! All fields typed. JSON-addressable for full mod-editing.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::PlatformEntitlementInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  9
+// Decoded by dmm-parser:   9
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key (direct_u16, stream=2)
+// ✅ _entitlementName (reader_8B, stream=8)
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _iconPath (reader_4B, stream=4)
+// ✅ _entitlementDesc (reader_8B, stream=8)
+// ✅ _resultDropInfoList (reader_4B, stream=4)
+// ✅ _type (direct_15B, stream=15)
+// ✅ _platformIdList
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

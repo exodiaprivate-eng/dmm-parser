@@ -1,3 +1,29 @@
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::BitmapPositionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  10
+// Decoded by dmm-parser:   10
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _scalePerPixel (direct_u32, stream=4)
+// ✅ _centerPosition (direct_u64, stream=8)
+// ✅ _maxUsingHeight (direct_u32, stream=4)
+// ✅ _key (direct_u32, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _values (array_or_complex, stream=4)
+// ✅ _scaleType (direct_u8, stream=1)
+// ✅ _boundaryPositionMax (direct_u64, stream=8)
+// ✅ _boundaryPositionMin (direct_u64, stream=8)
+
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed (no _tail_b64).
 //!

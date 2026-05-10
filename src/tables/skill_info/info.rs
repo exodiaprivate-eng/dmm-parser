@@ -21,6 +21,56 @@
 //!   - read_u32_lookup_DA30:            u32 (4 stream bytes)
 //!   - read_u32_lookup_DA10:            u32 (4 stream bytes)
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::SkillInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  34
+// Decoded by dmm-parser:   34
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _maxLevel (direct_u32, stream=4)
+// ✅ _reserveSlotInfoList (reader_4B, stream=4)
+// ✅ _buffSustainFlag (direct_u32, stream=4)
+// ✅ _skillGroupKeyList (reader_2B, stream=2)
+// ✅ _devSkillDesc
+// ✅ _devSkillName
+// ✅ _videoPath (reader_4B, stream=4)
+// ✅ _useBatteryStat (direct_u64, stream=8)
+// ✅ _useDriverResourceStatList
+// ✅ _isLearnUseArtifact (direct_12B, stream=12)
+// ✅ _isUiUseAllowed (direct_12B, stream=12)
+// ✅ _isUseChildPatternDescriptionBuffData (direct_12B, stream=12)
+// ✅ _allowSkillWithLowResource (direct_12B, stream=12)
+// ✅ _uiType (direct_12B, stream=12)
+// ✅ _damageType (direct_12B, stream=12)
+// ✅ _needUpgradeExperienceGraph (array_or_complex, stream=8)
+// ✅ _needUpgradeItemCountGraph (array_or_complex, stream=8)
+// ✅ _usableCondition (reader_4B, stream=4)
+// ✅ _usableCharacterInfoList (reader_4B, stream=4)
+// ✅ _factionInfo (reader_4B, stream=4)
+// ✅ _learnKnowledgeInfo (reader_4B, stream=4)
+// ✅ _useResourceItemList
+// ✅ _useResourceStatList
+// ✅ _buffLevelList
+// ✅ _cooltime (direct_u32, stream=4)
+// ✅ _parentSkill (reader_4B, stream=4)
+// ✅ _skillGroupKey (direct_u32, stream=4)
+// ✅ _applyType (direct_12B, stream=12)
+// ✅ _learnLevel (direct_u32, stream=4)
+// ✅ _needUpgradeItemInfo (reader_4B, stream=4)
+// ✅ _iconPath (reader_4B, stream=4)
+// ✅ _key
+// ✅ _isBlocked (direct_12B, stream=12)
+// ✅ _stringKey
+
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

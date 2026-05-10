@@ -7,6 +7,34 @@
 //! decoder lives in `crate::binary::variants::drop_target`. Same payload shape
 //! powers `ItemUseInfo` RandomBox `inner_data`.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::DropSetInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  12
+// Decoded by dmm-parser:   12
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _dropTagNameHash (direct_u32, stream=4)
+// ✅ _dropConditionString
+// ✅ _neeSlotCount (direct_u16, stream=2)
+// ✅ _list
+// ✅ _totalDropRate (direct_u64, stream=8)
+// ✅ _needWeight (direct_u64, stream=8)
+// ✅ _originalString
+// ✅ _key
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _dropRollCount (direct_u32, stream=4)
+// ✅ _dropRollType (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::binary::variants::drop_target::OptionalDropTarget;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

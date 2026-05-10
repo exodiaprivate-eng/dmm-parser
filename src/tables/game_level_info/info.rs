@@ -23,6 +23,28 @@
 //!   - list: CArray<u32> (sub_1410FEF40 → qword_145F0DA30)
 //!   - flag: u8
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GameLevelInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  6
+// Decoded by dmm-parser:   6
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key
+// ✅ _defaultLevelDataName (reader_4B, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _levelDataList
+// ✅ _updateRegionInfo (reader_2B, stream=2)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

@@ -7,6 +7,34 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::ItemGroupInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  12
+// Decoded by dmm-parser:   12
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _orderIndex (direct_u16, stream=2)
+// ✅ _itemInfoList (reader_4B, stream=4)
+// ✅ _iconPath (reader_4B, stream=4)
+// ✅ _itemCageType (direct_u8, stream=1)
+// ✅ _isMonsterOnlyEquip (direct_u8, stream=1)
+// ✅ _isShowCategoryString (direct_u8, stream=1)
+// ✅ _isAlwaysFoldItemGroup (direct_u8, stream=1)
+// ✅ _key (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _itemGroupInfoList (reader_2B, stream=2)
+// ✅ _groupName (reader_8B, stream=8)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

@@ -7,6 +7,29 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::JobInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  7
+// Decoded by dmm-parser:   7
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key
+// ✅ _parentInfo (reader_2B, stream=2)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _hasChild (direct_u8, stream=1)
+// ✅ _childList (reader_2B, stream=2)
+// ✅ _name
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

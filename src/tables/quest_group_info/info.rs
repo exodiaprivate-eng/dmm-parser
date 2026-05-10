@@ -7,6 +7,37 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::QuestGroupInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  15
+// Decoded by dmm-parser:   15
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _isSave (direct_u8, stream=1)
+// ✅ _factionGroupInfo (reader_2B, stream=2)
+// ✅ _isAutoSave (direct_u8, stream=1)
+// ✅ _isDev (direct_u8, stream=1)
+// ✅ _name (reader_8B, stream=8)
+// ✅ _questType (direct_u8, stream=1)
+// ✅ _questList (reader_4B, stream=4)
+// ✅ _questGroupDesc (reader_8B, stream=8)
+// ✅ _stageIconPath (reader_4B, stream=4)
+// ✅ _debugColor (direct_u32, stream=4)
+// ✅ _stageImagePath (reader_4B, stream=4)
+// ✅ _stageTextIconPath (reader_4B, stream=4)
+// ✅ _key (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

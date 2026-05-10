@@ -7,6 +7,37 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::CharacterGroupInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  15
+// Decoded by dmm-parser:   15
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _groupFactionList (reader_4B, stream=4)
+// ✅ _groupAllyGroupList
+// ✅ _stopAnimConstraintDead (direct_15B, stream=15)
+// ✅ _groupJobInfoList (reader_2B, stream=2)
+// ✅ _characterInfoList (reader_4B, stream=4)
+// ✅ _groupName
+// ✅ _groupTribeList
+// ✅ _groupGenderList (direct_15B, stream=15)
+// ✅ _groupAgeList (direct_15B, stream=15)
+// ✅ _groupRegionInfoList (reader_2B, stream=2)
+// ✅ _groupTierList (direct_15B, stream=15)
+// ✅ _groupWeaponTypeList
+// ✅ _key
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _stringKey
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

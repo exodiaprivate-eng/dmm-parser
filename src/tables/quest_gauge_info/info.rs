@@ -7,6 +7,34 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::QuestGaugeInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  12
+// Decoded by dmm-parser:   12
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _completeEventData
+// ✅ _startEventData
+// ✅ _targetMissionInfoList (reader_4B, stream=4)
+// ✅ _questInfoList (reader_4B, stream=4)
+// ✅ _factionInfoList (reader_4B, stream=4)
+// ✅ _excludeStageInfoList (reader_4B, stream=4)
+// ✅ _percent
+// ✅ _factionNodeInfoList (reader_4B, stream=4)
+// ✅ _stringKey
+// ✅ _key
+// ✅ _parentQuest (reader_4B, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

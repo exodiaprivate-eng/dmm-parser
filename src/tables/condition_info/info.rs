@@ -28,6 +28,28 @@
 //! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
 //! "Hand-corrected" header marker on line 1.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::ConditionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  6
+// Decoded by dmm-parser:   6
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _originalString
+// ✅ _gameCondition
+// ✅ _parserType (direct_u8, stream=1)
+
 use crate::binary::variant::find_cstring_u8_trailer;
 use crate::binary::variants::game_condition::GameCondition;
 use crate::binary::*;

@@ -7,6 +7,37 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::MercenaryInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  15
+// Decoded by dmm-parser:   15
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _setNewMercenaryIsMain (direct_u8, stream=1)
+// ✅ _isControllable (direct_u8, stream=1)
+// ✅ _isForceStackable (direct_u8, stream=1)
+// ✅ _mainMercenaryPerTribe (direct_u8, stream=1)
+// ✅ _useCampLevel (direct_u8, stream=1)
+// ✅ _isSellable (direct_u8, stream=1)
+// ✅ _spawnPositionType (direct_u8, stream=1)
+// ✅ _applyEquipItemStat (direct_u8, stream=1)
+// ✅ _key (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _defaultLimitHireCount (direct_u32, stream=4)
+// ✅ _defaultLimitSummonCount (direct_u32, stream=4)
+// ✅ _farFromLeaderOption (direct_u8, stream=1)
+// ✅ _maxLimitHireCount (direct_u32, stream=4)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

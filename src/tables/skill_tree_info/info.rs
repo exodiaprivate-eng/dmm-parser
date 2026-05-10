@@ -1,3 +1,34 @@
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::SkillTreeInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  15
+// Decoded by dmm-parser:   15
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _uiTextureIconPath (reader_4B, stream=4)
+// ✅ _uiGridSizeY (direct_u32, stream=4)
+// ✅ _skillNodeList
+// ✅ _uiPageName (reader_8B, stream=8)
+// ✅ _firstFocusSkillInfo (reader_4B, stream=4)
+// ✅ _statNodeList (direct_u64, stream=8)
+// ✅ _firstFocusPosition (direct_u64, stream=8)
+// ✅ _firstFocusZoom (direct_u32, stream=4)
+// ✅ _key
+// ✅ _isBlocked (direct_13B, stream=13)
+// ✅ _stringKey
+// ✅ _factionInfo (reader_4B, stream=4)
+// ✅ _characterInfo (reader_4B, stream=4)
+// ✅ _uiGridSizeX (direct_u32, stream=4)
+// ✅ _itemInfo (reader_4B, stream=4)
+
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed parser.
 //!

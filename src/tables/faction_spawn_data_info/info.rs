@@ -44,6 +44,29 @@
 //!   - field_a: u16                                       (sub_1411003E0)
 //!   - field_b: u32                                       (sub_1410FF430)
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::FactionSpawnDataInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  7
+// Decoded by dmm-parser:   7
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _gimmickSpawnDataList
+// ✅ _patrolSpawnData (reader_1B, stream=1)
+// ✅ _sequencerSpawnInfo (reader_15B, stream=15)
+// ✅ _scheduleSpawnInfo
+// ✅ _key (reader_15B, stream=15)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;

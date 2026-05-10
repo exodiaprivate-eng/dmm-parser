@@ -1,3 +1,53 @@
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::QuestInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  34
+// Decoded by dmm-parser:   34
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _npcDialogMustCondition (reader_4B, stream=4)
+// ✅ _dialogMustMissionInfoList (reader_4B, stream=4)
+// ✅ _isContinuousMission (direct_12B, stream=12)
+// ✅ _isSave (direct_12B, stream=12)
+// ✅ _debugColor (direct_u32, stream=4)
+// ✅ _playableMissionCount (direct_u32, stream=4)
+// ✅ _stageImagePath (reader_4B, stream=4)
+// ✅ _testTag
+// ✅ _playableStageCount (direct_u32, stream=4)
+// ✅ _gameStartSubTimeline
+// ✅ _gameStartStage (reader_4B, stream=4)
+// ✅ _questDialogFilterDataList
+// ✅ _memo
+// ✅ _gaugeList (direct_u32, stream=4)
+// ✅ _executorQuestList (reader_4B, stream=4)
+// ✅ _stageList (reader_4B, stream=4)
+// ✅ _missionList (reader_4B, stream=4)
+// ✅ _startStage (reader_4B, stream=4)
+// ✅ _startMission (reader_4B, stream=4)
+// ✅ _stageTextIconPath (reader_4B, stream=4)
+// ✅ _stageIconPath (reader_4B, stream=4)
+// ✅ _desc (reader_8B, stream=8)
+// ✅ _name (reader_8B, stream=8)
+// ✅ _factionInfo (reader_4B, stream=4)
+// ✅ _questGroupInfo
+// ✅ _branchData (array_or_complex, stream=1)
+// ✅ _factionStateData (reader_5B, stream=5)
+// ✅ _branchDataList (reader_14B, stream=14)
+// ✅ _startPlayerList (reader_4B, stream=4)
+// ✅ _key
+// ✅ _isBlocked (direct_12B, stream=12)
+// ✅ _stringKey
+// ✅ _questCategory (direct_12B, stream=12)
+// ✅ _questType (direct_12B, stream=12)
+
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed parser with variant-boundary probe for the polymorphic
 //! `_questDialogFilterDataList` field.

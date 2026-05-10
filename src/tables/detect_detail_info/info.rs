@@ -5,6 +5,26 @@
 //!
 //! DetectSenseData is the same recursive type from `tables::detect_info`.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::DetectDetailInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  4
+// Decoded by dmm-parser:   4
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key (array_or_complex, stream=4)
+// ✅ _detectDetailDataListNew (array_or_complex, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::tables::detect_info::DetectSenseData;

@@ -7,6 +7,37 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GameAdviceInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  15
+// Decoded by dmm-parser:   15
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _isUseLoadingView (direct_u8, stream=1)
+// ✅ _isDefault (direct_u8, stream=1)
+// ✅ _gameAdviceUnknownName (reader_8B, stream=8)
+// ✅ _keyMouseInputDescLocalStringInfo (reader_8B, stream=8)
+// ✅ _uiVideoPathStringInfo (reader_4B, stream=4)
+// ✅ _uiTextureNameStringInfo (reader_4B, stream=4)
+// ✅ _isOnce (direct_u8, stream=1)
+// ✅ _widgetIdStringInfo (reader_4B, stream=4)
+// ✅ _gameAdviceGroupInfo (direct_u8, stream=1)
+// ✅ _isShowGuideList (direct_u8, stream=1)
+// ✅ _key (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _descLocalStringInfo (reader_8B, stream=8)
+// ✅ _titleLocalStringInfo (reader_8B, stream=8)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

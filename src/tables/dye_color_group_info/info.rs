@@ -3,6 +3,28 @@
 //! Per IDA sub_1410DA7C9: dye_color_data_list element is
 //! { u32 raw + u32 sub_1410FF430-hash } = 8 bytes total.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::DyeColorGroupInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  6
+// Decoded by dmm-parser:   6
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _dyeColorDataList
+// ✅ _isBlocked (direct_13B, stream=13)
+// ✅ _iconPath (reader_4B, stream=4)
+// ✅ _dyeColorGroupName (reader_8B, stream=8)
+// ✅ _stringKey
+// ✅ _key
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

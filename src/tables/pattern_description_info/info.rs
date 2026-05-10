@@ -7,6 +7,32 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::PatternDescriptionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  10
+// Decoded by dmm-parser:   10
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringFormat (reader_8B, stream=8)
+// ✅ _isBlocked (direct_12B, stream=12)
+// ✅ _iconName (reader_4B, stream=4)
+// ✅ _descriptionParsed
+// ✅ _paramList
+// ✅ _priorityColorType (direct_12B, stream=12)
+// ✅ _uiActiveShowLevel (direct_12B, stream=12)
+// ✅ _uiPassiveShowLevel (direct_12B, stream=12)
+// ✅ _stringKey
+// ✅ _key
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

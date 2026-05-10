@@ -9,6 +9,27 @@
 //! it to a u32 hash in memory, but on disk it remains a CString — we
 //! preserve the CString form for round-trip.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::PartPrefabDyeSlotInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  5
+// Decoded by dmm-parser:   5
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _stringKey
+// ✅ _key
+// ✅ _subMeshList
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _meshFileName
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

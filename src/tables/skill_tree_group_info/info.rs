@@ -7,6 +7,31 @@
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::SkillTreeGroupInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  9
+// Decoded by dmm-parser:   9
+// Missing in this struct:  0
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _isBlocked (direct_12B, stream=12)
+// ✅ _stringKey
+// ✅ _skillGroupName (reader_8B, stream=8)
+// ✅ _skillTreeInfoList (reader_4B, stream=4)
+// ✅ _uiTextureIconPath (reader_4B, stream=4)
+// ✅ _skillGroupDesc (reader_8B, stream=8)
+// ✅ _factionNodeInfo (reader_4B, stream=4)
+// ✅ _characterInfo (reader_4B, stream=4)
+// ✅ _key
+
 use crate::binary::*;
 use crate::py_binary_struct;
 
