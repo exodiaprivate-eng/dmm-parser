@@ -96,6 +96,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `frame_event_attr_group_info` | `0x144ac80c0` | `sub_1410ADF20` | 0x223 (547B) | iter 58 |
 | `game_event_handler_info` | `0x144ac7920` | `sub_1410AE5C0` | 0x1cd (461B) | iter 59 |
 | `item_use_info` | `0x144ad8db8` | `sub_1410B7380` | 0x176 (374B) | iter 59 |
+| `level_gimmick_scene_object_info` | `0x144ad97e0` | `sub_1410B7EB0` | 0x50d (1.3KB) | iter 60 |
+| `special_mode_info` | `0x144aee2c0` | `sub_1410C2E30` | 0x3e4 (996B) | iter 60 |
 
 **Workflow:** for any future per-table decoder closure session:
 

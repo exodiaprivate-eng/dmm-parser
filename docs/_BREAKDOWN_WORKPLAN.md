@@ -65,6 +65,7 @@ descriptor class via Win-IDA).
 
 **Loop resumed at iter 44 (2026-05-10 18:30)** — user installed 4 IDA plugins (function-string-associate, AutoRE, HexRaysPyTools, HRDevHelper); cron `a51bccde` re-armed.
 
+- [x] REGISTRY-EXTEND: level_gimmick_scene_object_info + special_mode_info added — 2026-05-10 19:22 SUCCESS. pa::LevelGimmickSceneObjectInfo at 0x144ad97e0 → sub_1410B7EB0 (0x50d = 1.3KB). pa::SpecialModeInfo at 0x144aee2c0 → sub_1410C2E30 (0x3e4 = 996B). Registry now 30 entries — 1 table left (terrain_region_auto_spawn_info).
 - [x] REGISTRY-EXTEND: game_event_handler_info + item_use_info added — 2026-05-10 19:19 SUCCESS. pa::GameEventHandlerInfo at 0x144ac7920 → sub_1410AE5C0 (0x1cd = 461B). pa::ItemUseInfo at 0x144ad8db8 → sub_1410B7380 (0x176 = 374B). Registry now covers 28 of 27 — wait, 28 + 1 special = 29, with original count was 27 gap tables + character_info + stage_info + gimmick_group_info + others that weren't in original 27 list. Actual: registry now has 28 entries.
 - [x] REGISTRY-EXTEND: elemental_material_info + frame_event_attr_group_info added — 2026-05-10 19:16 SUCCESS. pa::ElementalMaterialInfo at 0x144abe4d0 → sub_1410A8FA0 (0x55d = 1.4KB). pa::FrameEventAttrGroupInfo at 0x144ac80c0 → sub_1410ADF20 (0x223 = 547B). Registry now covers 26 of 27 gap tables (~96%).
 - [x] REGISTRY-EXTEND: multi_change_info + ally_group_info added — 2026-05-10 19:13 SUCCESS. pa::MultiChangeInfo at 0x144adf1a0 → sub_1410BA4C0 (0x387 = 903B). pa::AllyGroupInfo at 0x144ab1670 → sub_1410A21A0 (0x380 = 896B). Registry now covers 24 of 27 gap tables (~89%).
