@@ -53,7 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] REFLECT: extract + parse + harvest `.pasg` files (PA state graph)
 - [ ] REFLECT: extract + parse + harvest `.paa_metabin` files
 - [ ] REFLECT: extract + parse + harvest `.paseq` files (sequence data, custom header)
 - [ ] REFLECT: extract + parse + harvest `.paseqc` files
@@ -91,6 +90,7 @@ descriptor class via Win-IDA).
 - [x] REFLECT: extract + parse + harvest `.pae` files — 2026-05-10 12:26 BLOCKED (same parc-header buffer-underflow as .palevel). 5,995 files extracted to `_research_cache/extracted_pae/`. Same upstream-fix dependency.
 - [x] REFLECT: extract + parse + harvest `.paem` files — 2026-05-10 12:26 BLOCKED-PRE (.paem is parc/reflection per pycrimson notes — same parc bug as .pae and .palevel; not extracted to save iter time. Re-evaluate when pycrimson is fixed.)
 - [x] REFLECT: extract + parse + harvest `.parg` files — 2026-05-10 12:32 SUCCESS. 750 .parg extracted, 644 parsed across multiple parallel iter firings. Combined harvest with prior .prefab data: **8,327 classes / 32,091 canonical fields** at `docs/v3_1_reflection_schema.json`. Top: AtmosphereConstant 54, EmitterRenderGroupData 39, DecalInfo 27, SplineDecalComponent 25 (cross-validated against IDA iter 4). Documented in `docs/ENGINE_INTERNALS.md` "Expanded harvest" section.
+- [x] REFLECT: extract + parse + harvest `.pasg` files — 2026-05-10 12:35 SUCCESS. All 40 .pasg files parsed cleanly. Surfaces emitter simulation/spawn classes: `EmitterSimulationGroupData`, `EmitterMoveTrackData`, `EmitterSpawnData`, `EmitterSimulationData`. Combined catalog now: **8,337 classes / 32,190 fields**.
 
 ---
 

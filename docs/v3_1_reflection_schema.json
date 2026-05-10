@@ -88914,8 +88914,19 @@
       "_splineID"
     ],
     "field_count": 3,
-    "files_observed_in": 692,
+    "files_observed_in": 732,
     "first_observed_in": "g_012c5ec14c20.json"
+  },
+  "EmitterMoveTrackData": {
+    "fields": [
+      "_emitterMoveTrackName",
+      "_emitterMoveTrackTransform",
+      "_moveTrackPlaySpeed",
+      "_moveTrackUseType"
+    ],
+    "field_count": 4,
+    "files_observed_in": 40,
+    "first_observed_in": "s_14aaf122722f.json"
   },
   "EmitterOverrideObject": {
     "fields": [
@@ -88980,15 +88991,110 @@
     "files_observed_in": 692,
     "first_observed_in": "g_012c5ec14c20.json"
   },
+  "EmitterSimulationData": {
+    "fields": [
+      "_acceleration",
+      "_collideOnCharacter",
+      "_collisionScale",
+      "_elasticity",
+      "_externalForce",
+      "_forceInfoMax",
+      "_forceInfoMin",
+      "_forceMax",
+      "_forceMin",
+      "_forceType",
+      "_friction",
+      "_gravity",
+      "_inheritVelocityScale",
+      "_injectForce",
+      "_isDeadAfterCollision",
+      "_mass",
+      "_particleCollisionFlag",
+      "_rotationMax",
+      "_rotationMin",
+      "_scaleMax",
+      "_scaleMin",
+      "_simulationSpeed",
+      "_velocityInfoMax",
+      "_velocityInfoMin",
+      "_velocityLimitMax",
+      "_velocityLimitMin"
+    ],
+    "field_count": 26,
+    "files_observed_in": 40,
+    "first_observed_in": "s_14aaf122722f.json"
+  },
+  "EmitterSimulationGroupData": {
+    "fields": [
+      "_curveEntryDataList",
+      "_ignoreLifetimeClamp",
+      "_moveTrackData",
+      "_simulationData",
+      "_simulationGroupTimelineNode",
+      "_simulationMaterial",
+      "_spawnData",
+      "_spawnVolumeData",
+      "_vectorFieldData",
+      "_vectorFieldTextureName",
+      "_velocityMax",
+      "_velocityMin",
+      "_velocityType"
+    ],
+    "field_count": 13,
+    "files_observed_in": 40,
+    "first_observed_in": "s_14aaf122722f.json"
+  },
   "EmitterSpawnData": {
     "fields": [
       "_additionalSpawnVoluemScale",
+      "_delayFirstLoopOnly",
+      "_emitterSpawnType",
+      "_interpolateSpawnpoint",
+      "_lifeTimeMax",
+      "_lifeTimeMin",
+      "_limitMaxParticleCount",
+      "_loopCount",
+      "_maxParticleCount",
+      "_parentScaleToOnlySpawnVolume",
       "_spawnCountMax",
-      "_spawnCountMin"
+      "_spawnCountMin",
+      "_spawnDensity",
+      "_spawnTermMax",
+      "_spawnTermMin",
+      "_spawnTime",
+      "_spawnVolumeAbsAxis",
+      "_spawnableTime",
+      "_useCureveRepeat"
     ],
-    "field_count": 3,
-    "files_observed_in": 8,
+    "field_count": 19,
+    "files_observed_in": 48,
     "first_observed_in": "p_11b0d4960dda.json"
+  },
+  "EmitterVectorFieldData": {
+    "fields": [
+      "_vectorFieldFlags",
+      "_vectorFieldInitialVelocity",
+      "_vectorFieldPosition",
+      "_vectorFieldPositionMax",
+      "_vectorFieldRandomTerm",
+      "_vectorFieldRandomTermMax",
+      "_vectorFieldRotation",
+      "_vectorFieldRotationMax",
+      "_vectorFieldRotationSpeed",
+      "_vectorFieldRotationSpeedMax",
+      "_vectorFieldScale",
+      "_vectorFieldScaleMax",
+      "_vectorFieldShift",
+      "_vectorFieldStrength",
+      "_vectorFieldStrengthMax",
+      "_vectorFieldTightness",
+      "_vectorFieldTightnessMax",
+      "_vectorFieldVortex",
+      "_vectorFieldVortexMax"
+    ],
+    "field_count": 19,
+    "files_observed_in": 23,
+    "first_observed_in": "s_159597f0decc.json"
   },
   "EnableSwitchComponent": {
     "fields": [
@@ -89388,7 +89494,7 @@
       "_permutations"
     ],
     "field_count": 3,
-    "files_observed_in": 712,
+    "files_observed_in": 752,
     "first_observed_in": "g_012c5ec14c20.json"
   },
   "MaterialParameterBitFlag32": {
@@ -89397,7 +89503,7 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 692,
+    "files_observed_in": 695,
     "first_observed_in": "g_012c5ec14c20.json"
   },
   "MaterialParameterColor": {
@@ -89415,7 +89521,7 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 706,
+    "files_observed_in": 709,
     "first_observed_in": "g_012c5ec14c20.json"
   },
   "MaterialParameterFloat2": {
@@ -89433,8 +89539,16 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 46,
+    "files_observed_in": 86,
     "first_observed_in": "g_13d213987d14.json"
+  },
+  "MaterialParameterInt": {
+    "fields": [
+      "_name"
+    ],
+    "field_count": 1,
+    "files_observed_in": 1,
+    "first_observed_in": "s_4f0d11871583.json"
   },
   "MaterialParameterSplineRef": {
     "fields": [
@@ -89460,7 +89574,7 @@
       "_value"
     ],
     "field_count": 2,
-    "files_observed_in": 689,
+    "files_observed_in": 690,
     "first_observed_in": "g_012c5ec14c20.json"
   },
   "MeshComponent": {
@@ -90128,6 +90242,61 @@
     "field_count": 0,
     "files_observed_in": 4,
     "first_observed_in": "p_328237c52deb.json"
+  },
+  "TimelineFloatKeyFrameNode": {
+    "fields": [
+      "_childNodeList",
+      "_innerTangent",
+      "_outerTangent",
+      "_startTimePiece",
+      "_value"
+    ],
+    "field_count": 5,
+    "files_observed_in": 10,
+    "first_observed_in": "s_159597f0decc.json"
+  },
+  "TimelineKeyFrameListNode": {
+    "fields": [
+      "_channelIndex",
+      "_childNodeList"
+    ],
+    "field_count": 2,
+    "files_observed_in": 10,
+    "first_observed_in": "s_159597f0decc.json"
+  },
+  "TimelineMetaSubtrackNode": {
+    "fields": [
+      "_childNodeList",
+      "_isReflectPtr",
+      "_metaName",
+      "_propertyName",
+      "_propertyType"
+    ],
+    "field_count": 5,
+    "files_observed_in": 10,
+    "first_observed_in": "s_159597f0decc.json"
+  },
+  "TimelineSegmentNode": {
+    "fields": [
+      "_childNodeList",
+      "_timePieceLength"
+    ],
+    "field_count": 2,
+    "files_observed_in": 10,
+    "first_observed_in": "s_159597f0decc.json"
+  },
+  "TimelineVariableSubtrackNode": {
+    "fields": [
+      "_childNodeList",
+      "_endTimePiece",
+      "_propertyName",
+      "_propertyType",
+      "_variableChannelCount",
+      "_variableType"
+    ],
+    "field_count": 6,
+    "files_observed_in": 10,
+    "first_observed_in": "s_159597f0decc.json"
   },
   "TransformComponent": {
     "fields": [
