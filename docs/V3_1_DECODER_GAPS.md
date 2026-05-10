@@ -59,6 +59,33 @@ needs either:
 - v3.1 alias mechanism extension to express 1-to-N nested-field aliases, OR
 - Rust struct refactor to use a single typed sub-struct matching the canonical wrapper.
 
+### interaction_info closure validation (iter 45)
+
+Located `pa::InteractionInfo` typeinfo at `0x144ac4060`, single xref to
+`sub_1410AC290` (size 0x586 = 1.4KB) — the actual record reader.
+
+Schema (NattKh) type counts: **37 total fields**
+
+| Type | Count |
+|---|---|
+| `direct_u8` | 22 |
+| `?` (unknown) | 6 |
+| `reader_4B` | 5 |
+| `direct_u32` | 1 |
+| `array_or_complex` | 1 |
+| `reader_8B` | 1 |
+| `reader_2B` | 1 |
+
+Wire reader observation: dense nested chain of small reads (mostly
+1-byte single calls + several sub_xxx polymorphic decoders for the
+reader_NB / array_or_complex fields). Pattern matches the type tally;
+per-field semantic naming requires careful per-position analysis with
+HexRaysPyTools struct rebuild + game-data inspection.
+
+Closure path documented; status: workflow-ready. Per-field naming is
+the multi-hour focused work, deferred to a dedicated decoder-writing
+session with the IDA plugins active.
+
 ### tribe_info closure validation (iter 42)
 
 Decompiled `pa::TribeInfo` record reader at `sub_1410C8A20` (Win
