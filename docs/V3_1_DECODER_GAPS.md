@@ -47,16 +47,37 @@ table's gaps at once** — no per-field reverse-engineering needed.
 
 ### What this means for implementation
 
-**Cross-table function reuse is zero** — each .pabgb table has its own
-dedicated parser function in CrimsonDesert.exe. So gap-closing work is
-**per-table**, not per-field.
+**Important correction (iter 30):** The `fn` pointer in NattKh's schema
+is the **generic table-loader** function, not the per-table record
+parser. Decompile of `0x14103c140` (the supposed effect_info parser)
+revealed `sub_14103BE80`, the shared loader that dispatches via vtable
+to per-table record readers. So the per-table grouping above is correct
+(each table routes through its own loader entry), but the actual
+field-by-field record parser is one indirection deeper.
 
-**Per-table workflow:**
-1. Decompile the parser function (Win-IDA, e.g. `decompile_function 0x141046310` for gimmick_info)
-2. Walk reads in source order — each `*(TYPE *)(this + OFFSET) = read_X(...)` corresponds to one field
-3. Cross-reference field order against the canonical-name list (already in `info.rs` doc-comment from iter 10/11)
-4. Add typed Rust struct fields preserving the wire order
-5. Cargo build + test (must keep 562 passing baseline)
+To find the **real** per-record parser for a table:
+1. Locate the table's record class typeinfo in IDA (e.g. `pa::EffectInfo`)
+2. Find its vtable
+3. The "read from bytes" virtual method on the vtable is the real parser
+4. THAT function has the per-field reads we want to cross-reference
+
+This is significantly more involved than "just decompile the schema's
+fn pointer". Per-table decoder gap closure remains feasible but is
+**hours-per-table** of focused IDA work, not a 1-min loop iter.
+
+**Cross-table function reuse is zero at the loader-entry level** —
+each .pabgb table has its own dedicated loader entry pointer (the
+schema fn). Per-table decoder structure also varies, so the actual
+record-reading code is also per-table.
+
+**Per-table workflow (corrected):**
+1. Find `pa::<TableName>` typeinfo via IDA strings
+2. Identify the read-from-bytes virtual method on the typeinfo's vtable
+3. Decompile that method
+4. Walk reads in source order — each `*(TYPE *)(this + OFFSET) = read_X(...)` corresponds to one field
+5. Cross-reference field order against the canonical-name list (already in `info.rs` doc-comment from iter 10/11/24)
+6. Add typed Rust struct fields preserving the wire order
+7. Cargo build + test (must keep 562 passing baseline)
 
 **Quick-win target order (smallest first, easier first decompiles):**
 - effect_info (2) and action_point_info (2) — single-iter quick wins
