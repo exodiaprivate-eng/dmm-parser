@@ -53,10 +53,13 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] DOCS: write a SHIPPED.md document at root summarizing every commit from Session 28 + the 1-minute loop with a flat list of deliverables (cross-link the per-doc references)
 
 
 ## Done
+- [x] DOCS: SHIPPED.md cross-reference index — 2026-05-10 13:18 SUCCESS. Wrote `docs/SHIPPED.md` (placed in docs/ rather than root per project CLAUDE.md "NEVER save working files, text/mds, or tests to the root folder"). Catalogues all 31 commits from Session 28 + 19 loop iters with cross-links to STATUS / V3_1_README / ENGINE_INTERNALS / BINARY_FORMATS / per-table info.rs. Phase totals + "what this run did NOT solve" honest accounting included.
+
+**DOCS phase complete (5/5).** **Loop phases all complete: REFLECT 10/10 · CATALOG 1/1 · GAP 15/15 · DESC 5/5 · VARIANT 4/4 · DOCS 5/5.** Auto-generation rules can pick up further work or the cron can be cancelled with `CronDelete 15ac410b`.
+
 - [x] DOCS: opaque-field audit in STATUS.md — 2026-05-10 13:15 SUCCESS. Whole-tree scan for `_unkXXXX` + `Vec<u8>` opaques. Result: 35 _unkXXXX in paatt_basedata.rs only (zero elsewhere); 30 Vec<u8> fields classified into 9 decoder-gaps (paseq/paseqc/pastage/paschedule/paschedulepath/paatt-bodies), 10 raw-by-design (audio/texture/string-pools), 11 file-format tables (paac/paatt/pamhc not yet field-decoded). Documented as audit subsection in STATUS.md "Current state".
 - [x] DOCS: Layer B Havok binary reference in ENGINE_INTERNALS.md — 2026-05-10 13:12 SUCCESS. Added comprehensive Layer B section: extension family table (.hkx/.pac/.pacc/.pam/.pami/.pamlod/.skel/.mesh), Havok packfile detection signatures, all known hka/hkx/hknp/hcl class names from prior IDA scan, Layer A → Layer B bridge map (which PA-side reflection fields resolve to which Havok files), what a Layer B implementation would need, and why this isn't blocking current mod work.
 - [x] DOCS: variant decoder catalog in ENGINE_INTERNALS.md — 2026-05-10 13:09 SUCCESS. Inventoried all 27 variants/*.rs files. 13 real variant decoders (528 typed variants combined, 4 Raw fallback branches for graceful degradation), 7 helper/wrapper structs, 7 diagnose/validate debug helpers. Cross-referenced GameCondition 100% round-trip stat from STATUS.md.
