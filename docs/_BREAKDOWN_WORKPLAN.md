@@ -53,7 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] DOCS: write "Game Surface Coverage Map" section in STATUS.md (% coverage per binary-format category: pabgb tables 100%, pamt/papgt/paloc/paz 100%, paatt 60%, reflection PA-side 40%, Havok/.pac 0%, audio .bnk/.wem 0%)
 - [ ] DOCS: catalog every src/binary/variants/*.rs file in ENGINE_INTERNALS.md with one-line status (decoder name, variant count, all-typed/has-raw-fallback)
 - [ ] DOCS: add a "Layer B (Havok binary)" reference section in ENGINE_INTERNALS.md cataloguing what we know from IDA + ENGINE_INTERNALS Havok integration about .pam / .pami / .pamlod / .pac / .pacc file formats; nothing parsed yet but document what we'd need
 - [ ] DOCS: scan src/binary/*.rs for any `_unkXXXX` or `Vec<u8>` opaque-blob fields outside paatt_basedata.rs; write coverage report to STATUS.md
@@ -61,6 +60,7 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] DOCS: Game Surface Coverage Map in STATUS.md — 2026-05-10 13:06 SUCCESS. Added comprehensive coverage table covering 14 binary-format categories (pabgb 100%, iteminfo 100%, pamt/papgt/paloc/paz/pabgh/trie 100%, paatt ~63%, dds/audio classify-only, reflection 8,362 classes catalogued, Havok 0% Layer B, encrypted .xml deferred, .save full editor). Section sits at the top of `## Current state`.
 - [x] DESC: AttackCommonDataDesc — 2026-05-10 12:57 VERIFIED-BLOCKED (third independent confirmation: Win-IDA registrar absence + Korean error fragment xref absence + NattKh schema search returns zero AttackCommonData fields. Documented in T0_AUDIT_TRACKING Session 28 iter 12 entry. No further iteration on this class without new evidence.)
 - [x] DESC: AttackHitDataDesc — 2026-05-10 13:00 VERIFIED-BLOCKED (batched in iter 13 cross-source check; same triple-blocker as AttackCommonData per T0_AUDIT_TRACKING Session 28 iter 13)
 - [x] DESC: BuffData family registrars — 2026-05-10 13:00 VERIFIED-BLOCKED (batched; embedded as `_buffDataList` in 2 wrappers but inner class invisible to schema + reflection. Decoder works via variants/buff_data.rs; only canonical names unrecoverable.)

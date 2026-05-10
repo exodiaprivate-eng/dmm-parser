@@ -331,6 +331,42 @@ This file is for collaborators picking up round-trip work. It's the
 
 ## Current state
 
+### Game surface coverage map (2026-05-10, end of 1-minute loop)
+
+Per-format coverage of Crimson Desert's binary surface in dmm-parser.
+
+| Format | Coverage | Status | Notes |
+|---|---|---|---|
+| `.pabgb` (122 *Info tables) | 100% | ✅ T0 | All round-trip byte-perfect; 109 schema-verified canonical names, 13 mechanical-fallback |
+| `iteminfo.pabgb` | 100% | ✅ | Custom parser in `src/item_info/`; 60+ typed fields; v3.1 alias surface not yet wired |
+| `.pamt` (PackMeta) | 100% | ✅ | Parse + write |
+| `.papgt` (PackGroupTree) | 100% | ✅ | Parse + write + add_entry (upsert, front-insert) |
+| `.paloc` (Localization) | 100% | ✅ | Parse + write + ChaCha20 + LZ4 |
+| `.paz` (Pack archive) | 100% | ✅ | PackGroupBuilder + LZ4 + ChaCha20 |
+| `.pabgh` (offset index) | 100% | ✅ | Index parse for pabgh-bounded tables |
+| `Trie` (radix-compressed buffer) | 100% | ✅ | Read + build |
+| `.paatt` (AttackInfo wrapper) | ~63% | 🟡 | BaseDataV0/V1/V2/V3 typed (60+ named fields in V0); 22 `_unkXXXX` slots remain in `paatt_basedata.rs`; embedded data classes (AttackCommonData/AttackHitData) triple-blocked from canonical-name verification |
+| `.dds` (textures) | classify only | 🟡 | Classification + validation + vpath inference; no field-level parsing (binary asset, mod via injection) |
+| `.bnk` / `.wem` (audio) | classify only | 🟡 | `parse_bnk` returns metadata dict; no field-level audio modding (binary asset, mod via injection) |
+| Reflection (PA-side: `.prefab`, `.parg`, `.pasg`, `.paseqc`, `.paa_metabin`) | catalogued | 🟡 | 8,362 classes / 32,363 canonical fields harvested via pycrimson; documented in `ENGINE_INTERNALS.md` master class index. **Not natively parsed** in dmm-parser — pycrimson is an external tool; native Rust deserializers would be Layer-A future work. |
+| Reflection (PA-side blocked: `.meshinfo`, `.palevel`, `.pae`, `.paem`, `.paseq`, `.uianiminit`) | extracted only | ⚠️ | Files extracted to `_research_cache/`, but pycrimson upstream bugs prevent parsing (parc-header buffer underflow + type-table out-of-range). Re-evaluate when pycrimson is fixed. |
+| Havok layer (`.pac`, `.pacc`, `.pam`, `.pami`, `.pamlod`, `.skel`, `.mesh`) | 0% | ⚠️ | Layer B per `ENGINE_INTERNALS.md`. Standard Havok 2024.2 SDK packfile format (sig `57 E0 E0 57…`). PA-side wrapper metadata reaches the bridge (`SkinnedMeshComponent._skinnedMeshFile._path` resolves to a `.pac`); the actual mesh/skel/anim bytes need a Havok deserializer (DCC-plugin equivalent). Not blocking current mod authoring (texture + table editing don't touch this layer). |
+| `.xml` (encrypted text) | NOT decrypted | ⚠️ | UJMM-style overlays skip these by extension; dmm-parser doesn't decrypt either |
+| `.save` files | full editor | ✅ | Handled by DMM's `save_engine` module (separate from dmm-parser); ChaCha20 keys derived per pycrimson |
+
+**Summary:** dmm-parser fully owns the .pabgb / .pamt / .papgt / .paloc /
+.paz / .pabgh / iteminfo / trie surface (100% byte-perfect round-trip).
+.paatt is partially typed (~63%) with the remaining 22 `_unkXXXX` slots
+plus the embedded data classes triple-blocked from canonical-name
+verification per Session 28. Reflection metadata is **catalogued** via
+pycrimson harvest (8k classes documented in JSON) but not natively
+parsed. Havok binary is the largest remaining unparsed surface — Layer B
+work for whenever a DCC-plugin-style mesh/skel mod workflow is desired.
+
+For the per-table v3.1 alias verification details see
+`docs/V3_1_README.md`. For the engine-class harvest see
+`docs/ENGINE_INTERNALS.md` "Master class index".
+
 ### Parser coverage
 - **125 table parsers** wired in `src/tables/`
 - **All 449 vanilla `.pabgb` files round-trip byte-perfect** at the table
