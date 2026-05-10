@@ -86,6 +86,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `faction_relation_group_info` | `0x144ac1490` | `sub_1410E7CE0` | 0x318 (792B) | iter 53 |
 | `character_change_info` | `0x144ab2bf0` | `sub_1410A2F10` | 0x16e (366B) | iter 54 |
 | `detect_reaction_info` | `0x144aba730` | `sub_1410A7170` | 0x1e6 (486B) | iter 54 |
+| `equip_info` | `0x144abc440` | `sub_1410A76F0` | 0x130 (304B) | iter 55 |
+| `equip_type_info` | `0x144abdfc0` | `sub_1410A9500` | 0x32b (811B) | iter 55 |
 
 **Workflow:** for any future per-table decoder closure session:
 

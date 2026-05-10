@@ -65,6 +65,7 @@ descriptor class via Win-IDA).
 
 **Loop resumed at iter 44 (2026-05-10 18:30)** — user installed 4 IDA plugins (function-string-associate, AutoRE, HexRaysPyTools, HRDevHelper); cron `a51bccde` re-armed.
 
+- [x] REGISTRY-EXTEND: equip_info + equip_type_info added — 2026-05-10 19:07 SUCCESS. pa::EquipInfo at 0x144abc440 → sub_1410A76F0 (0x130 = 304B). pa::EquipTypeInfo at 0x144abdfc0 → sub_1410A9500 (0x32b = 811B). Registry now covers 20 of 27 gap tables (~74%).
 - [x] REGISTRY-EXTEND: character_change_info + detect_reaction_info added — 2026-05-10 19:04 SUCCESS. pa::CharacterChangeInfo at 0x144ab2bf0 → sub_1410A2F10 (0x16e = 366B). pa::DetectReactionInfo at 0x144aba730 → sub_1410A7170 (0x1e6 = 486B). Registry now covers 18 of 27 gap tables (~67%).
 - [x] REGISTRY-EXTEND: faction_node_spawn_info + faction_relation_group_info added — 2026-05-10 19:01 SUCCESS. pa::FactionNodeSpawnInfo at 0x144ac1800 → sub_1410AB470 (0x18d = 397B). pa::FactionRelationGroupInfo at 0x144ac1490 → sub_1410E7CE0 (0x318 = 792B). Registry now covers 16 of 27 gap tables (~59%).
 - [x] REGISTRY-EXTEND: global_game_event_info + global_stage_sequencer_info added — 2026-05-10 18:58 SUCCESS. pa::GlobalGameEventInfo at 0x144ace140 → sub_1410B2150 (0x132 = 306B, 8 fields). pa::GlobalStageSequencerInfo at 0x144ad5310 → sub_1410B54A0 (0x213 = 531B). Registry now covers 14 of 27 gap tables (~52%).
