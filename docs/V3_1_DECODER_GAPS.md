@@ -92,6 +92,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `sub_level_info` | `0x144af8a10` | `sub_1410C9FF0` | 0x53f (1.3KB) | iter 56 |
 | `multi_change_info` | `0x144adf1a0` | `sub_1410BA4C0` | 0x387 (903B) | iter 57 |
 | `ally_group_info` | `0x144ab1670` | `sub_1410A21A0` | 0x380 (896B) | iter 57 |
+| `elemental_material_info` | `0x144abe4d0` | `sub_1410A8FA0` | 0x55d (1.4KB) | iter 58 |
+| `frame_event_attr_group_info` | `0x144ac80c0` | `sub_1410ADF20` | 0x223 (547B) | iter 58 |
 
 **Workflow:** for any future per-table decoder closure session:
 
