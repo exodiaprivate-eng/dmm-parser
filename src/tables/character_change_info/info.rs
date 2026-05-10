@@ -1,5 +1,25 @@
 //! Hand-corrected: IDA-derived parser for `CharacterChange.pabgb`.
 //!
+//! ─── v3.1 closure analysis (iter 67) ────────────────────────────────────
+//! Re-decompile of `sub_1410A2F10` (Win, 0x16e = 366B, the per-record
+//! reader per the iter 54 typeinfo registry lookup) shows 6 wire reads:
+//!
+//!   offset 0   4 bytes      → _key (u32)
+//!   offset 8   CString      → _stringKey
+//!   offset 16  1 byte       → _isBlocked
+//!   offset 24  sub_141037FC0 → name_list (Vec<CString>)
+//!   offset 40  sub_1410CCB20 → hash_lookup_list (CArray<u16>)
+//!   offset 56  4 bytes      → trailing_id (u32)
+//!
+//! NattKh schema lists 4 canonicals: _key, _isBlocked, _stringKey,
+//! `_characterChangeFilter` (the only "missing"). The wire reads above
+//! prove **`_characterChangeFilter` is a wrapper around the 3 rust fields
+//! `name_list + hash_lookup_list + trailing_id`** — they're all already
+//! decoded, just under different names than the canonical grouping.
+//! Closure path: introduce a typed `CharacterChangeFilter` sub-struct
+//! wrapping the 3 fields, OR add a 1-to-N alias. Either is structural
+//! refactor work, not new decoder writing.
+//!
 //! Per IDA sub_1410D6950 (entry parser):
 //!   u32 key
 //!   CString string_key
