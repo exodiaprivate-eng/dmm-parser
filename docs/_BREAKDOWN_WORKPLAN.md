@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 71: royal_supply_info closure plan (1-to-2 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410C3220 (iter 56 typeinfo registry). 7 wire reads. Two consecutive sub_1410D7290 calls at offsets 24 and 56 confirm `_royalSupplyRandomMap` is a pure 1-to-2 wrapper around `royal_supply_random_map_quest` + `royal_supply_random_map_mission`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/royal_supply_info/info.rs.
+
 - [x] GAP iter 70: multi_change_info `_complteDescription` typo alias — 2026-05-10 SUCCESS. Decompiled sub_1410BA4C0 (iter 57 typeinfo registry). 22 wire reads pair with 27 rust fields; LocalizableString at offset 192 maps to `_complteDescription` canonical (PA typo, missing 'e'). Added MANUAL_OVERRIDES entry mapping `complete_description` → `_complteDescription`. Regenerated aliases. Schema verifier: multi_change_info now 25/25 verified, 0 missing. Total missing-canonicals count: 557 → 556.
 
 - [x] GAP iter 69: faction_relation_group_info closure plan — 2026-05-10 SUCCESS. Decompiled sub_1410E7CE0 (typeinfo registry-allocator path per iter 53). Wire layout: u16 _key, CString _stringKey, u8 _isBlocked, then 4-iteration loop reading 4× CArray<u16> via sub_1410F2BA0. Confirmed `_relationGroupList` is a pure 1-to-4 wrapper around `rel_0..3`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/faction_relation_group_info/info.rs.

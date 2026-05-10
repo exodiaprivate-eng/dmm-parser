@@ -1,6 +1,27 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410F64D0` in CrimsonDesert.exe (Win build).
+//!
+//! ─── v3.1 closure analysis (iter 71) ────────────────────────────────────
+//! Cross-check via `sub_1410C3220` (typeinfo→record-reader path per the
+//! iter 56 typeinfo registry). 7 wire reads, in order:
+//!
+//!   word 0    u16              _key
+//!   word 4    CString          _stringKey  (sub_141076050)
+//!   word 8    u8               _isBlocked
+//!   word 12   sub_1410D7290    royal_supply_random_map_quest
+//!   word 28   sub_1410D7290    royal_supply_random_map_mission
+//!   word 44   sub_1410D7100    default_random_list
+//!   word 52   sub_1410CFB10    stage_info
+//!
+//! NattKh schema lists 7 canonicals; the only "missing" is
+//! `_royalSupplyRandomMap`. Two consecutive same-reader
+//! (`sub_1410D7290`) calls at adjacent offsets prove **`_royalSupplyRandomMap`
+//! is a pure 1-to-2 wrapper** around `royal_supply_random_map_quest +
+//! royal_supply_random_map_mission`. Closure path: 1-to-N alias entry
+//! mapping `_royalSupplyRandomMap` →
+//! `[royal_supply_random_map_quest, royal_supply_random_map_mission]`.
+//! No new decoder work needed.
 //! Inner readers (decoded for the Tier 1.5 → 1 promotion):
 //!   - sub_14110A270: outer hash-table CArray of `RoyalSupplyMapEntry`
 //!     (per element: u32 quest/mission key + nested
