@@ -53,7 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] DESC: AttackCommonDataDesc — enumerate via Win-IDA registrar (sub_141957EC0 sub-call), document in T0_AUDIT_TRACKING
 - [ ] DESC: AttackHitDataDesc — enumerate via Win-IDA, document
 - [ ] DESC: BuffData family registrars (120 variants) — sample 5 representative variant types
 - [ ] DESC: EffectData family registrars — sample 3 representative variants
@@ -64,6 +63,7 @@ descriptor class via Win-IDA).
 - [ ] VARIANT: src/binary/variants/sequencer_stage_chart_desc.rs — same
 
 ## Done
+- [x] DESC: AttackCommonDataDesc — 2026-05-10 12:57 VERIFIED-BLOCKED (third independent confirmation: Win-IDA registrar absence + Korean error fragment xref absence + NattKh schema search returns zero AttackCommonData fields. Documented in T0_AUDIT_TRACKING Session 28 iter 12 entry. No further iteration on this class without new evidence.)
 - [x] GAP: `src/tables/character_info/info.rs` canonical-field catalog (146 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
 - [x] GAP: `src/tables/stage_info/info.rs` canonical-field catalog (72 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
 - [x] GAP: `src/tables/gimmick_group_info/info.rs` canonical-field catalog (45 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)

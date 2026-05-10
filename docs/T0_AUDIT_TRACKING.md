@@ -248,6 +248,27 @@ Coverage: 113 of 122 tables. The 9 remaining have zero extracted
 fields (the script's regex couldn't find a main struct or all fields
 are placeholders) — they round-trip identically regardless of shape.
 
+### Session 28 iter 12 — AttackCommonData second verification (cross-ref NattKh schema)
+
+Re-verified iter 5 finding via second-source cross-check. Searched all 434
+pabgb-table classes in NattKh's `pabgb_complete_schema.json` for any
+canonical PA field name that would have come from AttackCommonData.
+
+Result: zero AttackCommonData fields anywhere in the schema. The closest
+matches surface in *other* classes:
+- `_targetType` → GimmickInfo_ConstraintData (not AttackCommonData)
+- `_damageType` → SkillInfo (not AttackCommonData)
+- `_damagePercent` → MaterialRelationMatchUpData (not AttackCommonData)
+
+This is a **third independent confirmation** (after Win-IDA registrar
+absence + Korean error fragment xref absence) that AttackCommonData's
+canonical field names are not recoverable from any source available to us.
+The class exists at runtime, dmm-parser's `paatt_basedata.rs` decodes its
+data structurally, but the canonical `_camelCase` identifiers are baked
+into hand-written deserializers Pearl Abyss didn't expose to reflection.
+
+Verified-blocked. No further iteration on this class without new evidence.
+
 ### Session 28 iter 6 — AttackHitData also blocked (same pattern as AttackCommonData)
 
 Win-binary verification ATTEMPTED. Same diagnostic as iter 5:
