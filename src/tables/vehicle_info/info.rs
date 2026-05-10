@@ -1,5 +1,19 @@
 //! Hand-corrected: IDA-derived parser for `VehicleInfo.pabgb`.
 //!
+//! ─── v3.1 closure analysis (iter 79) ────────────────────────────────────
+//! Both schema "missing" canonicals are pure structural wraps already
+//! documented in the rust struct field comments below:
+//!
+//!   `_vehicleSeatDataList`       → 1-to-16 wrap around
+//!                                  `vehicle_seat_data_00..15` (16 × u64)
+//!   `_parentLinkAttachDataList`  → 1-to-2 wrap around
+//!                                  `parent_link_attach_data_a` + `_b` (2 × u64)
+//!
+//! Closure path: 1-to-N alias entries. No new decoder work — the per-
+//! record reader already consumes all bytes under the unrolled rust
+//! field names. Total missing-canonical reduction when the v3.1 alias
+//! mechanism is extended: 2 (vehicle_info goes from 19/21 to 21/21).
+//!
 //! Per IDA sub_1410FE440: 22 fields matching mac binary __cstring order.
 //! Two fixed-loop "list" fields (vehicle_seat_data_list × 16, parent_link × 2)
 //! and one CArray<u8> (cargo_seat_index_list).
