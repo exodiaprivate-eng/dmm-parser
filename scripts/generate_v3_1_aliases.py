@@ -126,6 +126,16 @@ MANUAL_OVERRIDES = {
     # `unk_b` or `unk_c` (both u64) — needs sample-data analysis to
     # identify which u64 holds percent-range values; deferred.
     ("global_game_event_group_info",   "events"):                            "_globalGameEventInfoList",
+
+    # Iter 82: global_stage_sequencer_info — both missing canonicals are
+    # unambiguous typed-field matches. Schema has 14 canonicals; rust has
+    # 14 fields. Of the 2 unaliased rust fields:
+    #   loading_target (LoadingTargetInfo)       ↔ _loadingTargetInfo (reader_1B)
+    #   behavior_optional (PlayerBehaviorOptional) ↔ _gameEventExecuteData (reader_1B)
+    # The mechanical translations don't match the canonicals, so the
+    # generator skipped them by default. Ship via tuple-scoped overrides.
+    ("global_stage_sequencer_info",    "loading_target"):                    "_loadingTargetInfo",
+    ("global_stage_sequencer_info",    "behavior_optional"):                 "_gameEventExecuteData",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

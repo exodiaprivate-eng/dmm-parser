@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1158**
+- Total field aliases verified:       **1160**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **551**
+- Total schema fields not decoded:    **549**
 
 ## Tables not in NattKh schema
 
@@ -97,7 +97,7 @@ Korean-error-string parser path.
 | `gimmick_info` | 6 | 6 | 0 | 153 |
 | `global_game_event_group_info` | 4 | 4 | 0 | 1 |
 | `global_game_event_info` | 5 | 5 | 0 | 3 |
-| `global_stage_sequencer_info` | 12 | 12 | 0 | 2 |
+| `global_stage_sequencer_info` | 14 | 14 | 0 | 0 |
 | `interaction_info` | 9 | 9 | 0 | 28 |
 | `inventory_info` | 11 | 11 | 0 | 0 |
 | `item_group_info` | 12 | 12 | 0 | 0 |
@@ -623,13 +623,6 @@ Korean-error-string parser path.
 - `_eventDesc`
 - `_targetRegionInfoList`
 - `_uiIconPath`
-
-### `global_stage_sequencer_info` (schema key: `GlobalStageSequencerInfo`)
-
-**Schema fields not in dmm-parser** (2):
-
-- `_gameEventExecuteData`
-- `_loadingTargetInfo`
 
 ### `interaction_info` (schema key: `InteractionInfo`)
 

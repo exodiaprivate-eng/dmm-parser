@@ -1002,15 +1002,12 @@
     "global_stage_sequencer_info": {
       "schema_key": "GlobalStageSequencerInfo",
       "in_schema": true,
-      "alias_count": 12,
+      "alias_count": 14,
       "schema_field_count": 14,
-      "verified": 12,
+      "verified": 14,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
-      "missing_in_dmm": [
-        "_gameEventExecuteData",
-        "_loadingTargetInfo"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "house_info": {
       "schema_key": "HouseInfo",
@@ -1773,9 +1770,9 @@
     }
   },
   "totals": {
-    "verified": 1158,
+    "verified": 1160,
     "mismatch": 0,
-    "missing_in_dmm": 551,
+    "missing_in_dmm": 549,
     "extra_in_dmm": 0
   }
 }

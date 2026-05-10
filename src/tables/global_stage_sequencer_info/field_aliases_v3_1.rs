@@ -16,6 +16,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("is_blocked", "_isBlocked"),
     ("group_name", "_groupName"),
     ("group_leader_info", "_groupLeaderInfo"),
+    ("loading_target", "_loadingTargetInfo"),
+    ("behavior_optional", "_gameEventExecuteData"),
     ("use_reserve", "_useReserve"),
     ("ignore_player_state", "_ignorePlayerState"),
     ("player_behavior_space_radius", "_playerBehaviorSpaceRadius"),
