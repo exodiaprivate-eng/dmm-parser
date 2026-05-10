@@ -191,6 +191,42 @@ gaps within wrap-pattern tables), not 557. Rust struct refactoring
 (collapsing unrolled fields into typed sub-structs) closes the
 remainder mechanically.
 
+### Wrap pattern can also hide INSIDE typed sub-structs (iter 43)
+
+`action_point_info` was originally placed in GENUINE pattern because
+top-level rust_count (6) == schema_count (6). But the rust struct uses
+nested typed sub-structs:
+
+```rust
+pub struct ActionPointInfo<'a> {
+    pub key, string_key, is_blocked,
+    pub action_point: ActionPoint,        // ← typed sub-struct
+    pub level_action_point_info: u32,
+    pub action_point_b: ActionPoint,      // ← same sub-struct again
+}
+
+pub struct ActionPoint {
+    pub field_a: u32,                     // = canonical _actionYaw (direct_u32)
+    pub block_a: [u8; 24],                // first 12 bytes = canonical _actionPosition (direct_12B)
+                                          // last 12 bytes = extra wire data not in schema
+}
+```
+
+Both missing canonicals (`_actionPosition`, `_actionYaw`) are fields
+INSIDE the `ActionPoint` sub-struct. The top-level count match was
+misleading.
+
+**Implication:** iter 40's WRAP-vs-GENUINE quantitative split may
+**undercount** wrap-pattern tables. Other tables classified as GENUINE
+(global_stage_sequencer_info 14=14, knowledge_info 30=30,
+global_game_event_info 8 vs 5, etc.) may have similar nested-sub-struct
+hidden wraps. A more accurate classifier would walk into nested types,
+not just count top-level fields.
+
+For the headline: realistic decoder-writing workload is likely closer
+to **~150-250 fields** (further reduced from the iter 40 estimate of
+~200-300 once nested wraps are accounted for).
+
 
 
 These need either (a) a Rust struct refactor to use a single `CArray`
