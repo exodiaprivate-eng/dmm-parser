@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] DOCS iter 86: V3_1_DECODER_GAPS Summary refresh (584→549, 68→86 closed) — 2026-05-10 SUCCESS. Header was stale at 584 missing/41-with-gaps/68-fully-covered numbers (iter 35-era). Refreshed to 549/23/86 with a 3-row trend table showing pre-loop start → iter 36-65 audit → iter 70-82 resumed-loop overrides progression. Docs-only commit.
+
 - [x] DOCS iter 85: V3_1_README implementation-status refresh — 2026-05-10 SUCCESS. Section was stale (4 historical commits only). Added "Shipped milestones" subsection covering iters 70-82 closure work (7 PA-typo overrides, 6 name-divergence overrides, 11 single-missing-table closure plans). Added "Schema verifier snapshot" table with current numbers (109/126 schema, 86 fully-closed, 23-with-gaps, 549 residual, 1160 verified, 0 mismatches). Cross-references MOD_AUTHOR_GUIDE.md § Residual coverage. Docs-only commit.
 
 - [x] DOCS iter 84: MOD_AUTHOR_GUIDE residual-coverage section (priority-2 task per workplan) — 2026-05-10 SUCCESS. Re-applied the Section 0 addition that iter 83 had to revert: added "Residual v3.1 surface coverage" block under the PA-typos list. Documents the 109/126 schema-covered, 86 fully-closed, 23-with-gaps situation as of iter 82, with the 4 gap-class taxonomy (alias-mechanism extension, real decoder work, semantic ambiguity, large-table audit). Also extended the PA-typo list with iter 70 + iter 78 newcomers (`_complteDescription`, `_overriedMaxHeight`). Docs-only change; safe to commit despite iter-83's discovered cargo-build break (no rust touched).

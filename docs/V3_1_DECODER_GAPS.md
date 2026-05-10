@@ -12,11 +12,17 @@ The schema for each missing field includes the byte-offset string address,
 reader-function pointer, and stream/type category — enough to write the
 field decode without IDA work.
 
-## Summary
+## Summary (refreshed iter 86, 2026-05-10)
 
-- **Tables fully decoded (0 gaps)**: 68 of 109 (62%)
-- **Tables with gaps**: 41
-- **Total missing fields**: 584
+- **Tables fully decoded (0 gaps)**: 86 of 109 (79%)
+- **Tables with gaps**: 23
+- **Total missing fields**: 549
+
+| Iter window | Tables fully covered | Total missing | Verified aliases |
+|---|---|---|---|
+| pre-loop start (~iter 35)   | 68 / 109 (62%) | 584   | 1,125 |
+| iter 36-65 (audit + closure plans) | 78 / 109 (72%) | 557 | 1,144 |
+| iter 70-82 (resumed-loop overrides) | **86 / 109 (79%)** | **549** | **1,160** |
 
 To regenerate this report, run `python scripts/verify_v3_1_against_schema.py`
 which writes the canonical JSON to `docs/v3_1_schema_verification.json`.
