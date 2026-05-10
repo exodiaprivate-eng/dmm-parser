@@ -1,5 +1,28 @@
 //! Hand-corrected: IDA-derived parser for `AllyGroupInfo.pabgb`.
 //!
+//! ─── v3.1 closure analysis (iter 75) ────────────────────────────────────
+//! Cross-check via `sub_1410A21A0` (typeinfo→record-reader path per the
+//! iter 57 typeinfo registry). Wire reads confirm the layout:
+//!
+//!   offset 0    4 bytes              → _key (u32)
+//!   offset 8    CString              → _stringKey
+//!   offset 16   1 byte               → _isBlocked
+//!   offset 24   for i in 0..7 {       → 7 × CArray<u32>
+//!                 read u32 count       (16-byte stride per element,
+//!                 read N × u32         consuming 24..136)
+//!               }
+//!   offset 136  1 byte               → killer_detection_time (etc.)
+//!   …           5 bytes of bools
+//!   offset 142  sub_1410CC220        → interesting_condition (u16 hash)
+//!   offset 144  sub_1410CC290        → add_on_ally_group_list
+//!   offset 160  sub_1410CC290        → interesting_order_list
+//!
+//! NattKh schema lists `_relationTypeList` as a single canonical at this
+//! position; the rust struct already unrolls the 7-iteration loop into
+//! `relation_type_list_0..6`. Wire-level confirmation: **`_relationTypeList`
+//! is a pure 1-to-7 wrapper** around the seven `relation_type_list_*`
+//! rust fields. Closure path: 1-to-N alias entry. No new decoder work.
+//!
 //! Per IDA sub_1410D5BE0:
 //!   - u32 key (sub_141BF6720 is internal storage helper, not a stream read)
 //!   - CString string_key
