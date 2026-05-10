@@ -29,6 +29,7 @@ rust struct fields**, so a 1-to-1 alias entry can't express the mapping:
 | Table | Schema canonical | Rust struct |
 |---|---|---|
 | `ally_group_info` | `_relationTypeList` | 7× unrolled fields `relation_type_list_0` .. `relation_type_list_6` |
+| `elemental_material_info` | `_flag` | 8× unrolled fields `flag_0` .. `flag_7` |
 
 These need either (a) a Rust struct refactor to use a single `CArray`
 or fixed-array field matching the canonical, or (b) extending the v3.1
