@@ -440,15 +440,12 @@
     "effect_info": {
       "schema_key": "EffectInfo",
       "in_schema": true,
-      "alias_count": 6,
+      "alias_count": 8,
       "schema_field_count": 8,
-      "verified": 6,
+      "verified": 8,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
-      "missing_in_dmm": [
-        "_effectDataList",
-        "_meshEffectDataList"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "elemental_material_info": {
       "schema_key": "ElementalMaterialInfo",
@@ -1823,9 +1820,9 @@
     }
   },
   "totals": {
-    "verified": 1125,
+    "verified": 1127,
     "mismatch": 0,
-    "missing_in_dmm": 584,
+    "missing_in_dmm": 582,
     "extra_in_dmm": 0
   }
 }

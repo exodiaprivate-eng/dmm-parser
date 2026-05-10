@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1125**
+- Total field aliases verified:       **1127**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **584**
+- Total schema fields not decoded:    **582**
 
 ## Tables not in NattKh schema
 
@@ -67,7 +67,7 @@ Korean-error-string parser path.
 | `dialog_voice_info` | 13 | 13 | 0 | 0 |
 | `drop_set_info` | 12 | 12 | 0 | 0 |
 | `dye_color_group_info` | 6 | 6 | 0 | 0 |
-| `effect_info` | 6 | 6 | 0 | 2 |
+| `effect_info` | 8 | 8 | 0 | 0 |
 | `elemental_material_info` | 18 | 18 | 0 | 2 |
 | `equip_info` | 6 | 6 | 0 | 1 |
 | `equip_type_info` | 19 | 19 | 0 | 1 |
@@ -331,13 +331,6 @@ Korean-error-string parser path.
 **Schema fields not in dmm-parser** (1):
 
 - `_reactionTable`
-
-### `effect_info` (schema key: `EffectInfo`)
-
-**Schema fields not in dmm-parser** (2):
-
-- `_effectDataList`
-- `_meshEffectDataList`
 
 ### `elemental_material_info` (schema key: `ElementalMaterialInfo`)
 

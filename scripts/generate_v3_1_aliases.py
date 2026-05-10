@@ -31,6 +31,17 @@ REPO = Path(r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser")
 TABLES_DIR = REPO / "src" / "tables"
 SCHEMA_PATH = Path(r"C:\Users\corin\Desktop\CD DUMPING TOOLS\_research_cache\pabgb_complete_schema.json")
 
+# Manual overrides where Rust struct field name doesn't mechanically translate
+# to the schema's canonical name. Format: {(table_dispatch_name, rust_snake): canonical_camel}
+# Each entry must be cross-validated against NattKh schema or Win-IDA evidence.
+MANUAL_OVERRIDES = {
+    # effect_info: Rust uses singular forms; schema has plural _List suffix.
+    # Confirmed via Win-IDA decompile of sub_1410A8670 (real EffectInfo record
+    # reader) cross-referenced against NattKh schema entries (iter 31).
+    ("effect_info", "effect_data"):      "_effectDataList",
+    ("effect_info", "mesh_effect_data"): "_meshEffectDataList",
+}
+
 # Field-name patterns that are clearly placeholders — skip them, no alias.
 PLACEHOLDER_PATTERNS = [
     re.compile(r"^_[a-z]$"),                   # _a, _b
@@ -74,7 +85,8 @@ def snake_to_pascal(snake: str) -> str:
     return "".join(p[0].upper() + p[1:] for p in snake.split("_") if p)
 
 def extract_main_struct_fields(info_rs_path: Path, dir_name: str,
-                                schema_canonical_names: set[str] | None) -> list[tuple[str, str]]:
+                                schema_canonical_names: set[str] | None,
+                                manual_overrides: dict[tuple[str, str], str] | None = None) -> list[tuple[str, str]]:
     """Return list of (rust_snake_case, _camelCase) field-name tuples for the
     main table struct.
 
@@ -114,6 +126,12 @@ def extract_main_struct_fields(info_rs_path: Path, dir_name: str,
     aliases = []
     for snake in fields:
         if is_placeholder(snake):
+            continue
+        # Manual override takes precedence (for fields where Rust snake_case
+        # doesn't mechanically translate to the schema's canonical name).
+        override_key = (dir_name, snake)
+        if manual_overrides and override_key in manual_overrides:
+            aliases.append((snake, manual_overrides[override_key]))
             continue
         camel = snake_to_underscore_camel(snake)
         if schema_canonical_names is not None:
@@ -165,7 +183,7 @@ def main():
         else:
             fallback_count += 1
             source = "mechanical"
-        aliases = extract_main_struct_fields(info_rs, t, schema_names)
+        aliases = extract_main_struct_fields(info_rs, t, schema_names, MANUAL_OVERRIDES)
         if aliases:
             entries = ",\n    ".join(f'("{snake}", "{camel}")' for snake, camel in aliases)
             provenance = (

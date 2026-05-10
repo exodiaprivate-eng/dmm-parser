@@ -14,6 +14,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("key", "_key"),
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
+    ("effect_data", "_effectDataList"),
+    ("mesh_effect_data", "_meshEffectDataList"),
     ("has_equip_type", "_hasEquipType"),
     ("has_preset", "_hasPreset"),
     ("target_color_lerp_type", "_targetColorLerpType"),
