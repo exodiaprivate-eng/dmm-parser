@@ -21,6 +21,20 @@ field decode without IDA work.
 To regenerate this report, run `python scripts/verify_v3_1_against_schema.py`
 which writes the canonical JSON to `docs/v3_1_schema_verification.json`.
 
+## Known structural divergences (2026-05-10 iter 36)
+
+Cases where the schema's single canonical name maps to **multiple
+rust struct fields**, so a 1-to-1 alias entry can't express the mapping:
+
+| Table | Schema canonical | Rust struct |
+|---|---|---|
+| `ally_group_info` | `_relationTypeList` | 7× unrolled fields `relation_type_list_0` .. `relation_type_list_6` |
+
+These need either (a) a Rust struct refactor to use a single `CArray`
+or fixed-array field matching the canonical, or (b) extending the v3.1
+alias mechanism to support 1-to-N mappings. Neither is in-scope for the
+loop; documented for future work.
+
 ## Auto-closure analysis (2026-05-10 iters 31-35)
 
 Iters 31-34 captured every name-divergence closure reachable via
