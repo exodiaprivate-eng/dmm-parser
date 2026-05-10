@@ -74,6 +74,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `gimmick_info` | (special — no bare typeinfo string; Tier-1.5 typed prefix + opaque blob) | `sub_1410E6FC0` | 7205B | per existing dmm-parser docstring |
 | `character_info` | `0x144ab3c20` | `sub_1410A3A40` | 0x2238 (8.7KB — largest) | iter 48 |
 | `stage_info` | `0x144af38e0` | `sub_1410C76E0` | 0xd90 (3.5KB) | iter 48 |
+| `gimmick_group_info` | `0x144accb90` | `sub_1410B0D60` | 0xadd (2.8KB) | iter 49 |
+| `field_info` | `0x144ac6a60` | `sub_1410AD060` | 0x4dd (1.2KB) | iter 49 |
 
 **Workflow:** for any future per-table decoder closure session:
 
