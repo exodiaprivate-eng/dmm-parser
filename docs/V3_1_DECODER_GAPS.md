@@ -59,6 +59,50 @@ needs either:
 - v3.1 alias mechanism extension to express 1-to-N nested-field aliases, OR
 - Rust struct refactor to use a single typed sub-struct matching the canonical wrapper.
 
+### Per-table closure plan: `tribe_info` (iter 41)
+
+26 missing canonicals; rust struct has 26 `unk_XX` placeholder fields
+named by byte offset:
+
+```rust
+pub struct TribeInfo<'a> {
+    pub key, string_key, is_blocked, lookup_a, lookup_b,         // already aliased
+    pub unk_22, unk_24, unk_28, unk_29, unk_30, unk_31,           // placeholders by wire offset
+    pub unk_32, unk_33, unk_34, unk_35, unk_36, unk_40,
+    pub unk_44, unk_48, unk_56, unk_64, unk_68, unk_72,
+    pub unk_76, unk_80, unk_81, unk_84, unk_88,
+    pub ref_list,
+}
+```
+
+26 missing canonicals (in NattKh schema declaration order — likely
+matches wire order):
+
+```
+_activityWaterDepth, _armorMaterialKey, _baseMaterialKey, _bumpTypeHash,
+_characterPauseType, _detectModeShowEnemy, _detourMaxDegree, _detourOnRoad,
+_escapePlatform, _footMaterialKey, _footStepTypeEffectName, _hasChild,
+_ignoreOverlapPush, _ignoreWaterFall, _ignoredReactionInSafeZoneFlag,
+_interactionUIDistanceLv, _isBird, _isDeathByDrowning, _isHumanoid,
+_parentTribeInfo, _tamedSkillList, _tribeMassLevel, _tribeNameForEditor,
+_velocityDampSpeed, _wantedCrimeType, _weaponMaterialKey
+```
+
+**Closure path (multi-iter, hours of IDA work):**
+1. Find `pa::TribeInfo` typeinfo in IDA strings
+2. Get xref → real record reader (per iter 30 corrected workflow)
+3. Decompile reader; walk reads in order
+4. Pair each `*(TYPE *)(this+OFFSET) = read_X(...)` with the next
+   canonical in schema order. The offsets in the unk_XX names
+   (22, 24, 28, ...) should match the OFFSET literals in the decompile.
+5. Rename `unk_XX` → canonical_snake (e.g. `unk_22` → `activity_water_depth`)
+6. Add v3.1 alias entries
+7. cargo build + test (must keep 562 passing)
+
+This is the template for the 7 other GENUINE-pattern tables. The
+wrapper-pattern tables follow a different template (Rust struct
+refactor to collapse unrolled fields into typed sub-structs).
+
 ### Full quantitative split (iter 40 — all 27 gap tables)
 
 Programmatic wrap-vs-genuine classification by comparing schema-field
