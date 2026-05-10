@@ -76,6 +76,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `stage_info` | `0x144af38e0` | `sub_1410C76E0` | 0xd90 (3.5KB) | iter 48 |
 | `gimmick_group_info` | `0x144accb90` | `sub_1410B0D60` | 0xadd (2.8KB) | iter 49 |
 | `field_info` | `0x144ac6a60` | `sub_1410AD060` | 0x4dd (1.2KB) | iter 49 |
+| `faction_node_info` | `0x144ac1af0` | `sub_1410AAE90` | 0x5df (1.5KB) | iter 50 |
+| `region_info` | `0x144aeb3b0` | `sub_1410C1E70` | 0x403 (1.0KB) | iter 50 |
 
 **Workflow:** for any future per-table decoder closure session:
 
