@@ -53,9 +53,12 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] SCRIPT-DOC: Audit scripts/ Python files; write scripts/README.md documenting each.
 
 ## Done
+- [x] SCRIPT-DOC: scripts/README.md — 2026-05-10 13:58 SUCCESS. Audited all 6 .py files in scripts/. Created scripts/README.md documenting each: generate_v3_1_aliases.py (active, schema-grounded), verify_v3_1_against_schema.py (active, audit), harvest_reflection_schema.py (active, pycrimson aggregator), add_json_roundtrip.py (historical), add_cdmtl_headers.py (historical bulk), deploy_cdmtl_license.py (occasional release tooling). Includes naming conventions + how to add a new script.
+
+**Resumed-loop phase complete (8/8 tasks). All loop work exhausted again.**
+
 - [x] HONEST-DOC: Known Limitations section in STATUS.md — 2026-05-10 13:54 SUCCESS. Comprehensive honest accounting of what "100% game breakdown" means in practice. Three sections: What we have (structural surfaces fully catalogued), What we DON'T have (out-of-control: PS5 demo binary, pycrimson upstream fixes, embedded data class names), What we DON'T have (in-scope: 398 missing decoder fields per priority worklist + Havok Layer B + iteminfo v3.1 surface + ~50 long-tail extensions). Frames the loop's contribution as "making every remaining gap visible and actionable" — future sessions can pick from priority list directly.
 - [x] DECODER-GAP-PRIORITY: cluster analysis + priority worklist — 2026-05-10 13:50 SUCCESS. Discovered each table's missing fields all route through a SINGLE parser fn (zero cross-table reuse), so per-table workflow: ONE IDA decompile reveals ALL gaps for that table. Added "Decoder-fn cluster analysis" section to V3_1_DECODER_GAPS.md with per-table fn pointer + type distribution + per-table workflow + quick-win target order (smallest tables first: effect_info 2, action_point_info 2, vehicle_info 3, knowledge_info 3, global_game_event_info 4, region_info 4).
 - [x] LONG-TAIL-2: domain-suffix/prefix tally + subsystem coverage — 2026-05-10 13:46 SUCCESS. Tallied 231 reflection classes by 25 suffixes + 22 prefixes. Top categories: *Component (61), *Data (32), Game* (20), Custom* (14), Spline* (12), Material* (10), Pa* (10), Resource* (9), Emitter* (9), Sequencer* (8), Camera* (7), Audio* (6). **Notable discoveries**: 10 Houdini* classes confirm SideFX Houdini integration for procedural content; MassPlacement system for instanced foliage/props; NPCSchedule for NPC patrol routing; PositionConstraintMotor + AttachingClothToMesh for physics. Documented in ENGINE_INTERNALS.md "Engine subsystem coverage" section.
