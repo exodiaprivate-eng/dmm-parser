@@ -26,10 +26,40 @@ which writes the canonical JSON to `docs/v3_1_schema_verification.json`.
 Cases where the schema's single canonical name maps to **multiple
 rust struct fields**, so a 1-to-1 alias entry can't express the mapping:
 
+### Numbered-suffix unrolling (1 canonical → N+ numbered fields)
+
 | Table | Schema canonical | Rust struct |
 |---|---|---|
 | `ally_group_info` | `_relationTypeList` | 7× unrolled fields `relation_type_list_0` .. `relation_type_list_6` |
 | `elemental_material_info` | `_flag` | 8× unrolled fields `flag_0` .. `flag_7` |
+
+### Wrapper-vs-unrolled (1 canonical → N named sub-fields)
+
+Spot-check survey of 10 small-gap tables (iter 39) found 8 fit this
+pattern: NattKh schema names a single top-level "_thingFilter" or
+"_xxxData" canonical, while dmm-parser's rust struct unrolls its
+internal sub-struct fields. The "1 missing canonical" is actually the
+WRAPPER name for the 2-3 extra rust fields.
+
+| Table | Schema canonical (1 missing) | Likely rust unrolled sub-fields |
+|---|---|---|
+| `character_change_info` | `_characterChangeFilter` | `name_list`, `hash_lookup_list`, `trailing_id` (3 extra rust fields) |
+| `detect_reaction_info` | `_reactionTable` | 4 extra rust fields |
+| `royal_supply_info` | `_royalSupplyRandomMap` | 1 extra rust field |
+| `sub_level_info` | `_exp` | 3 extra rust fields |
+| `faction_node_spawn_info` | (1 missing) | 1 extra rust field |
+| `faction_relation_group_info` | (1 missing) | 3 extra rust fields |
+| `multi_change_info` | (1 missing) | 1 extra rust field |
+| `equip_type_info` | (1 missing) | 3 extra rust fields |
+
+**Implication for the 557 number:** many of those gaps are wrapper-vs-
+unrolled pattern, not truly missing fields needing new Rust code. The
+real decoder-writing workload is significantly smaller. Closing these
+needs either:
+- v3.1 alias mechanism extension to express 1-to-N nested-field aliases, OR
+- Rust struct refactor to use a single typed sub-struct matching the canonical wrapper.
+
+
 
 These need either (a) a Rust struct refactor to use a single `CArray`
 or fixed-array field matching the canonical, or (b) extending the v3.1
