@@ -65,11 +65,40 @@ full reference.
 
 ## Implementation status
 
-Shipped in commits:
+### Shipped milestones
+
+Initial spec implementation:
 - `9e29e10` — bulk v3.1 alias surface (mechanical translation)
 - `2724abe` — schema-grounded regen (eliminated 463 false-positive aliases)
 - `2312389` — decoder-gap audit
 - `6273c7f` — pycrimson reflection workflow
+
+Resumed-loop closure work (iters 70-82, 2026-05-10):
+- Added 7 PA-internal-typo MANUAL_OVERRIDES (`_complteDescription`,
+  `_overriedMaxHeight`, `_questGroupkey`, `_regionEnterknowledgeInfoList`,
+  `_fishSummonTimeFrquencyType`, `_radgollEquipTableGroupDataList`, etc.)
+- Closed several name-divergence cases via tuple-scoped overrides
+  (`_isSaveGimmickRegion`, `_linkKnowledgeNodeList`, `_globalGameEventInfoList`,
+  `_loadingTargetInfo`, `_gameEventExecuteData`, `_levelGimmickSceneObjectDataList`)
+- Documented per-table closure plans for 11 single-missing-canonical
+  tables (all proven to be 1-to-N structural wraps via Win-IDA per-record
+  reader cross-checks); shippable when the alias mechanism is extended.
+
+### Schema verifier snapshot (iter 82)
+
+| Metric | Value |
+|---|---|
+| dmm-parser tables | 126 |
+| Tables in NattKh canonical schema | 109 |
+| **Tables with 100% canonical coverage** | **86** |
+| Tables with ≥1 residual gap | 23 |
+| Total residual gaps | 549 |
+| Verified aliases | 1,160 |
+| Aliases with confirmed mismatches | 0 |
+
+See `docs/MOD_AUTHOR_GUIDE.md` § "Residual v3.1 surface coverage" for the
+4-class breakdown of the remaining 23 tables (alias-mechanism extension
+pending, real decoder work, semantic ambiguity, large-table audit).
 
 Test baseline: 562 passing.
 
