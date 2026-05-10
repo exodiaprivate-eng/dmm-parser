@@ -241,6 +241,100 @@ mod authoring (DDS texture replacement + pabgb table editing) doesn't
 touch the skin pipeline. Document captured here so when the time comes,
 we have the receipts.
 
+## Layer B (Havok binary) reference
+
+The PA-side reflection-format wrappers (Layer A — `.prefab`, `.meshinfo`,
+etc.) reference asset paths that resolve to **Havok binary packfiles**
+inside the PAZ archives. These are the actual mesh/skel/anim/cloth/physics
+bytes. dmm-parser doesn't currently parse them; this section catalogues
+what's known so a future Layer B implementation has the receipts.
+
+### Extension family
+
+Per pycrimson's `file_format_notes.md` the Havok-adjacent extensions
+visible in PAZ archives are:
+
+| Extension | Purpose | Source |
+|---|---|---|
+| `.hkx` | Havok native (animation, ragdoll, mesh) | annotated `(havoc)` in pycrimson notes |
+| `.pac` | PA character archive — wraps Havok content for character meshes | not annotated; contents reference Havok |
+| `.pacc` | (variant of .pac) | unknown structural diff vs .pac |
+| `.pam` | PA animation file (raw Havok anim?) | not annotated |
+| `.pami` | PA animation index | not annotated; per-character animation registry |
+| `.pamlod` | PA animation LOD variant | not annotated |
+| `.skel` | Skeleton file | inferred from naming; not in pycrimson list |
+| `.mesh` | Mesh file | inferred from naming; not in pycrimson list |
+
+### How to detect a Havok packfile
+
+Both binary-tagfile and XML-tagfile forms of Havok exist:
+
+- **Binary:** signature `\x57\xE0\xE0\x57\x10\xC0\xC0\x10` in the first
+  16 bytes (per `engine_havok_skinning.md` Path Forward section above).
+- **XML:** root tag `<hktagfile>`.
+
+Crimson Desert ships only the binary form (per IDA scan).
+
+### Known classes per Havok module
+
+Already enumerated in the "Confirmed via IDA Pro string + RTTI scan"
+section of this doc. Quick recap of the canonical classes a Layer B
+parser would need to implement readers for:
+
+- **`hka*` (animation):** hkaSkeleton, hkaBone, hkaSkeletonMapperData,
+  hkaAnimationBinding, hkaBoneAttachment, **hkaMeshBinding** (vertex-skin
+  binding), hkaAnimation, hkaQuantizedAnimation, hkaAnimationContainer,
+  hkaFootstepAnalysisInfo, hkaRagdollInstance.
+- **`hkx*` (mesh):** hkxMesh, hkxMeshSection, hkxVertexBuffer,
+  hkxIndexBuffer, hkxMaterial, hkxAttribute.
+- **`hknp*` (modern physics):** hknpBody, hknpBodyCinfo, hknpBodyQuality,
+  hknpCompoundShape, hknpMeshShape, hknpCharacterProxy, hknpRagdoll,
+  hknpRagdollController, hknpRagdollKeyFrameHierarchyController,
+  hknpRagdollStatePoweredDynamicAnimation.
+- **`hcl*` / `hct*` (cloth):** hclSimClothData, hclClothContainer,
+  hclClothState, hclClothStateBuffer, hclSimClothPose, hctClothSetup20151.
+
+### Bridge from Layer A → Layer B
+
+PA-side metadata classes referenced from Layer A pycrimson harvest:
+
+| Layer A class | Field | Resolves to |
+|---|---|---|
+| `SkinnedMeshComponent` | `_skinnedMeshFile._path` | `.pac` filename in PAZ |
+| `SkinnedMeshComponent` | `_skeletonFileName` | `.skel`/.pac filename |
+| `SkinnedMeshComponent` | `_socketFileName` | `.sockets.xml` filename |
+| `MeshComponent` | (mesh ref via component) | `.pac` filename |
+| `EffectComponent` | (effect ref) | `.pae` referenced from `.parg` |
+
+Everything in the bridge is reachable via pycrimson harvest. Resolving
+the path → opening the .pac → parsing as Havok binary is the missing
+final step.
+
+### What a Layer B implementation would need
+
+1. **Havok 2024.2 SDK schema definitions.** Public Havok docs cover
+   most class layouts; PA's build path (`d:\bs\mainline\code\trunk\External\Havok_2024_2\Public\HavokSDK\`)
+   confirms the SDK version exactly.
+2. **`hkSerializeUtil::load`-equivalent reader** (or roll our own — the
+   schemas are stable per SDK version).
+3. **PAZ file extraction** for the target `.pac` filenames (already
+   solved via pycrimson `extract-pack-files`).
+4. **JSON v3.1 schema** for emitting field-level intents per Havok
+   class.
+
+### Why this isn't blocking current mod work
+
+Current authoring flows (DDS texture replacement, pabgb table editing,
+v3.1 intent JSONs) don't touch the skin pipeline. Layer B is the
+unblock-for-mesh/skel-mods territory. Track as future work; document
+captured here so the receipts are ready when needed.
+
+### Cross-references
+
+- `engine_havok_skinning.md` "Path forward for full mesh/skel mod authoring" (Layer A vs Layer B split)
+- `BINARY_FORMATS.md` PAZ extraction
+- pycrimson `file_format_notes.md` for the full extension list
+
 ## Variant decoder catalog (src/binary/variants/)
 
 Per-file inventory of dmm-parser's polymorphic decoders. Each "real

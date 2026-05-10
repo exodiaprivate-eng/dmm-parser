@@ -53,12 +53,12 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] DOCS: add a "Layer B (Havok binary)" reference section in ENGINE_INTERNALS.md cataloguing what we know from IDA + ENGINE_INTERNALS Havok integration about .pam / .pami / .pamlod / .pac / .pacc file formats; nothing parsed yet but document what we'd need
 - [ ] DOCS: scan src/binary/*.rs for any `_unkXXXX` or `Vec<u8>` opaque-blob fields outside paatt_basedata.rs; write coverage report to STATUS.md
 - [ ] DOCS: write a SHIPPED.md document at root summarizing every commit from Session 28 + the 1-minute loop with a flat list of deliverables (cross-link the per-doc references)
 
 
 ## Done
+- [x] DOCS: Layer B Havok binary reference in ENGINE_INTERNALS.md — 2026-05-10 13:12 SUCCESS. Added comprehensive Layer B section: extension family table (.hkx/.pac/.pacc/.pam/.pami/.pamlod/.skel/.mesh), Havok packfile detection signatures, all known hka/hkx/hknp/hcl class names from prior IDA scan, Layer A → Layer B bridge map (which PA-side reflection fields resolve to which Havok files), what a Layer B implementation would need, and why this isn't blocking current mod work.
 - [x] DOCS: variant decoder catalog in ENGINE_INTERNALS.md — 2026-05-10 13:09 SUCCESS. Inventoried all 27 variants/*.rs files. 13 real variant decoders (528 typed variants combined, 4 Raw fallback branches for graceful degradation), 7 helper/wrapper structs, 7 diagnose/validate debug helpers. Cross-referenced GameCondition 100% round-trip stat from STATUS.md.
 - [x] DOCS: Game Surface Coverage Map in STATUS.md — 2026-05-10 13:06 SUCCESS. Added comprehensive coverage table covering 14 binary-format categories (pabgb 100%, iteminfo 100%, pamt/papgt/paloc/paz/pabgh/trie 100%, paatt ~63%, dds/audio classify-only, reflection 8,362 classes catalogued, Havok 0% Layer B, encrypted .xml deferred, .save full editor). Section sits at the top of `## Current state`.
 - [x] DESC: AttackCommonDataDesc — 2026-05-10 12:57 VERIFIED-BLOCKED (third independent confirmation: Win-IDA registrar absence + Korean error fragment xref absence + NattKh schema search returns zero AttackCommonData fields. Documented in T0_AUDIT_TRACKING Session 28 iter 12 entry. No further iteration on this class without new evidence.)
