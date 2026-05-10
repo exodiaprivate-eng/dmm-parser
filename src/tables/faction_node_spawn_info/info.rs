@@ -4,6 +4,25 @@
 //! `CArray<COptional<{u8 + CArray<PatrolSplineElement>}>>` (sub_1413F8A20
 //! outer, sub_1413F9BD0 inner). Each PatrolSplineElement is 65 wire bytes
 //! / 68 mem bytes (Vec3 + 4× u32 + f32 + u8 + 2× Vec3 + f32 + u32).
+//!
+//! ─── v3.1 closure analysis (iter 74) ────────────────────────────────────
+//! Cross-check via `sub_1410AB470` (typeinfo→record-reader path per the
+//! iter 53 typeinfo registry). 7 wire reads:
+//!
+//!   word offset 0   4 bytes        → _key (u32)
+//!   word offset 2   CString        → _stringKey  (sub_141076050)
+//!   word offset 4   1 byte         → _isBlocked
+//!   byte offset 18  sub_1410CEB40  → _factionNodeInfo (u16 hash lookup)
+//!   word offset 5   12 bytes raw   → boundary_box_min  ([f32; 3])
+//!   word offset 8   12 bytes raw   → boundary_box_max  ([f32; 3])
+//!   word offset 12  sub_1410E2B00  → patrol_ai_spline_data_list
+//!
+//! NattKh schema lists `_boundaryBox` as a single 24-byte canonical at
+//! this position; the rust struct already splits it into Vec3 min + Vec3
+//! max. Two consecutive identical 12-byte raw reads at adjacent offsets
+//! prove **`_boundaryBox` is a pure 1-to-2 wrapper** around
+//! `boundary_box_min` + `boundary_box_max`. Closure path: 1-to-N alias
+//! entry. No new decoder work needed.
 
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

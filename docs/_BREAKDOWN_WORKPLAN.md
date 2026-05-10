@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 74: faction_node_spawn_info `_boundaryBox` closure plan (1-to-2 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410AB470 (iter 53 typeinfo registry). Two consecutive 12-byte raw reads at offsets 20 & 32 confirm `_boundaryBox` is a pure 1-to-2 wrapper around `boundary_box_min` ([f32;3]) + `boundary_box_max` ([f32;3]). Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/faction_node_spawn_info/info.rs.
+
 - [x] GAP iter 73: equip_type_info `_destroyedAiEvent` closure plan (1-to-4 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410A9500 (iter 55 typeinfo registry). The 12-byte raw read at offset 20 confirms `_destroyedAiEvent` is a pure 1-to-4 wrapper around `destroyed_ai_event_head` (u16), `destroyed_ai_event_pad` (u16), `destroyed_ai_event_hash` (u32), `destroyed_ai_event_tail` (u32). Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/equip_type_info/info.rs.
 
 - [x] GAP iter 72: sub_level_info `_exp` closure plan (1-to-4 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410C9FF0 (iter 56 typeinfo registry). The single sub_141DFB780 call at offset 32 consumes 32 bytes spanning the 28-byte exp composite (3×u64 + u32). Confirmed `_exp` is a pure 1-to-4 wrapper around the unrolled `exp_a, exp_b, exp_c, exp_d` rust fields. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/sub_level_info/info.rs.
