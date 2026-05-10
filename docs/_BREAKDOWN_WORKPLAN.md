@@ -53,7 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] REFLECT: extract + parse + harvest `.paseq` files (sequence data, custom header)
 - [ ] REFLECT: extract + parse + harvest `.paseqc` files
 - [ ] REFLECT: extract + parse + harvest `.uianiminit` files
 - [ ] CATALOG: re-run `scripts/harvest_reflection_schema.py` against all parsed_reflection/ subdirs combined; produce a master class index in `ENGINE_INTERNALS.md`
@@ -91,6 +90,7 @@ descriptor class via Win-IDA).
 - [x] REFLECT: extract + parse + harvest `.parg` files — 2026-05-10 12:32 SUCCESS. 750 .parg extracted, 644 parsed across multiple parallel iter firings. Combined harvest with prior .prefab data: **8,327 classes / 32,091 canonical fields** at `docs/v3_1_reflection_schema.json`. Top: AtmosphereConstant 54, EmitterRenderGroupData 39, DecalInfo 27, SplineDecalComponent 25 (cross-validated against IDA iter 4). Documented in `docs/ENGINE_INTERNALS.md` "Expanded harvest" section.
 - [x] REFLECT: extract + parse + harvest `.pasg` files — 2026-05-10 12:35 SUCCESS. All 40 .pasg files parsed cleanly. Surfaces emitter simulation/spawn classes: `EmitterSimulationGroupData`, `EmitterMoveTrackData`, `EmitterSpawnData`, `EmitterSimulationData`. Combined catalog now: **8,337 classes / 32,190 fields**.
 - [x] REFLECT: extract + parse + harvest `.paa_metabin` files — 2026-05-10 12:38 SUCCESS-EMPTY. 137,856 .paa_metabin extracted, 501 sampled. Only `AnimationMetaData` class (0 fields — empty pointer wrapper). Animation metadata is NOT stored field-level here; the actual animation data lives in adjacent `.pam`/`.pami`/`.pamlod` files (Havok layer). Catalog: **8,338 classes / 32,190 fields** (+1 class, +0 fields).
+- [x] REFLECT: extract + parse + harvest `.paseq` files — 2026-05-10 12:39 BLOCKED (pycrimson `IndexError: list index out of range` on `self._types[type_index]` line 364 — type-table resolution bug, distinct from the parc-header issue). 4,659 .paseq files extracted to `_research_cache/extracted_paseq/`. Re-queue after pycrimson upstream fix.
 
 ---
 
