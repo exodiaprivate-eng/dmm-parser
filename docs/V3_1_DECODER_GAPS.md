@@ -59,6 +59,56 @@ needs either:
 - v3.1 alias mechanism extension to express 1-to-N nested-field aliases, OR
 - Rust struct refactor to use a single typed sub-struct matching the canonical wrapper.
 
+### tribe_info closure validation (iter 42)
+
+Decompiled `pa::TribeInfo` record reader at `sub_1410C8A20` (Win
+typeinfo at .rdata `0x144af6090`, single xref). Wire-read sequence
+extracted in source order:
+
+```
+offset  size       wire-call
+   0    4 bytes    *(_a1+8)(...) → _key (u32)
+   8    CString    sub_141076050 → _stringKey
+  16    1 byte     direct → _isBlocked
+  18    sub-call   sub_1410CD790 → already-aliased lookup_a
+  20    sub-call   sub_1410CBB90 → already-aliased lookup_b
+  22    1 byte     direct (1× u8)
+  24    4 bytes    direct (1× u32)
+  28-36 9× 1 byte  direct (9× u8)
+  40    4 bytes    direct (1× u32)
+  44    4 bytes    direct (1× u32)
+  48    4 bytes    direct (1× u32)
+  56    CString    sub_141076050 → CString
+  64    4 bytes    direct (1× u32)
+  68    4 bytes    direct (1× u32)
+  72    4 bytes    direct (1× u32)
+  76    4 bytes    direct (1× u32)
+  80    1 byte     direct (1× u8)
+  81    1 byte     direct (1× u8)
+  84    4 bytes    direct (1× u32)
+  88    8 bytes    direct (1× u64)
+  96    sub-call   sub_1410CCE80 → ref_list (CArray)
+```
+
+**Type-count cross-validation against NattKh schema:**
+
+| Type | Wire reads | Schema canonicals (excluding aliased) | Match |
+|---|---|---|---|
+| `direct_u8` | 13 | 13 (_tribeMassLevel, _wantedCrimeType, _interactionUIDistanceLv, _ignoreWaterFall, _isBird, _isHumanoid, _hasChild, _isDeathByDrowning, _detourOnRoad, _detectModeShowEnemy, _escapePlatform, _ignoreOverlapPush, …) | ✅ |
+| `direct_u32` | 9 | 9 (_bumpTypeHash, _footMaterialKey, _characterPauseType, _detourMaxDegree, _velocityDampSpeed, _activityWaterDepth, _weaponMaterialKey, _armorMaterialKey, _baseMaterialKey) | ✅ |
+| `reader_4B` (sub-call CString-like) | 4 | 4 (_key, _footStepTypeEffectName, _tamedSkillList, _ignoredReactionInSafeZoneFlag) | ✅ |
+| `direct_u64` | 1 | 1 (`?` type, likely `_parentTribeInfo` or `_tribeNameForEditor`) | ✅ |
+
+**Conclusion:** the closure workflow works structurally. Counts match
+perfectly. Per-field semantic naming (which `unk_XX` becomes which
+canonical) requires deliberate per-position review against game data —
+e.g. bool field at offset 22 could be any of the 13 bool canonicals.
+This is hours of focused work that's safer with IDA plugins (per the
+T0_AUDIT_TRACKING plugin reference) installed first.
+
+Cross-table-typed-count validation now standardised as the smoke test
+for "is this gap table workflow-ready" assessment.
+
 ### Per-table closure plan: `tribe_info` (iter 41)
 
 26 missing canonicals; rust struct has 26 `unk_XX` placeholder fields
