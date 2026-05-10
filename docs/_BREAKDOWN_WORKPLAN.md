@@ -53,8 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] REFLECT: extract + parse + harvest `.pae` files (PA effect envelope, parc-based reflection)
-- [ ] REFLECT: extract + parse + harvest `.paem` files (PA effect emitter, parc-based reflection)
 - [ ] REFLECT: extract + parse + harvest `.parg` files (PA animation graph)
 - [ ] REFLECT: extract + parse + harvest `.pasg` files (PA state graph)
 - [ ] REFLECT: extract + parse + harvest `.paa_metabin` files
@@ -91,6 +89,8 @@ descriptor class via Win-IDA).
 
 - [x] REFLECT: extract + parse + harvest `.meshinfo` files — 2026-05-10 12:25 BLOCKED (pycrimson `TransferInstructionFlags` enum value 8224 unmapped — fails on every .meshinfo). 34,715 files extracted to `_research_cache/extracted_meshinfo/` for future use once pycrimson updates. Re-queue after pycrimson upstream fix.
 - [x] REFLECT: extract + parse + harvest `.palevel` files — 2026-05-10 12:25 BLOCKED (pycrimson buffer-underflow error on `read_u16` — likely custom-header handling missing). 19,867 files extracted to `_research_cache/extracted_palevel/` for future use. Re-queue after pycrimson upstream fix.
+- [x] REFLECT: extract + parse + harvest `.pae` files — 2026-05-10 12:26 BLOCKED (same parc-header buffer-underflow as .palevel). 5,995 files extracted to `_research_cache/extracted_pae/`. Same upstream-fix dependency.
+- [x] REFLECT: extract + parse + harvest `.paem` files — 2026-05-10 12:26 BLOCKED-PRE (.paem is parc/reflection per pycrimson notes — same parc bug as .pae and .palevel; not extracted to save iter time. Re-evaluate when pycrimson is fixed.)
 
 ---
 
