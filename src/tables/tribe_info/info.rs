@@ -27,6 +27,51 @@
 //! confirmed yet. Mods can edit any field by raw value; renaming when
 //! Mac symbol-cross-reference confirms meaning is mechanical.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::TribeInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  29
+// Decoded by dmm-parser:   3
+// Missing in this struct:  26
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key (reader_4B, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ⏳ _footStepTypeEffectName (reader_4B, stream=4)
+// ⏳ _parentTribeInfo
+// ⏳ _bumpTypeHash (direct_u32, stream=4)
+// ⏳ _tribeMassLevel (direct_u8, stream=1)
+// ⏳ _wantedCrimeType (direct_u8, stream=1)
+// ⏳ _footMaterialKey (direct_u32, stream=4)
+// ⏳ _characterPauseType (direct_u32, stream=4)
+// ⏳ _interactionUIDistanceLv (direct_u8, stream=1)
+// ⏳ _tamedSkillList (reader_4B, stream=4)
+// ⏳ _ignoredReactionInSafeZoneFlag (reader_4B, stream=4)
+// ⏳ _detourMaxDegree (direct_u32, stream=4)
+// ⏳ _ignoreWaterFall (direct_u8, stream=1)
+// ⏳ _velocityDampSpeed (direct_u32, stream=4)
+// ⏳ _activityWaterDepth (direct_u32, stream=4)
+// ⏳ _weaponMaterialKey (direct_u32, stream=4)
+// ⏳ _tribeNameForEditor
+// ⏳ _armorMaterialKey (direct_u32, stream=4)
+// ⏳ _baseMaterialKey (direct_u32, stream=4)
+// ⏳ _isBird (direct_u8, stream=1)
+// ⏳ _isHumanoid (direct_u8, stream=1)
+// ⏳ _hasChild (direct_u8, stream=1)
+// ⏳ _isDeathByDrowning (direct_u8, stream=1)
+// ⏳ _detourOnRoad (direct_u8, stream=1)
+// ⏳ _detectModeShowEnemy (direct_u8, stream=1)
+// ⏳ _escapePlatform (direct_u8, stream=1)
+// ⏳ _ignoreOverlapPush (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

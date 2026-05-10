@@ -10,6 +10,28 @@
 //!   [u8;12], u32 = 32 bytes
 //! Total ActionPoint disk size = 88 bytes.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::ActionPointInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  6
+// Decoded by dmm-parser:   4
+// Missing in this struct:  2
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _levelActionPointInfo
+// ✅ _key
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ⏳ _actionYaw (direct_u32, stream=4)
+// ⏳ _actionPosition (direct_12B, stream=12)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

@@ -146,6 +146,186 @@
 //! in sub_1410D7480). Adding raw_165a/b/c restored byte alignment and
 //! cleared the cascade.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::CharacterInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  164
+// Decoded by dmm-parser:   18
+// Missing in this struct:  146
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _ownedMercenaryCharacterInfo (reader_4B, stream=4)
+// ⏳ _mercenaryHireMessage (reader_8B, stream=8)
+// ⏳ _playerIndex (direct_u16, stream=2)
+// ⏳ _spawnFixType (direct_u8, stream=1)
+// ⏳ _isRemoteCatchable (direct_u8, stream=1)
+// ⏳ _isCatchable (direct_u8, stream=1)
+// ⏳ _isAttackable (direct_u8, stream=1)
+// ⏳ _isAttackThrowable (direct_u8, stream=1)
+// ⏳ _tribeEffectHash (direct_u32, stream=4)
+// ⏳ _tribeInfoWrapper
+// ⏳ _aiScriptPathHash (direct_u32, stream=4)
+// ⏳ _characterTribeAndGenderString (reader_4B, stream=4)
+// ⏳ _playerTargetableType (direct_u8, stream=1)
+// ⏳ _aiScriptPathFocusHash (direct_u32, stream=4)
+// ⏳ _mercenaryInfo (reader_1B, stream=1)
+// ⏳ _gender (direct_u8, stream=1)
+// ✅ _appearanceName (reader_4B, stream=4)
+// ✅ _characterGamePlayDataName (reader_4B, stream=4)
+// ✅ _skeletonName (reader_4B, stream=4)
+// ✅ _characterPrefabPath (reader_4B, stream=4)
+// ⏳ _shareValueNameHash (direct_u32, stream=4)
+// ⏳ _skeletonVariationName (reader_4B, stream=4)
+// ⏳ _memo (reader_4B, stream=4)
+// ⏳ _projectileInfoPackage (reader_4B, stream=4)
+// ✅ _callMercenaryCoolTime (direct_u64, stream=8)
+// ✅ _vehicleInfo (reader_2B, stream=2)
+// ✅ _mercenaryCoolTimeType (direct_u8, stream=1)
+// ✅ _callMercenarySpawnDuration (direct_u64, stream=8)
+// ⏳ _factionInfo (reader_4B, stream=4)
+// ⏳ _childVehicleList
+// ⏳ _lowerActionChartPackageGroupName (reader_4B, stream=4)
+// ⏳ _upperActionChartPackageGroupName (reader_4B, stream=4)
+// ✅ _uiIconPath (reader_4B, stream=4)
+// ⏳ _characterDesc (reader_8B, stream=8)
+// ✅ _characterEditName
+// ✅ _category (reader_4B, stream=4)
+// ✅ _nonePlayerSubType (direct_u8, stream=1)
+// ✅ _spawnActorType (direct_u8, stream=1)
+// ✅ _npcInfo
+// ✅ _equipInfo
+// ✅ _stringKey
+// ✅ _key
+// ⏳ _characterName (reader_8B, stream=8)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ⏳ _detectInfo (reader_2B, stream=2)
+// ⏳ _visioningData
+// ⏳ _personalityType (direct_u8, stream=1)
+// ⏳ _maxAggroCount (direct_u16, stream=2)
+// ⏳ _characterRegionInfoList (reader_2B, stream=2)
+// ⏳ _characterTier (direct_u8, stream=1)
+// ⏳ _characterWeaponType
+// ⏳ _characterAge (direct_u8, stream=1)
+// ⏳ _characterType (direct_u8, stream=1)
+// ⏳ _battleOrderType (direct_u8, stream=1)
+// ⏳ _mapIconDisplayType (direct_u8, stream=1)
+// ⏳ _uiMapTextureInfo
+// ⏳ _knowledgeObtainType (direct_u8, stream=1)
+// ⏳ _knowledgeInfo (reader_4B, stream=4)
+// ⏳ _characterGroupInfoList (reader_2B, stream=2)
+// ⏳ _inspectDataList
+// ⏳ _aliveSkillInfoList (reader_4B, stream=4)
+// ⏳ _skillInfoByReviveList (reader_4B, stream=4)
+// ⏳ _interactionInfoList (reader_4B, stream=4)
+// ⏳ _playerSkillInfoList (reader_4B, stream=4)
+// ⏳ _defaultActionActionIndex (reader_4B, stream=4)
+// ⏳ _interactionDistance (direct_u32, stream=4)
+// ⏳ _characterWeight (direct_u32, stream=4)
+// ⏳ _defaultShareValueIndex
+// ⏳ _ignoreWaterFall (direct_u8, stream=1)
+// ⏳ _refillHPWhenCooltimeEnd (direct_u8, stream=1)
+// ⏳ _enableDockingGimmickAutoWallUp (direct_u8, stream=1)
+// ⏳ _isCreatableDetectIcon (direct_u8, stream=1)
+// ⏳ _uiPortraitPath (reader_4B, stream=4)
+// ⏳ _vanishTickCount (direct_u32, stream=4)
+// ⏳ _skillInfoBySpawnList (reader_4B, stream=4)
+// ⏳ _symbolImage (reader_4B, stream=4)
+// ⏳ _isTerrainCharacter (direct_u8, stream=1)
+// ⏳ _ignoreTriggerRegion (direct_u8, stream=1)
+// ⏳ _isWallSwingable (direct_u8, stream=1)
+// ⏳ _isMapIconAlwaysShow (direct_u8, stream=1)
+// ⏳ _isClimbable (direct_u8, stream=1)
+// ⏳ _isItemSocketContents (direct_u8, stream=1)
+// ⏳ _allowFarAttackTarget (direct_u8, stream=1)
+// ⏳ _isEnableFriendly (direct_u8, stream=1)
+// ⏳ _isEquipDropable (direct_u8, stream=1)
+// ⏳ _invincibility (direct_u8, stream=1)
+// ⏳ _isEditorUsableAppearance (direct_u8, stream=1)
+// ⏳ _isEditorUsable (direct_u8, stream=1)
+// ⏳ _isVisibleWhenDetectModeOnly (direct_u8, stream=1)
+// ⏳ _disableFootStepOptimize (direct_u8, stream=1)
+// ⏳ _isGhost (direct_u8, stream=1)
+// ⏳ _obstacleDisableByDead (direct_u8, stream=1)
+// ⏳ _isRandomAppearance_IgnoreScale (direct_u8, stream=1)
+// ⏳ _isRandomAppearance (direct_u8, stream=1)
+// ⏳ _isHirable (direct_u8, stream=1)
+// ⏳ _isRandomCharacter (direct_u8, stream=1)
+// ⏳ _sendKillEventOnDead (direct_u8, stream=1)
+// ⏳ _useLargeSplineCurve (direct_u8, stream=1)
+// ⏳ _isHudHpEnabled (direct_u8, stream=1)
+// ⏳ _isShowHpWhenFocusActor (direct_u8, stream=1)
+// ⏳ _isUnique (direct_u8, stream=1)
+// ⏳ _isAggroTargetable (direct_u8, stream=1)
+// ⏳ _isLookable (direct_u8, stream=1)
+// ⏳ _isPushable (direct_u8, stream=1)
+// ⏳ _isUseScheduleInfo_Dev (direct_u8, stream=1)
+// ⏳ _isLogoutAtLooted (direct_u8, stream=1)
+// ⏳ _isSealable (direct_u8, stream=1)
+// ⏳ _isGlobalSchedule (direct_u8, stream=1)
+// ⏳ _grownTargetKeyList (reader_4B, stream=4)
+// ⏳ _catchSpawnData
+// ⏳ _statusGroupInfo (reader_4B, stream=4)
+// ⏳ _grownLevel (direct_u32, stream=4)
+// ⏳ _detectableGimmickTagNameHashList (reader_4B, stream=4)
+// ⏳ _characterLevelDataList
+// ⏳ _elementalMaterialInfoList (reader_4B, stream=4)
+// ⏳ _mercenaryDetectableGimmickTagHashList (reader_4B, stream=4)
+// ⏳ _breakableObjectInfo
+// ⏳ _characterScale (direct_u32, stream=4)
+// ⏳ _miniGameParam
+// ⏳ _weakPointEffectDataList
+// ⏳ _jobInfo (reader_2B, stream=2)
+// ⏳ _bulletItem (reader_4B, stream=4)
+// ⏳ _isFarmAnimal (direct_u8, stream=1)
+// ⏳ _baseMaterialKeyOverride (direct_u32, stream=4)
+// ⏳ _forceFieldTargetType (direct_u8, stream=1)
+// ⏳ _weatherWeight (direct_u32, stream=4)
+// ⏳ _attackByCollisionInfoListKey (direct_u32, stream=4)
+// ⏳ _additionalPartsDataList
+// ⏳ _detectReactionOverrideList (reader_14B, stream=14)
+// ⏳ _interactionUIDistanceLv (direct_u8, stream=1)
+// ⏳ _gamePlayObjectShareData (array_or_complex, stream=4)
+// ⏳ _stageInfoForNpcShopList (reader_4B, stream=4)
+// ⏳ _characterInteractionOverrideDataList
+// ⏳ _dockingChildEventList (reader_14B, stream=14)
+// ⏳ _bumpTypeHash (direct_u32, stream=4)
+// ⏳ _characterCollisionType (direct_u8, stream=1)
+// ⏳ _characterThreatDialogInfo
+// ⏳ _characterFriendlyItemDataList
+// ⏳ _trapFoodData
+// ⏳ _aiDialogOverrideList (reader_4B, stream=4)
+// ⏳ _terrainRegionAutoSpawnInfo
+// ⏳ _wantedPriceList (array_or_complex, stream=8)
+// ⏳ _convertItemInfo (reader_4B, stream=4)
+// ⏳ _terrainRegionSpawnPerCount (direct_u32, stream=4)
+// ⏳ _inventoryInfoList (reader_2B, stream=2)
+// ⏳ _pathTrailType (direct_u8, stream=1)
+// ⏳ _dockingChildDataList
+// ⏳ _pathFindTableName (direct_u32, stream=4)
+// ⏳ _farmBreedingCoolTime (direct_u32, stream=4)
+// ⏳ _farmBreedingResultList (reader_4B, stream=4)
+// ⏳ _isRewardDropRollByCreateActor (direct_u8, stream=1)
+// ⏳ _characterRewardDataList
+// ⏳ _equipItemInfoList
+// ⏳ _mercenaryDropInfoList (reader_4B, stream=4)
+// ⏳ _priceList (array_or_complex, stream=8)
+// ⏳ _minigameSeedList
+// ⏳ _interactionCategoryGroupInfo
+// ⏳ _dialogVoiceInfo (reader_2B, stream=2)
+// ⏳ _allyGroupInfo
+// ⏳ _detectReactionInfo (reader_4B, stream=4)
+// ⏳ _ownerFollowType (direct_u8, stream=1)
+// ⏳ _characterPauseType (direct_u32, stream=4)
+// ⏳ _farmBreedingTargetList (reader_4B, stream=4)
+// ⏳ _farmDropInfoList (reader_4B, stream=4)
+
 use crate::binary::*;
 use crate::binary::variants::gimmick_interaction_override::GimmickInteractionOverrideCArray;
 use crate::json_traits::{ToJsonValue, WriteJsonValue};

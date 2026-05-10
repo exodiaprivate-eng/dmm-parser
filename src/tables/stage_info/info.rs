@@ -1,3 +1,101 @@
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::StageInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  82
+// Decoded by dmm-parser:   10
+// Missing in this struct:  72
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _npcShopCharacterInfo (reader_4B, stream=4)
+// ⏳ _completeImagePath (reader_4B, stream=4)
+// ⏳ _closeDialogString (reader_8B, stream=8)
+// ⏳ _closeDialogSpeakerCharacter (reader_4B, stream=4)
+// ⏳ _updatePriority (direct_u8, stream=1)
+// ⏳ _closeDialogSoundEventName (reader_4B, stream=4)
+// ⏳ _stageKnowledge (reader_4B, stream=4)
+// ⏳ _completeAlertType (direct_u8, stream=1)
+// ⏳ _levelNameList (reader_4B, stream=4)
+// ⏳ _rewardDropSetInfoList (direct_u8, stream=1)
+// ⏳ _guideEffectName (reader_4B, stream=4)
+// ⏳ _globalEffectData (reader_1B, stream=1)
+// ⏳ _stageIconPath (reader_4B, stream=4)
+// ⏳ _fieldReviveInfo (direct_u32, stream=4)
+// ⏳ _stageImagePath (reader_4B, stream=4)
+// ⏳ _stageTextIconPath (reader_4B, stream=4)
+// ⏳ _randomPercent (direct_u64, stream=8)
+// ⏳ _randomSpawnCount (reader_4B, stream=4)
+// ⏳ _completeCount (direct_u16, stream=2)
+// ⏳ _randomRepeatTime (direct_u32, stream=4)
+// ⏳ _scheduleCompleteCondition (reader_4B, stream=4)
+// ⏳ _subTimelineBreakDescList
+// ⏳ _itemConditionAndRemoveArray (direct_u8, stream=1)
+// ⏳ _scheduleStageCompleteAIEventList
+// ⏳ _platformCharacter (reader_4B, stream=4)
+// ⏳ _forbiddenCharacterList (reader_4B, stream=4)
+// ⏳ _platformSocketName
+// ⏳ _platformDockingTagHash (direct_u32, stream=4)
+// ⏳ _isFactionSequencer (direct_u8, stream=1)
+// ⏳ _isIgnoreDistance (direct_u8, stream=1)
+// ⏳ _resetSecond (direct_u32, stream=4)
+// ⏳ _factionSequencerSpawnTagHash (direct_u32, stream=4)
+// ⏳ _executorMissionList (reader_4B, stream=4)
+// ⏳ _childStageList (reader_4B, stream=4)
+// ⏳ _executeTargetStageList
+// ⏳ _executorStageList (reader_4B, stream=4)
+// ⏳ _closeCondition (reader_4B, stream=4)
+// ⏳ _playCondition (reader_4B, stream=4)
+// ⏳ _startPlayerList (reader_4B, stream=4)
+// ⏳ _fieldInfo (direct_u32, stream=4)
+// ⏳ _closeFilterByGroup
+// ⏳ _closeFilter
+// ⏳ _questType (direct_u8, stream=1)
+// ⏳ _globalFilterCharacterList (reader_4B, stream=4)
+// ⏳ _parentQuest (reader_4B, stream=4)
+// ⏳ _stageDataType (direct_u8, stream=1)
+// ⏳ _ownerMissionInfo (reader_4B, stream=4)
+// ⏳ _parentStage (reader_4B, stream=4)
+// ✅ _stageDesc (reader_8B, stream=8)
+// ✅ _name (reader_8B, stream=8)
+// ✅ _sequencerDesc (array_or_complex, stream=12)
+// ✅ _completeLog (reader_8B, stream=8)
+// ✅ _spawnFactionNodeInfo (reader_4B, stream=4)
+// ✅ _spawnFactionSpawnDataInfo (direct_u32, stream=4)
+// ⏳ _stageCategory
+// ✅ _disableFactionSpawnPartyNameHashList (reader_4B, stream=4)
+// ✅ _key
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ⏳ _evadeProjectile (direct_u8, stream=1)
+// ⏳ _disableGiveUp (direct_u8, stream=1)
+// ⏳ _isPlayableOnWanted (direct_u8, stream=1)
+// ⏳ _followParentReaction (direct_u8, stream=1)
+// ⏳ _ignoreFactionClose (direct_u8, stream=1)
+// ⏳ _useRevivePointForDead (direct_u8, stream=1)
+// ⏳ _useMercenaryLogout (direct_u8, stream=1)
+// ⏳ _showStageIcon (direct_u8, stream=1)
+// ⏳ _changeTime (direct_u32, stream=4)
+// ⏳ _saveSchedule (direct_u8, stream=1)
+// ⏳ _isSave (direct_u8, stream=1)
+// ⏳ _isForceSpawnAfterRetreat (direct_u8, stream=1)
+// ⏳ _hasDynamicActor (direct_u8, stream=1)
+// ⏳ _isForceSpawnAllActor (direct_u8, stream=1)
+// ⏳ _isForceSpawnNearDistance (direct_u8, stream=1)
+// ⏳ _spawnBlockTypeFlag
+// ⏳ _stageGameEventDataList
+// ⏳ _weatherStartBlendTime (direct_u32, stream=4)
+// ⏳ _weatherInfo (reader_2B, stream=2)
+// ⏳ _weatherIngTime (direct_u32, stream=4)
+// ⏳ _weatherEndBlendTime (direct_u32, stream=4)
+// ⏳ _endTime (direct_u32, stream=4)
+// ⏳ _beginTime (direct_u32, stream=4)
+
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed.
 //!

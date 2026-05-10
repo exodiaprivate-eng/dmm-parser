@@ -67,6 +67,53 @@
 //!
 //! All 32 wire fields typed. JSON-addressable for full mod-editing.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::FactionNodeInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  31
+// Decoded by dmm-parser:   16
+// Missing in this struct:  15
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _observeData (array_or_complex, stream=4)
+// ⏳ _useCustomWayPointforDev (direct_15B, stream=15)
+// ⏳ _religionBlockCostList (reader_4B, stream=4)
+// ⏳ _religionMaxBlockDay (direct_u32, stream=4)
+// ⏳ _religionSubLevelInfo (reader_4B, stream=4)
+// ⏳ _religionEffectRegionInfoList (reader_2B, stream=2)
+// ⏳ _factionType (direct_15B, stream=15)
+// ⏳ _factionScheduleInfoList
+// ⏳ _workerCount (direct_15B, stream=15)
+// ⏳ _subInnerTypeString
+// ⏳ _bitMapColorKey
+// ⏳ _knockDownCondition (reader_4B, stream=4)
+// ⏳ _factionEventDataList (reader_4B, stream=4)
+// ⏳ _researchDataList
+// ✅ _nodeLineMainFactionInfoList (reader_4B, stream=4)
+// ✅ _childFactionInfoList (reader_4B, stream=4)
+// ✅ _nodeRadius (direct_u32, stream=4)
+// ✅ _worldPosition (direct_12B, stream=12)
+// ✅ _resourceItemList
+// ✅ _applySkillDataList
+// ⏳ _wayPointDataList_deprecated
+// ✅ _revivalStageInfoList (reader_4B, stream=4)
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _stringKey
+// ✅ _skillTreeInfo (reader_4B, stream=4)
+// ✅ _knowledgeInfo (reader_4B, stream=4)
+// ✅ _storeInfo (reader_2B, stream=2)
+// ✅ _connectResearchNodeInfo (reader_4B, stream=4)
+// ✅ _memo
+// ✅ _royalSupplyInfo (reader_2B, stream=2)
+// ✅ _key (direct_u32, stream=4)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

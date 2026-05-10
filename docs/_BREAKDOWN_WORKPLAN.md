@@ -53,20 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] GAP: same for `src/tables/character_info/info.rs` (146 fields)
-- [ ] GAP: same for `src/tables/stage_info/info.rs` (72 fields)
-- [ ] GAP: same for `src/tables/gimmick_group_info/info.rs` (45 fields)
-- [ ] GAP: same for `src/tables/interaction_info/info.rs` (29 fields)
-- [ ] GAP: same for `src/tables/tribe_info/info.rs` (26 fields)
-- [ ] GAP: same for `src/tables/mission_info/info.rs` (25 fields)
-- [ ] GAP: same for `src/tables/field_info/info.rs` (22 fields)
-- [ ] GAP: same for `src/tables/faction_node_info/info.rs` (15 fields)
-- [ ] GAP: same for `src/tables/region_info/info.rs` (4 fields)
-- [ ] GAP: same for `src/tables/global_game_event_info/info.rs` (4 fields)
-- [ ] GAP: same for `src/tables/knowledge_info/info.rs` (3 fields)
-- [ ] GAP: same for `src/tables/vehicle_info/info.rs` (3 fields)
-- [ ] GAP: same for `src/tables/action_point_info/info.rs` (2 fields)
-- [ ] GAP: same for `src/tables/effect_info/info.rs` (2 fields)
 - [ ] DESC: AttackCommonDataDesc — enumerate via Win-IDA registrar (sub_141957EC0 sub-call), document in T0_AUDIT_TRACKING
 - [ ] DESC: AttackHitDataDesc — enumerate via Win-IDA, document
 - [ ] DESC: BuffData family registrars (120 variants) — sample 5 representative variant types
@@ -78,6 +64,20 @@ descriptor class via Win-IDA).
 - [ ] VARIANT: src/binary/variants/sequencer_stage_chart_desc.rs — same
 
 ## Done
+- [x] GAP: `src/tables/character_info/info.rs` canonical-field catalog (146 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/stage_info/info.rs` canonical-field catalog (72 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/gimmick_group_info/info.rs` canonical-field catalog (45 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/interaction_info/info.rs` canonical-field catalog (29 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/tribe_info/info.rs` canonical-field catalog (26 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/mission_info/info.rs` canonical-field catalog (25 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/field_info/info.rs` canonical-field catalog (22 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/faction_node_info/info.rs` canonical-field catalog (15 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/region_info/info.rs` canonical-field catalog (4 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/global_game_event_info/info.rs` canonical-field catalog (4 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/knowledge_info/info.rs` canonical-field catalog (3 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/vehicle_info/info.rs` canonical-field catalog (3 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/action_point_info/info.rs` canonical-field catalog (2 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
+- [x] GAP: `src/tables/effect_info/info.rs` canonical-field catalog (2 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
 
 - [x] REFLECT: extract + parse + harvest `.meshinfo` files — 2026-05-10 12:25 BLOCKED (pycrimson `TransferInstructionFlags` enum value 8224 unmapped — fails on every .meshinfo). 34,715 files extracted to `_research_cache/extracted_meshinfo/` for future use once pycrimson updates. Re-queue after pycrimson upstream fix.
 - [x] REFLECT: extract + parse + harvest `.palevel` files — 2026-05-10 12:25 BLOCKED (pycrimson buffer-underflow error on `read_u16` — likely custom-header handling missing). 19,867 files extracted to `_research_cache/extracted_palevel/` for future use. Re-queue after pycrimson upstream fix.

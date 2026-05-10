@@ -45,6 +45,59 @@
 //! anti-disassembly blockers — were resolved via Mac-IDA in
 //! `5fa0b06`.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::InteractionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  37
+// Decoded by dmm-parser:   8
+// Missing in this struct:  29
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _isPlayerInterruptable (direct_u8, stream=1)
+// ⏳ _isCatchInteractionForEditor (direct_u8, stream=1)
+// ⏳ _fixRotationWhileInteraction (direct_u8, stream=1)
+// ⏳ _useActionGotoOffset (direct_u8, stream=1)
+// ⏳ _subInteraction (direct_u8, stream=1)
+// ⏳ _cancelOnMoveFail (direct_u8, stream=1)
+// ⏳ _waitForInteraction (direct_u8, stream=1)
+// ⏳ _dialogSetInfo (reader_4B, stream=4)
+// ⏳ _interactionPopItemList
+// ⏳ _showMainMenuPanelName
+// ⏳ _interactionTag (reader_4B, stream=4)
+// ⏳ _useFacingGotoTransform (direct_u8, stream=1)
+// ⏳ _showMainMenuEventName
+// ⏳ _allowInteractionWhileInteraction (direct_u8, stream=1)
+// ⏳ _showWhenTargeted (direct_u8, stream=1)
+// ⏳ _checkObjectOnTop (direct_u8, stream=1)
+// ⏳ _autoMovingStopDistance (direct_u8, stream=1)
+// ⏳ _showUIAtPivotSocket (direct_u8, stream=1)
+// ⏳ _enableOnDockingOrCatch (direct_u8, stream=1)
+// ⏳ _onPreemptionSuccessAiEventKey (direct_u32, stream=4)
+// ⏳ _sequencerStageChartDesc (array_or_complex, stream=12)
+// ⏳ _rewardDropSetInfo (reader_4B, stream=4)
+// ⏳ _uiKeyTriggerSoundName (reader_4B, stream=4)
+// ✅ _pivotSelectionTarget (direct_u8, stream=1)
+// ✅ _interactionName (reader_8B, stream=8)
+// ⏳ _interactionConditionDataList
+// ✅ _interactionPivotList
+// ⏳ _categoryInfo (reader_2B, stream=2)
+// ⏳ _autoInteractionType (direct_u8, stream=1)
+// ⏳ _buttonClickType (direct_u8, stream=1)
+// ⏳ _inputKeyMapName (reader_4B, stream=4)
+// ✅ _stringKey
+// ✅ _key (direct_u8, stream=1)
+// ✅ _interactionType (direct_u8, stream=1)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _preemptionType (direct_u8, stream=1)
+// ⏳ _interactionShowUIType (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::binary::variants::condition_pair::ConditionPairCArray;
 use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;

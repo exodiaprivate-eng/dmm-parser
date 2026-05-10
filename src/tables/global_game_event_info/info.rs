@@ -25,6 +25,30 @@
 //! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
 //! "Hand-corrected" header marker on line 1.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GlobalGameEventInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  8
+// Decoded by dmm-parser:   4
+// Missing in this struct:  4
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _eventDesc (reader_8B, stream=8)
+// ⏳ _uiIconPath (reader_4B, stream=4)
+// ⏳ _executeDataList
+// ⏳ _targetRegionInfoList (reader_2B, stream=2)
+// ✅ _stringKey
+// ✅ _key
+// ✅ _globalGameEventGroupInfo
+// ✅ _isBlocked (direct_u8, stream=1)
+
 use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteData;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

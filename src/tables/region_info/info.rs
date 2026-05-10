@@ -1,3 +1,42 @@
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::RegionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  23
+// Decoded by dmm-parser:   19
+// Missing in this struct:  4
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _overriedMaxHeight (direct_u32, stream=4)
+// ✅ _bitmapColor
+// ✅ _fogClearCondition (reader_4B, stream=4)
+// ✅ _regionType (direct_u8, stream=1)
+// ✅ _isTown (direct_u8, stream=1)
+// ✅ _limitVehicleRun (direct_u8, stream=1)
+// ⏳ _isUIMapDisable (direct_u8, stream=1)
+// ✅ _isWild (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _key
+// ✅ _displayRegionName (reader_8B, stream=8)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ⏳ _regionEnterknowledgeInfoList (reader_4B, stream=4)
+// ✅ _knowledgeInfo (reader_4B, stream=4)
+// ✅ _childRegionInfoList (reader_2B, stream=2)
+// ✅ _parentRegionInfo (reader_2B, stream=2)
+// ✅ _isNonePlayZone (direct_u8, stream=1)
+// ⏳ _isSaveGimmickRegion (direct_u8, stream=1)
+// ✅ _isWorldMapRoadPathFindable (direct_u8, stream=1)
+// ✅ _vehicleMercenaryAllowType (direct_u8, stream=1)
+// ✅ _domainFactionList
+// ✅ _gimmickAliasPointerList (reader_4B, stream=4)
+// ✅ _tagList (reader_4B, stream=4)
+
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed (no _tail_b64).
 //!

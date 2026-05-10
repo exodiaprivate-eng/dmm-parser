@@ -28,6 +28,46 @@
 //! which puts the 5th u32 read at composite +16. Wire order: u32 ×5, u8,
 //! u16, [u8;8] = 31 bytes, struct +0..+24 (with 1 B padding at +21).
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::FieldInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  24
+// Decoded by dmm-parser:   2
+// Missing in this struct:  22
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _maxPlayerCount
+// ⏳ _sequencerSpawnKey
+// ⏳ _readOnly (direct_u8, stream=1)
+// ⏳ _addFieldStyle (direct_u8, stream=1)
+// ⏳ _sceneLevelPath (reader_4B, stream=4)
+// ⏳ _fieldRegistType (direct_u8, stream=1)
+// ⏳ _boundaryPositionMin (direct_u64, stream=8)
+// ⏳ _returnPosition (direct_12B, stream=12)
+// ✅ _key
+// ⏳ _isBlocked (direct_u8, stream=1)
+// ✅ _stringKey
+// ⏳ _levelName (reader_4B, stream=4)
+// ⏳ _spawnPath (reader_4B, stream=4)
+// ⏳ _crimeRegionBitmapPositionInfo (direct_u8, stream=1)
+// ⏳ _natureRegionBitmapPositionInfo (direct_u8, stream=1)
+// ⏳ _alwaysCallVehicle_dev (direct_u8, stream=1)
+// ⏳ _startSectorIndex (direct_u8, stream=1)
+// ⏳ _boundaryPositionMax (direct_u64, stream=8)
+// ⏳ _detectInfo (reader_2B, stream=2)
+// ⏳ _endSectorIndex (direct_u8, stream=1)
+// ⏳ _isEnableAutoSave (direct_u8, stream=1)
+// ⏳ _useFixedFieldTime (direct_u8, stream=1)
+// ⏳ _regionBitmapPositionInfo (direct_u8, stream=1)
+// ⏳ _fixedFieldTime
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

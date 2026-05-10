@@ -8,6 +8,43 @@
 //! (some flow through u16 dictionary lookups in memory). For round-trip
 //! preservation we keep the u32 file representation everywhere.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::VehicleInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  21
+// Decoded by dmm-parser:   18
+// Missing in this struct:  3
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _sendDamageTo (direct_15B, stream=15)
+// ✅ _uiMapTextureInfo (direct_u32, stream=4)
+// ✅ _maxAllowableHeight (direct_u32, stream=4)
+// ✅ _characterSwitchable (direct_15B, stream=15)
+// ✅ _riderSpawnLowerAction (direct_u32, stream=4)
+// ✅ _riderSpawnUpperAction (direct_u32, stream=4)
+// ✅ _escapeRoadGroupType (direct_15B, stream=15)
+// ✅ _vehicleSpawnUpperAction (direct_u32, stream=4)
+// ✅ _callVehicleVoxelType (direct_u32, stream=4)
+// ✅ _cargoSeatIndexList (direct_u32, stream=4)
+// ⏳ _showCountOnUI (direct_15B, stream=15)
+// ✅ _isMainDischargeable
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _stringKey
+// ✅ _iconPath (reader_4B, stream=4)
+// ✅ _vehicleTypeNameHash (direct_u32, stream=4)
+// ⏳ _vehicleSeatDataList (direct_u32, stream=4)
+// ✅ _maxVehicleSeat (direct_15B, stream=15)
+// ⏳ _parentLinkAttachDataList (direct_u32, stream=4)
+// ✅ _maxParentLinkAttachCount (direct_15B, stream=15)
+// ✅ _key
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

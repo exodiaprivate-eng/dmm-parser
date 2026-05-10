@@ -28,6 +28,62 @@
 //! Steps 1-7 are typed. Body has many helpers; reopens cleanly when each
 //! is decoded.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::MissionInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  40
+// Decoded by dmm-parser:   15
+// Missing in this struct:  25
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _showMiniMap (direct_15B, stream=15)
+// ⏳ _checkCompleteCountAtOnce (direct_15B, stream=15)
+// ⏳ _ignoreRepeatOnDead (direct_15B, stream=15)
+// ⏳ _isOperationMission (direct_15B, stream=15)
+// ⏳ _targetQuestDialogKey (reader_4B, stream=4)
+// ⏳ _isShowAlertPlaying (direct_15B, stream=15)
+// ⏳ _checkOverlapType (direct_15B, stream=15)
+// ⏳ _existStart (direct_15B, stream=15)
+// ⏳ _optional (direct_15B, stream=15)
+// ⏳ _existComplete (direct_15B, stream=15)
+// ⏳ _existHaveCount (direct_15B, stream=15)
+// ⏳ _preCheck (direct_15B, stream=15)
+// ⏳ _existFail (direct_15B, stream=15)
+// ⏳ _missionFunctionList
+// ⏳ _parentMissionInfo (reader_4B, stream=4)
+// ⏳ _repeatCondition (reader_4B, stream=4)
+// ⏳ _challengeEventList
+// ⏳ _completeTime (direct_u16, stream=2)
+// ⏳ _limitTime (direct_u16, stream=2)
+// ⏳ _completeType (direct_15B, stream=15)
+// ⏳ _completeCount (direct_u32, stream=4)
+// ✅ _resultDataList
+// ✅ _rewardList (reader_4B, stream=4)
+// ✅ _uiDesc
+// ✅ _rewardInventoryKey (direct_u16, stream=2)
+// ⏳ _completeName (reader_8B, stream=8)
+// ⏳ _name (reader_8B, stream=8)
+// ⏳ _completeLog (reader_8B, stream=8)
+// ⏳ _desc (reader_8B, stream=8)
+// ✅ _subMissionList (reader_4B, stream=4)
+// ✅ _parentQuest (reader_4B, stream=4)
+// ✅ _branchMissionList (reader_4B, stream=4)
+// ✅ _executeStageList
+// ✅ _fieldReviveList (reader_4B, stream=4)
+// ✅ _startPlayerList (reader_4B, stream=4)
+// ✅ _triggerVolumeData (reader_1B, stream=1)
+// ✅ _giveUpFieldReviveList (reader_4B, stream=4)
+// ✅ _key
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _stringKey
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

@@ -53,6 +53,92 @@
 //! `sub_141102990` = CArray<CString> via sub_1410A9D40
 //! (CString-hash; wire bytes are u32 length + N raw bytes).
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GimmickGroupInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  70
+// Decoded by dmm-parser:   25
+// Missing in this struct:  45
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _spawnDistanceLevel (direct_u32, stream=4)
+// ⏳ _isMacroGimmick (direct_u8, stream=1)
+// ⏳ _isPiercedAllyProjectile (direct_u8, stream=1)
+// ⏳ _isDefaultSpawnDistanceLevel (direct_u8, stream=1)
+// ⏳ _useParentGimmickPoint (direct_u8, stream=1)
+// ⏳ _isSpawnComponentInLevel (direct_u8, stream=1)
+// ⏳ _isSpawnedOnPlatformKeyFrame (direct_u8, stream=1)
+// ⏳ _isDockingCombinationKeyFrame (direct_u8, stream=1)
+// ⏳ _isAttackByCollisionDynamic (direct_u8, stream=1)
+// ⏳ _isAttackByCollisionKeyFrame (direct_u8, stream=1)
+// ⏳ _isSpreadBreakInCombination (direct_u8, stream=1)
+// ⏳ _isAttackByCollisionDocking (direct_u8, stream=1)
+// ⏳ _saveLevelData (direct_u8, stream=1)
+// ⏳ _remoteCatchPullOutUseAction (direct_u8, stream=1)
+// ⏳ _gimmickNodeData (array_or_complex, stream=4)
+// ⏳ _isScaleable (direct_u8, stream=1)
+// ⏳ _isAutoPartialBreak (direct_u8, stream=1)
+// ⏳ _isTargetable (direct_u8, stream=1)
+// ⏳ _isKeepAnchor (direct_u8, stream=1)
+// ⏳ _isAnchorEdgeDisable (direct_u8, stream=1)
+// ⏳ _useConstraintAchorEdge (direct_u8, stream=1)
+// ⏳ _isIsolatedAnchorBreakable (direct_u8, stream=1)
+// ⏳ _isBreakMainPartOnBreak (direct_u8, stream=1)
+// ⏳ _isSubPart (direct_u8, stream=1)
+// ✅ _gimmickAliasDataList
+// ✅ _sequencerLevelConnectAliasNameList
+// ✅ _attackByCollisionInfoListKey (direct_u32, stream=4)
+// ✅ _logoutTimeAfterBreak (direct_u64, stream=8)
+// ⏳ _isEditorUseable (direct_u8, stream=1)
+// ⏳ _useSlidingMotionProperty (direct_u8, stream=1)
+// ⏳ _isUseConstrainSound (direct_u8, stream=1)
+// ⏳ _isGetKnowledgeWhenGetItem (direct_u8, stream=1)
+// ✅ _gimmickConstraintDataList
+// ✅ _autoTargetingConstraintDataList
+// ✅ _gameEventHandlerList (reader_4B, stream=4)
+// ✅ _gimmickInfoList (reader_4B, stream=4)
+// ✅ _defaultSpawnReasonHash (direct_u32, stream=4)
+// ⏳ _unlockableIDataList
+// ✅ _sequencerLevelAllowGimmickEventKeyList (reader_4B, stream=4)
+// ✅ _initialBodyMotionType (direct_u8, stream=1)
+// ✅ _propertyList (reader_4B, stream=4)
+// ✅ _linkSignalGroupList
+// ✅ _gimmickChartPath
+// ✅ _gimmickTagList
+// ✅ _gimmickPlacementStyle (direct_u8, stream=1)
+// ✅ _gimmickType (direct_u8, stream=1)
+// ✅ _gimmickRemoteCatchableData
+// ✅ _gimmickInterfaceType (direct_u8, stream=1)
+// ✅ _stringKey
+// ✅ _key
+// ✅ _mainGimmickGroupInfoOfCombination (reader_4B, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
+// ✅ _batteryTotalCapacity (direct_u64, stream=8)
+// ✅ _batteryInitCapacity (direct_u64, stream=8)
+// ⏳ _combinationAliasDataList
+// ⏳ _pushObjectSocketList
+// ⏳ _stickToObjectType (direct_u8, stream=1)
+// ⏳ _combinationLinkDataList
+// ⏳ _targetableRange (direct_u8, stream=1)
+// ⏳ _interactionUIDistanceLv (direct_u8, stream=1)
+// ⏳ _elementalStatusInitialStatList
+// ⏳ _elementalMaterialInfoList (reader_4B, stream=4)
+// ⏳ _useRemoteCatchFishing (direct_u8, stream=1)
+// ⏳ _useBuoyancyRestoringCenterOfMass (direct_u8, stream=1)
+// ⏳ _isLinkDecoGimmick (direct_u8, stream=1)
+// ⏳ _isHousingGimmick (direct_u8, stream=1)
+// ⏳ _isBuyable (direct_u8, stream=1)
+// ⏳ _isWild (direct_u8, stream=1)
+// ⏳ _stickToObjectSocketList
+// ⏳ _excludeSequencerBoundary (direct_u8, stream=1)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 

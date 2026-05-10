@@ -39,6 +39,30 @@
 //! 38/40/42/44) but each reads 4 bytes from the wire. So wire size is
 //! 1 + 8*4 + 1 + 4*4 = 50 bytes total.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::EffectInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  8
+// Decoded by dmm-parser:   6
+// Missing in this struct:  2
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _targetColorLerpType (direct_12B, stream=12)
+// ✅ _hasPreset (direct_12B, stream=12)
+// ✅ _stringKey
+// ✅ _key
+// ⏳ _effectDataList
+// ✅ _isBlocked (direct_12B, stream=12)
+// ✅ _hasEquipType (direct_12B, stream=12)
+// ⏳ _meshEffectDataList (direct_12B, stream=12)
+
 use crate::binary::variants::effect_data::EffectDataElement;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};

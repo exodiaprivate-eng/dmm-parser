@@ -81,6 +81,52 @@
 //!   5. u32 lookup_b                     (read_u32_lookup_DA30)
 //!   6. u32 extra_lookup                 (sub_1410FF050)
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::KnowledgeInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  30
+// Decoded by dmm-parser:   27
+// Missing in this struct:  3
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ✅ _key
+// ✅ _isBlocked (direct_15B, stream=15)
+// ✅ _stringKey
+// ✅ _isDefault (direct_15B, stream=15)
+// ✅ _uiTextureName (reader_4B, stream=4)
+// ✅ _learnApplySkillInfo (reader_4B, stream=4)
+// ✅ _sharedLevelMainKnowledgeInfo (reader_4B, stream=4)
+// ✅ _meditationResourceList (reader_4B, stream=4)
+// ✅ _knowledgeAliasMap
+// ✅ _sharedLevelKnowledgeInfoList (reader_4B, stream=4)
+// ✅ _bitmapColorR (direct_15B, stream=15)
+// ✅ _itemInfo (reader_4B, stream=4)
+// ✅ _learningStageInfo (reader_4B, stream=4)
+// ✅ _learningPosition (direct_12B, stream=12)
+// ⏳ _isShowUIAlert (direct_15B, stream=15)
+// ⏳ _isShowUI (direct_15B, stream=15)
+// ✅ _uiComponentName (reader_4B, stream=4)
+// ✅ _isLegendaryAnimal (direct_15B, stream=15)
+// ✅ _knowledgeGroupList (reader_4B, stream=4)
+// ✅ _knowledgeFromList (reader_4B, stream=4)
+// ⏳ _linkKnowledgeNodeList (reader_4B, stream=4)
+// ✅ _knowledgeLevelDataList
+// ✅ _factionInfo (reader_4B, stream=4)
+// ✅ _expandMercenaryType (direct_15B, stream=15)
+// ✅ _skillInfo (reader_4B, stream=4)
+// ✅ _factionNodeInfo (reader_4B, stream=4)
+// ✅ _gimmickInfoList (reader_4B, stream=4)
+// ✅ _characterInfoList (reader_4B, stream=4)
+// ✅ _stageInfoList (reader_4B, stream=4)
+// ✅ _regionInfoList (reader_2B, stream=2)
+
 use crate::binary::*;
 use crate::py_binary_struct;
 
