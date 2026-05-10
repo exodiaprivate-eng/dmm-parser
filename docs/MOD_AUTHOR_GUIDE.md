@@ -36,6 +36,88 @@
 
 ---
 
+## 0. Authoring mods against canonical Pearl Abyss field names (v3.1 surface)
+
+**Last refreshed 2026-05-10 — added Session 28 + 1-min-loop findings.**
+
+> **TL;DR for mod authors:** dmm-parser now ships a *canonical-name surface*
+> alongside the snake_case names you've been using. Pass `shape="v3.1"` to
+> `parse_table` / `serialize_table` to receive Pearl Abyss's real
+> `_camelCase` field identifiers (e.g. `_cooltime`, `_skeletonName`,
+> `_buffLevelList`). v3 (default) is unchanged — every existing mod still
+> round-trips byte-perfect.
+
+### Why v3.1 exists
+
+The original v3 mod surface used dmm-parser's snake_case Rust struct field
+names (`cooltime`, `skeleton_name`). Those names were derived from PA's
+internal Korean error strings during the Tier 1 promotion arc — they're
+real C++ identifiers with the convention flipped. Schema verification
+across 109 of 122 *Info tables (commit `2724abe`) confirmed every shipped
+mechanical translation matches Pearl Abyss's canonical name verbatim.
+
+### Coverage at a glance
+
+| Table category | v3.1 surface | Source |
+|---|---|---|
+| 109 *Info pabgb tables | ✅ schema-verified canonical names | NattKh's `pabgb_complete_schema.json` (Korean-error-string extraction) |
+| 13 fallback *Info tables | 🟡 mechanical translation only | snake → camelCase by convention; not in NattKh schema (4 named tables + 9 zero-field tables) |
+| 27 closures shipped | ✅ verified during 1-min loop | covers acronym-casing, plural divergences, PA-internal typos like `_questGroupkey` (lowercase k) |
+| `iteminfo.pabgb` | 🟡 v3.1 NOT yet wired (separate `src/item_info/` module) | future-work item — track in `_BREAKDOWN_WORKPLAN.md` |
+| Reflection-format files (`.prefab` etc.) | 📚 catalogued via pycrimson, not natively parsed | 231 PA reflection classes / 938 fields harvested into `docs/v3_1_reflection_schema.json` |
+
+### Picking a shape
+
+Both shapes round-trip identically. The difference is the field-name
+surface you author against:
+
+```python
+# v3 (default) — what every existing mod uses
+items = dmm_parser.parse_table("skill_info", pabgb, pabgh)
+items[0]["cooltime"] = 30
+items[0]["skeleton_name"] = "_kr_human_a_v01"
+
+# v3.1 — canonical Pearl Abyss names
+items = dmm_parser.parse_table("skill_info", pabgb, pabgh, shape="v3.1")
+items[0]["_cooltime"] = 30
+items[0]["_skeletonName"] = "_kr_human_a_v01"
+
+# Either name set is accepted on input regardless of shape
+raw = dmm_parser.serialize_table("skill_info", items, shape="v3.1")
+```
+
+### When to use v3.1
+
+- **Prefer v3.1** if you're authoring new mods and want forward-stable
+  field names that match Pearl Abyss's own internal naming. These are the
+  identifiers you'd see in a (hypothetical) PaWorks editor.
+- **Stay on v3 (default)** if you're maintaining an existing mod or have
+  tooling that assumes snake_case. Nothing changes.
+
+### Canonical-field reference
+
+Every *Info table now has a **canonical-field catalog comment block** at the
+top of its `info.rs` file (e.g. `src/tables/skill_info/info.rs`). The block
+lists every Pearl Abyss canonical name for that table with ✅ (decoded by
+dmm-parser) or ⏳ (in canonical schema but not yet exposed). Quick lookup
+without leaving the source. See `docs/V3_1_DECODER_GAPS.md` for the
+398-field decoder gap worklist (with per-table Win-IDA parser-fn pointers
+when an implementer wants to close gaps).
+
+### PA-internal typos (preserved as canonical)
+
+Some Pearl Abyss field names have typos (lowercase k in "key", missing 'e'
+in "Frequency", etc.). The v3.1 surface preserves them as-is per NattKh's
+schema. If you hit one of these in your mod and want to verify it's
+intentional, see `docs/V3_1_DECODER_GAPS.md` § "Auto-closure analysis":
+
+- `_questGroupkey`, `_regionEnterknowledgeInfoList` — lowercase k
+- `_fishSummonTimeFrquencyType` — missing 'e' (Frquency)
+- `_radgollEquipTableGroupDataList` — radgoll vs ragdoll
+- `_collectFilter_Dev`, `_wayPointDataList_deprecated` — mid-name underscores
+
+---
+
 ## 0. The big picture
 
 A Crimson Desert mod is a single **manifest** (`*.field.json`) that
