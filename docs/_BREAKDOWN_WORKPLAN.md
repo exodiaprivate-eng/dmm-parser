@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] DOCS iter 90: stale "557" sweep (forward-looking citations only) — 2026-05-10 SUCCESS. Three forward-looking "557 remaining gaps" citations refreshed to current 549: SHIPPED.md:134 (Realistic remaining decoder work table), T0_AUDIT_TRACKING.md:147 (IDA-plugin section preamble), V3_1_DECODER_GAPS.md:396 (Heuristics-reached-limit subsection). Historical mentions left as-is. Three baseline numbers now consistently fresh across all user-facing docs: 8,362→231/938 (iter 88), 584→549 (iter 89), 557→549 (iter 90). Docs-only commit.
+
 - [x] DOCS iter 89: stale "584" sweep across user-facing docs — 2026-05-10 SUCCESS. After iter-86's V3_1_DECODER_GAPS Summary refresh, 4 user-facing docs still cited the iter-35-baseline "584 schema fields not yet decoded": 449_TABLE_CATALOG.md, CUSTOM_ITEM_CREATOR_V3_1.md, T0_AUDIT_TRACKING.md, V3_1_README.md. All 4 updated to current 549 with iter-35-baseline cross-reference. Historical mentions in SHIPPED.md / _BREAKDOWN_WORKPLAN.md left as-is (they're documenting completed events). Docs-only commit.
 
 - [x] DOCS iter 88: stale "8,362" sweep across remaining docs — 2026-05-10 SUCCESS. Iter-22's correction propagated to T0_AUDIT_TRACKING.md and the SHIPPED.md iter-summary table (which still cited "8,362 classes / 32,363 fields" in the REFLECT/CATALOG rows + "398/14" in the GAP row). Each remaining "8,362" mention is now in self-correcting context (explicit pointer to iter 22 + explanation of the prefab-path artifact). GAP row also updated 398/14 → 86/23/549 numbers. Audit query `grep -rln "8,362\|8362" docs/` now returns only contextual mentions. Docs-only commit.

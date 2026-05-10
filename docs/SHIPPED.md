@@ -131,7 +131,7 @@ HexRaysPyTools, HRDevHelper (per iter 38 reference).
 | PA-internal typos preserved | 6 (lowercase k in key/knowledge, missing 'e' in Frquency, radgoll vs ragdoll, mid-name underscores) |
 | Reflection classes harvested | 231 / 938 fields |
 | Extensions mapped | 86 (per BINARY_FORMATS.md) |
-| Realistic remaining decoder work | ~150-250 fields (down from headline 557) |
+| Realistic remaining decoder work | ~150-250 fields (down from iter-35-baseline 557 → iter-65 549; the iter 70-82 closures absorbed alias-mappable cases, leaving the harder structural-refactor + new-decoder cases) |
 
 ## 1-Minute loop (this session, 19 iters)
 

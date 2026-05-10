@@ -144,7 +144,8 @@ The remaining 17 names matched what BaseDataV0 already had named.
 
 ### Recommended IDA plugins (force-multiplier for decoder-gap closure)
 
-For closing the 557 remaining v3.1 decoder gaps (per `V3_1_DECODER_GAPS.md`),
+For closing the 549 remaining v3.1 decoder gaps as of iter 86 (down
+from iter-35-baseline 557; per `V3_1_DECODER_GAPS.md`),
 the following plugins make the per-table workflow significantly faster
 by automating typeinfo-recovery + vtable-resolution + struct rebuilding:
 

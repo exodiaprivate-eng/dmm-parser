@@ -393,7 +393,8 @@ Per-table breakdown of unfinished work:
 | (8 small tables) | ≤3 each | mostly 0 | varies |
 
 **Heuristics reached their limit.** Further gap closures (the remaining
-557 fields) all require IDA decompile of the per-table record reader
+549 fields as of iter 86; was 557 at this section's writing during the
+iter 35 audit) all require IDA decompile of the per-table record reader
 (found via `pa::<TableName>` typeinfo → vtable → read-from-bytes
 virtual method per iter 30 corrected workflow). Each table is hours
 of focused work; not 1-min-loop-amenable.
