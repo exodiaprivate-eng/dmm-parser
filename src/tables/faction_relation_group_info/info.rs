@@ -2,6 +2,24 @@
 //!
 //! Reader: `sub_14111AA70` in CrimsonDesert.exe (Win build).
 //!
+//! ─── v3.1 closure analysis (iter 69) ────────────────────────────────────
+//! Cross-check via `sub_1410E7CE0` (typeinfo→reader path per iter 53
+//! registry — is the registry-allocator wrapper that calls the inner
+//! reader `sub_141125F30`/inline at +0x16e). Wire reads inside the
+//! 88-byte allocated entry struct:
+//!
+//!   word offset 0    u16              _key
+//!   word offset 4    CString          _stringKey  (sub_141076050)
+//!   word offset 8    u8               _isBlocked
+//!   word offset 12 + 16-byte stride × 4 → 4 × CArray<u16> via sub_1410F2BA0
+//!
+//! NattKh schema lists 4 canonicals: _key, _stringKey, _isBlocked,
+//! `_relationGroupList` (the only "missing"). The 4-iteration loop
+//! proves **`_relationGroupList` is a pure 1-to-4 wrapper around the
+//! unrolled rust fields `rel_0, rel_1, rel_2, rel_3`** — no missing
+//! decoder. Closure path: 1-to-N alias entry in FIELD_ALIASES_V3_1
+//! mapping `_relationGroupList` → `[rel_0, rel_1, rel_2, rel_3]`.
+//!
 //! Wire reads, in order:
 //!   1. u16 key (note: u16, not u32; pabgh format 2)
 //!   2. CString string_key

@@ -55,6 +55,10 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 69: faction_relation_group_info closure plan — 2026-05-10 SUCCESS. Decompiled sub_1410E7CE0 (typeinfo registry-allocator path per iter 53). Wire layout: u16 _key, CString _stringKey, u8 _isBlocked, then 4-iteration loop reading 4× CArray<u16> via sub_1410F2BA0. Confirmed `_relationGroupList` is a pure 1-to-4 wrapper around `rel_0..3`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/faction_relation_group_info/info.rs.
+
+  Side finding: equip_info already 7/7 verified (zero missing canonicals) — noted for registry cleanup that gap-table count is 26, not 27.
+
 - [x] GAP iter 68: detect_reaction_info closure plan — 2026-05-10 SUCCESS. Decompiled sub_1410A7170. Wire layout: u32 _key, CString _stringKey, u8 _isBlocked, 5×12 _reactionTable rows, 3 trailing u8 reaction-type fields. Confirmed `_reactionTable` is a pure 1-to-5 wrapper around the unrolled `reaction_row_0..4` rust fields. Closure path: 1-to-N alias entry. Doc-comment header in src/tables/detect_reaction_info/info.rs updated with closure verdict.
 
 - [x] SCRIPT-DOC: scripts/README.md — 2026-05-10 13:58 SUCCESS. Audited all 6 .py files in scripts/. Created scripts/README.md documenting each: generate_v3_1_aliases.py (active, schema-grounded), verify_v3_1_against_schema.py (active, audit), harvest_reflection_schema.py (active, pycrimson aggregator), add_json_roundtrip.py (historical), add_cdmtl_headers.py (historical bulk), deploy_cdmtl_license.py (occasional release tooling). Includes naming conventions + how to add a new script.
