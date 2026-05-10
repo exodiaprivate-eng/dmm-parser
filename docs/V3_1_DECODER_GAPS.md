@@ -84,6 +84,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `global_stage_sequencer_info` | `0x144ad5310` | `sub_1410B54A0` | 0x213 (531B) | iter 52 |
 | `faction_node_spawn_info` | `0x144ac1800` | `sub_1410AB470` | 0x18d (397B) | iter 53 |
 | `faction_relation_group_info` | `0x144ac1490` | `sub_1410E7CE0` | 0x318 (792B) | iter 53 |
+| `character_change_info` | `0x144ab2bf0` | `sub_1410A2F10` | 0x16e (366B) | iter 54 |
+| `detect_reaction_info` | `0x144aba730` | `sub_1410A7170` | 0x1e6 (486B) | iter 54 |
 
 **Workflow:** for any future per-table decoder closure session:
 
