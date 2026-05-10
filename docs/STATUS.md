@@ -367,6 +367,55 @@ For the per-table v3.1 alias verification details see
 `docs/V3_1_README.md`. For the engine-class harvest see
 `docs/ENGINE_INTERNALS.md` "Master class index".
 
+### Opaque-field audit (2026-05-10, end of 1-minute loop)
+
+Whole-tree scan for unfinished decode markers across `src/`. Run via:
+
+```bash
+grep -rE "pub _unk[0-9a-fA-F_]+:"             src/  # placeholder fields
+grep -rE "pub [a-z_]+: (Option<)?Vec<u8>(>)?" src/  # raw byte buffers
+```
+
+**`_unkXXXX` placeholders**
+
+- **`src/binary/paatt_basedata.rs`**: 35 fields — the per-AttackInfo
+  wire-payload decoder. Triple-blocked from canonical-name verification
+  per Session 28 iter 13 (no metaobject, no Korean fragment xrefs, not
+  in NattKh schema). Decode itself works byte-perfect.
+- **All other files: 0** — Session 25 bulk promotion eliminated every
+  other `_unk*` field across the codebase.
+
+**`Vec<u8>` raw-buffer classification**
+
+Of the 30 `Vec<u8>` fields, ~10 are **decoder gaps** (untyped tails),
+~10 are **legitimate raw buffers by design** (audio/texture/string
+pools), ~10 are **file-format tables not yet field-decoded**.
+
+| File | Field | Category |
+|---|---|---|
+| `src/binary/paschedule.rs` | `opaque_body` | DECODER GAP — typed prefix only |
+| `src/binary/paschedulepath.rs` | `opaque_records` | DECODER GAP |
+| `src/binary/paseq.rs` | `header`, `opaque_body` | DECODER GAP — pycrimson type-index bug also blocks reflection path |
+| `src/binary/paseqc.rs` | `header`, `opaque_body` | DECODER GAP — partial via reflection harvest (24 classes / 173 fields documented) |
+| `src/binary/pastage.rs` | `opaque_body` | DECODER GAP |
+| `src/binary/paatt.rs` | `frame_event_buffer`, `base_data`, `data` | DECODER GAP — `base_data` is the BaseDataV0 wire that paatt_basedata.rs partially decodes |
+| `src/binary/variants/sequencer_stage_chart_desc.rs` | `opaque_tail` | EMPTY ON VANILLA — graceful-degradation tail per docstring |
+| `src/binary/bnk.rs` | `data`, `trailing` | RAW BY DESIGN — audio packet bytes |
+| `src/binary/wem.rs` | `data`, `trailing` | RAW BY DESIGN — encoded audio |
+| `src/binary/dds.rs` | `data` | RAW BY DESIGN — texture pixel buffer |
+| `src/binary/pamt.rs` | `dir_names_buffer`, `file_names_buffer` | RAW BY DESIGN — string pools (typed accessors via PamtParseResult) |
+| `src/binary/papgt.rs` | `group_names_buffer` | RAW BY DESIGN — string pool |
+| `src/save/envelope.rs` | `body` | RAW BY DESIGN — encrypted save body |
+| `src/tables/blob_runtime.rs` | `blob` | RAW BY DESIGN — generic runtime helper |
+| `src/tables/paac/info.rs` | 4× `raw` | FILE-FORMAT TABLE not yet field-decoded |
+| `src/tables/paatt/info.rs` | `body` | FILE-FORMAT TABLE not yet field-decoded (delegates to paatt_basedata) |
+| `src/tables/pamhc/info.rs` | 4× `section_b/c/d/e` | FILE-FORMAT TABLE not yet field-decoded |
+
+**Net:** the only non-file-format opaques outside `paatt_basedata.rs`
+are 9 paseq/paseqc/pastage/paschedule/paatt body buffers — all of
+which would need either pycrimson reflection support (paseq/paseqc) or
+fresh IDA work to decode.
+
 ### Parser coverage
 - **125 table parsers** wired in `src/tables/`
 - **All 449 vanilla `.pabgb` files round-trip byte-perfect** at the table
