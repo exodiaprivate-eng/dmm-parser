@@ -59,6 +59,27 @@ needs either:
 - v3.1 alias mechanism extension to express 1-to-N nested-field aliases, OR
 - Rust struct refactor to use a single typed sub-struct matching the canonical wrapper.
 
+### mission_info closure validation (iter 46)
+
+Located `pa::MissionInfo` typeinfo at `0x144add820` (single xref to
+record reader) → `sub_1410B9BA0` (size 0x6ea = 1.7KB, larger than
+interaction_info — 40 fields total).
+
+Schema breakdown (40 fields total):
+
+| Type | Count |
+|---|---|
+| `direct_15B` (15-byte packed bool/enum) | 14 |
+| `reader_4B` | 10 |
+| `?` (unknown) | 7 |
+| `reader_8B` | 4 |
+| `direct_u16` | 3 |
+| `direct_u32` | 1 |
+| `reader_1B` | 1 |
+
+Workflow-ready. Per-field semantic naming deferred to dedicated
+decoder-writing session.
+
 ### interaction_info closure validation (iter 45)
 
 Located `pa::InteractionInfo` typeinfo at `0x144ac4060`, single xref to
