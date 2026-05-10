@@ -162,9 +162,9 @@ HexRaysPyTools, HRDevHelper (per iter 38 reference).
 
 | Phase | Iters | Outcome |
 |---|---|---|
-| **REFLECT** | 8 | 4 SUCCESS (.prefab/.parg/.pasg/.paseqc/.paa_metabin → 8,362 classes / 32,363 fields), 6 BLOCKED on pycrimson upstream bugs |
-| **CATALOG** | 1 | 8,362-class master index in `ENGINE_INTERNALS.md` |
-| **GAP** | 2 | 15 tables · 573 PA fields catalogued at top of each `info.rs` (175 ✅ decoded + 398 ⏳ pending) |
+| **REFLECT** | 8 | 4 SUCCESS (.prefab/.parg/.pasg/.paseqc/.paa_metabin → **231 classes / 938 fields** post iter-22 correction; original raw count was 8,362 entries / 32,363 fields, but 8,131 of the entries were prefab file paths dumped as `__pycr_type__` markers), 6 BLOCKED on pycrimson upstream bugs |
+| **CATALOG** | 1 | **231-class** master index in `ENGINE_INTERNALS.md` (iter-22 corrected) |
+| **GAP** | 2 | 109 tables in NattKh schema · **86 fully-covered post iters 70-82** + 23 with-gaps / 549 residual fields (iter 35-baseline was 584/41/68; this row's earlier "398/14" figure was stale) |
 | **DESC** | 2 | 5 engine descriptor classes triple-blocked en masse (Win-IDA + Korean fragments + schema/reflection all confirm same structural blocker) |
 | **VARIANT** | 1 | 4 variant files audited; all already fully typed (no Raw branches) |
 | **DOCS** | 5 | Coverage map + variant catalog + Layer B + opaque audit + SHIPPED.md (this) |

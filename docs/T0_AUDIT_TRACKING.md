@@ -285,7 +285,10 @@ are placeholders) — they round-trip identically regardless of shape.
 
 Cross-checked the four remaining DESC targets (AttackHitData, BuffData,
 EffectData, ConditionData) against both NattKh's pabgb schema AND the
-pycrimson reflection harvest (8,362 classes). Same pattern applies to all.
+pycrimson reflection harvest (231 classes / 938 fields — corrected
+2026-05-10 iter 22; original "8,362 classes" figure was an artifact of
+8,131 prefab file paths dumped as `__pycr_type__` markers, not real
+classes). Same pattern applies to all.
 
 | Class | NattKh class | NattKh embedded refs | Reflection class |
 |---|---|---|---|
