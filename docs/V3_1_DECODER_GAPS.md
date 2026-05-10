@@ -78,6 +78,8 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `field_info` | `0x144ac6a60` | `sub_1410AD060` | 0x4dd (1.2KB) | iter 49 |
 | `faction_node_info` | `0x144ac1af0` | `sub_1410AAE90` | 0x5df (1.5KB) | iter 50 |
 | `region_info` | `0x144aeb3b0` | `sub_1410C1E70` | 0x403 (1.0KB) | iter 50 |
+| `vehicle_info` | `0x144afb160` | `sub_1410CB230` | 0x530 (1.3KB) | iter 51 |
+| `action_point_info` | `0x144ab0380` | `sub_1410A16D0` | 0xf7 (247B — unusually small; possibly wrapper around real reader) | iter 51 |
 
 **Workflow:** for any future per-table decoder closure session:
 
