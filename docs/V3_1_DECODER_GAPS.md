@@ -36,6 +36,7 @@ rust struct fields**, so a 1-to-1 alias entry can't express the mapping:
 | `equip_type_info` | `_destroyedAiEvent` | 4× packed-struct fields `destroyed_ai_event_head`, `_pad`, `_hash`, `_tail` (header/footer split for the AI event ref) |
 | `faction_node_spawn_info` | `_boundaryBox` | 2× typed bounds `boundary_box_min`, `boundary_box_max` |
 | `sub_level_info` | `_exp` | 4× unrolled fields `exp_a`, `exp_b`, `exp_c`, `exp_d` (placeholder names — likely 4-tier exp curve) |
+| `stage_info` | `_closeFilter` | 7× unrolled fields `close_filter_a/b/c/d_a/d_b/d_c/...` (placeholder + nested-suffix pattern) |
 
 ### Wrapper-vs-unrolled (1 canonical → N named sub-fields)
 
