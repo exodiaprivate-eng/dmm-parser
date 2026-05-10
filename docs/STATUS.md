@@ -367,6 +367,97 @@ For the per-table v3.1 alias verification details see
 `docs/V3_1_README.md`. For the engine-class harvest see
 `docs/ENGINE_INTERNALS.md` "Master class index".
 
+### Known Limitations (2026-05-10)
+
+Honest accounting of what "100% game breakdown" means in practice
+after the 27-iter loop run, and what's structurally out of reach
+without new evidence.
+
+#### What we have
+
+- ✅ **All 122 *Info pabgb tables** parse + serialize byte-perfect on
+  the live corpus
+- ✅ **122 / 122 tables have a canonical PA-name catalog** at the top
+  of their `info.rs` (combined GAP iter 10/11 + TABLE-COMPLETION iter 24)
+- ✅ **109 of 122 tables schema-verified** against NattKh's
+  `pabgb_complete_schema.json` (the other 13 fall back to mechanical
+  translation; documented in V3_1_README.md)
+- ✅ **231 PA reflection classes / 938 canonical fields** harvested via
+  pycrimson and indexed in `v3_1_reflection_schema.json`
+- ✅ **86-extension reference** in BINARY_FORMATS.md covering every PA
+  format with status + handler
+- ✅ **86 extensions surveyed**: 8 fully parsed, 11 partial, 5 catalogued
+  via pycrimson, 14 blocked on pycrimson upstream, ~50 long-tail unparsed
+- ✅ **27 src/binary/variants/*.rs files inventoried** in
+  ENGINE_INTERNALS.md (13 real decoders + 7 helpers + 7 diagnose);
+  528 typed variants, 4 graceful-degradation Raw branches
+- ✅ **`docs/V3_1_DECODER_GAPS.md` per-table fn pointers** identified —
+  one IDA decompile per table unlocks all gaps for that table
+
+#### What we DON'T have (blocked on out-of-our-control evidence)
+
+- ❌ **22 `_unkXXXX` fields in `paatt_basedata.rs`** — triple-blocked
+  per Session 28 iter 13 (no metaobject registrar in Win-IDA, Korean
+  error fragments have zero static xrefs, fields not in NattKh schema
+  or pycrimson reflection). Decoder works structurally; only the
+  canonical PA names are unrecoverable. Unblocks would require either
+  a PS5 demo binary with debug symbols OR pycrimson upstream support
+  for `.paatt` reflection.
+
+- ❌ **5 engine descriptor classes** (AttackCommonData, AttackHitData,
+  BuffData, EffectData, ConditionData) cannot have canonical PA field
+  names verified from any source. Triple-blocked the same way as
+  paatt_basedata. The 528 typed variants in `src/binary/variants/`
+  decode them structurally; canonical naming for their inner fields
+  is unverified.
+
+- ❌ **6 of 10 PA reflection formats** (`.meshinfo`, `.palevel`,
+  `.pae`, `.paem`, `.paseq`, `.uianiminit`) blocked on **pycrimson
+  upstream bugs** — parc-header buffer underflow + type-index
+  IndexError. Files extracted to `_research_cache/` ready when
+  pycrimson is fixed. Out of our control.
+
+#### What we DON'T have (in-scope but needs implementation work)
+
+- ⏳ **398 schema-listed `_camelCase` fields** across 14 *Info tables
+  not yet decoded by dmm-parser. Per-table parser fn pointer identified
+  per iter 27. Each table needs ONE Win-IDA decompile + Rust struct-field
+  expansion (~hours per table; not 1-min-loop-amenable).
+
+- ⏳ **Havok layer (`.pac`/`.pacc`/`.pam`/`.pami`/`.pamlod`/`.skel`/
+  `.mesh`)** — 0% native parsing. Standard Havok 2024.2 SDK packfile
+  format. Layer A → Layer B bridge documented (which PA wrapper fields
+  resolve to which Havok files). Multi-day deserializer project.
+
+- ⏳ **Iteminfo v3.1 alias surface** — `src/item_info/` is a separate
+  module from `src/tables/`, so the v3.1 generator doesn't currently
+  cover it. Would need `scripts/generate_v3_1_aliases.py` extension
+  to walk the iteminfo module.
+
+- ⏳ **Long-tail extensions** (~50 unparsed extensions in BINARY_FORMATS.md
+  — `.pbd`, `.pcg`, `.material`, `.technique`, `.nav`, `.road*`,
+  `.spline`, `.dat`, `.ies`, etc.) — some may be decodable via fresh IDA
+  work, others are likely raw binary buffers without typed schemas.
+
+#### What "100% breakdown by 2026-05-17" looks like in practice
+
+The loop achieved **structural breakdown** of every reachable surface:
+- Every *Info table has its full canonical-field manifest documented
+- Every reflection-format file we can parse is parsed and harvested
+- Every variant decoder is inventoried
+- Every binary format extension is catalogued
+
+What's left to reach **literal 100% byte-decode coverage** is decoder
+implementation work — adding Rust struct fields per the catalogued
+gaps, plus the multi-day Havok deserializer project. Those are scoped
+and prioritized; they're not loop-amenable but they ARE clearly
+identified.
+
+The loop's contribution is making EVERY remaining gap VISIBLE and
+ACTIONABLE. A future session can pick up any decoder-gap table from
+the priority list, decompile its single parser fn, and ship the fields
+directly without further reverse-engineering setup.
+
 ### Opaque-field audit (2026-05-10, end of 1-minute loop)
 
 Whole-tree scan for unfinished decode markers across `src/`. Run via:
