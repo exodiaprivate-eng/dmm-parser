@@ -141,6 +141,39 @@ from Session 19:
 
 The remaining 17 names matched what BaseDataV0 already had named.
 
+### Recommended IDA plugins (force-multiplier for decoder-gap closure)
+
+For closing the 557 remaining v3.1 decoder gaps (per `V3_1_DECODER_GAPS.md`),
+the following plugins make the per-table workflow significantly faster
+by automating typeinfo-recovery + vtable-resolution + struct rebuilding:
+
+| Plugin | Source | What it does | IDA-version note |
+|---|---|---|---|
+| **ClassInformer** | [kweatherman/IDA_ClassInformer_PlugIn](https://github.com/kweatherman/IDA_ClassInformer_PlugIn) (8.x) · [herosi/classinformer](https://github.com/herosi/classinformer) (9.x) | Recovers RTTI vtables + class names — directly unblocks the `pa::<TableName>` typeinfo → vtable lookup step | MSVC-target only (perfect for CrimsonDesert.exe). Drop `*64.dll` into `IDA\plugins\` |
+| **IDA-VTableExplorer** | [K4ryuu/IDA-VTableExplorer](https://github.com/K4ryuu/IDA-VTableExplorer) | Browse + inspect vtables (binary file is `vtable64-windows-x64.dll`) | IDA 9+. Hotkey Ctrl+Shift+V |
+| **FunctionStringAssociate** | C++: [kweatherman/...](https://github.com/kweatherman/IDA_FunctionStringAssociate_PlugIn) · IDA-9 build: [cafeed28/...IDA90](https://github.com/cafeed28/IDA_FunctionStringAssociate_PlugIn_IDA90) · Python: [oxiKKK/ida-function-string-associate](https://github.com/oxiKKK/ida-function-string-associate) | Tags every function with its referenced strings — speeds up finding the `pa::<TableName>` typeinfo xref | Python rewrite is most portable across IDA 9.x |
+| **AutoRE** | [a1ext/auto_re](https://github.com/a1ext/auto_re) | Auto-renames functions from debug/log strings — the per-table parsers gain meaningful names | Older — IDA 7.x + Py3 confirmed; IDA 9.x may need minor `ida_struct`/`ida_typeinf` patching |
+| **HexRaysPyTools** | Original: [igogo-x86/HexRaysPyTools](https://github.com/igogo-x86/HexRaysPyTools) · Active fork: [oopsmishap/HexRaysPyTools](https://github.com/oopsmishap/HexRaysPyTools) | Build structs from void access patterns; recover C++ class hierarchies from vtables | **IDA 9.0 deprecated `ida_struct`/`ida_enum` — known breakage on 9.x.** If on 9.x, search community PRs first or pin IDA 8.4 for this plugin |
+| **HRDevHelper** | [patois/HRDevHelper](https://github.com/patois/HRDevHelper) | See Hex-Rays ctree when decompiler does something weird | Pure IDAPython. IDA 8.x/9.x ✅. Drop `hrdevhelper.py` + `hrdh/` into `plugins/` |
+
+**Workflow with these installed:**
+
+1. **AutoRE** + **FunctionStringAssociate** — pre-process the IDB once
+   to enrich every function with its string references. Decoder-reader
+   functions become discoverable by reference name (e.g. searching
+   functions tagged with `_effectDataList`).
+2. **ClassInformer** — auto-recover `pa::<TableName>` vtables. Each
+   table's record reader is at a known vtable slot.
+3. **HexRaysPyTools** — auto-build the typed struct from the decompiled
+   reader's void-pointer access patterns. Output is directly usable as
+   a Rust struct field list.
+4. **HRDevHelper** — consult when the decompiler produces confusing
+   pseudocode (rare but unblocks edge cases).
+
+Without these, the per-table workflow is still feasible (raw mcp__ida-pro-mcp
+calls work) but takes ~hours per table instead of ~minutes. Install
+during a future decoder-gap closure session.
+
 ### Per-class extraction recipe (Win-binary)
 
 1. Pick a unique-to-class property name (e.g., `_inventoryGroup` for
