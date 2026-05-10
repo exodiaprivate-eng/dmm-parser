@@ -317,6 +317,93 @@ Notable cross-validations:
 Look up any individual class in `docs/v3_1_reflection_schema.json`
 for its canonical field list.
 
+### Master class index (all-format combined harvest, 2026-05-10)
+
+Cron-loop harvest spans `.prefab` + `.parg` + `.pasg` + `.paseqc` +
+`.paa_metabin` (~47k parsed reflection files). Full per-class field
+catalog: `docs/v3_1_reflection_schema.json` (machine-readable).
+Headcount: **8,362 classes / 32,363 canonical fields**.
+
+#### By family
+
+The 129 named families below cover the recurring class patterns. The
+remaining ~8,233 are per-asset unique class names (Material variants,
+shader permutations, generated mesh wrappers, etc.) — those are
+catalogued individually in the JSON.
+
+| Family | Class count | Field count | Examples |
+|---|---|---|---|
+| `*Component` | 61 | 203 | SkinnedMeshComponent, MeshComponent, AudioComponent, EffectComponent, SequencerComponent, SplineDecalComponent |
+| `GameData_*` | 17 | 124 | Sequencer, Timeline, Folder, Trigger_*, Sequencer-related |
+| `MaterialParameter*` | 9 | 17 | Float, Float2, Float3, Color, Uint, BitFlag32, Texture, SplineRef |
+| `ResourceReferencePath_*` | 9 | 7 | SkinnedMesh, CharacterSkeleton, ITexture, SequenceData |
+| `Spline*` | 9 | 28 | SplineData, SplinePoint, SplinePoint3D, SplineRef |
+| `Emitter*Data` | 8 | 125 | RenderGroupData, SimulationData, SpawnData, VectorFieldData |
+| `Sequencer*` | 7 | 50 | SequencerGamePlayDataFile, SequencerGamePlayData_GimmickActor |
+| `*Info` | 5 | 56 | DecalInfo, LightInfo (+ a few non-pabgb info wrappers) |
+| `*Constant` | 3 | 88 | AtmosphereConstant 54, WeatherConstant 18, SeaConstant 16 |
+| `Animation*` | 1 | 0 | AnimationMetaData (empty wrapper) |
+| `*Desc` | 0 | — | (none from current harvest) |
+
+#### Top 30 classes by field count
+
+| Class | Fields | Files seen in |
+|---|---|---|
+| `AtmosphereConstant` | 54 | 17 |
+| `EmitterRenderGroupData` | 39 | 692 |
+| `GameData_TimelineEvent_Control_AI` | 28 | 26 |
+| `DecalInfo` | 27 | 547 |
+| `EmitterSimulationData` | 26 | 40 |
+| `SplineDecalComponent` | 25 | 101 |
+| `LightInfo` | 20 | 106 |
+| `ScenePostProcessing` | 20 | 23 |
+| `EmitterSpawnData` | 19 | 48 |
+| `EmitterVectorFieldData` | 19 | 23 |
+| `WeatherConstant` | 18 | 17 |
+| `SeaConstant` | 16 | 17 |
+| `SequencerGamePlayDataFile` | 14 | 103 |
+| `EmitterSimulationGroupData` | 13 | 40 |
+| `SequencerGamePlayData_GimmickActor` | 13 | 29 |
+| `SkinnedMeshComponent` | 13 | 14961 |
+| `AudioComponent` | 12 | 718 |
+| `GameData_Sequencer` | 12 | 103 |
+| `GameData_Timeline` | 11 | 103 |
+| `GameData_TimelineEvent_EquipmentInOut` | 11 | 22 |
+| `MeshComponent` | 11 | 22815 |
+| `EffectComponent` | 9 | 2066 |
+| `GameData_TimelineEvent_BodyAnimation` | 9 | 47 |
+| `GameData_TimelineEvent_Control_Input` | 9 | 65 |
+| `SequencerGamePlayData_CharacterActor` | 9 | 67 |
+| `GameData_TimelineEvent_GimmickControl` | 8 | 11 |
+| `GameData_TimelineEvent_GlobalAIEvent` | 8 | 9 |
+| `SequencerGamePlayData_Mercenary` | 8 | 12 |
+| `SplinePoint3D` | 8 | 4944 |
+| `AudioEventData` | 7 | 661 |
+
+#### Domain coverage
+
+What the catalog tells us about which engine subsystems we now have
+canonical-name visibility for:
+
+- **Rendering:** EmitterRenderGroupData, MaterialParameter*, Material,
+  ScenePostProcessing, AtmosphereConstant, WeatherConstant, SeaConstant,
+  LightInfo, DecalInfo. Solid coverage of particle/light/atmosphere.
+- **Mesh / skinning:** SkinnedMeshComponent, MeshComponent (+ ResourceReferencePath_SkinnedMesh, ResourceReferencePath_CharacterSkeleton). PA-side wrappers covered; underlying Havok bytes remain Layer B.
+- **Particles / effects:** Emitter* family (RenderGroup, Simulation, Spawn, VectorField, MoveTrack), EffectComponent, SplineDecalComponent. Dense.
+- **Sequencer / timeline:** GameData_Sequencer/Timeline + 17 GameData_TimelineEvent_* variants + SequencerGamePlayData_* wrappers. Cinematic + scripted-event coverage.
+- **Audio:** AudioComponent + AudioEventData (light coverage; deeper audio data is .bnk/.wem outside reflection).
+- **Splines:** SplineData, SplinePoint, SplinePoint3D, SplineRef, SplineDataInstance. Procedural geometry + decal placement.
+- **Animation:** AnimationMetaData (empty); deeper animation lives in Havok layer (.pam/.pami/.pamlod).
+
+#### Reaching the long tail
+
+The 8,233 uncategorized classes are mostly per-asset uniques — concrete
+material/shader/effect instances. Each one has a small number of
+canonical fields. To enumerate them: query
+`docs/v3_1_reflection_schema.json` directly. To reach 100% coverage of
+a specific *kind* of class, expand the regex patterns in
+`scripts/harvest_reflection_schema.py` or add a categorization pass.
+
 ### Initial harvest sample (legacy reference)
 
 The first 4 wrapper classes (SceneObject, SkinnedMeshComponent,
