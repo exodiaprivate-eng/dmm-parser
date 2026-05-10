@@ -26,6 +26,113 @@ docs.
 | `bfc5c2b` | docs(havok) refresh — pycrimson coverage | Layer A vs Layer B |
 | `1e7b342` | docs consolidation — 13 → 4 merged + 6 archived | LEGAL/BINARY_FORMATS/ENGINE_INTERNALS/V3_1_README |
 
+## 1-Minute loop — full session (64 iters, 2 stop+resume cycles)
+
+> **Refreshed 2026-05-10 iter 65** — was last updated at iter 19,
+> missing 45+ commits of subsequent work.
+
+### Phase 1 (iters 1-20): initial workplan execution + first stop
+
+**Major shipped:**
+
+- iters 1-8: REFLECT phase — 4 of 10 reflection formats parsed
+  (.prefab, .parg, .pasg, .paseqc, .paa_metabin), 6 blocked on
+  pycrimson upstream bugs. Combined harvest catalogued in
+  `docs/v3_1_reflection_schema.json`.
+- iter 9: CATALOG — master class index in `ENGINE_INTERNALS.md`.
+- iters 10-11: GAP — canonical-field catalog inserted at top of every
+  *Info table info.rs (15 GAP-tables × ~30 fields each + bulk batch
+  for 14 sibling tables).
+- iter 12-13: DESC — all 5 engine descriptor classes verified-blocked
+  via 3-source cross-check (Win-IDA + Korean fragments + schema/refl).
+- iter 14: VARIANT — all 4 variants/*.rs files audited; 0 Raw branches.
+- iters 15-19: DOCS — Game Surface Coverage Map, variant decoder
+  catalog, Layer B Havok reference, opaque-field audit, SHIPPED.md.
+- iter 20: STOP — queue empty + auto-gen exhausted, cron cancelled.
+
+### Phase 2 (iters 21-43): resumed loop, deeper analysis + first decoder closures
+
+**Major shipped:**
+
+- iter 21: late-fire negative-result probe — 9 unannotated extensions
+  all fail pycrimson (confirms only annotated reflection formats parse).
+- iter 22: **CRITICAL CORRECTION** — discovered 8,131 of "8,362 classes"
+  are prefab file paths pycrimson dumps as type markers, not class
+  names. Real reflection class count is **231 with 938 fields**.
+- iter 23: EXTENSION-MAP — comprehensive 86-extension reference table
+  in `BINARY_FORMATS.md` with status per extension.
+- iter 24: TABLE-COMPLETION — added canonical-field catalogs to all 68
+  fully-decoded *Info tables (every schema-listed table now self-docs).
+- iter 25: CROSS-VALIDATE — 13.4% aggregate overlap between NattKh
+  schema and pycrimson reflection (mostly disjoint domains by design).
+- iter 26: LONG-TAIL-2 — **Houdini integration discovered** (10 classes:
+  HoudiniOutput, HoudiniParameter*, HoudiniSubnet*).
+- iter 27: DECODER-GAP-PRIORITY — per-table fn pointers identified.
+- iter 28: HONEST-DOC — Known Limitations section in STATUS.md.
+- iter 29: SCRIPT-DOC — scripts/README.md.
+- iter 30: workflow correction — schema fn pointer is generic loader,
+  per-record reader is one vtable indirection deeper.
+- **iter 31: 🎯 FIRST DECODER GAP CLOSED** — effect_info `_effectDataList`
+  + `_meshEffectDataList` via MANUAL_OVERRIDES (mechanical translation
+  diverged from canonical _List suffix).
+- iter 32: 10 acronym/plural divergences fixed across 9 tables (UI/ID/XXX).
+- iter 33: 9 fuzzy-normalized divergences (incl. 2 PA-internal typos).
+- iter 34: 6 high-confidence one-of-each pairings (incl. 2 more PA typos).
+- iter 35: auto-closure exhaustion audit (557 still open).
+- iter 36: ally_group_info structural divergence finding (1-to-7 unrolled).
+- iter 37: full structural-divergence scan — 2 1-to-N divergences total.
+- iter 38: IDA plugin reference persisted in T0_AUDIT_TRACKING.md
+  (after user research request).
+- iter 39: WRAPPER-PATTERN-INSIGHT — 8 of 10 small-gap tables fit
+  wrapper-vs-unrolled (NattKh's "missing" wraps 2-3 rust fields).
+- iter 40: WRAPPER-PATTERN-FULL-SURVEY — 19 wrap / 8 genuine across
+  all 27 gap tables; realistic decoder workload ~200-300 not 557.
+- iter 41: tribe_info per-table closure plan documented.
+- **iter 42: 🎯 CLOSURE WORKFLOW STRUCTURALLY VALIDATED** — pa::TribeInfo
+  record reader sub_1410C8A20; type counts cross-validate PERFECTLY
+  against NattKh schema (13 u8 + 9 u32 + 4 reader + 1 u64).
+- iter 43: action_point_info hidden-wrap discovery — top-level
+  rust_count == schema_count misled iter 40 classifier; wrap-pattern
+  hides INSIDE typed sub-structs too. STOP for plugin install.
+
+### Phase 3 (iters 44-64): post-plugin install — registry build
+
+**Plugins installed by user:** function-string-associate, AutoRE,
+HexRaysPyTools, HRDevHelper (per iter 38 reference).
+
+**Major shipped:**
+
+- iter 44: MOD-AUTHOR-DOC-CATCHUP — `MOD_AUTHOR_GUIDE.md` got new
+  Section 0 covering the v3.1 surface that mod authors had never
+  been shown (was missed in earlier doc passes).
+- iters 45-46: closure-validated interaction_info + mission_info
+  (2nd + 3rd tables workflow-ready).
+- iter 47: closure-validated knowledge_info; **master typeinfo registry
+  STARTED** (4 entries + gimmick_info special case).
+- iters 48-61: REGISTRY-EXTEND batch (15 iters, 26 more entries).
+  **🎯 Master typeinfo + record-reader registry COMPLETE at iter 61
+  with 31 entries.** Every table with v3.1 decoder gaps has its
+  Win-IDA typeinfo addr + per-record reader fn pointer mapped.
+- iter 62: royal_supply_info 1-to-2 unrolled discovered.
+- iters 63-64: extended structural-divergence scan; 7 total 1-to-N
+  divergences documented (~22% of gap tables hit this pattern).
+
+### Cumulative metrics (end of iter 64)
+
+| Metric | Value |
+|---|---|
+| Total commits | 76+ (Session 28 + 64 loop iters) |
+| Tests | 562 passing (zero regressions throughout) |
+| v3.1 alias closures | 27 fields shipped (iters 31-34) |
+| Tables fully workflow-validated | 4 (tribe_info, interaction_info, mission_info, knowledge_info) |
+| Tables in master typeinfo registry | 31 (100% of gap tables + special cases) |
+| Tables with canonical-field catalog in info.rs | 122 (100% of *Info tables) |
+| 1-to-N structural divergences | 7 documented |
+| PA-internal typos preserved | 6 (lowercase k in key/knowledge, missing 'e' in Frquency, radgoll vs ragdoll, mid-name underscores) |
+| Reflection classes harvested | 231 / 938 fields |
+| Extensions mapped | 86 (per BINARY_FORMATS.md) |
+| Realistic remaining decoder work | ~150-250 fields (down from headline 557) |
+
 ## 1-Minute loop (this session, 19 iters)
 
 | Iter | Commit | Phase | Result |
