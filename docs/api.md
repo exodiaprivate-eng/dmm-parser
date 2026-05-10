@@ -643,10 +643,23 @@ Three functions provide uniform read/write access to all 122 game data tables wi
 table-specific helpers. Each function takes the table name as a lowercase snake_case string
 matching the `.pabgb` filename (without extension).
 
-### `parse_table(table_name: str, pabgb: bytes, pabgh: bytes | None = None) -> list[dict]`
+### `parse_table(table_name: str, pabgb: bytes, pabgh: bytes | None = None, shape: str | None = None) -> list[dict]`
 
 Parse all records from a table body. For pabgh-bounded tables `pabgh` is required; for
 sequential tables it is ignored.
+
+**Optional `shape` parameter** (added 2026-05-09): selects the JSON name surface.
+- `shape="v3"` (default, also `None` or `""`) — emits the snake_case names used by
+  every existing v3 mod. Behavior unchanged.
+- `shape="v3.1"` — emits the **canonical Pearl Abyss `_camelCase` identifiers**
+  (e.g. `cooltime` → `_cooltime`, `buff_level_list` → `_buffLevelList`,
+  `skeleton_name` → `_skeletonName`). Only fields covered by the table's
+  `FIELD_ALIASES_V3_1` const are renamed; fields without a verified canonical
+  name pass through unchanged.
+
+109 of 122 tables ship schema-verified canonical names against
+NattKh's `pabgb_complete_schema.json` — see `docs/V3_1_SCHEMA_VERIFICATION.md`
+for per-table coverage and `docs/V3_1_DECODER_GAPS.md` for missing fields.
 
 ```python
 # pabgh-bounded table (pabgh required)
@@ -654,16 +667,29 @@ items = dmm_parser.parse_table("drop_set_info", pabgb_bytes, pabgh_bytes)
 
 # sequential table (no pabgh needed)
 items = dmm_parser.parse_table("vehicle_info", pabgb_bytes)
+
+# v3.1 canonical names (DMM v2.0.0-beta consumers)
+items = dmm_parser.parse_table("skill_info", pabgb_bytes, pabgh_bytes, shape="v3.1")
+# items[0] now contains "_cooltime", "_buffLevelList" etc. instead of
+# "cooltime", "buff_level_list".
 ```
 
-Raises `ValueError` if `table_name` is unknown or a pabgh-bounded table is called without `pabgh`.
+Raises `ValueError` if `table_name` is unknown, a pabgh-bounded table is called
+without `pabgh`, or `shape` is not one of `"v3"` / `"v3.1"`.
 
-### `serialize_table(table_name: str, items: list[dict]) -> bytes`
+### `serialize_table(table_name: str, items: list[dict], shape: str | None = None) -> bytes`
 
 Serialize a list of record dicts back to raw pabgb bytes.
 
+**Input is alias-tolerant regardless of `shape`** — each item's keys are normalized
+from `_camelCase` (v3.1) to snake_case before per-field deserialization, so callers
+can submit either name surface against the same parser. The `shape` argument is
+currently advisory; both inputs are accepted.
+
 ```python
+# Either name set works on input
 raw = dmm_parser.serialize_table("drop_set_info", items)
+raw = dmm_parser.serialize_table("skill_info", items_with_camel_keys, shape="v3.1")
 ```
 
 ### `write_table_to_file(table_name: str, items: list[dict], path: str) -> None`

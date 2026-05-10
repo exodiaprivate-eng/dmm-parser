@@ -13,6 +13,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | Status | Count |
 |---|---|
 | **On-disk + Tier 0 (every field has its real C++ name)** | 118 |
+| **On-disk + Tier 0 schema-verified (canonical names cross-checked against NattKh schema)** | 109 |
 | **On-disk + Tier 1 (fully field-decoded; placeholder names allowed)** | 0 |
 | **On-disk + Tier 1.5 (typed + polymorphic blob field)** | 0 |
 | **On-disk + Tier 2 (blob-tail, partial decode)** | 0 |
@@ -25,6 +26,7 @@ Regenerate with: `python dmm-pabgb-aio/generate_449_catalog.py`
 | Glyph | Meaning |
 |---|---|
 | ✅✅ T0 | On disk, fully field-decoded **AND** every field has its real C++ identifier from the game binary — no `_unkXXXX` placeholders. The "v3.1" surface |
+| ✅✅✅ T0-V | T0 + canonical names independently verified against NattKh's `pabgb_complete_schema.json` (Korean-error-string-extracted from CrimsonDesert.exe). 109 of 118 T0 tables. |
 | ✅ T1 | On disk, fully field-decoded — every field individually addressable by v3 mods (names may be `_unkXXXX` placeholders) |
 | 🟢 T1.5 | On disk, mostly typed — one polymorphic field exposed as opaque-but-clonable blob |
 | 🟡 T2 | On disk, blob-tail decoded — `key`/`string_key`/`is_blocked` editable; rest opaque |
@@ -41,6 +43,23 @@ live inside `src/binary/paatt_basedata.rs`, which is the per-AttackInfo
 wire-payload decoder used **inside** the `.paatt` reader — not a table
 in the catalog sense. See `docs/STATUS.md` "Session 25 — bulk Tier 0
 promotion" for the full audit script and reasoning.
+
+**Session 28 (2026-05-10) — schema verification of canonical names.**
+T0 promotion in Session 25 was structural (no placeholders left); the
+names themselves were assumed canonical via mechanical convention.
+Session 28 cross-referenced every Rust struct field against NattKh's
+`pabgb_complete_schema.json` (3,708 canonical PA names extracted from
+the game binary's Korean error strings). 109 of the 118 T0 tables have
+**every shipped v3.1 alias name independently verified** — a stronger
+guarantee than mechanical-translation alone. The remaining 9 of 122
+tables have zero extractable struct fields (regex couldn't find a main
+struct or all fields are placeholders) — they round-trip identically
+under shape="v3" and shape="v3.1" alike. 4 tables are not in the
+schema (`equip_slot_info`, `faction_waypoint_info`, `house_info`,
+`mercenary_group_info`) and fall back to mechanical translation with
+the placeholder filter. See `docs/V3_1_SCHEMA_VERIFICATION.md` for
+per-table verification status and `docs/V3_1_DECODER_GAPS.md` for the
+584 schema-listed fields the structs don't currently expose.
 
 ## Categories
 

@@ -36,8 +36,30 @@ the canonical C++ name; v3 round-trips through the alias mechanism.
 | ⏳ | Pending — not yet audited |
 | 🔍 | In progress — partial audit |
 | ✅ | T0 verified — every field name matches C++ exactly, no aliases needed |
-| 🟡 | T0 with aliases — one or more renames shipped, v3 alias added |
-| ⚠️ | T0 unverified — IDA getter symbols absent for this class |
+| 🟡 | T0 with aliases — one or more renames shipped, v3 alias added (or schema-verified via NattKh's `pabgb_complete_schema.json`, see Session 28) |
+| ⚠️ | T0 unverified — IDA getter symbols absent for this class **AND** not present in NattKh schema. Mechanical-fallback v3.1 aliases ship but canonical names are not independently verified. |
+
+## 2026-05-10 Session 28 — bulk per-table flip ⏳ → 🟡 / ⚠️
+
+Per-table tracking rows below were flipped from ⏳ pending to either:
+- **🟡** (109 tables) — present in NattKh's `pabgb_complete_schema.json`,
+  every shipped v3.1 alias name independently verified against the
+  canonical Pearl Abyss identifier list extracted from Korean error
+  strings in CrimsonDesert.exe.
+- **⚠️** (13 tables) — not in the NattKh schema. 4 named *Info tables
+  (`equip_slot_info`, `faction_waypoint_info`, `house_info`,
+  `mercenary_group_info`) plus 9 zero-field tables fall back to
+  mechanical translation only.
+
+The strict-T0 wall in the Session 26-27 sections still applies:
+**these statuses are schema-verified, not IDA-getter-symbol-verified.**
+The two are different kinds of evidence with similar strength — both
+trace back to the same underlying canonical names, just via different
+paths (Korean error strings vs metaobject reflection symbols).
+
+See `docs/V3_1_SCHEMA_VERIFICATION.md` for per-table verification detail
+and `docs/V3_1_DECODER_GAPS.md` for the 584 schema fields dmm-parser's
+struct definitions don't currently expose.
 
 ## ⚠️ Structural blocker discovered (2026-05-09, Session 26 iter 1)
 
@@ -325,125 +347,125 @@ renames only if dmm-parser decodes the type.
 
 | # | Module | Status | Notes |
 |---|---|---|---|
-| 1 | action_point_info | ⏳ | |
-| 2 | action_restriction_order_info | ⏳ | |
-| 3 | ai_dialog_string_info | ⏳ | |
-| 4 | aiaction_attribute_info | ⏳ | |
-| 5 | aidialog_type_info | ⏳ | |
-| 6 | aievent_table_info | ⏳ | |
-| 7 | aimemory_info | ⏳ | |
-| 8 | aimove_speed_info | ⏳ | |
-| 9 | ally_group_info | ⏳ | |
-| 10 | auto_spawn_filter_info | ⏳ | |
-| 11 | bitmap_position_info | ⏳ | |
-| 12 | board_info | ⏳ | |
-| 13 | breakable_object_info | ⏳ | |
-| 14 | buff_info | ⏳ | |
-| 15 | category_group_info | ⏳ | |
-| 16 | category_info | ⏳ | |
-| 17 | character_appearance_index_info | ⏳ | |
-| 18 | character_change_info | ⏳ | |
-| 19 | character_group_info | ⏳ | |
-| 20 | character_info | ⏳ | |
-| 21 | condition_info | ⏳ | |
-| 22 | craft_tool_group_info | ⏳ | |
-| 23 | craft_tool_info | ⏳ | |
-| 24 | detect_detail_info | ⏳ | |
-| 25 | detect_info | ⏳ | |
-| 26 | detect_reaction_info | ⏳ | |
-| 27 | dialog_voice_info | ⏳ | |
-| 28 | drop_set_info | ⏳ | |
-| 29 | dye_color_group_info | ⏳ | |
-| 30 | effect_info | ⏳ | |
-| 31 | elemental_material_info | ⏳ | |
-| 32 | equip_info | ⏳ | |
-| 33 | equip_slot_info | ⏳ | |
-| 34 | equip_type_info | ⏳ | |
-| 35 | faction_group_info | ⏳ | |
-| 36 | faction_info | ⏳ | |
-| 37 | faction_node_info | ⏳ | |
-| 38 | faction_node_spawn_info | ⏳ | |
-| 39 | faction_relation_group_info | ⏳ | |
-| 40 | faction_spawn_data_info | ⏳ | |
-| 41 | faction_waypoint_info | ⏳ | |
-| 42 | fail_message_info | ⏳ | |
-| 43 | field_info | ⏳ | |
-| 44 | field_level_name_table_info | ⏳ | |
-| 45 | field_revive_info | ⏳ | |
-| 46 | formation_info | ⏳ | |
-| 47 | frame_event_attr_group_info | ⏳ | |
-| 48 | game_advice_group_info | ⏳ | |
-| 49 | game_advice_info | ⏳ | |
-| 50 | game_event_handler_info | ⏳ | |
-| 51 | game_global_effect_info | ⏳ | |
-| 52 | game_level_info | ⏳ | |
-| 53 | game_play_trigger_info | ⏳ | |
-| 54 | game_play_variable_info | ⏳ | |
-| 55 | gimmick_event_table_info | ⏳ | |
-| 56 | gimmick_gate_connection_info | ⏳ | |
-| 57 | gimmick_gate_info | ⏳ | |
-| 58 | gimmick_group_info | ⏳ | |
-| 59 | gimmick_info | ⏳ | |
-| 60 | global_game_event_group_info | ⏳ | |
-| 61 | global_game_event_info | ⏳ | |
-| 62 | global_stage_sequencer_info | ⏳ | |
-| 63 | house_info | ⏳ | |
-| 64 | interaction_info | ⏳ | |
-| 65 | inventory_info | ⏳ | |
-| 66 | item_group_info | ⏳ | |
-| 67 | item_use_info | ⏳ | |
-| 68 | job_info | ⏳ | |
-| 69 | key_map_setting_list_info | ⏳ | |
-| 70 | knowledge_group_info | ⏳ | |
-| 71 | knowledge_info | ⏳ | |
-| 72 | level_action_point_info | ⏳ | |
-| 73 | level_gimmick_scene_object_info | ⏳ | |
-| 74 | local_string_info | ⏳ | |
-| 75 | material_blood_decal_info | ⏳ | |
-| 76 | material_match_info | ⏳ | |
-| 77 | material_relation_info | ⏳ | |
-| 78 | mercenary_group_info | ⏳ | |
-| 79 | mercenary_info | ⏳ | |
-| 80 | mini_game_data_info | ⏳ | |
-| 81 | mission_info | ⏳ | |
-| 82 | multi_change_info | ⏳ | |
-| 83 | npc_info | ⏳ | |
-| 84 | part_prefab_dye_slot_info | ⏳ | |
-| 85 | part_prefab_dye_texture_pallete_info | ⏳ | |
-| 86 | pattern_description_info | ⏳ | |
-| 87 | platform_achievement_info | ⏳ | |
-| 88 | platform_entitlement_info | ⏳ | |
-| 89 | quest_gauge_info | ⏳ | |
-| 90 | quest_group_info | ⏳ | |
-| 91 | quest_info | ⏳ | |
-| 92 | quick_time_event_info | ⏳ | |
-| 93 | region_info | ⏳ | |
-| 94 | relation_info | ⏳ | |
-| 95 | reserve_slot_info | ⏳ | |
-| 96 | royal_supply_info | ⏳ | |
-| 97 | sequencer_spawn_info | ⏳ | |
-| 98 | skill_group_info | ⏳ | |
-| 99 | skill_info | ⏳ | |
-| 100 | skill_tree_group_info | ⏳ | |
-| 101 | skill_tree_info | ⏳ | |
-| 102 | socket_group_info | ⏳ | |
-| 103 | socket_info | ⏳ | |
-| 104 | spawning_pool_auto_spawn_info | ⏳ | |
-| 105 | special_mode_info | ⏳ | |
-| 106 | stage_info | ⏳ | |
-| 107 | status_group_info | ⏳ | |
-| 108 | status_info | ⏳ | |
-| 109 | store_info | ⏳ | |
-| 110 | string_info | ⏳ | |
-| 111 | sub_level_info | ⏳ | |
-| 112 | terrain_region_auto_spawn_info | ⏳ | |
-| 113 | terrain_region_navi_info | ⏳ | |
-| 114 | tribe_info | ⏳ | |
-| 115 | trigger_region_info | ⏳ | |
-| 116 | ui_social_action_info | ⏳ | |
-| 117 | uifilter_group_info | ⏳ | |
-| 118 | uimap_texture_info | ⏳ | |
-| 119 | valid_schedule_action_info | ⏳ | |
-| 120 | vehicle_info | ⏳ | |
-| 121 | vibrate_pattern_info | ⏳ | |
-| 122 | wanted_info | ⏳ | |
+| 1 | action_point_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 2 | action_restriction_order_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 3 | ai_dialog_string_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 4 | aiaction_attribute_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 5 | aidialog_type_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 6 | aievent_table_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 7 | aimemory_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 8 | aimove_speed_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 9 | ally_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 10 | auto_spawn_filter_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 11 | bitmap_position_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 12 | board_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 13 | breakable_object_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 14 | buff_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 15 | category_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 16 | category_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 17 | character_appearance_index_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 18 | character_change_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 19 | character_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 20 | character_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 21 | condition_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 22 | craft_tool_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 23 | craft_tool_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 24 | detect_detail_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 25 | detect_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 26 | detect_reaction_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 27 | dialog_voice_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 28 | drop_set_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 29 | dye_color_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 30 | effect_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 31 | elemental_material_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 32 | equip_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 33 | equip_slot_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 34 | equip_type_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 35 | faction_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 36 | faction_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 37 | faction_node_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 38 | faction_node_spawn_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 39 | faction_relation_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 40 | faction_spawn_data_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 41 | faction_waypoint_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 42 | fail_message_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 43 | field_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 44 | field_level_name_table_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 45 | field_revive_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 46 | formation_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 47 | frame_event_attr_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 48 | game_advice_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 49 | game_advice_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 50 | game_event_handler_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 51 | game_global_effect_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 52 | game_level_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 53 | game_play_trigger_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 54 | game_play_variable_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 55 | gimmick_event_table_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 56 | gimmick_gate_connection_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 57 | gimmick_gate_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 58 | gimmick_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 59 | gimmick_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 60 | global_game_event_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 61 | global_game_event_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 62 | global_stage_sequencer_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 63 | house_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 64 | interaction_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 65 | inventory_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 66 | item_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 67 | item_use_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 68 | job_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 69 | key_map_setting_list_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 70 | knowledge_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 71 | knowledge_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 72 | level_action_point_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 73 | level_gimmick_scene_object_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 74 | local_string_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 75 | material_blood_decal_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 76 | material_match_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 77 | material_relation_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 78 | mercenary_group_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 79 | mercenary_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 80 | mini_game_data_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 81 | mission_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 82 | multi_change_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 83 | npc_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 84 | part_prefab_dye_slot_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 85 | part_prefab_dye_texture_pallete_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 86 | pattern_description_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 87 | platform_achievement_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 88 | platform_entitlement_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 89 | quest_gauge_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 90 | quest_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 91 | quest_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 92 | quick_time_event_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 93 | region_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 94 | relation_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 95 | reserve_slot_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 96 | royal_supply_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 97 | sequencer_spawn_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 98 | skill_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 99 | skill_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 100 | skill_tree_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 101 | skill_tree_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 102 | socket_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 103 | socket_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 104 | spawning_pool_auto_spawn_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 105 | special_mode_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 106 | stage_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 107 | status_group_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 108 | status_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 109 | store_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 110 | string_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 111 | sub_level_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 112 | terrain_region_auto_spawn_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 113 | terrain_region_navi_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 114 | tribe_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 115 | trigger_region_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 116 | ui_social_action_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 117 | uifilter_group_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 118 | uimap_texture_info | ⚠️ | not in NattKh schema; mechanical-fallback v3.1 aliases (Session 28) |
+| 119 | valid_schedule_action_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 120 | vehicle_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 121 | vibrate_pattern_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |
+| 122 | wanted_info | 🟡 | schema-verified via NattKh (Session 28); v3.1 aliases shipped |

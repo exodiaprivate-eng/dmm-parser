@@ -1,10 +1,63 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-05-08 (paatt typed BaseData merged + Session 19 reflection-symbol mining for nested AttackInfo structs)
+**Last updated**: 2026-05-10 (Session 28 — schema-verified v3.1 surface across 109 tables + decoder-gap audit + pycrimson reflection workflow)
 **Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
 
-> **Current state (2026-05-08 end-of-session):**
+> **Current state (2026-05-10 end-of-session, Session 28):**
+> Four major deliverables shipped this session, all on `main`:
+>
+> 1. **Bulk v3.1 alias surface** (commit `9e29e10`) — 113 of 122 tables
+>    got per-table `FIELD_ALIASES_V3_1` consts via mechanical
+>    `snake_case → _camelCase` translation. Python: `parse_table(...,
+>    shape="v3.1")` / `serialize_table(..., shape="v3.1")` opt in to
+>    canonical Pearl Abyss names. v3 (default) shape unchanged.
+>    Generator: `scripts/generate_v3_1_aliases.py`.
+> 2. **Schema-grounded regen** (commit `2724abe`) — replaced mechanical
+>    guesses with NattKh's `pabgb_complete_schema.json` (3,708 canonical
+>    PA names extracted from Korean error strings in CrimsonDesert.exe).
+>    Eliminated 463 false-positive aliases. Every shipped alias is now
+>    schema-verified. 1,125 verified aliases across 109 tables. Audit
+>    script: `scripts/verify_v3_1_against_schema.py` writes
+>    `docs/V3_1_SCHEMA_VERIFICATION.md` + JSON sidecar.
+> 3. **Decoder-gap audit** (commit `2312389`) — 68 of 109 schema-covered
+>    tables (62%) are FULLY decoded against the schema; 41 have gaps
+>    totaling 584 missing fields. Top offenders: `gimmick_info` (153),
+>    `character_info` (146), `stage_info` (72), `gimmick_group_info`
+>    (45). Prioritized worklist + per-table missing-field lists in
+>    `docs/V3_1_DECODER_GAPS.md`.
+> 4. **pycrimson reflection workflow** (commit `6273c7f`) — installed
+>    LukeFZ/pycrimson as a second canonical-name source. Covers
+>    reflection-format files (`.prefab`, `.meshinfo`, `.pae`, `.paem`,
+>    `.parg`, `.pasg`, `.paa_metabin`, `.palevel`, `.paseqc`, `.paseq`,
+>    `.uianiminit`) which self-describe with `__pycr_type__` markers
+>    and canonical `_camelCase` field names. Pipeline: extract-pack-files
+>    → parse-serialized-file → `scripts/harvest_reflection_schema.py` →
+>    `docs/v3_1_reflection_schema.json`. Workflow doc:
+>    `docs/V3_1_PYCRIMSON_WORKFLOW.md`.
+>
+> **Honest finding from Session 28:** `.paatt` is NOT reflection-format.
+> AttackInfoDataDesc / AttackCommonData / AttackHitData remain
+> blocked from pycrimson coverage. iter 5/6 IDA work confirmed they
+> have no standalone metaobject registrar — typeinfo strings only have
+> 1 xref each, from the parent AttackInfoDataDesc registrar registering
+> them as embedded sub-properties. Their canonical names need either
+> the NattKh Korean-error grep extended to descriptor classes, or
+> direct setter-decompilation. Documented in `docs/T0_AUDIT_TRACKING.md`
+> Session 28 entries.
+>
+> **Iteration log (Session 28):**
+> - iter 0 (commit `6aab7b2`) — proof-of-concept on AttackInfoDataDesc, 25 C++ names enumerated
+> - iter 1 (commit `6d8e088`) — first real renames: `_unk0073→attack_impulse_level`, `_unk0072→no_check_collision`
+> - iter 2 (commit `33cb1dd`) — 6 remaining AttackInfoDataDesc setter offsets recovered
+> - iter 3 (commit `103009d`) — EmitterCurveData enumerated (4 fields); no source decode
+> - iter 4 (commit `d7f8b88`) — SplineDecalComponent enumerated (17 fields); no source decode
+> - iter 5 (commit `d5b9f62`) — AttackCommonData blocked: no metaobject registrar
+> - iter 6 (commit `9d0f585`) — AttackHitData blocked: same diagnostic
+>
+> Tests: 562 passing (up from 530 baseline). No regressions across the session.
+>
+> **Earlier state (2026-05-08 end-of-session):**
 > - PR #14 merged (`f96e17b` / `76d2a11`): paatt `BaseDataV0/V1/V2/V3`
 >   typed decoders shipped (60+ named fields in V0, plus typed throw /
 >   release-catch / catch-desc tails). Mod authors call
