@@ -468,6 +468,71 @@ Notable cross-validations:
 Look up any individual class in `docs/v3_1_reflection_schema.json`
 for its canonical field list.
 
+### Engine subsystem coverage (231 reflection classes by prefix/suffix)
+
+Domain breakdown of the 231 real PA reflection classes harvested. Tells
+us which engine subsystems we have canonical-name visibility for.
+
+#### By suffix (functional pattern)
+
+| Suffix | Count | Total fields | Role |
+|---|---|---|---|
+| `*Component` | 61 | 203 | Scene-graph component attached to objects |
+| `*Data` | 32 | 181 | Per-instance data payload for components |
+| `*Container` | 13 | 19 | Collection wrapper |
+| `*Node` | 5 | 20 | Timeline / graph node |
+| `*Group` | 4 | 8 | Collection grouping |
+| `*Constant` | 3 | 88 | Global tunable (atmosphere, sea, weather) |
+| `*Param` | 3 | 0 | Parameter set (tone-mapping presets) |
+| `*Processor` | 3 | 9 | Camera control processor |
+| `*Instance` | 3 | 6 | Per-instance reference |
+| `*Event` | 3 | 13 | Event payload |
+
+#### By prefix (engine subsystem)
+
+| Prefix | Count | Total fields | Subsystem |
+|---|---|---|---|
+| `Game*` | 20 | 126 | Game-data sequencer / timeline / triggers (most of GameData_* series) |
+| `Custom*` | 14 | 27 | CustomAttribute system (per-prefab user data) |
+| `Spline*` | 12 | 56 | Spline geometry primitives + Spline*Component variants |
+| `Material*` | 10 | 20 | Material parameter system + variants (Float/Float2/Float3/Color/Uint/BitFlag32/Texture/SplineRef) |
+| `Pa*` | 10 | 33 | Pearl Abyss core (Pascript scripting framework, ParticleMeshNodePair, etc.) |
+| `Resource*` | 9 | 7 | ResourceReferencePath_* (path indirection for Skinned mesh, skeleton, audio event, etc.) |
+| `Emitter*` | 9 | 126 | Particle emitter data (RenderGroup, Simulation, Spawn, VectorField, MoveTrack, etc.) |
+| `Sequencer*` | 8 | 53 | Sequencer game-play wrappers + per-actor variants |
+| `Camera*` | 7 | 16 | Camera component + control processors (Follow, LookAt, SpringArm, Effect) |
+| `Audio*` | 6 | 24 | Audio component + parameter / state / switch data |
+| `Mesh*` | 3 | 18 | MeshComponent + MeshGroupComponent + MeshGroupInfo |
+| `Weather*` | 3 | 24 | WeatherComponent + WeatherConstant + WeatherConstantGroup |
+| `Light*` | 2 | 22 | LightComponent + LightInfo |
+| `Decal*` | 2 | 29 | DecalComponent + DecalInfo |
+| `Skinned*` | 1 | 13 | SkinnedMeshComponent (the central character-mesh wrapper) |
+| `Atmosphere*` | 1 | 54 | AtmosphereConstant (densest single class — 54 fields) |
+| `Sea*` | 1 | 16 | SeaConstant |
+| `Fog*` | 1 | 5 | FogComponent |
+| `Ragdoll*` | 1 | 6 | RagdollConstraintData |
+
+#### Notable subsystem discoveries
+
+- **Houdini integration** — 10 unmatched-by-prefix classes carry the
+  `Houdini*` name (`HoudiniOutput`, `HoudiniParameter{Bool,Float,Float2,
+  Int,ResourcePath,String,Texture}`, `HoudiniSubnetInput{Alias,Pam,
+  Point,Spline}`). Confirms the game uses SideFX Houdini for procedural
+  content authoring; Houdini cookings appear in PA assets.
+- **MassPlacement system** — `MassPlacementInfo`, `MassPlacementFile`,
+  `MassPlacementInstance` — instanced static-mesh placement (foliage /
+  rocks / props at scale).
+- **NPCSchedule** — `NPCScheduleSplineAttribute`,
+  `NPCScheduleSplineDataAttribute` — NPC routing/patrol via spline data.
+- **PositionConstraintMotor**, **AttachingClothToMesh** — physics
+  attachment / cloth simulation glue.
+- **ICamera** (4 fields) — camera interface (the only `I*` interface
+  surfaced in reflection).
+- **ChildSceneObjectUuidInfo** — UUID-based scene-object linking.
+
+These are visible in pycrimson reflection but not in NattKh's pabgb
+schema; pycrimson is the sole canonical-name source.
+
 ### Cross-source validation (NattKh schema ↔ pycrimson reflection)
 
 Sanity-check the reflection-class harvest against the independent
