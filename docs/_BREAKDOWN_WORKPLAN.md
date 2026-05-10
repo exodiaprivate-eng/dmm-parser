@@ -58,7 +58,22 @@ descriptor class via Win-IDA).
 ## Done
 - [x] DOCS: SHIPPED.md cross-reference index — 2026-05-10 13:18 SUCCESS. Wrote `docs/SHIPPED.md` (placed in docs/ rather than root per project CLAUDE.md "NEVER save working files, text/mds, or tests to the root folder"). Catalogues all 31 commits from Session 28 + 19 loop iters with cross-links to STATUS / V3_1_README / ENGINE_INTERNALS / BINARY_FORMATS / per-table info.rs. Phase totals + "what this run did NOT solve" honest accounting included.
 
-**DOCS phase complete (5/5).** **Loop phases all complete: REFLECT 10/10 · CATALOG 1/1 · GAP 15/15 · DESC 5/5 · VARIANT 4/4 · DOCS 5/5.** Auto-generation rules can pick up further work or the cron can be cancelled with `CronDelete 15ac410b`.
+**DOCS phase complete (5/5).** **Loop phases all complete: REFLECT 10/10 · CATALOG 1/1 · GAP 15/15 · DESC 5/5 · VARIANT 4/4 · DOCS 5/5.**
+
+**🛑 Loop stopped at iter 20 (2026-05-10 13:21).** Queue empty + auto-generation
+exhausted (every loop-amenable task done). Cron `15ac410b` cancelled via
+CronDelete. PushNotification sent.
+
+What remains is NOT 1-min-loop-amenable:
+- 398 missing fields needing actual decoder Rust code (per *Info table; ~hours each)
+- Havok Layer B parser implementation (multi-day project)
+- 22 _unkXXXX in paatt_basedata.rs (triple-blocked from name verification per Session 28 iter 13)
+- 6 reflection formats blocked on pycrimson upstream fixes (out of our control)
+- Extending v3.1 alias generator to walk src/item_info/ (substantive change)
+- Per-format research for non-reflection PA extensions (.pbd, .pcg, .material, etc.)
+
+To resume: re-arm cron with new tasks via `_BREAKDOWN_WORKPLAN.md` queue
+edit + CronCreate, or pick up substantive work directly without loop wrapping.
 
 - [x] DOCS: opaque-field audit in STATUS.md — 2026-05-10 13:15 SUCCESS. Whole-tree scan for `_unkXXXX` + `Vec<u8>` opaques. Result: 35 _unkXXXX in paatt_basedata.rs only (zero elsewhere); 30 Vec<u8> fields classified into 9 decoder-gaps (paseq/paseqc/pastage/paschedule/paschedulepath/paatt-bodies), 10 raw-by-design (audio/texture/string-pools), 11 file-format tables (paac/paatt/pamhc not yet field-decoded). Documented as audit subsection in STATUS.md "Current state".
 - [x] DOCS: Layer B Havok binary reference in ENGINE_INTERNALS.md — 2026-05-10 13:12 SUCCESS. Added comprehensive Layer B section: extension family table (.hkx/.pac/.pacc/.pam/.pami/.pamlod/.skel/.mesh), Havok packfile detection signatures, all known hka/hkx/hknp/hcl class names from prior IDA scan, Layer A → Layer B bridge map (which PA-side reflection fields resolve to which Havok files), what a Layer B implementation would need, and why this isn't blocking current mod work.
