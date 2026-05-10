@@ -21,6 +21,50 @@ field decode without IDA work.
 To regenerate this report, run `python scripts/verify_v3_1_against_schema.py`
 which writes the canonical JSON to `docs/v3_1_schema_verification.json`.
 
+## Auto-closure analysis (2026-05-10 iters 31-35)
+
+Iters 31-34 captured every name-divergence closure reachable via
+script-based heuristics: 27 fields closed across 23 unique tables.
+Aggregate: 1125 → 1152 verified, 584 → 557 missing.
+
+Iter 35 surveyed the remaining 557 missing fields against unaliased
+rust struct fields per-table. Result:
+
+| Category | Count | Implication |
+|---|---|---|
+| **Rust placeholders** (`lookup_NN`, `field_X`, `raw_Y`, `_unkN`) | 272 | Need IDA wire-position trace to map placeholder ↔ canonical |
+| **Real-named unaliased rust** | 208 | Likely actual decoder additions OR divergent canonical forms requiring per-field IDA verification |
+| **Genuine missing** (no rust field) | 77 | Need new typed Rust struct fields per IDA decompile |
+
+Per-table breakdown of unfinished work:
+
+| Table | Missing | Placeholders | Real-unaliased |
+|---|---|---|---|
+| gimmick_info | 153 | 0 | 1 |
+| character_info | 146 | 139 | 34 |
+| stage_info | 72 | 58 | 27 |
+| gimmick_group_info | 45 | 39 | 8 |
+| interaction_info | 28 | 0 | 1 |
+| tribe_info | 26 | 2 | 24 |
+| mission_info | 25 | 16 | 9 |
+| field_info | 22 | 7 | 18 |
+| faction_node_info | 14 | 3 | 12 |
+| (8 small tables) | ≤3 each | mostly 0 | varies |
+
+**Heuristics reached their limit.** Further gap closures (the remaining
+557 fields) all require IDA decompile of the per-table record reader
+(found via `pa::<TableName>` typeinfo → vtable → read-from-bytes
+virtual method per iter 30 corrected workflow). Each table is hours
+of focused work; not 1-min-loop-amenable.
+
+**6 PA-internal typos** were preserved as canonical aliases during the
+auto-closure pass (kept verbatim per NattKh schema):
+`_questGroupkey`, `_regionEnterknowledgeInfoList` (lowercase k),
+`_fishSummonTimeFrquencyType` (missing 'e'),
+`_radgollEquipTableGroupDataList` (radgoll vs ragdoll),
+`_collectFilter_Dev` (mid-name underscore),
+`_wayPointDataList_deprecated` (mid-name underscore).
+
 ## Decoder-fn cluster analysis (2026-05-10 iter 27)
 
 For each gap table, every missing field routes through a SINGLE parser
