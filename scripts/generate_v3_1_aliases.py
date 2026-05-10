@@ -79,6 +79,13 @@ MANUAL_OVERRIDES = {
     ("terrain_region_auto_spawn_info", "fish_summon_time_frequency_type"):   "_fishSummonTimeFrquencyType",  # NB: PA typo, Frquency
     ("equip_info",                     "ragdoll_list"):                      "_radgollEquipTableGroupDataList",  # NB: PA typo, radgoll
     ("special_mode_info",              "option_slots"):                      "_optionList",
+
+    # Iter 70: PA-internal typo "complte" (missing 'e' before 'te' in
+    # "complete"). Confirmed via Win-IDA decompile of sub_1410BA4C0
+    # (multi_change_info per-record reader, iter 57 typeinfo registry):
+    # the LocalizableString read at offset 192 corresponds to the
+    # `_complteDescription` canonical from the schema.
+    ("multi_change_info",              "complete_description"):              "_complteDescription",  # NB: PA typo, missing 'e'
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

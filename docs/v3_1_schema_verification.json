@@ -1256,14 +1256,12 @@
     "multi_change_info": {
       "schema_key": "MultiChangeInfo",
       "in_schema": true,
-      "alias_count": 24,
+      "alias_count": 25,
       "schema_field_count": 25,
-      "verified": 24,
+      "verified": 25,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_complteDescription"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "npc_info": {
       "schema_key": "NpcInfo",
@@ -1782,9 +1780,9 @@
     }
   },
   "totals": {
-    "verified": 1152,
+    "verified": 1153,
     "mismatch": 0,
-    "missing_in_dmm": 557,
+    "missing_in_dmm": 556,
     "extra_in_dmm": 0
   }
 }

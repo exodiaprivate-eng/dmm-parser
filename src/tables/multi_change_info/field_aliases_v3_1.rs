@@ -33,6 +33,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("enchant_recipe_desc", "_enchantRecipeDesc"),
     ("group_string_info", "_groupStringInfo"),
     ("sub_group_string_info", "_subGroupStringInfo"),
+    ("complete_description", "_complteDescription"),
     ("result_drop_info_list", "_resultDropInfoList"),
     ("additional_drop_info_list", "_additionalDropInfoList"),
 ];

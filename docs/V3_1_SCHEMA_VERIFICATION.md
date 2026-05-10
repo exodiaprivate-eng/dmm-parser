@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1152**
+- Total field aliases verified:       **1153**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **557**
+- Total schema fields not decoded:    **556**
 
 ## Tables not in NattKh schema
 
@@ -115,7 +115,7 @@ Korean-error-string parser path.
 | `mercenary_info` | 15 | 15 | 0 | 0 |
 | `mini_game_data_info` | 16 | 16 | 0 | 0 |
 | `mission_info` | 15 | 15 | 0 | 25 |
-| `multi_change_info` | 24 | 24 | 0 | 1 |
+| `multi_change_info` | 25 | 25 | 0 | 0 |
 | `npc_info` | 15 | 15 | 0 | 0 |
 | `part_prefab_dye_slot_info` | 5 | 5 | 0 | 0 |
 | `part_prefab_dye_texture_pallete_info` | 5 | 5 | 0 | 0 |
@@ -707,12 +707,6 @@ Korean-error-string parser path.
 - `_repeatCondition`
 - `_showMiniMap`
 - `_targetQuestDialogKey`
-
-### `multi_change_info` (schema key: `MultiChangeInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_complteDescription`
 
 ### `region_info` (schema key: `RegionInfo`)
 
