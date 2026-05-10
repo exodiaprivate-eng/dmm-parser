@@ -16,5 +16,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("is_blocked", "_isBlocked"),
     ("attacked_material_slot_no", "_attackedMaterialSlotNo"),
     ("list", "_list"),
+    ("ragdoll_list", "_radgollEquipTableGroupDataList"),
     ("ui_component_name", "_uiComponentName"),
 ];

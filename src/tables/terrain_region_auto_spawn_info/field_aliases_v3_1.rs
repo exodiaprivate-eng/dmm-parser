@@ -33,5 +33,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("bitmap_position_info", "_bitmapPositionInfo"),
     ("bitmap_color_list_for_spawn", "_bitmapColorListForSpawn"),
     ("spawn_at_height_field_landscape", "_spawnAtHeightFieldLandScape"),
+    ("fish_summon_time_frequency_type", "_fishSummonTimeFrquencyType"),
     ("spawn_reason_list", "_spawnReasonList"),
 ];

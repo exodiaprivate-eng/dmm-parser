@@ -32,6 +32,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("change_minimap_scale", "_changeMinimapScale"),
     ("is_minimap_zoom_out", "_isMinimapZoomOut"),
     ("is_allow_dialog", "_isAllowDialog"),
+    ("option_slots", "_optionList"),
     ("detect_mode_area_data", "_detectModeAreaData"),
     ("player_action_limit_desc", "_playerActionLimitDesc"),
 ];

@@ -462,14 +462,12 @@
     "equip_info": {
       "schema_key": "EquipInfo",
       "in_schema": true,
-      "alias_count": 6,
+      "alias_count": 7,
       "schema_field_count": 7,
-      "verified": 6,
+      "verified": 7,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_radgollEquipTableGroupDataList"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "equip_slot_info": {
       "schema_key": "EquipSlotInfo",
@@ -648,14 +646,12 @@
     "frame_event_attr_group_info": {
       "schema_key": "FrameEventAttrGroupInfo",
       "in_schema": true,
-      "alias_count": 3,
+      "alias_count": 4,
       "schema_field_count": 4,
-      "verified": 3,
+      "verified": 4,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_frameEventAttributeArr"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "game_advice_group_info": {
       "schema_key": "GameAdviceGroupInfo",
@@ -680,14 +676,12 @@
     "game_event_handler_info": {
       "schema_key": "GameEventHandlerInfo",
       "in_schema": true,
-      "alias_count": 8,
+      "alias_count": 9,
       "schema_field_count": 9,
-      "verified": 8,
+      "verified": 9,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_gameEventHandlerData"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "game_global_effect_info": {
       "schema_key": "GameGlobalEffectInfo",
@@ -1086,14 +1080,12 @@
     "item_use_info": {
       "schema_key": "ItemUseInfo",
       "in_schema": true,
-      "alias_count": 3,
+      "alias_count": 4,
       "schema_field_count": 4,
-      "verified": 3,
+      "verified": 4,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_itemUseInfoData"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "job_info": {
       "schema_key": "JobInfo",
@@ -1521,14 +1513,12 @@
     "special_mode_info": {
       "schema_key": "SpecialModeInfo",
       "in_schema": true,
-      "alias_count": 23,
+      "alias_count": 24,
       "schema_field_count": 24,
-      "verified": 23,
+      "verified": 24,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_optionList"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "stage_info": {
       "schema_key": "StageInfo",
@@ -1668,14 +1658,12 @@
     "terrain_region_auto_spawn_info": {
       "schema_key": "TerrainRegionAutoSpawnInfo",
       "in_schema": true,
-      "alias_count": 23,
+      "alias_count": 24,
       "schema_field_count": 24,
-      "verified": 23,
+      "verified": 24,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_fishSummonTimeFrquencyType"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "terrain_region_navi_info": {
       "schema_key": "TerrainRegionNaviInfo",
@@ -1794,9 +1782,9 @@
     }
   },
   "totals": {
-    "verified": 1146,
+    "verified": 1152,
     "mismatch": 0,
-    "missing_in_dmm": 563,
+    "missing_in_dmm": 557,
     "extra_in_dmm": 0
   }
 }

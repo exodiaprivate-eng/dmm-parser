@@ -70,6 +70,15 @@ MANUAL_OVERRIDES = {
     ("region_info",                    "region_enter_knowledge_info_list"):  "_regionEnterknowledgeInfoList",  # NB: PA typo, lowercase k
     ("store_info",                     "custom_mesh_obb_max_length"):        "_customMeshOBBMaxLength",
     ("terrain_region_auto_spawn_info", "spawn_at_height_field_landscape"):   "_spawnAtHeightFieldLandScape",
+
+    # Iter 34: one-of-each high-confidence pairings (count-match heuristic +
+    # manual review). Includes 2 more PA-internal typos.
+    ("frame_event_attr_group_info",    "data_list"):                         "_frameEventAttributeArr",
+    ("game_event_handler_info",        "data"):                              "_gameEventHandlerData",
+    ("item_use_info",                  "variant"):                           "_itemUseInfoData",
+    ("terrain_region_auto_spawn_info", "fish_summon_time_frequency_type"):   "_fishSummonTimeFrquencyType",  # NB: PA typo, Frquency
+    ("equip_info",                     "ragdoll_list"):                      "_radgollEquipTableGroupDataList",  # NB: PA typo, radgoll
+    ("special_mode_info",              "option_slots"):                      "_optionList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

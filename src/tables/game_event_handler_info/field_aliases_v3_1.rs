@@ -18,5 +18,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("player_condition", "_playerCondition"),
     ("event_condition", "_eventCondition"),
     ("target_condition", "_targetCondition"),
+    ("data", "_gameEventHandlerData"),
     ("is_pend_on_battle_state", "_isPendOnBattleState"),
 ];

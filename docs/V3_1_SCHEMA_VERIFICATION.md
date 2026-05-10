@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1146**
+- Total field aliases verified:       **1152**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **563**
+- Total schema fields not decoded:    **557**
 
 ## Tables not in NattKh schema
 
@@ -69,7 +69,7 @@ Korean-error-string parser path.
 | `dye_color_group_info` | 6 | 6 | 0 | 0 |
 | `effect_info` | 8 | 8 | 0 | 0 |
 | `elemental_material_info` | 19 | 19 | 0 | 1 |
-| `equip_info` | 6 | 6 | 0 | 1 |
+| `equip_info` | 7 | 7 | 0 | 0 |
 | `equip_type_info` | 19 | 19 | 0 | 1 |
 | `faction_group_info` | 8 | 8 | 0 | 0 |
 | `faction_info` | 19 | 19 | 0 | 0 |
@@ -82,10 +82,10 @@ Korean-error-string parser path.
 | `field_level_name_table_info` | 5 | 5 | 0 | 0 |
 | `field_revive_info` | 10 | 10 | 0 | 0 |
 | `formation_info` | 6 | 6 | 0 | 0 |
-| `frame_event_attr_group_info` | 3 | 3 | 0 | 1 |
+| `frame_event_attr_group_info` | 4 | 4 | 0 | 0 |
 | `game_advice_group_info` | 8 | 8 | 0 | 0 |
 | `game_advice_info` | 15 | 15 | 0 | 0 |
-| `game_event_handler_info` | 8 | 8 | 0 | 1 |
+| `game_event_handler_info` | 9 | 9 | 0 | 0 |
 | `game_global_effect_info` | 17 | 17 | 0 | 0 |
 | `game_level_info` | 6 | 6 | 0 | 0 |
 | `game_play_trigger_info` | 12 | 12 | 0 | 0 |
@@ -101,7 +101,7 @@ Korean-error-string parser path.
 | `interaction_info` | 9 | 9 | 0 | 28 |
 | `inventory_info` | 11 | 11 | 0 | 0 |
 | `item_group_info` | 12 | 12 | 0 | 0 |
-| `item_use_info` | 3 | 3 | 0 | 1 |
+| `item_use_info` | 4 | 4 | 0 | 0 |
 | `job_info` | 7 | 7 | 0 | 0 |
 | `key_map_setting_list_info` | 4 | 4 | 0 | 0 |
 | `knowledge_group_info` | 15 | 15 | 0 | 0 |
@@ -138,14 +138,14 @@ Korean-error-string parser path.
 | `socket_group_info` | 4 | 4 | 0 | 0 |
 | `socket_info` | 5 | 5 | 0 | 0 |
 | `spawning_pool_auto_spawn_info` | 15 | 15 | 0 | 0 |
-| `special_mode_info` | 23 | 23 | 0 | 1 |
+| `special_mode_info` | 24 | 24 | 0 | 0 |
 | `stage_info` | 10 | 10 | 0 | 72 |
 | `status_group_info` | 8 | 8 | 0 | 0 |
 | `status_info` | 34 | 34 | 0 | 0 |
 | `store_info` | 21 | 21 | 0 | 0 |
 | `string_info` | 4 | 4 | 0 | 0 |
 | `sub_level_info` | 22 | 22 | 0 | 1 |
-| `terrain_region_auto_spawn_info` | 23 | 23 | 0 | 1 |
+| `terrain_region_auto_spawn_info` | 24 | 24 | 0 | 0 |
 | `terrain_region_navi_info` | 4 | 4 | 0 | 0 |
 | `tribe_info` | 3 | 3 | 0 | 26 |
 | `trigger_region_info` | 4 | 4 | 0 | 0 |
@@ -338,12 +338,6 @@ Korean-error-string parser path.
 
 - `_flag`
 
-### `equip_info` (schema key: `EquipInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_radgollEquipTableGroupDataList`
-
 ### `equip_type_info` (schema key: `EquipTypeInfo`)
 
 **Schema fields not in dmm-parser** (1):
@@ -407,18 +401,6 @@ Korean-error-string parser path.
 - `_spawnPath`
 - `_startSectorIndex`
 - `_useFixedFieldTime`
-
-### `frame_event_attr_group_info` (schema key: `FrameEventAttrGroupInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_frameEventAttributeArr`
-
-### `game_event_handler_info` (schema key: `GameEventHandlerInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_gameEventHandlerData`
 
 ### `gimmick_group_info` (schema key: `GimmickGroupInfo`)
 
@@ -683,12 +665,6 @@ Korean-error-string parser path.
 - `_useFacingGotoTransform`
 - `_waitForInteraction`
 
-### `item_use_info` (schema key: `ItemUseInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_itemUseInfoData`
-
 ### `knowledge_info` (schema key: `KnowledgeInfo`)
 
 **Schema fields not in dmm-parser** (1):
@@ -750,12 +726,6 @@ Korean-error-string parser path.
 **Schema fields not in dmm-parser** (1):
 
 - `_royalSupplyRandomMap`
-
-### `special_mode_info` (schema key: `SpecialModeInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_optionList`
 
 ### `stage_info` (schema key: `StageInfo`)
 
@@ -839,12 +809,6 @@ Korean-error-string parser path.
 **Schema fields not in dmm-parser** (1):
 
 - `_exp`
-
-### `terrain_region_auto_spawn_info` (schema key: `TerrainRegionAutoSpawnInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_fishSummonTimeFrquencyType`
 
 ### `tribe_info` (schema key: `TribeInfo`)
 
