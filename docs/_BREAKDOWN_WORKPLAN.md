@@ -53,10 +53,12 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] VARIANT: src/binary/variants/auto_spawn_entry.rs — list still-Raw branches
-- [ ] VARIANT: src/binary/variants/drop_target.rs — same
-- [ ] VARIANT: src/binary/variants/mini_game_data.rs — same
-- [ ] VARIANT: src/binary/variants/sequencer_stage_chart_desc.rs — same
+- [ ] DOCS: write "Game Surface Coverage Map" section in STATUS.md (% coverage per binary-format category: pabgb tables 100%, pamt/papgt/paloc/paz 100%, paatt 60%, reflection PA-side 40%, Havok/.pac 0%, audio .bnk/.wem 0%)
+- [ ] DOCS: catalog every src/binary/variants/*.rs file in ENGINE_INTERNALS.md with one-line status (decoder name, variant count, all-typed/has-raw-fallback)
+- [ ] DOCS: add a "Layer B (Havok binary)" reference section in ENGINE_INTERNALS.md cataloguing what we know from IDA + ENGINE_INTERNALS Havok integration about .pam / .pami / .pamlod / .pac / .pacc file formats; nothing parsed yet but document what we'd need
+- [ ] DOCS: scan src/binary/*.rs for any `_unkXXXX` or `Vec<u8>` opaque-blob fields outside paatt_basedata.rs; write coverage report to STATUS.md
+- [ ] DOCS: write a SHIPPED.md document at root summarizing every commit from Session 28 + the 1-minute loop with a flat list of deliverables (cross-link the per-doc references)
+
 
 ## Done
 - [x] DESC: AttackCommonDataDesc — 2026-05-10 12:57 VERIFIED-BLOCKED (third independent confirmation: Win-IDA registrar absence + Korean error fragment xref absence + NattKh schema search returns zero AttackCommonData fields. Documented in T0_AUDIT_TRACKING Session 28 iter 12 entry. No further iteration on this class without new evidence.)
@@ -64,6 +66,12 @@ descriptor class via Win-IDA).
 - [x] DESC: BuffData family registrars — 2026-05-10 13:00 VERIFIED-BLOCKED (batched; embedded as `_buffDataList` in 2 wrappers but inner class invisible to schema + reflection. Decoder works via variants/buff_data.rs; only canonical names unrecoverable.)
 - [x] DESC: EffectData family registrars — 2026-05-10 13:00 VERIFIED-BLOCKED (batched; embedded as `_effectDataList`/`_effectData` in 4 wrappers; only `EffectDataReferencePath` shell visible in reflection. Decoder works via variants/effect_data.rs.)
 - [x] DESC: ConditionData family registrars — 2026-05-10 13:00 VERIFIED-BLOCKED (batched; class fully invisible to schema + reflection. Decoder works via variants/condition_data.rs with 405 GameCondition variants.)
+- [x] VARIANT: src/binary/variants/auto_spawn_entry.rs — 2026-05-10 13:03 SUCCESS (no Raw branches; docstring confirms fixed-shape decode 'despite original "polymorphic" docstring claims'. 84-line file, fully typed.)
+- [x] VARIANT: src/binary/variants/drop_target.rs — 2026-05-10 13:03 SUCCESS (DropTargetVariant has 14 tag variants 0..D, all fully typed: u32 / DropTargetItemRef / struct / empty. Zero Raw fallback branches.)
+- [x] VARIANT: src/binary/variants/mini_game_data.rs — 2026-05-10 13:03 SUCCESS (4 variants total per docstring 'all pure-discriminator — no per-variant body'. 134-line file, fully typed.)
+- [x] VARIANT: src/binary/variants/sequencer_stage_chart_desc.rs — 2026-05-10 13:03 SUCCESS (docstring confirms 'all 26 wire fields / 232 mem bytes — all reverse-engineered and field-level addressable'. opaque_tail kept for graceful degradation but always empty on vanilla.)
+
+**VARIANT phase summary:** all 4 audited variant files are already fully typed. Zero Raw fallback branches remain. The Decoded|Raw enum pattern that existed in earlier sessions has been progressively eliminated through the Tier 1 promotion arc.
 - [x] GAP: `src/tables/character_info/info.rs` canonical-field catalog (146 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
 - [x] GAP: `src/tables/stage_info/info.rs` canonical-field catalog (72 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
 - [x] GAP: `src/tables/gimmick_group_info/info.rs` canonical-field catalog (45 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
