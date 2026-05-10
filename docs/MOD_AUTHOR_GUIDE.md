@@ -115,6 +115,49 @@ intentional, see `docs/V3_1_DECODER_GAPS.md` § "Auto-closure analysis":
 - `_fishSummonTimeFrquencyType` — missing 'e' (Frquency)
 - `_radgollEquipTableGroupDataList` — radgoll vs ragdoll
 - `_collectFilter_Dev`, `_wayPointDataList_deprecated` — mid-name underscores
+- `_complteDescription` (multi_change_info) — missing 'e' (complete)
+- `_overriedMaxHeight` (region_info) — missing 'd' (overridden/overrided)
+
+### Residual v3.1 surface coverage (as of 2026-05-10, iter 82)
+
+Of 126 dmm-parser tables, **109 are in NattKh's canonical schema**. After
+the resumed-loop closure work (iters 70-82):
+
+- **86 tables** — 100% canonical coverage (every `_camelCase` aliased,
+  shape='v3.1' is a drop-in for snake_case).
+- **23 tables** — still have ≥1 gap. Total residual gaps: **549**.
+
+The 23 remaining tables fall into four classes:
+
+1. **1-to-N wrap, pending alias-mechanism extension** (~10 tables).
+   The current `FIELD_ALIASES_V3_1` mechanism only maps 1 snake → 1 camel.
+   These tables have one canonical that wraps multiple unrolled rust fields
+   (e.g. `_relationTypeList` ↔ `relation_type_list_0..6`,
+   `_destroyedAiEvent` ↔ four `destroyed_ai_event_*` fields). Closure is
+   purely cosmetic — wire bytes already round-trip identically. Resolution
+   is to extend the alias mechanism to support `(snake, &[snake...])`
+   1-to-N tuple-keyed entries.
+
+2. **Real decoder work needed** (~2 tables, ~6 gaps).
+   Notably `global_game_event_info` (3 gaps: `_eventDesc`, `_uiIconPath`,
+   `_targetRegionInfoList`) where the current `execute_data` polymorphic
+   wrapper absorbs three separate canonical reads as a single typed field.
+   Closure requires decomposing the wrapper into 3 distinct typed fields.
+
+3. **Semantic ambiguity** (~2 tables, 2 gaps).
+   `_onDiscoverOnlyEnable` (level_gimmick_scene_object_info) and
+   `_executePercent` (global_game_event_group_info) each map to one of
+   two unaliased rust fields — disambiguation needs sample-data range
+   analysis or function-string xref work.
+
+4. **Larger tables not yet audited** (1 table — `faction_node_info`,
+   14 gaps).
+
+Day-to-day mods are unaffected. If your mod targets one of the 86 fully-
+covered tables, both `shape='v3.1'` and the snake_case default round-trip
+identically. The residual gaps only matter if you author against canonical
+names for one of the 23 partially-covered tables — and even there, the
+snake_case rust names still work as input.
 
 ---
 
