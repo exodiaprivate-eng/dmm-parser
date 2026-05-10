@@ -45,7 +45,7 @@ use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_fiel
 /// below were confirmed by decompiling `sub_141957EC0` (Win) — the
 /// `pa::AttackInfoDataDesc` bindProperty registrar — which referenced
 /// these property names verbatim alongside the 23 already-named fields.
-/// See `docs/PAATT_BASEDATA_FIELDS.md` § Session 27 update.
+/// See `docs/BINARY_FORMATS.md#paatt-basedata-field-layout` § Session 27 update.
 pub const FIELD_ALIASES_V3: FieldAliasTable = &[
     // (canonical_T0_name, v3_legacy_name)
     ("attack_impulse_level", "_unk0073"),
@@ -285,7 +285,7 @@ pub struct BaseDataV0 {
     pub attack_pos_offset: [f32; 3],
     /// `AttackCommonDataDesc` unnamed float3 (purpose TBD from further analysis).
     /// Session 19 IDA candidate: `attackBoxSize` — the next 12-byte field after
-    /// `attackOffset` in the C++ class. See `docs/PAATT_BASEDATA_FIELDS.md`.
+    /// `attackOffset` in the C++ class. See `docs/BINARY_FORMATS.md#paatt-basedata-field-layout`.
     pub _unk_float3_0014: [f32; 3],
     /// `AttackCommonDataDesc.attackAngle` — angular width of the attack arc in radians.
     /// Vanilla default ≈ 6.2832 (2π = 360°, full-circle hitbox). Mac C++ name is
@@ -347,12 +347,12 @@ pub struct BaseDataV0 {
     /// Session 19 IDA candidate: `pa::AttackInfoDataDesc::noCheckCollision`
     /// (in-mem class offset 0xB5, single-byte bool sitting in the same
     /// register-cluster as ignoreSafeZone). The wire→class mapping isn't
-    /// proven yet — see `docs/PAATT_BASEDATA_FIELDS.md` § Appendix.
+    /// proven yet — see `docs/BINARY_FORMATS.md#paatt-basedata-field-layout` § Appendix.
     pub no_check_collision: bool,
     /// u8 enum (mode=1 @49% V0).
     /// Session 19 IDA candidate: `pa::AttackInfoDataDesc::attackImpulseLevel`
     /// (in-mem class offset 0xB0, sole u8 enum field still unmapped).
-    /// Wire→class mapping unproven; see PAATT_BASEDATA_FIELDS.md § Appendix.
+    /// Wire→class mapping unproven; see BINARY_FORMATS.md#paatt-basedata-field-layout § Appendix.
     pub attack_impulse_level: u8,
     pub _pad0074: [u8; 4],
     /// `ActionChartFrameEvent_AttackDelayDataDesc` #2 — same structure as ds1.

@@ -79,7 +79,7 @@
 >       the missed 5 include three bit-packed bools at byte 0x3D).
 >     - `AttackHitDataDesc`: full 8 fields with offsets.
 >   Six `BaseDataV0._unkXXXX` slots now have high-confidence rename
->   candidates documented in `docs/PAATT_BASEDATA_FIELDS.md` (no
+>   candidates documented in `docs/BINARY_FORMATS.md#paatt-basedata-field-layout` (no
 >   renames yet — JSON shape held until the .paatt serializer iteration
 >   order is mapped).
 > - Doc surface refreshed: `docs/api.md` now has a dedicated
@@ -938,7 +938,7 @@ expose only `LpToken::LpString` / `RawBytes` (or — for `.paatt` —
 typed envelope + opaque `base_data`). Promoting them to Tier 1 is the
 last remaining 1.5 surface in dmm-parser and the prerequisite for
 field-level mod intents on cutscenes, NPC schedules, stage charts, and
-attack data. See `docs/FORMATS.md` §11 (per-format wire + IDA pointers)
+attack data. See `docs/BINARY_FORMATS.md#file-format-reference-formats` §11 (per-format wire + IDA pointers)
 and §12 (tier semantics + methodology).
 
 Attack order, smallest scope first:
@@ -966,7 +966,7 @@ Attack order, smallest scope first:
 Methodology — same family-decoder playbook used for GameCondition,
 FilterCondition, TriggerGamePlayEventHandlerData, GameEventHandlerData,
 and SequencerStageChartDesc. See "The reusable playbook" section above.
-Definition-of-done per format is in `docs/FORMATS.md` §12.
+Definition-of-done per format is in `docs/BINARY_FORMATS.md#file-format-reference-formats` §12.
 
 ### Deferred (need runtime debugger or are non-blocking)
 - ConditionData tags 54/286 — anti-disassembly obfuscated readers

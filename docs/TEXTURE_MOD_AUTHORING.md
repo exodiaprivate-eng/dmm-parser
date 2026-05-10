@@ -757,7 +757,7 @@ You can't — DMM rejects asset-vpath collisions at mount time. Either:
 
 - [`MOD_AUTHOR_GUIDE.md`](MOD_AUTHOR_GUIDE.md) — top-level overview of
   every mod type (data, texture, audio, custom item, mixed)
-- [`FORMATS.md`](FORMATS.md) §7 — DDS format specification with
+- [`BINARY_FORMATS.md#file-format-reference-formats`](BINARY_FORMATS.md#file-format-reference-formats) §7 — DDS format specification with
   Crimson-specific quirks
 - [`api.md`](api.md) "DDS Textures" — Python API reference
 - [`references/dds_notes.md`](../references/dds_notes.md) — deep-dive

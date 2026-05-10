@@ -1,6 +1,6 @@
 # dmm_parser Python API Reference
 
-See also: [Archive Format](archive-format.md) for binary format details and mod loading explanation.
+See also: [Archive Format](BINARY_BINARY_FORMATS.md#file-format-reference-formats#archive-format-paz--pamt--papgt--trie) for binary format details and mod loading explanation.
 
 ## Enums
 
@@ -101,7 +101,7 @@ Serialize PAPGT data to raw bytes.
 
 ### `add_papgt_entry(papgt_data, group_name, pack_meta_checksum, is_optional, language) -> PapgtData`
 
-Upsert a pack group entry. Inserts at front for mod priority (see [Mod Loading](archive-format.md#mod-loading-overlay-approach)). If `group_name` already exists, updates it in place and moves to front.
+Upsert a pack group entry. Inserts at front for mod priority (see [Mod Loading](BINARY_BINARY_FORMATS.md#file-format-reference-formats#archive-format-paz--pamt--papgt--trie#mod-loading-overlay-approach)). If `group_name` already exists, updates it in place and moves to front.
 
 ```python
 papgt = dmm_parser.parse_papgt_file("meta/0.papgt")
@@ -312,7 +312,7 @@ and CLI tools can validate texture mods before they ship. It does NOT
 decompress pixel data — header inspection + format classification + path
 inference + Crimson-specific quirk surfacing only.
 
-See [Archive Format](archive-format.md) and `references/dds_notes.md` for
+See [Archive Format](BINARY_BINARY_FORMATS.md#file-format-reference-formats#archive-format-paz--pamt--papgt--trie) and `references/dds_notes.md` for
 the format spec; `references/dds.hexpat` for the binary layout.
 
 ### `classify_dds(data: bytes) -> dict`
@@ -1702,7 +1702,7 @@ V1-specific (catch): the nested `catch_desc` dict carries
 sentinel region preserved verbatim.
 
 The full per-byte layout including every `_unkXXXX` field, default values,
-and per-version distributions lives in `docs/PAATT_BASEDATA_FIELDS.md`.
+and per-version distributions lives in `docs/BINARY_FORMATS.md#paatt-basedata-field-layout`.
 
 ### File-path convenience wrappers
 
@@ -1780,6 +1780,6 @@ modified = dmm_parser.replace_cstring_at(
 
 ### Reference
 
-- Engineering log: `docs/TIER1_PROMOTION_PROGRESS.md`
+- Engineering log: `docs/_archive/TIER1_PROMOTION_PROGRESS.md`
 - User-facing guide: `docs/MOD_AUTHOR_GUIDE.md` §12
-- `.paatt` BaseData field directory: `docs/PAATT_BASEDATA_FIELDS.md`
+- `.paatt` BaseData field directory: `docs/BINARY_FORMATS.md#paatt-basedata-field-layout`

@@ -5,7 +5,7 @@
 > Stacker can load + verify, and that other mods can compose with.
 >
 > This is the user-facing entry point. For the binary formats themselves
-> see `docs/FORMATS.md`. For the Python API surface see `docs/api.md`.
+> see `docs/BINARY_FORMATS.md#file-format-reference-formats`. For the Python API surface see `docs/api.md`.
 
 ---
 
@@ -29,7 +29,7 @@
 
 **Companion docs:**
 
-- [`docs/FORMATS.md`](FORMATS.md) — every binary format reference in one place
+- [`docs/BINARY_FORMATS.md#file-format-reference-formats`](BINARY_FORMATS.md#file-format-reference-formats) — every binary format reference in one place
 - [`docs/api.md`](api.md) — Python API surface (classify_dds / parse_bnk / paloc / save / etc.)
 - [`docs/CUSTOM_ITEM_CREATOR_V3_1.md`](CUSTOM_ITEM_CREATOR_V3_1.md) — end-to-end custom-item walkthrough
 - [`samples/`](../samples/) — five runnable example mods (data, texture, audio, custom item, mixed)
@@ -296,7 +296,7 @@ catalogs.
 > exports (Photoshop / GIMP / Substance Painter / `nvtt_export`),
 > validation, packing, NexusMods page templates, recipes, and
 > troubleshooting. The one-page
-> [`TEXTURE_VPATH_CHEATSHEET.md`](TEXTURE_VPATH_CHEATSHEET.md) is the
+> [`BINARY_FORMATS.md#texture-vpath-cheatsheet`](BINARY_FORMATS.md#texture-vpath-cheatsheet) is the
 > printable reference card. The summary below is the minimum to know
 > textures exist as a v3.1 target type.
 
@@ -326,7 +326,7 @@ overlay. The mounted vpath must match the in-game path exactly,
 **Build pipeline:**
 1. Author your texture in your DCC tool.
 2. Export to DDS with the right format per
-   [TEXTURE_VPATH_CHEATSHEET.md](TEXTURE_VPATH_CHEATSHEET.md).
+   [BINARY_FORMATS.md#texture-vpath-cheatsheet](BINARY_FORMATS.md#texture-vpath-cheatsheet).
 3. Run `python -m dmm_parser.tools.validate <manifest>` to catch
    format / vpath issues.
 4. Run `python -m dmm_parser.tools.pack <manifest>` to produce the
@@ -496,7 +496,7 @@ flow.
 
 ## 11. Where to look next
 
-- `docs/FORMATS.md` — binary format reference (PAPGT, PAMT, PAZ, paloc,
+- `docs/BINARY_FORMATS.md#file-format-reference-formats` — binary format reference (PAPGT, PAMT, PAZ, paloc,
   DDS, WEM, BNK, save) including:
   - §1.1 PAPGT header CRC offset gotcha (bytes 4–7, not 0–3).
   - §6.1 Tier-1 PABGB inventory — all 14+ tables promoted post-1.3.3.
@@ -505,9 +505,9 @@ flow.
   - §11/§12 canonical Tier status for the sequencer / attack family.
 - `docs/api.md` — full Python API.
 - `docs/CUSTOM_ITEM_CREATOR_V3_1.md` — end-to-end custom-item example.
-- `docs/TIER1_PROMOTION_PROGRESS.md` — Sequencer / schedule / attack
+- `docs/_archive/TIER1_PROMOTION_PROGRESS.md` — Sequencer / schedule / attack
   format notes and field directories.
-- `docs/PAATT_BASEDATA_FIELDS.md` — `.paatt` AttackInfo field reference.
+- `docs/BINARY_FORMATS.md#paatt-basedata-field-layout` — `.paatt` AttackInfo field reference.
 - `references/*.hexpat` — ImHex pattern files for binary exploration.
 
 ---
@@ -518,7 +518,7 @@ Six formats drive cutscenes, NPC behavior, and combat. All six
 round-trip byte-perfect on every vanilla sample. Two
 (`.paseq`, `.pastage`) shipped Tier-1 field-level decode; the
 remaining four are Tier 1.5 (envelope decoded, body opaque) until the
-promotion work in `docs/FORMATS.md` §12 finishes.
+promotion work in `docs/BINARY_FORMATS.md#file-format-reference-formats` §12 finishes.
 
 | Extension | What it is | Vanilla samples | Tier | Editing pattern |
 |---|---|---|---|---|
@@ -611,7 +611,7 @@ modified = dmm_parser.serialize_paatt(parsed)
 
 See `docs/api.md` → "**.paatt — typed AttackInfo BaseData**" for the
 per-version dict shape and the most-commonly-edited field reference, and
-`docs/PAATT_BASEDATA_FIELDS.md` for the full per-byte layout including
+`docs/BINARY_FORMATS.md#paatt-basedata-field-layout` for the full per-byte layout including
 every `_unkXXXX` field still pending IDA-resolved C++ names.
 
 ### 12.2 Discovering what's in a sequencer file

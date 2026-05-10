@@ -110,7 +110,7 @@ never exposed in the binary's symbol table.
 
 Data-descriptor classes embedded INSIDE table records DO expose
 per-field getters and ARE in scope for verbatim renames. Tracked
-separately per-target in PAATT_BASEDATA_FIELDS.md and STATUS.md
+separately per-target in BINARY_FORMATS.md#paatt-basedata-field-layout and STATUS.md
 session entries. Targets include `AttackInfoDataDesc`,
 `AttackCommonDataDesc`, `AttackHitDataDesc`, `SplineDecalComponent`
 (partial), `EmitterCurveData`, and a few dozen other nested blobs.
@@ -131,7 +131,7 @@ data we need.
 **Proof-of-concept (Session 27 iter 0):** Decompiled
 `sub_141957EC0` (Win address) — the AttackInfoDataDesc bindProperty
 registrar. It referenced exactly 25 property names — matching the
-field count documented in PAATT_BASEDATA_FIELDS.md, and CONFIRMING
+field count documented in BINARY_FORMATS.md#paatt-basedata-field-layout, and CONFIRMING
 all 8 of the "C++ fields not yet present in BaseDataV0" candidates
 from Session 19:
 
