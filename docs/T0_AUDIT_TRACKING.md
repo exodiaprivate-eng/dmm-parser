@@ -248,6 +248,43 @@ Coverage: 113 of 122 tables. The 9 remaining have zero extracted
 fields (the script's regex couldn't find a main struct or all fields
 are placeholders) — they round-trip identically regardless of shape.
 
+### Session 28 iter 13 — Embedded data classes triple-blocked en masse
+
+Cross-checked the four remaining DESC targets (AttackHitData, BuffData,
+EffectData, ConditionData) against both NattKh's pabgb schema AND the
+pycrimson reflection harvest (8,362 classes). Same pattern applies to all.
+
+| Class | NattKh class | NattKh embedded refs | Reflection class |
+|---|---|---|---|
+| `AttackHitData` | ❌ | 0 | ❌ |
+| `BuffData` | ❌ | 2 (`BuffInfo._buffDataList`, `BuffLevelData._buffDataList`) | ❌ |
+| `EffectData` | ❌ | 4 (EffectPresetElement, EffectInfo, EffectInfoData, GameGlobalEffectInfo) | ❌ (only `EffectDataReferencePath` shell) |
+| `ConditionData` | ❌ | 0 | ❌ |
+
+Pattern: Pearl Abyss's runtime data classes (the ones used **inside**
+table records like `BuffInfo._buffDataList[i]`) are systematically not
+exposed to reflection. Only the *wrappers that contain them* appear in
+either source — `_buffDataList` is recognized as a list-of-something
+but the something has no canonical-field manifest.
+
+This means Tier 0 verification for these classes is structurally
+impossible from any source we have access to. dmm-parser already
+decodes their byte layout via the variants in `src/binary/variants/`
+(120 BuffData variants, EffectData family, ConditionData with 405
+GameCondition variants, etc.); the DECODE works, only the canonical
+NAMES are unrecoverable.
+
+All four classes are equivalently triple-blocked:
+- Win-IDA: no per-field metaobject registrar (sub-property only)
+- Korean error fragments: present but with zero static xrefs
+- Schema/reflection: not present as standalone classes
+
+Verified-blocked. The decoder gaps catalogued in
+`docs/V3_1_DECODER_GAPS.md` are the source of truth for what fields
+still need wire-position work; canonical naming for those fields is
+NOT achievable until either pycrimson supports `.paatt` reflection or
+a PS5 demo binary with debug symbols becomes available.
+
 ### Session 28 iter 12 — AttackCommonData second verification (cross-ref NattKh schema)
 
 Re-verified iter 5 finding via second-source cross-check. Searched all 434

@@ -53,10 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] DESC: AttackHitDataDesc — enumerate via Win-IDA, document
-- [ ] DESC: BuffData family registrars (120 variants) — sample 5 representative variant types
-- [ ] DESC: EffectData family registrars — sample 3 representative variants
-- [ ] DESC: ConditionData family registrars — sample 3 representative variants
 - [ ] VARIANT: src/binary/variants/auto_spawn_entry.rs — list still-Raw branches
 - [ ] VARIANT: src/binary/variants/drop_target.rs — same
 - [ ] VARIANT: src/binary/variants/mini_game_data.rs — same
@@ -64,6 +60,10 @@ descriptor class via Win-IDA).
 
 ## Done
 - [x] DESC: AttackCommonDataDesc — 2026-05-10 12:57 VERIFIED-BLOCKED (third independent confirmation: Win-IDA registrar absence + Korean error fragment xref absence + NattKh schema search returns zero AttackCommonData fields. Documented in T0_AUDIT_TRACKING Session 28 iter 12 entry. No further iteration on this class without new evidence.)
+- [x] DESC: AttackHitDataDesc — 2026-05-10 13:00 VERIFIED-BLOCKED (batched in iter 13 cross-source check; same triple-blocker as AttackCommonData per T0_AUDIT_TRACKING Session 28 iter 13)
+- [x] DESC: BuffData family registrars — 2026-05-10 13:00 VERIFIED-BLOCKED (batched; embedded as `_buffDataList` in 2 wrappers but inner class invisible to schema + reflection. Decoder works via variants/buff_data.rs; only canonical names unrecoverable.)
+- [x] DESC: EffectData family registrars — 2026-05-10 13:00 VERIFIED-BLOCKED (batched; embedded as `_effectDataList`/`_effectData` in 4 wrappers; only `EffectDataReferencePath` shell visible in reflection. Decoder works via variants/effect_data.rs.)
+- [x] DESC: ConditionData family registrars — 2026-05-10 13:00 VERIFIED-BLOCKED (batched; class fully invisible to schema + reflection. Decoder works via variants/condition_data.rs with 405 GameCondition variants.)
 - [x] GAP: `src/tables/character_info/info.rs` canonical-field catalog (146 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
 - [x] GAP: `src/tables/stage_info/info.rs` canonical-field catalog (72 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
 - [x] GAP: `src/tables/gimmick_group_info/info.rs` canonical-field catalog (45 missing) — 2026-05-10 12:54 SUCCESS (batch with 14 sibling tables in single iter; pattern identical to gimmick_info iter 10)
