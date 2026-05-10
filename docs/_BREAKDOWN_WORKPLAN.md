@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 78: region_info close 2 missing (`_overriedMaxHeight` PA typo + `_isSaveGimmickRegion` divergent name) — 2026-05-10 SUCCESS. Two MANUAL_OVERRIDES entries: (1) `overrided_max_height` → `_overriedMaxHeight` (PA-internal typo, missing 'd'); (2) `is_housing_region` → `_isSaveGimmickRegion` (housing uses save-gimmick regions for persistence; PA's name is the more technical one). Schema verifier: region_info now 23/23 verified, total missing-canonicals: 555 → 553.
+
 - [x] GAP iter 77: knowledge_info `_linkKnowledgeNodeList` close — 2026-05-10 SUCCESS. Decompiled sub_1410AFE20 (iter 47 typeinfo registry). Identified the rust field `level_gimmick_scene_object_data_list` (CArray<U32U32Pair>) at offset 248 as the unmapped wire read paired against the only unmapped schema canonical `_linkKnowledgeNodeList`. Each U32U32Pair = (source node key, target node key) — knowledge graph link list. Safety-checked that `_levelGimmickSceneObjectDataList` is owned by a DIFFERENT table (LevelGimmickSceneObjectInfo), so tuple-scoped MANUAL_OVERRIDES entry is collision-safe. Shipped. Schema verifier: knowledge_info now 30/30 verified, total missing-canonicals: 556 → 555. **All 11 single-missing-table cases now have closure plans.**
 
 - [x] GAP iter 76: elemental_material_info `_flag` closure plan (1-to-8 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410A8FA0 (iter 58 typeinfo registry). The 8-iteration loop `for j in 0..8` reading u32 at `a2 + 4*(j+34)` (offsets 136..164) confirms `_flag` is a pure 1-to-8 wrapper around `flag_0..7`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/elemental_material_info/info.rs.

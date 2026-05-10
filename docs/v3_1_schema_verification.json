@@ -1384,15 +1384,12 @@
     "region_info": {
       "schema_key": "RegionInfo",
       "in_schema": true,
-      "alias_count": 21,
+      "alias_count": 23,
       "schema_field_count": 23,
-      "verified": 21,
+      "verified": 23,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
-      "missing_in_dmm": [
-        "_isSaveGimmickRegion",
-        "_overriedMaxHeight"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "relation_info": {
       "schema_key": "RelationInfo",
@@ -1778,9 +1775,9 @@
     }
   },
   "totals": {
-    "verified": 1154,
+    "verified": 1156,
     "mismatch": 0,
-    "missing_in_dmm": 555,
+    "missing_in_dmm": 553,
     "extra_in_dmm": 0
   }
 }

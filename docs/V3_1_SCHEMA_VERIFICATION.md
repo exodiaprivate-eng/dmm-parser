@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1154**
+- Total field aliases verified:       **1156**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **555**
+- Total schema fields not decoded:    **553**
 
 ## Tables not in NattKh schema
 
@@ -126,7 +126,7 @@ Korean-error-string parser path.
 | `quest_group_info` | 15 | 15 | 0 | 0 |
 | `quest_info` | 34 | 34 | 0 | 0 |
 | `quick_time_event_info` | 4 | 4 | 0 | 0 |
-| `region_info` | 21 | 21 | 0 | 2 |
+| `region_info` | 23 | 23 | 0 | 0 |
 | `relation_info` | 11 | 11 | 0 | 0 |
 | `reserve_slot_info` | 17 | 17 | 0 | 0 |
 | `royal_supply_info` | 5 | 5 | 0 | 1 |
@@ -701,13 +701,6 @@ Korean-error-string parser path.
 - `_repeatCondition`
 - `_showMiniMap`
 - `_targetQuestDialogKey`
-
-### `region_info` (schema key: `RegionInfo`)
-
-**Schema fields not in dmm-parser** (2):
-
-- `_isSaveGimmickRegion`
-- `_overriedMaxHeight`
 
 ### `royal_supply_info` (schema key: `RoyalSupplyInfo`)
 

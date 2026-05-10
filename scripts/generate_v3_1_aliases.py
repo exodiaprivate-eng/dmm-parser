@@ -98,6 +98,18 @@ MANUAL_OVERRIDES = {
     # legitimately use `_levelGimmickSceneObjectDataList`) is keyed
     # separately.
     ("knowledge_info",                 "level_gimmick_scene_object_data_list"): "_linkKnowledgeNodeList",
+
+    # Iter 78: region_info
+    # `_overriedMaxHeight` is a PA-internal typo (should be "overridden"
+    # or at least "overrided"; PA wrote "overried" — missing 'd'). The
+    # rust field name `overrided_max_height` has the same wrong-suffix
+    # typo independently. Map them directly.
+    ("region_info",                    "overrided_max_height"):              "_overriedMaxHeight",  # NB: PA typo, missing 'd'
+    # `_isSaveGimmickRegion` is the canonical for the rust field
+    # `is_housing_region`. Housing in Crimson Desert uses save-gimmick
+    # regions as the persistence backing — so PA's name is the more
+    # technical / accurate one. Tuple-scoped override.
+    ("region_info",                    "is_housing_region"):                 "_isSaveGimmickRegion",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
