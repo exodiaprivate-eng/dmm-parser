@@ -6,6 +6,26 @@
 //! the vanilla pabgb dump from the live game install.
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
+//!
+//! ─── v3.1 closure analysis (iter 68) ────────────────────────────────────
+//! Re-decompile of `sub_1410A7170` (Win, per iter 54 typeinfo registry)
+//! confirms the on-wire layout:
+//!
+//!   offset 0    4 bytes        → _key (u32)
+//!   offset 8    CString        → _stringKey
+//!   offset 16   1 byte         → _isBlocked
+//!   offset 17   5 × 12 bytes   → _reactionTable (5 rows × 12 u8 cells)
+//!   offset 77   1 byte         → _buffReactionType
+//!   offset 78   1 byte         → _strongBuffReactionType
+//!   offset 79   1 byte         → _playerSensibleReactionType
+//!
+//! NattKh schema lists 7 canonicals: _key, _stringKey, _isBlocked,
+//! _buffReactionType, _strongBuffReactionType, _playerSensibleReactionType,
+//! _reactionTable. The "missing" canonical `_reactionTable` is a pure
+//! 1-to-5 wrapper around the unrolled rust fields `reaction_row_0..4`.
+//! Closure path: 1-to-N alias entry in FIELD_ALIASES_V3_1 mapping
+//! `_reactionTable` → `[reaction_row_0, reaction_row_1, reaction_row_2,
+//! reaction_row_3, reaction_row_4]`. No new decoder work needed.
 
 use crate::binary::*;
 use crate::py_binary_struct;
