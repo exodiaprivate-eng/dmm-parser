@@ -6,6 +6,31 @@
 //! the vanilla pabgb dump from the live game install.
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
+//!
+//! ─── v3.1 closure analysis (iter 73) ────────────────────────────────────
+//! Cross-check via `sub_1410A9500` (typeinfo→record-reader path per the
+//! iter 55 typeinfo registry) confirms the prefix layout:
+//!
+//!   offset 0    4 bytes      → _key (u32)
+//!   offset 8    CString      → _stringKey
+//!   offset 16   1 byte       → _isBlocked
+//!   offset 20   **12 bytes raw** → _destroyedAiEvent COMPOSITE
+//!                  (split across 4 rust fields:
+//!                   destroyed_ai_event_head u16,
+//!                   destroyed_ai_event_pad  u16,
+//!                   destroyed_ai_event_hash u32,
+//!                   destroyed_ai_event_tail u32)
+//!   offset 32   sub_1410CFA30 (u16) → ...
+//!   offset 34   sub_1410CFA30 (u16) → ...
+//!   ...
+//!
+//! NattKh schema lists `_destroyedAiEvent` as a single 12-byte
+//! canonical at this position; the rust struct already documents the
+//! 12-byte composite split (head=0xFFFF, pad=0, hash u32 varies,
+//! tail=0xFFFFFFFF — empirically confirmed across all 111 entries).
+//! Wire-level confirmation: **`_destroyedAiEvent` is a pure 1-to-4
+//! wrapper** around the four `destroyed_ai_event_*` rust fields.
+//! Closure path: 1-to-N alias entry. No new decoder work needed.
 
 use crate::binary::*;
 use crate::py_binary_struct;

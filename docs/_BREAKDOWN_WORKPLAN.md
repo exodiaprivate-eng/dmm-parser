@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 73: equip_type_info `_destroyedAiEvent` closure plan (1-to-4 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410A9500 (iter 55 typeinfo registry). The 12-byte raw read at offset 20 confirms `_destroyedAiEvent` is a pure 1-to-4 wrapper around `destroyed_ai_event_head` (u16), `destroyed_ai_event_pad` (u16), `destroyed_ai_event_hash` (u32), `destroyed_ai_event_tail` (u32). Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/equip_type_info/info.rs.
+
 - [x] GAP iter 72: sub_level_info `_exp` closure plan (1-to-4 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410C9FF0 (iter 56 typeinfo registry). The single sub_141DFB780 call at offset 32 consumes 32 bytes spanning the 28-byte exp composite (3×u64 + u32). Confirmed `_exp` is a pure 1-to-4 wrapper around the unrolled `exp_a, exp_b, exp_c, exp_d` rust fields. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/sub_level_info/info.rs.
 
 - [x] GAP iter 71: royal_supply_info closure plan (1-to-2 wrap) — 2026-05-10 SUCCESS. Decompiled sub_1410C3220 (iter 56 typeinfo registry). 7 wire reads. Two consecutive sub_1410D7290 calls at offsets 24 and 56 confirm `_royalSupplyRandomMap` is a pure 1-to-2 wrapper around `royal_supply_random_map_quest` + `royal_supply_random_map_mission`. Closure path: 1-to-N alias entry. Doc-comment updated in src/tables/royal_supply_info/info.rs.
