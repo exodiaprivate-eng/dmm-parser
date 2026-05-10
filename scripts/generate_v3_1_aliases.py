@@ -86,6 +86,18 @@ MANUAL_OVERRIDES = {
     # the LocalizableString read at offset 192 corresponds to the
     # `_complteDescription` canonical from the schema.
     ("multi_change_info",              "complete_description"):              "_complteDescription",  # NB: PA typo, missing 'e'
+
+    # Iter 77: rust field `level_gimmick_scene_object_data_list` was an
+    # early guess based on the field's payload type. Win-IDA decompile of
+    # sub_1410AFE20 (knowledge_info per-record reader, iter 47 typeinfo
+    # registry) shows the final CArray<U32U32Pair> read at offset 248 is
+    # the only unmapped wire read, and `_linkKnowledgeNodeList` is the
+    # only unmapped schema canonical. Each U32U32Pair = (source node key,
+    # target node key) — i.e. knowledge-graph link list. Tuple-scoped
+    # override is safe because LevelGimmickSceneObjectInfo (which DOES
+    # legitimately use `_levelGimmickSceneObjectDataList`) is keyed
+    # separately.
+    ("knowledge_info",                 "level_gimmick_scene_object_data_list"): "_linkKnowledgeNodeList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

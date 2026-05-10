@@ -40,4 +40,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("learning_position", "_learningPosition"),
     ("learning_stage_info", "_learningStageInfo"),
     ("learn_apply_skill_info", "_learnApplySkillInfo"),
+    ("level_gimmick_scene_object_data_list", "_linkKnowledgeNodeList"),
 ];

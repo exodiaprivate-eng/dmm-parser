@@ -1,6 +1,28 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader: `sub_1410E36C0` in CrimsonDesert.exe (Win build).
+//!
+//! ─── v3.1 closure analysis (iter 77) ────────────────────────────────────
+//! Cross-check via `sub_1410AFE20` (typeinfo→record-reader path per the
+//! iter 47 typeinfo registry). All wire reads pair to rust fields except
+//! one — the FINAL CArray read at offset 248 (via `sub_1410D1660`):
+//!
+//!   Last wire read:   sub_1410D1660 → CArray<U32U32Pair>
+//!   Rust field name:  `level_gimmick_scene_object_data_list`
+//!   Canonical (PA):   `_linkKnowledgeNodeList`  (only unmapped schema entry)
+//!
+//! The rust name `level_gimmick_scene_object_data_list` was an early
+//! guess. PA's canonical is `_linkKnowledgeNodeList` — semantically
+//! "list of links to other knowledge-graph nodes" (each pair = source
+//! node key + target node key). This is the single missing canonical.
+//!
+//! Closure (shipped): tuple-scoped MANUAL_OVERRIDES entry maps
+//! `(knowledge_info, level_gimmick_scene_object_data_list)` →
+//! `_linkKnowledgeNodeList`. Safety-checked: the literal canonical
+//! `_levelGimmickSceneObjectDataList` is owned by a DIFFERENT table
+//! (LevelGimmickSceneObjectInfo), so the tuple-scoping prevents
+//! collisions. Schema verifier confirms knowledge_info is now 30/30
+//! verified, 0 missing canonicals (down from 1).
 //! KnowledgeLevelData inner reader: `sub_1410E3300` (232 byte struct).
 //! KnowledgeMeditationData inner reader: `sub_1410E3170` (88 byte struct).
 //! KnowledgeLearnDialog inner reader: `sub_141114070` body block.

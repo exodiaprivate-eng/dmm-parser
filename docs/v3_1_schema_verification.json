@@ -1120,14 +1120,12 @@
     "knowledge_info": {
       "schema_key": "KnowledgeInfo",
       "in_schema": true,
-      "alias_count": 29,
+      "alias_count": 30,
       "schema_field_count": 30,
-      "verified": 29,
+      "verified": 30,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_linkKnowledgeNodeList"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "level_action_point_info": {
       "schema_key": "LevelActionPointInfo",
@@ -1780,9 +1778,9 @@
     }
   },
   "totals": {
-    "verified": 1153,
+    "verified": 1154,
     "mismatch": 0,
-    "missing_in_dmm": 556,
+    "missing_in_dmm": 555,
     "extra_in_dmm": 0
   }
 }
