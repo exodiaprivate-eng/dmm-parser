@@ -58,8 +58,9 @@ trace back to the same underlying canonical names, just via different
 paths (Korean error strings vs metaobject reflection symbols).
 
 See `docs/V3_1_SCHEMA_VERIFICATION.md` for per-table verification detail
-and `docs/V3_1_DECODER_GAPS.md` for the 584 schema fields dmm-parser's
-struct definitions don't currently expose.
+and `docs/V3_1_DECODER_GAPS.md` for the 549 schema fields (down from
+584 at iter-35 baseline) that dmm-parser's struct definitions don't
+currently expose.
 
 ## ⚠️ Structural blocker discovered (2026-05-09, Session 26 iter 1)
 

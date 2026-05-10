@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] DOCS iter 89: stale "584" sweep across user-facing docs — 2026-05-10 SUCCESS. After iter-86's V3_1_DECODER_GAPS Summary refresh, 4 user-facing docs still cited the iter-35-baseline "584 schema fields not yet decoded": 449_TABLE_CATALOG.md, CUSTOM_ITEM_CREATOR_V3_1.md, T0_AUDIT_TRACKING.md, V3_1_README.md. All 4 updated to current 549 with iter-35-baseline cross-reference. Historical mentions in SHIPPED.md / _BREAKDOWN_WORKPLAN.md left as-is (they're documenting completed events). Docs-only commit.
+
 - [x] DOCS iter 88: stale "8,362" sweep across remaining docs — 2026-05-10 SUCCESS. Iter-22's correction propagated to T0_AUDIT_TRACKING.md and the SHIPPED.md iter-summary table (which still cited "8,362 classes / 32,363 fields" in the REFLECT/CATALOG rows + "398/14" in the GAP row). Each remaining "8,362" mention is now in self-correcting context (explicit pointer to iter 22 + explanation of the prefab-path artifact). GAP row also updated 398/14 → 86/23/549 numbers. Audit query `grep -rln "8,362\|8362" docs/` now returns only contextual mentions. Docs-only commit.
 
 - [x] DOCS iter 87: SHIPPED.md fact-corrections (8362→231/938 classes; 398→549 gaps; iter-70-86 closure addendum) — 2026-05-10 SUCCESS. Two stale facts corrected: (1) "8,362-class catalogue" replaced with the iter-22-corrected 231 classes / 938 fields (8,131 of original were prefab file paths dumped as `__pycr_type__` markers, not real classes); (2) "398 fields across 14 *Info tables" updated to current 549/23 with cross-reference to the MOD_AUTHOR_GUIDE.md 4-class taxonomy. Added a new "iter 70-86 closure work" bullet to acknowledge the resumed-loop overrides progress in the "What did NOT solve" section's history. Docs-only commit.

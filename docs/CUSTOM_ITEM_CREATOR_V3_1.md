@@ -599,7 +599,7 @@ A one-shot migration script (`migrate_custom_items_to_v3_1.py`) would automate t
 - **SWISS Stacker:** `CrimsonGameMods/gui/tabs/stacker.py`
 - **Field JSON v3.1 Spec:** `FIELD_JSON_V3_1_SPEC.md` (in CrimsonGameMods repo)
 - **Benreuveni's source:** `crimson-desert-add-item-main/lib/iteminfo.py`, `lib/paloc.py`, `lib/stats.py`
-- **v3.1 schema verification (Session 28):** `docs/V3_1_SCHEMA_VERIFICATION.md` (per-table coverage), `docs/V3_1_DECODER_GAPS.md` (584 schema fields not yet decoded — includes ItemInfo-relevant tables), `docs/V3_1_PYCRIMSON_WORKFLOW.md` (reflection-format coverage)
+- **v3.1 schema verification (Session 28):** `docs/V3_1_SCHEMA_VERIFICATION.md` (per-table coverage), `docs/V3_1_DECODER_GAPS.md` (549 schema fields not yet decoded as of iter 86 — was 584 at iter-35 baseline; includes ItemInfo-relevant tables), `docs/V3_1_PYCRIMSON_WORKFLOW.md` (reflection-format coverage)
 
 ---
 
