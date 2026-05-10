@@ -473,7 +473,24 @@ for its canonical field list.
 Cron-loop harvest spans `.prefab` + `.parg` + `.pasg` + `.paseqc` +
 `.paa_metabin` (~47k parsed reflection files). Full per-class field
 catalog: `docs/v3_1_reflection_schema.json` (machine-readable).
-Headcount: **8,362 classes / 32,363 canonical fields**.
+
+**Headcount (corrected 2026-05-10 iter 22):** the JSON contains 8,362
+top-level entries, but only **231 are actual PA reflection classes**
+(938 canonical fields). The remaining 8,131 entries are **prefab file
+paths** that pycrimson dumps as `__pycr_type__` for `_components` array
+elements — they're per-asset prefab *instances* keyed by path
+(`/object/cd_gimmick/...`, `/character/prefab/...`), not class names.
+Their nested fields (31,425 total) are reused references to the same
+231 real classes.
+
+So the correct framing:
+
+- **231 distinct PA reflection classes** with **938 canonical fields**.
+- Used across **8,131 distinct prefab paths** in the sample, each
+  carrying multiple class instances.
+
+Earlier doc revisions inflated the headline to "8,362 classes / 32,363
+fields" by counting prefab-path entries as classes. Corrected here.
 
 #### By family
 

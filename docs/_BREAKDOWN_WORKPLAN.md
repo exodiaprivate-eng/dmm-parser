@@ -53,9 +53,16 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-
+- [ ] EXTENSION-MAP: Document every extension in pycrimson's file_format_notes.md (~80 extensions) with one-line purpose + handler in BINARY_FORMATS.md.
+- [ ] TABLE-COMPLETION: Batch-add canonical-field catalog to the 68 fully-decoded *Info tables (those with 0 missing fields). Same pattern as GAP iter 11.
+- [ ] CROSS-VALIDATE: For each of the top 50 reflection classes, check if their canonical fields appear in NattKh schema for cross-source validation. Build confidence index.
+- [ ] LONG-TAIL-2: Find every reflection class containing a domain-specific suffix (Data, Component, Constant, Param, Ref, Buffer) and tally per-domain coverage in ENGINE_INTERNALS.md.
+- [ ] DECODER-GAP-PRIORITY: For each of the 14 GAP tables, look at byte-offset distribution in NattKh schema; cluster gaps that share decoder function vs isolated. Priority hints in V3_1_DECODER_GAPS.md.
+- [ ] HONEST-DOC: Write "Known Limitations 2026-05-10" section in STATUS.md detailing what 100% coverage means in practice given pycrimson upstream blockers + Havok layer + paatt embedded blocker.
+- [ ] SCRIPT-DOC: Audit scripts/ Python files; write scripts/README.md documenting each.
 
 ## Done
+- [x] LONG-TAIL: Pattern-analyze 8,233 uncategorized "classes" — 2026-05-10 13:30 CRITICAL CORRECTION FOUND. Discovered the 8,233 entries are ~8,131 prefab FILE PATHS (e.g. `/object/cd_gimmick/...prefab`) that pycrimson dumps as `__pycr_type__` for component-array instances, NOT class names. **Real PA reflection class count is 231 (with 938 canonical fields)**, not 8,362 / 32,363. Corrected the headline numbers in ENGINE_INTERNALS.md Master class index + STATUS.md Game Surface Coverage Map. Cron `15ac410b` was previously cancelled; re-armed as `ed2ab1e1` to continue work per user direction.
 - [x] DOCS: SHIPPED.md cross-reference index — 2026-05-10 13:18 SUCCESS. Wrote `docs/SHIPPED.md` (placed in docs/ rather than root per project CLAUDE.md "NEVER save working files, text/mds, or tests to the root folder"). Catalogues all 31 commits from Session 28 + 19 loop iters with cross-links to STATUS / V3_1_README / ENGINE_INTERNALS / BINARY_FORMATS / per-table info.rs. Phase totals + "what this run did NOT solve" honest accounting included.
 
 **DOCS phase complete (5/5).** **Loop phases all complete: REFLECT 10/10 · CATALOG 1/1 · GAP 15/15 · DESC 5/5 · VARIANT 4/4 · DOCS 5/5.**
