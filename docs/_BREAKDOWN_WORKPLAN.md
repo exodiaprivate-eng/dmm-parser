@@ -64,6 +64,16 @@ descriptor class via Win-IDA).
 exhausted (every loop-amenable task done). Cron `15ac410b` cancelled via
 CronDelete. PushNotification sent.
 
+**iter 21 — late-fire confirms stop (2026-05-10 13:25).** A queued cron firing
+landed after CronDelete and used the iter as a final negative-result probe:
+tested pycrimson on 9 unannotated extensions (`.pasound`, `.seqmt`,
+`.linkedsceneobject`, `.binarygimmick`, `.binarygimmickcacheddata`,
+`.binarygimmickframeevent`, `.paacdesc`, `.pas`, `.ies`). All 9 fail with
+the same parc-header buffer-underflow as `.palevel`/`.pae`. Confirms
+pycrimson only handles the explicitly (reflection)-annotated formats;
+no hidden wins available. Files NOT extracted to disk for the failures.
+Loop confirmed stopped, no further re-arming.
+
 What remains is NOT 1-min-loop-amenable:
 - 398 missing fields needing actual decoder Rust code (per *Info table; ~hours each)
 - Havok Layer B parser implementation (multi-day project)
