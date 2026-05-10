@@ -88361,6 +88361,12 @@
     "files_observed_in": 3692,
     "first_observed_in": "p_00085d180d4b.json"
   },
+  "AnimationMetaData": {
+    "fields": [],
+    "field_count": 0,
+    "files_observed_in": 564,
+    "first_observed_in": "a_000e527f2b53.json"
+  },
   "ApplySkillFromCollidingWithObjectContainer": {
     "fields": [
       "_applyType",
