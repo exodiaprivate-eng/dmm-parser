@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1127**
+- Total field aliases verified:       **1137**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **582**
+- Total schema fields not decoded:    **572**
 
 ## Tables not in NattKh schema
 
@@ -68,12 +68,12 @@ Korean-error-string parser path.
 | `drop_set_info` | 12 | 12 | 0 | 0 |
 | `dye_color_group_info` | 6 | 6 | 0 | 0 |
 | `effect_info` | 8 | 8 | 0 | 0 |
-| `elemental_material_info` | 18 | 18 | 0 | 2 |
+| `elemental_material_info` | 19 | 19 | 0 | 1 |
 | `equip_info` | 6 | 6 | 0 | 1 |
 | `equip_type_info` | 19 | 19 | 0 | 1 |
 | `faction_group_info` | 8 | 8 | 0 | 0 |
 | `faction_info` | 19 | 19 | 0 | 0 |
-| `faction_node_info` | 16 | 16 | 0 | 15 |
+| `faction_node_info` | 17 | 17 | 0 | 14 |
 | `faction_node_spawn_info` | 4 | 4 | 0 | 2 |
 | `faction_relation_group_info` | 3 | 3 | 0 | 1 |
 | `faction_spawn_data_info` | 7 | 7 | 0 | 0 |
@@ -96,7 +96,7 @@ Korean-error-string parser path.
 | `gimmick_group_info` | 25 | 25 | 0 | 45 |
 | `gimmick_info` | 6 | 6 | 0 | 153 |
 | `global_game_event_group_info` | 3 | 3 | 0 | 2 |
-| `global_game_event_info` | 4 | 4 | 0 | 4 |
+| `global_game_event_info` | 5 | 5 | 0 | 3 |
 | `global_stage_sequencer_info` | 12 | 12 | 0 | 2 |
 | `interaction_info` | 8 | 8 | 0 | 29 |
 | `inventory_info` | 10 | 10 | 0 | 1 |
@@ -104,8 +104,8 @@ Korean-error-string parser path.
 | `item_use_info` | 3 | 3 | 0 | 1 |
 | `job_info` | 7 | 7 | 0 | 0 |
 | `key_map_setting_list_info` | 4 | 4 | 0 | 0 |
-| `knowledge_group_info` | 13 | 13 | 0 | 2 |
-| `knowledge_info` | 27 | 27 | 0 | 3 |
+| `knowledge_group_info` | 15 | 15 | 0 | 0 |
+| `knowledge_info` | 28 | 28 | 0 | 2 |
 | `level_action_point_info` | 5 | 5 | 0 | 0 |
 | `level_gimmick_scene_object_info` | 22 | 22 | 0 | 2 |
 | `local_string_info` | 5 | 5 | 0 | 0 |
@@ -113,7 +113,7 @@ Korean-error-string parser path.
 | `material_match_info` | 8 | 8 | 0 | 0 |
 | `material_relation_info` | 4 | 4 | 0 | 0 |
 | `mercenary_info` | 15 | 15 | 0 | 0 |
-| `mini_game_data_info` | 15 | 15 | 0 | 1 |
+| `mini_game_data_info` | 16 | 16 | 0 | 0 |
 | `mission_info` | 15 | 15 | 0 | 25 |
 | `multi_change_info` | 24 | 24 | 0 | 1 |
 | `npc_info` | 15 | 15 | 0 | 0 |
@@ -137,11 +137,11 @@ Korean-error-string parser path.
 | `skill_tree_info` | 15 | 15 | 0 | 0 |
 | `socket_group_info` | 4 | 4 | 0 | 0 |
 | `socket_info` | 5 | 5 | 0 | 0 |
-| `spawning_pool_auto_spawn_info` | 14 | 14 | 0 | 1 |
+| `spawning_pool_auto_spawn_info` | 15 | 15 | 0 | 0 |
 | `special_mode_info` | 23 | 23 | 0 | 1 |
 | `stage_info` | 10 | 10 | 0 | 72 |
 | `status_group_info` | 8 | 8 | 0 | 0 |
-| `status_info` | 33 | 33 | 0 | 1 |
+| `status_info` | 34 | 34 | 0 | 0 |
 | `store_info` | 20 | 20 | 0 | 1 |
 | `string_info` | 4 | 4 | 0 | 0 |
 | `sub_level_info` | 22 | 22 | 0 | 1 |
@@ -150,7 +150,7 @@ Korean-error-string parser path.
 | `tribe_info` | 3 | 3 | 0 | 26 |
 | `trigger_region_info` | 4 | 4 | 0 | 0 |
 | `valid_schedule_action_info` | 6 | 6 | 0 | 0 |
-| `vehicle_info` | 18 | 18 | 0 | 3 |
+| `vehicle_info` | 19 | 19 | 0 | 2 |
 | `vibrate_pattern_info` | 6 | 6 | 0 | 0 |
 | `wanted_info` | 5 | 5 | 0 | 0 |
 
@@ -334,10 +334,9 @@ Korean-error-string parser path.
 
 ### `elemental_material_info` (schema key: `ElementalMaterialInfo`)
 
-**Schema fields not in dmm-parser** (2):
+**Schema fields not in dmm-parser** (1):
 
 - `_flag`
-- `_parentMaterialKeyListDeprecatedXXX`
 
 ### `equip_info` (schema key: `EquipInfo`)
 
@@ -353,7 +352,7 @@ Korean-error-string parser path.
 
 ### `faction_node_info` (schema key: `FactionNodeInfo`)
 
-**Schema fields not in dmm-parser** (15):
+**Schema fields not in dmm-parser** (14):
 
 - `_bitMapColorKey`
 - `_factionEventDataList`
@@ -368,7 +367,6 @@ Korean-error-string parser path.
 - `_researchDataList`
 - `_subInnerTypeString`
 - `_useCustomWayPointforDev`
-- `_wayPointDataList_deprecated`
 - `_workerCount`
 
 ### `faction_node_spawn_info` (schema key: `FactionNodeSpawnInfo`)
@@ -640,10 +638,9 @@ Korean-error-string parser path.
 
 ### `global_game_event_info` (schema key: `GlobalGameEventInfo`)
 
-**Schema fields not in dmm-parser** (4):
+**Schema fields not in dmm-parser** (3):
 
 - `_eventDesc`
-- `_executeDataList`
 - `_targetRegionInfoList`
 - `_uiIconPath`
 
@@ -700,18 +697,10 @@ Korean-error-string parser path.
 
 - `_itemUseInfoData`
 
-### `knowledge_group_info` (schema key: `KnowledgeGroupInfo`)
+### `knowledge_info` (schema key: `KnowledgeInfo`)
 
 **Schema fields not in dmm-parser** (2):
 
-- `_isShowUI`
-- `_isShowUIAlert`
-
-### `knowledge_info` (schema key: `KnowledgeInfo`)
-
-**Schema fields not in dmm-parser** (3):
-
-- `_isShowUI`
 - `_isShowUIAlert`
 - `_linkKnowledgeNodeList`
 
@@ -721,12 +710,6 @@ Korean-error-string parser path.
 
 - `_levelGimmickSceneObjectDataList`
 - `_onDiscoverOnlyEnable`
-
-### `mini_game_data_info` (schema key: `MiniGameDataInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_uiViewID`
 
 ### `mission_info` (schema key: `MissionInfo`)
 
@@ -784,12 +767,6 @@ Korean-error-string parser path.
 **Schema fields not in dmm-parser** (1):
 
 - `_royalSupplyRandomMap`
-
-### `spawning_pool_auto_spawn_info` (schema key: `SpawningPoolAutoSpawnInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_collectFilter_Dev`
 
 ### `special_mode_info` (schema key: `SpecialModeInfo`)
 
@@ -874,12 +851,6 @@ Korean-error-string parser path.
 - `_weatherIngTime`
 - `_weatherStartBlendTime`
 
-### `status_info` (schema key: `StatusInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_statusIndexXXXXX`
-
 ### `store_info` (schema key: `StoreInfo`)
 
 **Schema fields not in dmm-parser** (1):
@@ -932,8 +903,7 @@ Korean-error-string parser path.
 
 ### `vehicle_info` (schema key: `VehicleInfo`)
 
-**Schema fields not in dmm-parser** (3):
+**Schema fields not in dmm-parser** (2):
 
 - `_parentLinkAttachDataList`
-- `_showCountOnUI`
 - `_vehicleSeatDataList`

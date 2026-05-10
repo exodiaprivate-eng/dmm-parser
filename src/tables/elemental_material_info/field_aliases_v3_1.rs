@@ -26,6 +26,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("elemental_material_state_data_list", "_elementalMaterialStateDataList"),
     ("min_stat_list", "_minStatList"),
     ("max_stat_list", "_maxStatList"),
+    ("parent_material_key_list_deprecated_xxx", "_parentMaterialKeyListDeprecatedXXX"),
     ("is_system_type", "_isSystemType"),
     ("elemental_material_stat_data_list", "_elementalMaterialStatDataList"),
     ("scene_object_spawnable_type", "_sceneObjectSpawnableType"),

@@ -15,6 +15,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
     ("regenerate_type", "_regenerateType"),
+    ("status_index_xxxxx", "_statusIndexXXXXX"),
     ("is_hard_coded", "_isHardCoded"),
     ("use_init_value_zero", "_useInitValueZero"),
     ("min_resistance_status_info", "_minResistanceStatusInfo"),

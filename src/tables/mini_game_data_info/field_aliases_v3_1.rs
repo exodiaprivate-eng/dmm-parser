@@ -16,6 +16,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("is_blocked", "_isBlocked"),
     ("script_name", "_scriptName"),
     ("phase_panel_tag_name", "_phasePanelTagName"),
+    ("ui_view_id", "_uiViewID"),
     ("use_deactive_result", "_useDeactiveResult"),
     ("need_change_character_scale", "_needChangeCharacterScale"),
     ("entrance_fee_list", "_entranceFeeList"),

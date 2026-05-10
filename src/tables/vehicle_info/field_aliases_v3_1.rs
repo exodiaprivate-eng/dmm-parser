@@ -25,6 +25,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("cargo_seat_index_list", "_cargoSeatIndexList"),
     ("call_vehicle_voxel_type", "_callVehicleVoxelType"),
     ("is_main_dischargeable", "_isMainDischargeable"),
+    ("show_count_on_ui", "_showCountOnUI"),
     ("ui_map_texture_info", "_uiMapTextureInfo"),
     ("send_damage_to", "_sendDamageTo"),
     ("character_switchable", "_characterSwitchable"),

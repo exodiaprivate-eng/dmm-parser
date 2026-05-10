@@ -23,5 +23,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("knowledge_info_list", "_knowledgeInfoList"),
     ("child_knowledge_group_info_list", "_childKnowledgeGroupInfoList"),
     ("parent_knowledge_group_info", "_parentKnowledgeGroupInfo"),
+    ("is_show_ui", "_isShowUI"),
+    ("is_show_uialert", "_isShowUIAlert"),
     ("is_meditation_learnable", "_isMeditationLearnable"),
 ];

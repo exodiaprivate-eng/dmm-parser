@@ -450,14 +450,13 @@
     "elemental_material_info": {
       "schema_key": "ElementalMaterialInfo",
       "in_schema": true,
-      "alias_count": 18,
+      "alias_count": 19,
       "schema_field_count": 20,
-      "verified": 18,
+      "verified": 19,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
+      "missing_in_dmm_count": 1,
       "missing_in_dmm": [
-        "_flag",
-        "_parentMaterialKeyListDeprecatedXXX"
+        "_flag"
       ]
     },
     "equip_info": {
@@ -512,11 +511,11 @@
     "faction_node_info": {
       "schema_key": "FactionNodeInfo",
       "in_schema": true,
-      "alias_count": 16,
+      "alias_count": 17,
       "schema_field_count": 31,
-      "verified": 16,
+      "verified": 17,
       "mismatch": [],
-      "missing_in_dmm_count": 15,
+      "missing_in_dmm_count": 14,
       "missing_in_dmm": [
         "_bitMapColorKey",
         "_factionEventDataList",
@@ -531,7 +530,6 @@
         "_researchDataList",
         "_subInnerTypeString",
         "_useCustomWayPointforDev",
-        "_wayPointDataList_deprecated",
         "_workerCount"
       ]
     },
@@ -998,14 +996,13 @@
     "global_game_event_info": {
       "schema_key": "GlobalGameEventInfo",
       "in_schema": true,
-      "alias_count": 4,
+      "alias_count": 5,
       "schema_field_count": 8,
-      "verified": 4,
+      "verified": 5,
       "mismatch": [],
-      "missing_in_dmm_count": 4,
+      "missing_in_dmm_count": 3,
       "missing_in_dmm": [
         "_eventDesc",
-        "_executeDataList",
         "_targetRegionInfoList",
         "_uiIconPath"
       ]
@@ -1125,26 +1122,22 @@
     "knowledge_group_info": {
       "schema_key": "KnowledgeGroupInfo",
       "in_schema": true,
-      "alias_count": 13,
+      "alias_count": 15,
       "schema_field_count": 15,
-      "verified": 13,
+      "verified": 15,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
-      "missing_in_dmm": [
-        "_isShowUI",
-        "_isShowUIAlert"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "knowledge_info": {
       "schema_key": "KnowledgeInfo",
       "in_schema": true,
-      "alias_count": 27,
+      "alias_count": 28,
       "schema_field_count": 30,
-      "verified": 27,
+      "verified": 28,
       "mismatch": [],
-      "missing_in_dmm_count": 3,
+      "missing_in_dmm_count": 2,
       "missing_in_dmm": [
-        "_isShowUI",
         "_isShowUIAlert",
         "_linkKnowledgeNodeList"
       ]
@@ -1230,14 +1223,12 @@
     "mini_game_data_info": {
       "schema_key": "MiniGameDataInfo",
       "in_schema": true,
-      "alias_count": 15,
+      "alias_count": 16,
       "schema_field_count": 16,
-      "verified": 15,
+      "verified": 16,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_uiViewID"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "mission_info": {
       "schema_key": "MissionInfo",
@@ -1529,14 +1520,12 @@
     "spawning_pool_auto_spawn_info": {
       "schema_key": "SpawningPoolAutoSpawnInfo",
       "in_schema": true,
-      "alias_count": 14,
+      "alias_count": 15,
       "schema_field_count": 15,
-      "verified": 14,
+      "verified": 15,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_collectFilter_Dev"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "special_mode_info": {
       "schema_key": "SpecialModeInfo",
@@ -1646,14 +1635,12 @@
     "status_info": {
       "schema_key": "StatusInfo",
       "in_schema": true,
-      "alias_count": 33,
+      "alias_count": 34,
       "schema_field_count": 34,
-      "verified": 33,
+      "verified": 34,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_statusIndexXXXXX"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "store_info": {
       "schema_key": "StoreInfo",
@@ -1787,14 +1774,13 @@
     "vehicle_info": {
       "schema_key": "VehicleInfo",
       "in_schema": true,
-      "alias_count": 18,
+      "alias_count": 19,
       "schema_field_count": 21,
-      "verified": 18,
+      "verified": 19,
       "mismatch": [],
-      "missing_in_dmm_count": 3,
+      "missing_in_dmm_count": 2,
       "missing_in_dmm": [
         "_parentLinkAttachDataList",
-        "_showCountOnUI",
         "_vehicleSeatDataList"
       ]
     },
@@ -1820,9 +1806,9 @@
     }
   },
   "totals": {
-    "verified": 1127,
+    "verified": 1137,
     "mismatch": 0,
-    "missing_in_dmm": 582,
+    "missing_in_dmm": 572,
     "extra_in_dmm": 0
   }
 }

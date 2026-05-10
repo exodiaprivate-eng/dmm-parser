@@ -25,4 +25,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("check_forbidden_area", "_checkForbiddenArea"),
     ("attach_to_socket", "_attachToSocket"),
     ("is_exist_indoor_type", "_isExistIndoorType"),
+    ("collect_filter_dev", "_collectFilter_Dev"),
 ];

@@ -40,6 +40,23 @@ MANUAL_OVERRIDES = {
     # reader) cross-referenced against NattKh schema entries (iter 31).
     ("effect_info", "effect_data"):      "_effectDataList",
     ("effect_info", "mesh_effect_data"): "_meshEffectDataList",
+
+    # Acronym-casing divergences (iter 32). Mechanical translation produces
+    # camelCase like `_isShowUi`; schema preserves uppercase acronyms like
+    # `_isShowUI`. These are EXACT camelCase reverses where the Rust snake
+    # form is the unambiguous reverse-translation of the canonical name.
+    ("knowledge_info",        "is_show_ui"):           "_isShowUI",
+    ("knowledge_group_info",  "is_show_ui"):           "_isShowUI",
+    ("knowledge_group_info",  "is_show_uialert"):      "_isShowUIAlert",
+    ("mini_game_data_info",   "ui_view_id"):           "_uiViewID",
+    ("vehicle_info",          "show_count_on_ui"):     "_showCountOnUI",
+    ("status_info",           "status_index_xxxxx"):   "_statusIndexXXXXX",
+    ("elemental_material_info", "parent_material_key_list_deprecated_xxx"): "_parentMaterialKeyListDeprecatedXXX",
+    ("faction_node_info",     "way_point_data_list_deprecated"): "_wayPointDataList_deprecated",
+    ("spawning_pool_auto_spawn_info", "collect_filter_dev"): "_collectFilter_Dev",
+
+    # Singular/plural divergence (canonical has _List suffix; rust does not)
+    ("global_game_event_info", "execute_data"):        "_executeDataList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
