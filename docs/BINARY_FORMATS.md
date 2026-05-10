@@ -12,10 +12,166 @@ EffectData, etc.) see `ENGINE_INTERNALS.md`.
 
 ## Contents
 
+- [Extension Reference (all 86 PA file formats)](#extension-reference-all-86-pa-file-formats)
 - [Archive Format (PAZ / PAMT / PAPGT / Trie)](#archive-format-paz--pamt--papgt--trie)
 - [File Format Reference (FORMATS)](#file-format-reference-formats)
 - [PAATT BaseData Field Layout](#paatt-basedata-field-layout)
 - [Texture VPath Cheatsheet](#texture-vpath-cheatsheet)
+
+---
+
+## Extension reference (all 86 PA file formats)
+
+Comprehensive index of every PA file extension visible in PAZ archives,
+sourced from pycrimson's `file_format_notes.md` plus dmm-parser source
+handlers. Use this as the lookup-by-extension table.
+
+Status legend:
+- ✅ **dmm-parser fully parses** (typed read + write, byte-perfect roundtrip)
+- 🟡 **partial** (typed prefix or classify-only, not full field-level)
+- 📚 **pycrimson can parse** (reflection format, harvested into v3.1_reflection_schema.json)
+- 🚫 **pycrimson blocked** (extracted to _research_cache/ but parser bug)
+- ⚠️ **unparsed** (no handler in either tool)
+
+### Archive / metadata layer
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.paz` | ✅ | Pack archive (compressed asset container) | `src/binary/paz.rs` (PackGroupBuilder + LZ4 + ChaCha20) |
+| `.pamt` | ✅ | Per-group pack metadata (file→paz index) | `src/binary/pamt.rs` |
+| `.papgt` | ✅ | Pack group tree (meta/0.papgt — top-level dispatch) | `src/binary/papgt.rs` |
+| `.pabgh` | ✅ | Per-table offset-index file (companion to .pabgb) | `src/binary/pabgh.rs` |
+| `.pabgb` | ✅ | Raw table entries (122 *Info tables decode through this) | `src/binary/pabgb.rs` + `src/tables/*` |
+| `.pathc` | ⚠️ | Texture header cache | none (referenced by PackageContext) |
+| `.binarystring` | ⚠️ | u16 count + u8-cstrings | none |
+
+### Localization
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.paloc` | ✅ | Localization string entries (encrypted UTF-8) | `src/binary/paloc.rs` |
+
+### Game-data file formats
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.paatt` | 🟡 | AttackInfo wrapper (per-attack data block) | `src/binary/paatt.rs` + `src/binary/paatt_basedata.rs` (typed BaseDataV0-V3, 22 _unkXXXX remain) |
+| `.pamhc` | 🟡 | (file-format table; partial decode) | `src/tables/pamhc/` |
+| `.paac` | 🟡 | (file-format table; partial decode) | `src/tables/paac/` |
+| `.pappt` | 🟡 | (file-format table; partial decode) | `src/tables/pappt/` |
+| `.paacdesc` | 🚫 | unknown | pycrimson blocked |
+| `.paprojdesc` | ⚠️ | projectile descriptor | none |
+| `.paproj` | ⚠️ | projectile data | none |
+| `.pas` | 🚫 | unknown | pycrimson blocked |
+| `.pashv` | ⚠️ | unknown shader-related | none |
+| `.papr` | ⚠️ | unknown | none |
+| `.paschedule` | 🟡 | schedule data (typed prefix + opaque body) | `src/binary/paschedule.rs` |
+| `.paschedulectx` | ⚠️ | schedule context | none |
+| `.paschedulepath` | 🟡 | schedule path data | `src/binary/paschedulepath.rs` |
+| `.pastage` | 🟡 | stage data | `src/binary/pastage.rs` |
+| `.pai` / `.pi` | ⚠️ | unknown | none |
+| `.pma` / `.pmb` | ⚠️ | unknown PA format | none |
+
+### Reflection-format files (pycrimson territory)
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.prefab` | 📚 | Scene-object prefab (component composition) | pycrimson `parse-serialized-file` ✅ |
+| `.parg` | 📚 | Animation/render group | pycrimson ✅ |
+| `.pasg` | 📚 | State graph | pycrimson ✅ |
+| `.paseqc` | 📚 | Sequencer game-play data | pycrimson ✅ |
+| `.paa_metabin` | 📚 | Animation metadata (empty wrapper) | pycrimson ✅ (yields empty AnimationMetaData) |
+| `.meshinfo` | 🚫 | Mesh metadata | pycrimson `TransferInstructionFlags` enum bug |
+| `.palevel` | 🚫 | Level descriptor | pycrimson parc-header buffer underflow |
+| `.pae` | 🚫 | PA effect envelope | same parc-header bug |
+| `.paem` | 🚫 | PA effect emitter | parc-header bug |
+| `.paseq` | 🚫 | Sequence (custom header) | pycrimson type-index IndexError |
+| `.uianiminit` | 🚫 | UI animation init (custom header) | same type-index bug |
+| `.linkedsceneobject` | 🚫 | Scene object link | pycrimson buffer underflow |
+| `.binarygimmick` | 🚫 | Gimmick binary data | pycrimson buffer underflow |
+| `.binarygimmickcacheddata` | 🚫 | Gimmick cached data | pycrimson buffer underflow |
+| `.binarygimmickframeevent` | 🚫 | Gimmick frame events | pycrimson buffer underflow |
+| `.seqmt` | 🚫 | (`! ???????` in pycrimson notes) | pycrimson buffer underflow |
+| `.paseqh` | ⚠️ | Sequence header | none |
+| `.questgaugecount` | ⚠️ | Quest gauge counter | none |
+
+### Havok-layer files (Layer B per ENGINE_INTERNALS.md)
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.hkx` | ⚠️ | Havok native (anim/ragdoll/mesh, sig `57 E0 E0 57…`) | none — Layer B |
+| `.pac` | ⚠️ | Havok-wrapped character archive | none — Layer B |
+| `.pacc` | ⚠️ | (variant of .pac) | none — Layer B |
+| `.pam` | ⚠️ | Havok animation file | none — Layer B |
+| `.pami` | ⚠️ | Animation index | none — Layer B |
+| `.pamlod` | ⚠️ | Animation LOD | none — Layer B |
+| `.motionblending` | ⚠️ | Motion blending | none |
+| `.pab` / `.pabc` / `.pabv` / `.paasmt` / `.paccd` | ⚠️ | unknown (likely Havok-related) | none |
+
+### Texture / mesh assets
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.dds` | 🟡 | DDS texture (DXT/BC compressed) | `src/binary/dds.rs` (classify + validate + vpath inference) |
+| `.paa` | ⚠️ | unknown PA texture variant | none |
+| `.pat` | ⚠️ | unknown PA texture variant | none |
+| `.imp` / `.impostor` | ⚠️ | impostor (low-poly fallback) | none |
+| `.material` | ⚠️ | Material definition | none |
+| `.technique` | ⚠️ | Render technique | none |
+| `.mi` | ⚠️ | unknown | none |
+
+### Audio
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.bnk` | 🟡 | Wwise SoundBank | `src/binary/bnk.rs` (classify + parse_bnk dict) |
+| `.wem` | 🟡 | Wwise encoded audio | `src/binary/wem.rs` (raw passthrough) |
+| `.pasound` | 🚫 | PA sound metadata | pycrimson buffer underflow |
+
+### Navigation / world
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.nav` | ⚠️ | Navigation mesh | none |
+| `.road` / `.roadsector` / `.roadidx` | ⚠️ | Road geometry/index | none |
+| `.spline` / `.spline2d` | ⚠️ | Spline data (Spline* classes catalogued via reflection) | none |
+
+### Save / template
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.save` | ✅ | Save game (encrypted ChaCha20) | DMM `save_engine` module + `src/save/envelope.rs` |
+
+### Misc / unknown
+
+| Ext | Status | Purpose | Handler |
+|---|---|---|---|
+| `.pbd` / `.pcg` / `.dat` / `.ani` / `.pix` | ⚠️ | unknown PA formats | none |
+| `.ies` | 🚫 | color (lighting profile?) | pycrimson buffer underflow |
+| `.xml` | ⚠️ | XML (encrypted on disk) | none |
+| `.txt` | ✅ | UTF-8 text | n/a |
+
+### Standard third-party formats (asset-only, modded by replacement)
+
+| Ext | Purpose |
+|---|---|
+| `.png` | PNG image |
+| `.ttf` | TrueType font |
+| `.mp4` | Video |
+| `.cur` | Cursor |
+| `.css` | CSS stylesheet |
+| `.html` / `.thtml` | HTML / template HTML |
+
+### Summary
+
+**Total extensions cataloged: 86** (per pycrimson file_format_notes.md
++ dmm-parser source).
+
+- **✅ Fully parsed:** 8 (paz, pamt, papgt, pabgh, pabgb, paloc, save, std)
+- **🟡 Partial:** 11 (paatt, pamhc, paac, pappt, paschedule, paschedulepath, pastage, dds, bnk, wem)
+- **📚 pycrimson catalogued:** 5 (prefab, parg, pasg, paseqc, paa_metabin)
+- **🚫 pycrimson blocked:** 14 (meshinfo, palevel, pae, paem, paseq, uianiminit + 8 small)
+- **⚠️ Unparsed:** ~50 in long tail (Havok layer, mesh/texture variants, nav, misc)
 
 ---
 

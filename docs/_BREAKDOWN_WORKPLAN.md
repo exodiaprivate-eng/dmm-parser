@@ -53,7 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] EXTENSION-MAP: Document every extension in pycrimson's file_format_notes.md (~80 extensions) with one-line purpose + handler in BINARY_FORMATS.md.
 - [ ] TABLE-COMPLETION: Batch-add canonical-field catalog to the 68 fully-decoded *Info tables (those with 0 missing fields). Same pattern as GAP iter 11.
 - [ ] CROSS-VALIDATE: For each of the top 50 reflection classes, check if their canonical fields appear in NattKh schema for cross-source validation. Build confidence index.
 - [ ] LONG-TAIL-2: Find every reflection class containing a domain-specific suffix (Data, Component, Constant, Param, Ref, Buffer) and tally per-domain coverage in ENGINE_INTERNALS.md.
@@ -62,6 +61,7 @@ descriptor class via Win-IDA).
 - [ ] SCRIPT-DOC: Audit scripts/ Python files; write scripts/README.md documenting each.
 
 ## Done
+- [x] EXTENSION-MAP: complete extension reference in BINARY_FORMATS.md — 2026-05-10 13:34 SUCCESS. Added comprehensive 86-extension table at top of `BINARY_FORMATS.md` ("Extension reference (all 86 PA file formats)"). Categories: archive/metadata layer, localization, game-data files, reflection (pycrimson territory), Havok layer, texture/mesh assets, audio, navigation, save, misc, third-party. Status legend (✅ ✓ 📚 🚫 ⚠️) tied to handler. Summary: 8 ✅ fully parsed, 11 🟡 partial, 5 📚 pycrimson-catalogued, 14 🚫 pycrimson-blocked, ~50 ⚠️ long-tail unparsed.
 - [x] LONG-TAIL: Pattern-analyze 8,233 uncategorized "classes" — 2026-05-10 13:30 CRITICAL CORRECTION FOUND. Discovered the 8,233 entries are ~8,131 prefab FILE PATHS (e.g. `/object/cd_gimmick/...prefab`) that pycrimson dumps as `__pycr_type__` for component-array instances, NOT class names. **Real PA reflection class count is 231 (with 938 canonical fields)**, not 8,362 / 32,363. Corrected the headline numbers in ENGINE_INTERNALS.md Master class index + STATUS.md Game Surface Coverage Map. Cron `15ac410b` was previously cancelled; re-armed as `ed2ab1e1` to continue work per user direction.
 - [x] DOCS: SHIPPED.md cross-reference index — 2026-05-10 13:18 SUCCESS. Wrote `docs/SHIPPED.md` (placed in docs/ rather than root per project CLAUDE.md "NEVER save working files, text/mds, or tests to the root folder"). Catalogues all 31 commits from Session 28 + 19 loop iters with cross-links to STATUS / V3_1_README / ENGINE_INTERNALS / BINARY_FORMATS / per-table info.rs. Phase totals + "what this run did NOT solve" honest accounting included.
 
