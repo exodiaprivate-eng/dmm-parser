@@ -279,23 +279,163 @@ impl ToJsonValue for DropTargetData {
 }
 
 impl WriteJsonValue for DropTargetData {
+    /// Accepts two JSON shapes:
+    ///
+    /// 1. **Wire-faithful** — every field present with its raw name
+    ///    (`raw_at_120`, `dispatch_tag`, `lookup_4`, ..., `variant`).
+    ///    Used by round-trip from `to_json_value`.
+    ///
+    /// 2. **Semantic** — Stacker / CrimsonGameMods DropSets style. Field
+    ///    names map per the C++ reflection metadata captured from
+    ///    `pa::DropInfoData` registration in CrimsonDesert_Steam (Mac
+    ///    binary, sub_1007515B0):
+    ///
+    ///    | semantic       | C++ field           | wire field     | type | default |
+    ///    |----------------|---------------------|----------------|------|---------|
+    ///    | `item_key`     | `_keyRaw`           | `raw_at_120`   | u64  | 0       |
+    ///    | (no alias)     | `_dropResultType`   | `dispatch_tag` | u8   | 0 (item)|
+    ///    | (no alias)     | `_ownerConditionInfo` | `lookup_4`   | u32  | 0xFFFFFFFF |
+    ///    | (no alias)     | `_playerConditionInfo` | `lookup_6`  | u32  | 0xFFFFFFFF |
+    ///    | (no alias)     | `_gimmickCachedTargetConditionInfo` | `lookup_8` | u32 | 0xFFFFFFFF |
+    ///    | (no alias)     | `_dropTagNameHash`  | `raw_12`       | u32  | 0       |
+    ///    | `rates`        | `_percent` (main)   | `raw_16`       | u64  | 0       |
+    ///    | `rates_100`    | `_percent` (whole)  | `raw_24`       | u32  | 0       |
+    ///    | (no alias)     | `_subPercent`       | `raw_32`       | u64  | 0       |
+    ///    | `min_amt`      | `_minValue`         | `raw_40`       | u64  | 0       |
+    ///    | `max_amt`      | `_maxValue`         | `raw_48`       | u64  | 0       |
+    ///    | (no alias)     | `_enchantLevel`     | `raw_56`       | u16  | 0       |
+    ///
+    ///    For the variant tail at `dispatch_tag = 0` (item drop), the
+    ///    semantic shape writes `item_key as u32` as the 4-byte ItemKey
+    ///    hash. Other tags fall back to the wire-faithful `variant`
+    ///    field; semantic shape with non-zero `dispatch_tag` requires
+    ///    the user to supply `variant` explicitly.
+    ///
+    /// Detection: any object containing both `dispatch_tag` and `variant`
+    /// is wire-faithful; otherwise the semantic path fills in defaults.
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "DropTargetData: expected object"))?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_at_120")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dispatch_tag")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_4")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_6")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_8")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_12")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_16")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_24")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_32")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_40")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_48")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_56")?)?;
-        DropTargetVariant::write_from_json(w, json_get_field(obj, "variant")?)
+
+        // Pick wire field; fall back to semantic alias; then default.
+        let item_key = pick_u64(obj, &["raw_at_120", "item_key"], 0);
+        let dispatch_tag = pick_u8(obj, &["dispatch_tag"], 0);
+        let lookup_4 = pick_u32(obj, &["lookup_4"], 0xFFFFFFFF);
+        let lookup_6 = pick_u32(obj, &["lookup_6"], 0xFFFFFFFF);
+        let lookup_8 = pick_u32(obj, &["lookup_8"], 0xFFFFFFFF);
+        let raw_12 = pick_u32(obj, &["raw_12"], 0);
+        let raw_16 = pick_u64(obj, &["raw_16", "rates"], 0);
+        let raw_24 = pick_u32(obj, &["raw_24", "rates_100"], 0);
+        let raw_32 = pick_u64(obj, &["raw_32"], 0);
+        let raw_40 = pick_u64(obj, &["raw_40", "min_amt"], 0);
+        let raw_48 = pick_u64(obj, &["raw_48", "max_amt"], 0);
+        let raw_56 = pick_u16(obj, &["raw_56"], 0);
+
+        item_key.write_to(w)?;
+        dispatch_tag.write_to(w)?;
+        lookup_4.write_to(w)?;
+        lookup_6.write_to(w)?;
+        lookup_8.write_to(w)?;
+        raw_12.write_to(w)?;
+        raw_16.write_to(w)?;
+        raw_24.write_to(w)?;
+        raw_32.write_to(w)?;
+        raw_40.write_to(w)?;
+        raw_48.write_to(w)?;
+        raw_56.write_to(w)?;
+
+        // Variant tail. Wire-faithful path: explicit `variant` object.
+        // Semantic path: synthesize from dispatch_tag + item_key.
+        if let Some(variant_v) = obj.get("variant") {
+            DropTargetVariant::write_from_json(w, variant_v)
+        } else {
+            write_default_variant_tail(w, dispatch_tag, item_key)
+        }
     }
+}
+
+/// Write a default variant tail for semantic-shape JSON that omitted
+/// `variant`. Each tag has a deterministic shape (see top-level module
+/// docstring) — we fill the simplest valid bytes that get the variant
+/// to round-trip:
+///
+/// - tag 0 (item drop)            : 4 wire bytes — `item_key as u32`
+///   This is the 99% case for Stacker DropSets exports.
+/// - tags 1, 2, 3 (character)     : 4 wire bytes — `item_key as u32`
+/// - tag 4 (knowledge)            : 4 wire bytes — `item_key as u32`
+/// - tag 5, 6, 9, 0xC             : 4 wire bytes — `item_key as u32`
+/// - tag 7, 8 (DropFriendlyData)  : 32 wire bytes of zeros — needs
+///   explicit `variant` object for non-default friendly NPC drops
+/// - tag 0xA                      : 8 bytes (two u32 zero)
+/// - tag 0xB                      : 0 bytes
+/// - tag 0xD                      : 5 bytes (u32 + u8 zero)
+/// - tag 0xE / others             : error — caller must supply `variant`
+fn write_default_variant_tail(w: &mut Vec<u8>, dispatch_tag: u8, item_key: u64) -> io::Result<()> {
+    let key_u32 = item_key as u32;
+    match dispatch_tag {
+        0 | 1 | 2 | 3 | 4 | 5 | 6 | 9 | 0xC => key_u32.write_to(w),
+        7 | 8 => {
+            // DropFriendlyData: 32 zero bytes default. Stacker DropSets
+            // doesn't use these tags; explicit `variant` required for
+            // friendly-NPC drops.
+            for _ in 0..32 { 0u8.write_to(w)?; }
+            Ok(())
+        }
+        0xA => {
+            0u32.write_to(w)?;
+            0u32.write_to(w)?;
+            Ok(())
+        }
+        0xB => Ok(()),
+        0xD => {
+            0u32.write_to(w)?;
+            0u8.write_to(w)?;
+            Ok(())
+        }
+        other => Err(io::Error::new(io::ErrorKind::InvalidData,
+            format!("DropTargetData semantic shape: dispatch_tag {} requires explicit `variant` object", other))),
+    }
+}
+
+/// Helper: read u64 from the first present alias name; default if none.
+fn pick_u64(obj: &Map<String, Value>, names: &[&str], default: u64) -> u64 {
+    for n in names {
+        if let Some(v) = obj.get(*n) {
+            if let Some(x) = v.as_u64() { return x; }
+            if let Some(x) = v.as_i64() { return x as u64; }
+        }
+    }
+    default
+}
+
+fn pick_u32(obj: &Map<String, Value>, names: &[&str], default: u32) -> u32 {
+    for n in names {
+        if let Some(v) = obj.get(*n) {
+            if let Some(x) = v.as_u64() { return x as u32; }
+            if let Some(x) = v.as_i64() { return x as u32; }
+        }
+    }
+    default
+}
+
+fn pick_u16(obj: &Map<String, Value>, names: &[&str], default: u16) -> u16 {
+    for n in names {
+        if let Some(v) = obj.get(*n) {
+            if let Some(x) = v.as_u64() { return x as u16; }
+            if let Some(x) = v.as_i64() { return x as u16; }
+        }
+    }
+    default
+}
+
+fn pick_u8(obj: &Map<String, Value>, names: &[&str], default: u8) -> u8 {
+    for n in names {
+        if let Some(v) = obj.get(*n) {
+            if let Some(x) = v.as_u64() { return x as u8; }
+            if let Some(x) = v.as_i64() { return x as u8; }
+        }
+    }
+    default
 }
 
 /// `sub_141D03AA0` per-element: u8 presence + (if present:

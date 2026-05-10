@@ -1,0 +1,24 @@
+{
+  "format": 3,
+  "modinfo": {
+    "title": "Sample pappt mod (test fixture)",
+    "version": "1.0.0",
+    "author": "DMM Phase 3 test",
+    "description": "Smoke-test mod for Phase 3 file-format apply path. Edits primary[0].flag in partprefabtable.pappt — a benign value with no observable in-game effect, suitable for verifying the dmmv3_pappt overlay group is created and registered cleanly. Mount log should contain '[V3_FILE] partprefabtable.pappt → group dmmv3_pappt' on success.",
+    "note": "Hand-written for DMM 1.3.5 pre-release.7. Once NattKh's mod-workbench gains v3-intent export for file-format tables, this fixture's shape is what authored mods will look like."
+  },
+  "targets": [
+    {
+      "file": "partprefabtable.pappt",
+      "intents": [
+        {
+          "entry": "",
+          "key": 0,
+          "field": "primary[0].flag",
+          "op": "set",
+          "new": 1
+        }
+      ]
+    }
+  ]
+}
