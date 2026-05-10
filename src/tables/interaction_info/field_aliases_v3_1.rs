@@ -15,6 +15,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
     ("interaction_type", "_interactionType"),
+    ("interaction_show_ui_type", "_interactionShowUIType"),
     ("preemption_type", "_preemptionType"),
     ("interaction_name", "_interactionName"),
     ("pivot_selection_target", "_pivotSelectionTarget"),

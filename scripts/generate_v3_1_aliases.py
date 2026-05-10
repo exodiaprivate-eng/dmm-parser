@@ -57,6 +57,19 @@ MANUAL_OVERRIDES = {
 
     # Singular/plural divergence (canonical has _List suffix; rust does not)
     ("global_game_event_info", "execute_data"):        "_executeDataList",
+
+    # Iter 33: aggressive fuzzy match (normalize-equal across underscore +
+    # case). Surfaces more acronym-casing divergences plus a few PA-internal
+    # typos (lowercase 'k' in 'key' / 'knowledge').
+    ("faction_node_spawn_info",        "patrol_ai_spline_data_list"):        "_patrolAISplineDataList",
+    ("interaction_info",               "interaction_show_ui_type"):          "_interactionShowUIType",
+    ("inventory_info",                 "push_item_alert_ui_text"):           "_pushItemAlertUIText",
+    ("knowledge_info",                 "is_show_ui_alert"):                  "_isShowUIAlert",
+    ("platform_achievement_info",      "quest_group_key"):                   "_questGroupkey",  # NB: PA typo, lowercase k
+    ("region_info",                    "is_ui_map_disable"):                 "_isUIMapDisable",
+    ("region_info",                    "region_enter_knowledge_info_list"):  "_regionEnterknowledgeInfoList",  # NB: PA typo, lowercase k
+    ("store_info",                     "custom_mesh_obb_max_length"):        "_customMeshOBBMaxLength",
+    ("terrain_region_auto_spawn_info", "spawn_at_height_field_landscape"):   "_spawnAtHeightFieldLandScape",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

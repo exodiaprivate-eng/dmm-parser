@@ -25,6 +25,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("region_info_list", "_regionInfoList"),
     ("stage_info_list", "_stageInfoList"),
     ("is_show_ui", "_isShowUI"),
+    ("is_show_ui_alert", "_isShowUIAlert"),
     ("is_legendary_animal", "_isLegendaryAnimal"),
     ("ui_component_name", "_uiComponentName"),
     ("knowledge_from_list", "_knowledgeFromList"),

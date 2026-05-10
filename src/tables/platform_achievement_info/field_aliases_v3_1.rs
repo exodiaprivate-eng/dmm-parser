@@ -18,6 +18,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("platform_achievement_ids", "_platformAchievementIds"),
     ("type_", "_type"),
     ("questkey", "_questkey"),
+    ("quest_group_key", "_questGroupkey"),
     ("quest_group_platform_id", "_questGroupPlatformId"),
     ("quest_link_info_list", "_questLinkInfoList"),
 ];

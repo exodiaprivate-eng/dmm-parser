@@ -28,6 +28,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("stock_data_list", "_stockDataList"),
     ("sale_item_type_list", "_saleItemTypeList"),
     ("not_sale_item_type_list", "_notSaleItemTypeList"),
+    ("custom_mesh_obb_max_length", "_customMeshOBBMaxLength"),
     ("fixed_price", "_fixedPrice"),
     ("use_housing_gimmick", "_useHousingGimmick"),
     ("reduce_price_by_looted_dead_body", "_reducePriceByLootedDeadBody"),

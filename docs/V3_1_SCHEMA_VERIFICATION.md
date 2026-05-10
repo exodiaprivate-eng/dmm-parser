@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1137**
+- Total field aliases verified:       **1146**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **572**
+- Total schema fields not decoded:    **563**
 
 ## Tables not in NattKh schema
 
@@ -74,7 +74,7 @@ Korean-error-string parser path.
 | `faction_group_info` | 8 | 8 | 0 | 0 |
 | `faction_info` | 19 | 19 | 0 | 0 |
 | `faction_node_info` | 17 | 17 | 0 | 14 |
-| `faction_node_spawn_info` | 4 | 4 | 0 | 2 |
+| `faction_node_spawn_info` | 5 | 5 | 0 | 1 |
 | `faction_relation_group_info` | 3 | 3 | 0 | 1 |
 | `faction_spawn_data_info` | 7 | 7 | 0 | 0 |
 | `fail_message_info` | 4 | 4 | 0 | 0 |
@@ -98,14 +98,14 @@ Korean-error-string parser path.
 | `global_game_event_group_info` | 3 | 3 | 0 | 2 |
 | `global_game_event_info` | 5 | 5 | 0 | 3 |
 | `global_stage_sequencer_info` | 12 | 12 | 0 | 2 |
-| `interaction_info` | 8 | 8 | 0 | 29 |
-| `inventory_info` | 10 | 10 | 0 | 1 |
+| `interaction_info` | 9 | 9 | 0 | 28 |
+| `inventory_info` | 11 | 11 | 0 | 0 |
 | `item_group_info` | 12 | 12 | 0 | 0 |
 | `item_use_info` | 3 | 3 | 0 | 1 |
 | `job_info` | 7 | 7 | 0 | 0 |
 | `key_map_setting_list_info` | 4 | 4 | 0 | 0 |
 | `knowledge_group_info` | 15 | 15 | 0 | 0 |
-| `knowledge_info` | 28 | 28 | 0 | 2 |
+| `knowledge_info` | 29 | 29 | 0 | 1 |
 | `level_action_point_info` | 5 | 5 | 0 | 0 |
 | `level_gimmick_scene_object_info` | 22 | 22 | 0 | 2 |
 | `local_string_info` | 5 | 5 | 0 | 0 |
@@ -120,13 +120,13 @@ Korean-error-string parser path.
 | `part_prefab_dye_slot_info` | 5 | 5 | 0 | 0 |
 | `part_prefab_dye_texture_pallete_info` | 5 | 5 | 0 | 0 |
 | `pattern_description_info` | 10 | 10 | 0 | 0 |
-| `platform_achievement_info` | 9 | 9 | 0 | 1 |
+| `platform_achievement_info` | 10 | 10 | 0 | 0 |
 | `platform_entitlement_info` | 9 | 9 | 0 | 0 |
 | `quest_gauge_info` | 12 | 12 | 0 | 0 |
 | `quest_group_info` | 15 | 15 | 0 | 0 |
 | `quest_info` | 34 | 34 | 0 | 0 |
 | `quick_time_event_info` | 4 | 4 | 0 | 0 |
-| `region_info` | 19 | 19 | 0 | 4 |
+| `region_info` | 21 | 21 | 0 | 2 |
 | `relation_info` | 11 | 11 | 0 | 0 |
 | `reserve_slot_info` | 17 | 17 | 0 | 0 |
 | `royal_supply_info` | 5 | 5 | 0 | 1 |
@@ -142,10 +142,10 @@ Korean-error-string parser path.
 | `stage_info` | 10 | 10 | 0 | 72 |
 | `status_group_info` | 8 | 8 | 0 | 0 |
 | `status_info` | 34 | 34 | 0 | 0 |
-| `store_info` | 20 | 20 | 0 | 1 |
+| `store_info` | 21 | 21 | 0 | 0 |
 | `string_info` | 4 | 4 | 0 | 0 |
 | `sub_level_info` | 22 | 22 | 0 | 1 |
-| `terrain_region_auto_spawn_info` | 22 | 22 | 0 | 2 |
+| `terrain_region_auto_spawn_info` | 23 | 23 | 0 | 1 |
 | `terrain_region_navi_info` | 4 | 4 | 0 | 0 |
 | `tribe_info` | 3 | 3 | 0 | 26 |
 | `trigger_region_info` | 4 | 4 | 0 | 0 |
@@ -371,10 +371,9 @@ Korean-error-string parser path.
 
 ### `faction_node_spawn_info` (schema key: `FactionNodeSpawnInfo`)
 
-**Schema fields not in dmm-parser** (2):
+**Schema fields not in dmm-parser** (1):
 
 - `_boundaryBox`
-- `_patrolAISplineDataList`
 
 ### `faction_relation_group_info` (schema key: `FactionRelationGroupInfo`)
 
@@ -653,7 +652,7 @@ Korean-error-string parser path.
 
 ### `interaction_info` (schema key: `InteractionInfo`)
 
-**Schema fields not in dmm-parser** (29):
+**Schema fields not in dmm-parser** (28):
 
 - `_allowInteractionWhileInteraction`
 - `_autoInteractionType`
@@ -668,7 +667,6 @@ Korean-error-string parser path.
 - `_inputKeyMapName`
 - `_interactionConditionDataList`
 - `_interactionPopItemList`
-- `_interactionShowUIType`
 - `_interactionTag`
 - `_isCatchInteractionForEditor`
 - `_isPlayerInterruptable`
@@ -685,12 +683,6 @@ Korean-error-string parser path.
 - `_useFacingGotoTransform`
 - `_waitForInteraction`
 
-### `inventory_info` (schema key: `InventoryInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_pushItemAlertUIText`
-
 ### `item_use_info` (schema key: `ItemUseInfo`)
 
 **Schema fields not in dmm-parser** (1):
@@ -699,9 +691,8 @@ Korean-error-string parser path.
 
 ### `knowledge_info` (schema key: `KnowledgeInfo`)
 
-**Schema fields not in dmm-parser** (2):
+**Schema fields not in dmm-parser** (1):
 
-- `_isShowUIAlert`
 - `_linkKnowledgeNodeList`
 
 ### `level_gimmick_scene_object_info` (schema key: `LevelGimmickSceneObjectInfo`)
@@ -747,20 +738,12 @@ Korean-error-string parser path.
 
 - `_complteDescription`
 
-### `platform_achievement_info` (schema key: `PlatformAchievementInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_questGroupkey`
-
 ### `region_info` (schema key: `RegionInfo`)
 
-**Schema fields not in dmm-parser** (4):
+**Schema fields not in dmm-parser** (2):
 
 - `_isSaveGimmickRegion`
-- `_isUIMapDisable`
 - `_overriedMaxHeight`
-- `_regionEnterknowledgeInfoList`
 
 ### `royal_supply_info` (schema key: `RoyalSupplyInfo`)
 
@@ -851,12 +834,6 @@ Korean-error-string parser path.
 - `_weatherIngTime`
 - `_weatherStartBlendTime`
 
-### `store_info` (schema key: `StoreInfo`)
-
-**Schema fields not in dmm-parser** (1):
-
-- `_customMeshOBBMaxLength`
-
 ### `sub_level_info` (schema key: `SubLevelInfo`)
 
 **Schema fields not in dmm-parser** (1):
@@ -865,10 +842,9 @@ Korean-error-string parser path.
 
 ### `terrain_region_auto_spawn_info` (schema key: `TerrainRegionAutoSpawnInfo`)
 
-**Schema fields not in dmm-parser** (2):
+**Schema fields not in dmm-parser** (1):
 
 - `_fishSummonTimeFrquencyType`
-- `_spawnAtHeightFieldLandScape`
 
 ### `tribe_info` (schema key: `TribeInfo`)
 

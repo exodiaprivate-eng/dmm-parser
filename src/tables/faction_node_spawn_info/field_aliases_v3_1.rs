@@ -15,4 +15,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
     ("faction_node_info", "_factionNodeInfo"),
+    ("patrol_ai_spline_data_list", "_patrolAISplineDataList"),
 ];

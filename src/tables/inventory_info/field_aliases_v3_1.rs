@@ -19,6 +19,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("inventory_move_data_list", "_inventoryMoveDataList"),
     ("default_slot_count", "_defaultSlotCount"),
     ("max_slot_count", "_maxSlotCount"),
+    ("push_item_alert_ui_text", "_pushItemAlertUIText"),
     ("pushable_check_type", "_pushableCheckType"),
     ("is_moveable_inventory", "_isMoveableInventory"),
 ];

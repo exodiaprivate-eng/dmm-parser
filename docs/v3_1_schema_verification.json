@@ -536,14 +536,13 @@
     "faction_node_spawn_info": {
       "schema_key": "FactionNodeSpawnInfo",
       "in_schema": true,
-      "alias_count": 4,
+      "alias_count": 5,
       "schema_field_count": 6,
-      "verified": 4,
+      "verified": 5,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
+      "missing_in_dmm_count": 1,
       "missing_in_dmm": [
-        "_boundaryBox",
-        "_patrolAISplineDataList"
+        "_boundaryBox"
       ]
     },
     "faction_relation_group_info": {
@@ -1028,11 +1027,11 @@
     "interaction_info": {
       "schema_key": "InteractionInfo",
       "in_schema": true,
-      "alias_count": 8,
+      "alias_count": 9,
       "schema_field_count": 37,
-      "verified": 8,
+      "verified": 9,
       "mismatch": [],
-      "missing_in_dmm_count": 29,
+      "missing_in_dmm_count": 28,
       "missing_in_dmm": [
         "_allowInteractionWhileInteraction",
         "_autoInteractionType",
@@ -1047,7 +1046,6 @@
         "_inputKeyMapName",
         "_interactionConditionDataList",
         "_interactionPopItemList",
-        "_interactionShowUIType",
         "_interactionTag",
         "_isCatchInteractionForEditor",
         "_isPlayerInterruptable",
@@ -1068,14 +1066,12 @@
     "inventory_info": {
       "schema_key": "InventoryInfo",
       "in_schema": true,
-      "alias_count": 10,
+      "alias_count": 11,
       "schema_field_count": 11,
-      "verified": 10,
+      "verified": 11,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_pushItemAlertUIText"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "item_group_info": {
       "schema_key": "ItemGroupInfo",
@@ -1132,13 +1128,12 @@
     "knowledge_info": {
       "schema_key": "KnowledgeInfo",
       "in_schema": true,
-      "alias_count": 28,
+      "alias_count": 29,
       "schema_field_count": 30,
-      "verified": 28,
+      "verified": 29,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
+      "missing_in_dmm_count": 1,
       "missing_in_dmm": [
-        "_isShowUIAlert",
         "_linkKnowledgeNodeList"
       ]
     },
@@ -1341,14 +1336,12 @@
     "platform_achievement_info": {
       "schema_key": "PlatformAchievementInfo",
       "in_schema": true,
-      "alias_count": 9,
+      "alias_count": 10,
       "schema_field_count": 10,
-      "verified": 9,
+      "verified": 10,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_questGroupkey"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "platform_entitlement_info": {
       "schema_key": "PlatformEntitlementInfo",
@@ -1403,16 +1396,14 @@
     "region_info": {
       "schema_key": "RegionInfo",
       "in_schema": true,
-      "alias_count": 19,
+      "alias_count": 21,
       "schema_field_count": 23,
-      "verified": 19,
+      "verified": 21,
       "mismatch": [],
-      "missing_in_dmm_count": 4,
+      "missing_in_dmm_count": 2,
       "missing_in_dmm": [
         "_isSaveGimmickRegion",
-        "_isUIMapDisable",
-        "_overriedMaxHeight",
-        "_regionEnterknowledgeInfoList"
+        "_overriedMaxHeight"
       ]
     },
     "relation_info": {
@@ -1645,14 +1636,12 @@
     "store_info": {
       "schema_key": "StoreInfo",
       "in_schema": true,
-      "alias_count": 20,
+      "alias_count": 21,
       "schema_field_count": 21,
-      "verified": 20,
+      "verified": 21,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_customMeshOBBMaxLength"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "string_info": {
       "schema_key": "StringInfo",
@@ -1679,14 +1668,13 @@
     "terrain_region_auto_spawn_info": {
       "schema_key": "TerrainRegionAutoSpawnInfo",
       "in_schema": true,
-      "alias_count": 22,
+      "alias_count": 23,
       "schema_field_count": 24,
-      "verified": 22,
+      "verified": 23,
       "mismatch": [],
-      "missing_in_dmm_count": 2,
+      "missing_in_dmm_count": 1,
       "missing_in_dmm": [
-        "_fishSummonTimeFrquencyType",
-        "_spawnAtHeightFieldLandScape"
+        "_fishSummonTimeFrquencyType"
       ]
     },
     "terrain_region_navi_info": {
@@ -1806,9 +1794,9 @@
     }
   },
   "totals": {
-    "verified": 1137,
+    "verified": 1146,
     "mismatch": 0,
-    "missing_in_dmm": 572,
+    "missing_in_dmm": 563,
     "extra_in_dmm": 0
   }
 }

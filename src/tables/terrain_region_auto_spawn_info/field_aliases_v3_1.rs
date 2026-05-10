@@ -32,5 +32,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("all_terrain_region", "_allTerrainRegion"),
     ("bitmap_position_info", "_bitmapPositionInfo"),
     ("bitmap_color_list_for_spawn", "_bitmapColorListForSpawn"),
+    ("spawn_at_height_field_landscape", "_spawnAtHeightFieldLandScape"),
     ("spawn_reason_list", "_spawnReasonList"),
 ];
