@@ -2,7 +2,7 @@
 
 **Replaces:** `HANDOVER_CUSTOM_ITEM_CREATOR.md` (Benreuveni, 2026-04-17)
 **Approach:** Field-level intents via Field JSON v3.1 + dmm-parser's typed `item_info` module
-**Effective Date:** 2026-05-01
+**Effective Date:** 2026-05-01 (last refresh 2026-05-10 — Session 28 schema-verified v3.1 surface added context)
 **License:** CDMTL v1.0
 
 > **Why this rewrite:** Benreuveni's original implementation patches binary blobs and "echo keys" by hand. dmm-parser already exposes those as typed fields (`item_name: LocalizableString`, `item_desc: LocalizableString`). v3.1 intents can express the entire custom-item workflow as data — no binary patching, survives game updates, ships as a single `.field.json` file.
@@ -27,13 +27,26 @@
 | `.pamt` (Pack Metadata) | Group metadata | ✅ dmm-parser has this in `binary/pamt.rs` |
 | `.paz` archives | Container format | ✅ dmm-parser has this via `PackGroupBuilder` |
 
-**Verified facts (2026-05-08):**
-- 125+ table parsers wired in `src/tables/` — every one supports both parse and serialize
-- 121 / 121 byte-perfect round-trips on the live 1.05.02 corpus
+**Verified facts (2026-05-10, Session 28):**
+- **126** table parsers wired in `src/tables/` (122 *Info tables + `paac` / `paatt` / `pamhc` / `pappt` file-format tables) — every one supports both parse and serialize
+- 121 / 121 byte-perfect round-trips on the live corpus
 - iteminfo additionally exposed via `pub mod item_info` with dedicated `parse_iteminfo_to_json` / `serialize_iteminfo_from_json`
-- 423 / 423 unit tests pass
+- Paloc fully typed via `parse_paloc_from_file` / `serialize_paloc_to_bytes` Python bindings (commits P6-P8)
+- **v3.1 canonical-name surface shipped** for 109 of 122 *Info tables (commit `2724abe`). Each table's snake_case names are projectable to canonical Pearl Abyss `_camelCase` identifiers via `parse_table(..., shape="v3.1")` / `serialize_table(..., shape="v3.1")`. Names independently verified against NattKh's `pabgb_complete_schema.json` (3,708 canonical names extracted from Korean error strings in CrimsonDesert.exe).
+- 562 / 562 unit tests pass
 
-**The gap:** Paloc localization. Everything else needed for the custom-item workflow is already typed and writable.
+**Iteminfo and v3.1:** the `item_info` module is **separate from** the
+`src/tables/` v3.1 surface — its struct is decoded via a custom typed
+parser predating the unified `tables/` system. v3.1 alias projection via
+`shape="v3.1"` is therefore **not yet wired for iteminfo specifically**
+— modders authoring custom items via this guide use the snake_case
+`item_name.default` / `item_desc.index` paths shown in the examples.
+Paths in the current mod JSONs continue to work unchanged. Future work
+(out of scope for this handover): extend the v3.1 generator to walk
+`src/item_info/` so iteminfo gains canonical alias coverage too.
+
+**No remaining structural gaps for the custom-item workflow.** Paloc
+typed, iteminfo typed, dispatch wired, tests passing.
 
 ---
 
@@ -385,11 +398,40 @@ The preview card pulls fields from the donor's parsed item, applies the user's p
 
 ---
 
-## 6. The Paloc Gap — Three Options
+## 6. The Paloc Gap — RESOLVED 2026-05-08
 
-The custom item won't display its custom name in-game without a paloc entry. Three paths:
+**Status: closed.** Paloc is fully typed in dmm-parser and integrated into the v3.1
+dispatch path. The "three options" tradeoff below is preserved as historical
+context, but **Option A landed** — paloc is no longer the gap.
 
-### Option A — Add paloc parser to dmm-parser (recommended, ~1-2 days)
+Current paloc usage:
+
+```python
+# Parse
+entries = dmm_parser.parse_paloc_from_file("0.pamt.paloc")
+
+# Serialize back
+data = dmm_parser.serialize_paloc_to_bytes(entries)
+```
+
+A v3.1 mod targeting paloc looks like:
+
+```json
+{
+  "target": "paloc",
+  "intents": [
+    { "op": "set_localization", "key": 4290676623671408, "lang": "en", "value": "999K Damage Sword" },
+    { "op": "set_localization", "key": 4290676623671409, "lang": "en", "value": "Hits like a truck" }
+  ]
+}
+```
+
+DMM's apply path handles paloc the same way it handles iteminfo. End user gets the
+custom name without manual paloc patching, single `.field.json` ships everything.
+
+---
+
+### Historical: Option A — Add paloc parser to dmm-parser (recommended, ~1-2 days)
 
 Benreuveni's `lib/paloc.py` is 118 lines and documents the format:
 - 8-byte marker `07 00 00 00 00 00 00 00`
@@ -413,11 +455,11 @@ Port to Rust as `dmm_parser::paloc::*` module. Once typed, paloc becomes another
 
 DMM's apply path mutates paloc the same way it mutates iteminfo. End user gets the custom name without manual paloc patching.
 
-### Option B — Sidecar paloc patcher (interim, ~half day)
+### Historical: Option B — Sidecar paloc patcher (interim, ~half day)
 
 SWISS exports the v3.1 `.field.json` AND a `paloc_patches.json` sidecar. DMM detects the sidecar and runs its existing paloc patching tools. Less elegant but ships sooner.
 
-### Option C — Embed paloc strings in the v3.1 mod (~1 day)
+### Historical: Option C — Embed paloc strings in the v3.1 mod (~1 day)
 
 Define a v3.1 intent type `paloc_string` that DMM resolves at apply time using existing paloc tooling:
 
@@ -432,7 +474,8 @@ Define a v3.1 intent type `paloc_string` that DMM resolves at apply time using e
 
 Internally DMM maps this to its existing paloc patcher. Cleaner UX than B, simpler than A.
 
-**Recommendation:** Start with C (works immediately, single .field.json file), then promote to A once paloc parser lands in dmm-parser.
+**Outcome:** Option A landed (commits P6-P8). The custom-item workflow now ships
+single-file `.field.json` mods that include both iteminfo and paloc patches.
 
 ---
 
@@ -523,16 +566,16 @@ A one-shot migration script (`migrate_custom_items_to_v3_1.py`) would automate t
 
 ## 11. Estimated Total Effort
 
-| Phase | Work | Time |
-|---|---|---|
-| 1 | Add `clone_record` intent to v3.1 spec + DMM apply logic | 1 day |
-| 2 | SWISS dialog + v3.1 generator | 1-2 days |
-| 3 | Paloc handling (Option C — embedded intents, sidecar tooling) | 1 day |
-| 4 | Storeinfo re-test using typed serializer | half day |
-| 5 | End-to-end testing (donor → custom item → in-game verify) | 1 day |
-| 6 | Optional: paloc parser in dmm-parser (Option A) | 1-2 days |
-| 7 | Optional: save editor coordination via v3.1 save target | 1 day |
-| **Core (1-5)** | **Replaces Benreuveni's tool with cleaner v3.1 flow** | **~5 days** |
+| Phase | Work | Time | Status |
+|---|---|---|---|
+| 1 | Add `clone_record` intent to v3.1 spec + DMM apply logic | 1 day | ⏳ pending |
+| 2 | SWISS dialog + v3.1 generator | 1-2 days | ⏳ pending |
+| 3 | Paloc handling | 1-2 days | ✅ shipped (Option A landed in P6-P8) |
+| 4 | Storeinfo re-test using typed serializer | half day | ⏳ pending |
+| 5 | End-to-end testing (donor → custom item → in-game verify) | 1 day | ⏳ pending |
+| 6 | Optional: save editor coordination via v3.1 save target | 1 day | ⏳ pending |
+| 7 | Optional: extend v3.1 alias generator to walk `src/item_info/` so iteminfo gains canonical-name surface (currently only `src/tables/` is covered) | half day | ⏳ pending |
+| **Remaining core** | **Phases 1, 2, 4, 5 — most of Benreuveni-replacement work** | **~3-4 days** | |
 
 ---
 
@@ -556,6 +599,7 @@ A one-shot migration script (`migrate_custom_items_to_v3_1.py`) would automate t
 - **SWISS Stacker:** `CrimsonGameMods/gui/tabs/stacker.py`
 - **Field JSON v3.1 Spec:** `FIELD_JSON_V3_1_SPEC.md` (in CrimsonGameMods repo)
 - **Benreuveni's source:** `crimson-desert-add-item-main/lib/iteminfo.py`, `lib/paloc.py`, `lib/stats.py`
+- **v3.1 schema verification (Session 28):** `docs/V3_1_SCHEMA_VERIFICATION.md` (per-table coverage), `docs/V3_1_DECODER_GAPS.md` (584 schema fields not yet decoded — includes ItemInfo-relevant tables), `docs/V3_1_PYCRIMSON_WORKFLOW.md` (reflection-format coverage)
 
 ---
 
