@@ -98,6 +98,9 @@ actual per-record reader function (typically a single xref to the typeinfo).
 | `item_use_info` | `0x144ad8db8` | `sub_1410B7380` | 0x176 (374B) | iter 59 |
 | `level_gimmick_scene_object_info` | `0x144ad97e0` | `sub_1410B7EB0` | 0x50d (1.3KB) | iter 60 |
 | `special_mode_info` | `0x144aee2c0` | `sub_1410C2E30` | 0x3e4 (996B) | iter 60 |
+| `terrain_region_auto_spawn_info` | `0x144af40f0` | `sub_1410C7300` | 0x3d7 (983B) | iter 61 |
+
+**🎯 Registry COMPLETE (2026-05-10 iter 61):** all 27 gap tables + 4 fully-validated tables + 1 special case (gimmick_info) = **31 entries**. Every table with v3.1 decoder gaps has its typeinfo + record reader address mapped. Future closure sessions skip typeinfo discovery entirely — straight to decompile.
 
 **Workflow:** for any future per-table decoder closure session:
 
