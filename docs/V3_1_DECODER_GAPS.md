@@ -59,6 +59,44 @@ needs either:
 - v3.1 alias mechanism extension to express 1-to-N nested-field aliases, OR
 - Rust struct refactor to use a single typed sub-struct matching the canonical wrapper.
 
+### Full quantitative split (iter 40 — all 27 gap tables)
+
+Programmatic wrap-vs-genuine classification by comparing schema-field
+count to rust-struct field count per gap table:
+
+| Pattern | Tables | Total missing fields |
+|---|---|---|
+| **WRAP** (rust > schema, missing partly explainable as wrapper-vs-unrolled) | 19 | ~452 |
+| **GENUINE** (rust ≤ schema, missing genuinely needs new Rust struct fields) | 8 | ~105 |
+
+**Genuine-gap tables (need actual decoder writing):**
+
+| Table | Missing | Rust struct shape |
+|---|---|---|
+| `gimmick_info` | 153 | Tier-1.5 typed-prefix + opaque blob (rust=7, schema=159) |
+| `interaction_info` | 28 | Compact rust struct (rust=10, schema=37) |
+| `tribe_info` | 26 | Even split (rust=29, schema=29) but several name divergences |
+| `mission_info` | 25 | Even split (rust=40, schema=40) — divergent names |
+| `global_game_event_info` | 3 | rust=5, schema=8 |
+| `knowledge_info` | 1 | rust=30, schema=30 (1 unique addition) |
+| `global_stage_sequencer_info` | 2 | rust=14, schema=14 |
+| `action_point_info` | 2 | rust=6, schema=6 |
+
+**Wrap-pattern tables (need alias mechanism extension or Rust refactor):**
+
+19 tables totaling ~452 missing canonicals where rust struct has more
+fields than the schema headcount. The schema "missing" here is mostly
+a single wrapper name covering 2-30 unrolled rust fields. character_info
+alone has 27 rust-excess fields, stage_info has 13, gimmick_group_info
+has 2, vehicle_info has 17 (probably the densest case — 17 rust fields
+that could collapse into a small handful of canonical wrappers).
+
+**Honest conclusion:** the real decoder-writing workload is likely
+~200-300 fields max (the genuine-pattern tables + the residual genuine
+gaps within wrap-pattern tables), not 557. Rust struct refactoring
+(collapsing unrolled fields into typed sub-structs) closes the
+remainder mechanically.
+
 
 
 These need either (a) a Rust struct refactor to use a single `CArray`
