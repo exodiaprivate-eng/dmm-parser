@@ -15,6 +15,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
     ("level_name", "_levelName"),
+    ("data_list", "_levelGimmickSceneObjectDataList"),
     ("map_icon_texture_info", "_mapIconTextureInfo"),
     ("discover_near_fog", "_discoverNearFog"),
     ("fog_map_icon_texture_info", "_fogMapIconTextureInfo"),

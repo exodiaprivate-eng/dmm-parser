@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1156**
+- Total field aliases verified:       **1157**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **553**
+- Total schema fields not decoded:    **552**
 
 ## Tables not in NattKh schema
 
@@ -107,7 +107,7 @@ Korean-error-string parser path.
 | `knowledge_group_info` | 15 | 15 | 0 | 0 |
 | `knowledge_info` | 30 | 30 | 0 | 0 |
 | `level_action_point_info` | 5 | 5 | 0 | 0 |
-| `level_gimmick_scene_object_info` | 22 | 22 | 0 | 2 |
+| `level_gimmick_scene_object_info` | 23 | 23 | 0 | 1 |
 | `local_string_info` | 5 | 5 | 0 | 0 |
 | `material_blood_decal_info` | 5 | 5 | 0 | 0 |
 | `material_match_info` | 8 | 8 | 0 | 0 |
@@ -667,9 +667,8 @@ Korean-error-string parser path.
 
 ### `level_gimmick_scene_object_info` (schema key: `LevelGimmickSceneObjectInfo`)
 
-**Schema fields not in dmm-parser** (2):
+**Schema fields not in dmm-parser** (1):
 
-- `_levelGimmickSceneObjectDataList`
 - `_onDiscoverOnlyEnable`
 
 ### `mission_info` (schema key: `MissionInfo`)

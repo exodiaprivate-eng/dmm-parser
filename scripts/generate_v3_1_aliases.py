@@ -110,6 +110,14 @@ MANUAL_OVERRIDES = {
     # regions as the persistence backing — so PA's name is the more
     # technical / accurate one. Tuple-scoped override.
     ("region_info",                    "is_housing_region"):                 "_isSaveGimmickRegion",
+
+    # Iter 80: level_gimmick_scene_object_info — the rust field `data_list`
+    # is the table's main payload CArray<LevelGimmickSceneObjectData>;
+    # canonical `_levelGimmickSceneObjectDataList` matches it directly.
+    # (The same canonical name was identified in iter 77 as the legitimate
+    # owner of LevelGimmickSceneObjectInfo's main payload — separate from
+    # the knowledge_info closure that aliases a different rust field.)
+    ("level_gimmick_scene_object_info", "data_list"):                        "_levelGimmickSceneObjectDataList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

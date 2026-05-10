@@ -1,5 +1,24 @@
 //! Tier 1 — fully typed parser for `LevelGimmickSceneObjectInfo.pabgb`.
 //!
+//! ─── v3.1 closure analysis (iter 80) ────────────────────────────────────
+//! Decompiled `sub_1410B7EB0` (iter 60 typeinfo registry). The 7 sequential
+//! u8 reads at offsets 72-78 pair with 7 rust u8 fields:
+//!   72→show_icon_condition_type, 73→use_teleport, 74→use_guide_effect,
+//!   75→is_sub_inner_gimmick, 76→check_game_level_load_state,
+//!   77→unk_new_u8_a, 78→unk_new_u8_b
+//!
+//! Schema has only 24 canonicals — rust struct adds 3 extras. Of the 2
+//! "missing" canonicals:
+//!   `_levelGimmickSceneObjectDataList` → SHIPPED (data_list alias added
+//!                                        in MANUAL_OVERRIDES).
+//!   `_onDiscoverOnlyEnable` → maps to either `unk_new_u8_a` or
+//!                             `unk_new_u8_b` (both u8). Resolving which
+//!                             needs string-xref work (function-string-
+//!                             associate plugin against the byte's
+//!                             error-message anchor). Deferred to a
+//!                             future iter; partial close (1 of 2) for
+//!                             this iter.
+//!
 //! Per IDA sub_1410EB480: 25 fields. `_levelGimmickSceneObjectDataList`
 //! is a `CArray<LevelGimmickSceneObjectData>` via sub_14110ECD0 +
 //! sub_1410EB270. Despite the original "polymorphic" label, sub_1410EB270
