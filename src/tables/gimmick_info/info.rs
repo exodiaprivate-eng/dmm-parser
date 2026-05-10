@@ -33,6 +33,181 @@
 //!      Post-blob fields 20-179 are decoded by GimmickPostBody when
 //!      F19 decodes cleanly and the probe is within the entry bounds.
 
+
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL FIELD CATALOG — pa::GimmickInfo
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
+// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
+//
+// Total canonical fields:  159
+// Decoded by dmm-parser:   6
+// Missing in this struct:  153
+//
+// ✅ = present in this struct (round-trips via shape='v3.1')
+// ⏳ = in canonical schema but not yet decoded by dmm-parser
+//
+// ⏳ _blockNavigation (direct_13B, stream=13)
+// ⏳ _registerAsPlatformOfSummonee (direct_13B, stream=13)
+// ⏳ _checkAllyToBreak (direct_13B, stream=13)
+// ⏳ _initialNavigation (direct_13B, stream=13)
+// ⏳ _makeNaviVoxelSpecial (direct_13B, stream=13)
+// ⏳ _checkAllyToBreakUseGimmickInfo (direct_13B, stream=13)
+// ⏳ _generateEffectData (array_or_complex, stream=1)
+// ⏳ _isBlockRoadSpawnStageObstacle (direct_13B, stream=13)
+// ⏳ _canDisassemble (direct_13B, stream=13)
+// ⏳ _gimmickOnTimeGroupDataList
+// ⏳ _transmutationMaterialItemList (reader_4B, stream=4)
+// ⏳ _transmutationMaterialGimmickList (reader_4B, stream=4)
+// ⏳ _timerRandomInterval (direct_u64, stream=8)
+// ⏳ _transmutationMaterialItemGroupList
+// ⏳ _motionTypeAsPlatform (direct_13B, stream=13)
+// ⏳ _movableNavigation (direct_13B, stream=13)
+// ⏳ _emojiTextureID
+// ⏳ _gimmickName (reader_8B, stream=8)
+// ⏳ _gimmickChartParameterList
+// ⏳ _devMemo
+// ⏳ _triggerVolumeGroupDataList
+// ⏳ _gimmickTagList
+// ⏳ _elementalReceiverColliderGroupDataList
+// ⏳ _triggerCheckTargetDataList
+// ✅ _gimmickGroupInfo (reader_4B, stream=4)
+// ✅ _prefabPath
+// ⏳ _gimmickInteractionOverrideDataList
+// ✅ _breakableObjectInfo
+// ⏳ _useSubPartForInteraction (direct_13B, stream=13)
+// ⏳ _useInteractionUISocket (direct_13B, stream=13)
+// ⏳ _gimmickNameHash (direct_u32, stream=4)
+// ⏳ _propertyList (reader_4B, stream=4)
+// ✅ _key (direct_u32, stream=4)
+// ✅ _isBlocked (direct_13B, stream=13)
+// ✅ _stringKey
+// ⏳ _vehicleInfo (reader_2B, stream=2)
+// ⏳ _targetableRange (direct_13B, stream=13)
+// ⏳ _hasObstacleUseType (direct_13B, stream=13)
+// ⏳ _isUnique (direct_13B, stream=13)
+// ⏳ _isHousingGimmick (direct_13B, stream=13)
+// ⏳ _isHandCatchable (direct_13B, stream=13)
+// ⏳ _isSavePresetTarget (direct_13B, stream=13)
+// ⏳ _isPuzzleGimmick (direct_13B, stream=13)
+// ⏳ _maxFertilizerAmount (direct_u32, stream=4)
+// ⏳ _installOriginGimmickInfo (reader_4B, stream=4)
+// ⏳ _propertyConditionStringListForDebug
+// ⏳ _fertilizerIntakeAmount (direct_u32, stream=4)
+// ⏳ _stickToObjectSocketList
+// ⏳ _stickToObjectType (direct_13B, stream=13)
+// ⏳ _interactionUIDistanceLv (direct_13B, stream=13)
+// ⏳ _pushObjectSocketList
+// ⏳ _summonGimmickDataList
+// ⏳ _gimmickNodeData (array_or_complex, stream=4)
+// ⏳ _summonItemDataList
+// ⏳ _summonCharacterDataList
+// ⏳ _impulseSurroundingDistance (direct_u32, stream=4)
+// ⏳ _summonRandomDataList
+// ⏳ _pageGimmickInfo (reader_4B, stream=4)
+// ⏳ _inspectDataList
+// ⏳ _gimmickAttachTargetDataList
+// ⏳ _transformSetList
+// ⏳ _eventKeyGuideList
+// ⏳ _targetSealPartGimmickInfoList (reader_4B, stream=4)
+// ⏳ _bodyMass (direct_u32, stream=4)
+// ⏳ _remoteCatchPullInDurationTime (direct_u32, stream=4)
+// ⏳ _isLevelGimmickQuickRespawn (direct_13B, stream=13)
+// ⏳ _isTwoHandsRemoteCatch (direct_13B, stream=13)
+// ⏳ _cogWheelSawToothCount (direct_u32, stream=4)
+// ⏳ _constraintSpeedLevel (direct_13B, stream=13)
+// ⏳ _dropRollCount (direct_u32, stream=4)
+// ⏳ _cogWheelTriggerScale (direct_12B, stream=12)
+// ⏳ _dropSetInfoList (reader_4B, stream=4)
+// ⏳ _dropOffsetSocketName
+// ⏳ _buyableDropItem (reader_1B, stream=1)
+// ⏳ _dropInfoDataList
+// ⏳ _pushableDirection (direct_13B, stream=13)
+// ⏳ _sealCompleteCount (direct_u32, stream=4)
+// ⏳ _snapDialData
+// ⏳ _pendulumData
+// ⏳ _hoveringData
+// ⏳ _forceFieldTargetType (direct_13B, stream=13)
+// ⏳ _triggerCheckTargetType (direct_13B, stream=13)
+// ⏳ _keepClimbPointWhenBroken (direct_13B, stream=13)
+// ⏳ _attackImpulseCompleteData
+// ⏳ _boardKey (direct_u32, stream=4)
+// ⏳ _batteryTotalCapacity (direct_u64, stream=8)
+// ⏳ _batteryInitCapacity (direct_u64, stream=8)
+// ⏳ _centerOfMass (direct_12B, stream=12)
+// ⏳ _collisionBodyData (reader_1B, stream=1)
+// ⏳ _physicsContactEventDeltaVelocityThreashold (direct_u32, stream=4)
+// ⏳ _physicsBreakingDeltaVelocityThreashold (direct_u32, stream=4)
+// ⏳ _growthDataList
+// ⏳ _controlMaterialParamValueList
+// ⏳ _convertItemInfo (reader_4B, stream=4)
+// ⏳ _isInstallable (direct_13B, stream=13)
+// ⏳ _allyGroupInfo
+// ⏳ _uiMapTextureInfo
+// ⏳ _detectCustomRenderIndex (direct_13B, stream=13)
+// ⏳ _isTargetable (direct_13B, stream=13)
+// ⏳ _saveLevelData (direct_13B, stream=13)
+// ⏳ _additionalHeightOnCatched (direct_u32, stream=4)
+// ⏳ _knowledgeInfo (reader_4B, stream=4)
+// ⏳ _saveOption
+// ⏳ _customVolumeGroupDataList
+// ⏳ _elementalStatusInitialStatList
+// ⏳ _defaultSpawnReasonHash (direct_u32, stream=4)
+// ⏳ _defaultSpawnReasonData (reader_8B, stream=8)
+// ⏳ _isBuyable (direct_13B, stream=13)
+// ⏳ _isWild (direct_13B, stream=13)
+// ⏳ _useRemoteCatchFishing (direct_13B, stream=13)
+// ⏳ _excludeSequencerBoundary (direct_13B, stream=13)
+// ⏳ _forceCursorAimTargetable (direct_13B, stream=13)
+// ⏳ _autoSpawnEnviornmentDetailEffect (direct_13B, stream=13)
+// ⏳ _gimmickFactionInoMode (direct_13B, stream=13)
+// ⏳ _isAttachTargetOfOtherGimmick (direct_13B, stream=13)
+// ⏳ _propagateSkillFromParentActor (direct_13B, stream=13)
+// ⏳ _isShowInteractionByTrigger (direct_13B, stream=13)
+// ⏳ _elementalMaterialInfoList (reader_4B, stream=4)
+// ⏳ _respawnTimeSeconds (direct_u64, stream=8)
+// ⏳ _applyOffsetByScreenSpaceCasting (direct_13B, stream=13)
+// ⏳ _spawnableVisibleOnly (direct_13B, stream=13)
+// ⏳ _gamePlayObjectShareData (array_or_complex, stream=4)
+// ⏳ _initScale (direct_u32, stream=4)
+// ⏳ _shaderMaterialEffectType (direct_13B, stream=13)
+// ⏳ _craftToolData
+// ⏳ _jamReactionType (direct_13B, stream=13)
+// ⏳ _jammedLogoutEffectName
+// ⏳ _collectFilter_Dev (direct_13B, stream=13)
+// ⏳ _housingSupportPlaneScale (direct_u32, stream=4)
+// ⏳ _physicsQualityPreset (direct_13B, stream=13)
+// ⏳ _knowledgeExtractType (direct_13B, stream=13)
+// ⏳ _equipDockingSpawnDistanceLevel (direct_u32, stream=4)
+// ⏳ _spawnDistanceLevel (direct_u32, stream=4)
+// ⏳ _useOnDemandCombination (direct_13B, stream=13)
+// ⏳ _collisionGroupLayer (direct_u32, stream=4)
+// ⏳ _physicsTriggerDataList
+// ⏳ _elementalAreaWithMaterial
+// ⏳ _miniGameDataList
+// ⏳ _trafficBoxDataList (reader_4B, stream=4)
+// ⏳ _factionStructure
+// ⏳ _housingItemPlacementTypeFlag
+// ⏳ _housingGimmickSpecialType (direct_13B, stream=13)
+// ⏳ _housingStackableTypeFlag
+// ⏳ _buoyancySubmersionRatio (direct_u32, stream=4)
+// ⏳ _dialogDataList
+// ⏳ _characterStepHeight (direct_u32, stream=4)
+// ⏳ _breakDropOffsetDistance (direct_u32, stream=4)
+// ⏳ _defaultAliasName
+// ⏳ _breakTypeFromParent (direct_13B, stream=13)
+// ⏳ _elementalAreaDataList
+// ⏳ _weakPointEffectDataList
+// ⏳ _isCollectOnlyGimmick (direct_13B, stream=13)
+// ⏳ _isAlwaysSave (direct_13B, stream=13)
+// ⏳ _useGroupingRemoteCatch (direct_13B, stream=13)
+// ⏳ _isBlockSpawnOnAwayFromOriginTransform (direct_13B, stream=13)
+// ⏳ _snowRatio (direct_u32, stream=4)
+// ⏳ _applyGimmickStateToItem (direct_13B, stream=13)
+// ⏳ _massLevel (direct_13B, stream=13)
+// ⏳ _sealData (reader_1B, stream=1)
+
 use crate::binary::*;
 use crate::binary::variants::gimmick_interaction_override::GimmickInteractionOverrideCArray;
 use crate::binary::variants::trigger_gameplay_event_handler_data::TriggerEventHandlerDataElement;

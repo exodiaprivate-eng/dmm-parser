@@ -53,7 +53,6 @@ descriptor class via Win-IDA).
 
 ## Queue
 
-- [ ] GAP: add canonical-name doc-comment to `src/tables/gimmick_info/info.rs` listing 153 schema fields with status (decoded/missing)
 - [ ] GAP: same for `src/tables/character_info/info.rs` (146 fields)
 - [ ] GAP: same for `src/tables/stage_info/info.rs` (72 fields)
 - [ ] GAP: same for `src/tables/gimmick_group_info/info.rs` (45 fields)
@@ -93,6 +92,7 @@ descriptor class via Win-IDA).
 
 **REFLECT phase summary (10 of 10 formats attempted):** 4 SUCCESS (.prefab, .parg, .pasg, .paseqc, .paa_metabin = 8,362 classes / 32,363 fields harvested) · 6 BLOCKED (.meshinfo, .palevel, .pae, .paem, .paseq, .uianiminit — pycrimson upstream bugs across two distinct categories: parc-header buffer underflow + type-index list out-of-range). All blocked formats have files extracted + ready to use once pycrimson is fixed.
 - [x] CATALOG: master class index in ENGINE_INTERNALS.md — 2026-05-10 12:48 SUCCESS. Added "Master class index" section: 129 classes grouped into 11 named families (`*Component` 61, `GameData_*` 17, `MaterialParameter*` 9, `ResourceReferencePath_*` 9, `Spline*` 9, `Emitter*Data` 8, `Sequencer*` 7, `*Info` 5, `*Constant` 3, `Animation*` 1) + Top 30 by field count + domain coverage breakdown (rendering / mesh / particles / sequencer / audio / splines / animation). Long-tail of 8,233 per-asset unique classes documented as queryable via the JSON.
+- [x] GAP: gimmick_info canonical-name catalog in info.rs — 2026-05-10 12:51 SUCCESS. Inserted 161-line schema-grounded comment block at top of `src/tables/gimmick_info/info.rs`: 159 canonical PA fields total, each marked ✅ (6 decoded) or ⏳ (153 not yet decoded). Each entry includes type + stream category from NattKh's schema. Future implementers see the full canonical surface right next to the struct definition.
 
 ---
 
