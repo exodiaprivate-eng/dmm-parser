@@ -59,6 +59,46 @@ needs either:
 - v3.1 alias mechanism extension to express 1-to-N nested-field aliases, OR
 - Rust struct refactor to use a single typed sub-struct matching the canonical wrapper.
 
+### Master typeinfo + record-reader registry (iter 47)
+
+Per-table Win-IDA pointers for future decoder-gap closure work. Each row
+gives the typeinfo string address (in CrimsonDesert.exe .rdata) and the
+actual per-record reader function (typically a single xref to the typeinfo).
+
+| Table | Typeinfo addr | Record reader | Reader size | Validated |
+|---|---|---|---|---|
+| `tribe_info` | `0x144af6090` | `sub_1410C8A20` | 0x45d | ✅ iter 42 |
+| `interaction_info` | `0x144ac4060` | `sub_1410AC290` | 0x586 | ✅ iter 45 |
+| `mission_info` | `0x144add820` | `sub_1410B9BA0` | 0x6ea | ✅ iter 46 |
+| `knowledge_info` | `0x144ac9fb0` | `sub_1410AFE20` | 0x57a | ✅ iter 47 |
+| `gimmick_info` | (special — no bare typeinfo string; Tier-1.5 typed prefix + opaque blob) | `sub_1410E6FC0` | 7205B | per existing dmm-parser docstring |
+
+**Workflow:** for any future per-table decoder closure session:
+
+1. Look up the table here for the record reader address
+2. `mcp__ida-pro-mcp__decompile_function(record_reader_addr)`
+3. Walk wire-reads in source order
+4. Cross-reference against the table's canonical-field catalog (already
+   in `src/tables/<table>/info.rs` top doc-comment from iter 10/11/24)
+5. Pair each `*(TYPE *)(this+OFFSET) = read_X(...)` with the canonical
+   in schema declaration order
+6. Rename `unk_XX` rust fields → canonical_snake
+7. Add v3.1 alias entries via MANUAL_OVERRIDES if mechanical translation
+   doesn't match (iter 31-34 patterns)
+8. cargo build + test (must keep 562 passing)
+
+**Not-yet-registered** (remaining gap tables — future iters can extend):
+
+character_info, stage_info, gimmick_group_info, field_info,
+faction_node_info, region_info, global_game_event_info,
+global_stage_sequencer_info, action_point_info, vehicle_info,
+faction_node_spawn_info, faction_relation_group_info,
+character_change_info, detect_reaction_info, equip_info, equip_type_info,
+royal_supply_info, sub_level_info, multi_change_info, ally_group_info,
+elemental_material_info, frame_event_attr_group_info,
+game_event_handler_info, item_use_info, level_gimmick_scene_object_info,
+special_mode_info, terrain_region_auto_spawn_info.
+
 ### mission_info closure validation (iter 46)
 
 Located `pa::MissionInfo` typeinfo at `0x144add820` (single xref to
