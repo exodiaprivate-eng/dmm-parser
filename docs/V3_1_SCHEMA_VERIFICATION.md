@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1244**
+- Total field aliases verified:       **1245**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **465**
+- Total schema fields not decoded:    **464**
 
 ## Tables not in NattKh schema
 
@@ -139,7 +139,7 @@ Korean-error-string parser path.
 | `socket_info` | 5 | 5 | 0 | 0 |
 | `spawning_pool_auto_spawn_info` | 15 | 15 | 0 | 0 |
 | `special_mode_info` | 24 | 24 | 0 | 0 |
-| `stage_info` | 13 | 13 | 0 | 69 |
+| `stage_info` | 14 | 14 | 0 | 68 |
 | `status_group_info` | 8 | 8 | 0 | 0 |
 | `status_info` | 34 | 34 | 0 | 0 |
 | `store_info` | 21 | 21 | 0 | 0 |
@@ -631,7 +631,7 @@ Korean-error-string parser path.
 
 ### `stage_info` (schema key: `StageInfo`)
 
-**Schema fields not in dmm-parser** (69):
+**Schema fields not in dmm-parser** (68):
 
 - `_beginTime`
 - `_changeTime`
@@ -673,7 +673,6 @@ Korean-error-string parser path.
 - `_parentStage`
 - `_platformCharacter`
 - `_platformDockingTagHash`
-- `_platformSocketName`
 - `_playCondition`
 - `_questType`
 - `_randomPercent`

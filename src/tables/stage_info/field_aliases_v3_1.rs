@@ -23,5 +23,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("disable_faction_spawn_party_name_hash_list", "_disableFactionSpawnPartyNameHashList"),
     ("close_filter_a", "_closeFilterByGroup"),
     ("close_filter_b", "_closeFilter"),
+    ("cstring_a", "_platformSocketName"),
     ("raw_i", "_completeCount"),
 ];

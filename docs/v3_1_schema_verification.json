@@ -1453,11 +1453,11 @@
     "stage_info": {
       "schema_key": "StageInfo",
       "in_schema": true,
-      "alias_count": 13,
+      "alias_count": 14,
       "schema_field_count": 82,
-      "verified": 13,
+      "verified": 14,
       "mismatch": [],
-      "missing_in_dmm_count": 69,
+      "missing_in_dmm_count": 68,
       "missing_in_dmm": [
         "_beginTime",
         "_changeTime",
@@ -1499,7 +1499,6 @@
         "_parentStage",
         "_platformCharacter",
         "_platformDockingTagHash",
-        "_platformSocketName",
         "_playCondition",
         "_questType",
         "_randomPercent",
@@ -1682,9 +1681,9 @@
     }
   },
   "totals": {
-    "verified": 1244,
+    "verified": 1245,
     "mismatch": 0,
-    "missing_in_dmm": 465,
+    "missing_in_dmm": 464,
     "extra_in_dmm": 0
   }
 }

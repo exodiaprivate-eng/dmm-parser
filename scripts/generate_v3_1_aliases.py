@@ -553,6 +553,12 @@ MANUAL_OVERRIDES = {
     # is a rust-extra (likely an undocumented additional filter list).
     ("stage_info",                     "close_filter_a"):                    "_closeFilterByGroup",
     ("stage_info",                     "close_filter_b"):                    "_closeFilter",
+
+    # Iter 137: stage_info `_platformSocketName` singleton close. Only
+    # top-level CString unaliased in stage_info (besides standard
+    # string_key). Only None-typed string-named canonical missing.
+    # Singleton type-and-semantic match.
+    ("stage_info",                     "cstring_a"):                         "_platformSocketName",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

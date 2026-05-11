@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 137: stage_info `_platformSocketName` singleton close — 2026-05-10 SUCCESS. Only top-level CString unaliased in stage_info (cstring_a, besides standard string_key) ↔ only None-typed string-named canonical missing (_platformSocketName). Type + semantic singleton. stage_info: 13/82 → 14/82 verified (17%). Total: 465 → 464.
+
 - [x] GAP iter 136: stage_info 2 close_filter closures (within-type-group) — 2026-05-10 SUCCESS. 2 None-typed "close filter" canonicals (`_closeFilterByGroup` 0x14495bd10 < `_closeFilter` 0x14495bd58 by setter addr) ↔ first 2 of rust's 3 close_filter_* CArray<u32> placeholders. close_filter_a → _closeFilterByGroup (1st), close_filter_b → _closeFilter (2nd). close_filter_c is rust-extra (likely an undocumented additional filter list). stage_info: 11/82 → 13/82 verified (16%). Total: 467 → 465.
 
 - [x] GAP iter 135: stage_info `_completeCount` singleton close — 2026-05-10 SUCCESS. First stage_info closure beyond the 10 mechanically-aliased fields. Type-unique singleton: schema has exactly 1 direct_u16 missing canonical (`_completeCount`); rust struct has exactly 1 u16 field (`raw_i`). Both at last position of their respective trailing-block region. stage_info: 10/82 → 11/82 verified (13%). Total: 468 → 467.
