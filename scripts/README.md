@@ -48,6 +48,26 @@ when checking decoder-gap progress.
 python scripts/verify_v3_1_against_schema.py
 ```
 
+### `find_singleton_closures.py` (~95 lines)
+
+**Purpose:** Scan all gap tables for type-singleton closure
+opportunities — missing canonicals where a type group has exactly 1
+entry, candidates for the highest-confidence "type-unique singleton
+match" closure technique (per `docs/V3_1_CLOSURE_METHODOLOGY.md`
+technique 1).
+
+Run BEFORE attempting per-canonical work on any gap table to find
+the easy wins first. Surfaces opportunities like the iter 96/97
+ambiguity-resolution closes and iter 139's faction_node_info
+`_researchDataList` close.
+
+```bash
+python scripts/find_singleton_closures.py
+```
+
+Output sorts by gap-count ascending so the smallest tables (easiest
+wins) appear first.
+
 ### `audit_manual_overrides.py` (~85 lines)
 
 **Purpose:** Validate that every entry in `MANUAL_OVERRIDES` (in
