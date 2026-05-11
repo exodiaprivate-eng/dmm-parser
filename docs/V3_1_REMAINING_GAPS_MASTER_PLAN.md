@@ -114,10 +114,33 @@ likely surface.
 
 ### Priority E — class 5 sweep
 
-**Effort**: per-table; mostly proportional to gap count. The 9 tables
-in class 5 likely include character_info (largest single table),
-gimmick_info (Tier-1.5 with opaque blob), etc. Each needs its own
-audit pass.
+**Effort**: per-table; mostly proportional to gap count.
+
+**Class 5 breakdown** (per iter 98 enumeration; 8 tables / 517 gaps):
+
+| Table | Gaps | Notes |
+|---|---|---|
+| `gimmick_info` | 153 | Tier-1.5 typed-prefix + opaque blob; biggest closure target but blob-decode is hard |
+| `character_info` | 146 | Largest table by struct size (8.7KB per-record reader) |
+| `stage_info` | 72 | |
+| `gimmick_group_info` | 45 | |
+| `interaction_info` | 28 | iter 45 validated structurally; field-level audit still pending |
+| `tribe_info` | 26 | iter 42 validated structurally; field-level audit still pending |
+| `mission_info` | 25 | iter 46 validated structurally; field-level audit still pending |
+| `field_info` | 22 | Smallest gap; only 7 vanilla records — easiest fixture-driven analysis |
+
+**Recommended starting table**: `field_info` (22 gaps × 7 entries = small
+analysis space; rust struct uses placeholder names like `byte_at_16`,
+`lookup_u32_a/b`, `unk_u32_b` — similar pattern to faction_node_info,
+likely closeable with the same data-range methodology validated in iters
+96-97).
+
+**Pre-flight gotcha for `field_info`**: pabgh format isn't standard
+format-1 (u32 count + u32-key + u32-offset entries) or format-2
+(u16-count + u16-key + u32-offset entries). The actual bytes
+`07 00 01 00 00 00 00 00 00 00 64 00 00 00 79 00 …` (58 bytes total
+for 7 entries claimed) need inspection of the rust pabgh parser to
+identify the format variant before any field-level analysis can run.
 
 **Impact**: ~520 closures (95% of remaining 549).
 
