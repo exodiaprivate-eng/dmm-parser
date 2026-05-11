@@ -5,7 +5,7 @@
 **Audience**: Future implementer working through the residual 532 v3.1
 gaps. Read this BEFORE attacking any class-5 table.
 
-## TL;DR — the 6 techniques in priority order
+## TL;DR — the 7 techniques in priority order
 
 1. **Type-unique singleton match** — Highest confidence. If the rust struct
    has exactly 1 field of a given type and the schema has exactly 1
@@ -15,6 +15,13 @@ gaps. Read this BEFORE attacking any class-5 table.
    with N same-shape canonicals (sorted by setter-string address) give
    an unambiguous 1:1 mapping. Iter 112's mission_info close (4
    LocalizableString labels in one shot) used this.
+2.5. **Within-type-group setter-order rule** (iter 120) — High confidence
+   even with non-contiguous wire reads. When a type group has N missing
+   canonicals AND N unaliased rust fields of the matching shape AND the
+   wire-reads for those N rust fields preserve setter-string declaration
+   order (even when separated by other-type reads), map them 1:1. Iter
+   120's mission_info final 3 reader_4B closures + iter 121's tribe_info
+   9-u8 run used this. Subtler than rule #2 — verify by IDA wire-walk.
 3. **Per-entry uniqueness signature** — Medium confidence. A canonical
    that semantically MUST be unique per entry (`_levelName`, `_key`)
    must match the rust field whose fixture data has all-distinct values.
@@ -86,14 +93,26 @@ gaps. Read this BEFORE attacking any class-5 table.
    (per iters 103 / 109 / 112 templates).
 8. Ship the safe closures via tuple-scoped MANUAL_OVERRIDES in
    `scripts/generate_v3_1_aliases.py`.
-9. Regenerate aliases + verify schema verifier delta:
+9. **BEFORE adding overrides for placeholder-pattern field names**
+   (e.g. `lookup_a`, `unk_*`, `flag_*`, `raw_*`): mentally check that
+   `extract_main_struct_fields()` in the generator script checks
+   `MANUAL_OVERRIDES` BEFORE `is_placeholder()`. The reorder happened
+   in iter 122 — pre-iter-122 code silently dropped such overrides.
+10. Regenerate aliases + verify schema verifier delta:
    ```bash
    python scripts/generate_v3_1_aliases.py
    python scripts/verify_v3_1_against_schema.py
    ```
-10. Commit + push only the targeted files (NEVER `git add -A` —
+11. Commit + push only the targeted files (NEVER `git add -A` —
     that's how iter 67 swept in a 412KB zip; per workplan rule,
     use specific file lists in `git add`).
+12. **Periodically run** `python scripts/audit_manual_overrides.py`
+    to confirm no overrides have gone stale due to struct refactors
+    or generator changes. Iter 141 persisted this as a permanent tool.
+13. **Use `python scripts/find_singleton_closures.py`** to surface
+    new type-singleton opportunities after each schema verifier
+    refresh — saves the manual eyeballing of missing-canonical lists.
+    Iter 142 persisted this.
 
 ## Pre-flight gotchas
 
