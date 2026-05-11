@@ -588,6 +588,13 @@ MANUAL_OVERRIDES = {
     # reader_8B canonical missing in stage_info is `_closeDialogString`.
     # Type-unique singleton 1:1.
     ("stage_info",                     "label_b"):                           "_closeDialogString",
+
+    # Iter 158: stage_info `_weatherInfo` singleton close. Iter-157's tool
+    # bug-fix (regex pattern was `: u16\b` but field-type captures without
+    # leading `: `) revealed: stage_info has 2 u16 fields (raw_i aliased
+    # iter 135, lookup_u UNALIASED). Schema's only reader_2B missing =
+    # _weatherInfo. Singleton type-match 1:1 (both endpoints).
+    ("stage_info",                     "lookup_u"):                          "_weatherInfo",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

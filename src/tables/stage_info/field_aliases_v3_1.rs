@@ -26,4 +26,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("cstring_a", "_platformSocketName"),
     ("raw_i", "_completeCount"),
     ("label_b", "_closeDialogString"),
+    ("lookup_u", "_weatherInfo"),
 ];

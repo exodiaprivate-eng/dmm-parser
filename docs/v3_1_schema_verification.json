@@ -1451,11 +1451,11 @@
     "stage_info": {
       "schema_key": "StageInfo",
       "in_schema": true,
-      "alias_count": 15,
+      "alias_count": 16,
       "schema_field_count": 82,
-      "verified": 15,
+      "verified": 16,
       "mismatch": [],
-      "missing_in_dmm_count": 67,
+      "missing_in_dmm_count": 66,
       "missing_in_dmm": [
         "_beginTime",
         "_changeTime",
@@ -1521,7 +1521,6 @@
         "_useMercenaryLogout",
         "_useRevivePointForDead",
         "_weatherEndBlendTime",
-        "_weatherInfo",
         "_weatherIngTime",
         "_weatherStartBlendTime"
       ]
@@ -1678,9 +1677,9 @@
     }
   },
   "totals": {
-    "verified": 1248,
+    "verified": 1249,
     "mismatch": 0,
-    "missing_in_dmm": 461,
+    "missing_in_dmm": 460,
     "extra_in_dmm": 0
   }
 }

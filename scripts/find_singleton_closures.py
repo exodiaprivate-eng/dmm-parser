@@ -47,16 +47,16 @@ TABLES_DIR = REPO / "src" / "tables"
 # Schema-type to rust-type mapping for the rust-side singleton check.
 # Conservative — only types where we can confidently grep the rust struct.
 SCHEMA_TO_RUST_TYPES = {
-    "direct_u8":    [r": u8\b"],
-    "direct_u16":   [r": u16\b"],
-    "direct_u32":   [r": u32\b"],
-    "direct_u64":   [r": u64\b"],
-    "direct_12B":   [r": \[f32; 3\]"],     # Vec3
-    "direct_15B":   [r": u8\b"],            # 15B = setter dispatch class for u8
-    "reader_1B":    [r": u8\b"],            # u8 hash via lookup
-    "reader_2B":    [r": u16\b"],           # u16 hash via lookup
-    "reader_4B":    [r": u32\b", r"CArray<u32>"],  # u32 hash OR CArray<u32>
-    "reader_8B":    [r"LocalizableString"],  # 32 wire bytes / fat pointer
+    "direct_u8":    [r"^u8\b"],
+    "direct_u16":   [r"^u16\b"],
+    "direct_u32":   [r"^u32\b"],
+    "direct_u64":   [r"^u64\b"],
+    "direct_12B":   [r"^\[f32; 3\]"],       # Vec3
+    "direct_15B":   [r"^u8\b"],              # 15B = setter dispatch class for u8
+    "reader_1B":    [r"^u8\b"],              # u8 hash via lookup
+    "reader_2B":    [r"^u16\b"],             # u16 hash via lookup
+    "reader_4B":    [r"^u32\b", r"^CArray<u32>"],  # u32 hash OR CArray<u32>
+    "reader_8B":    [r"^LocalizableString"],  # 32 wire bytes / fat pointer
     # 'None' and 'array_or_complex' too varied to grep reliably
 }
 
