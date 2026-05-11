@@ -1783,3 +1783,153 @@ modified = dmm_parser.replace_cstring_at(
 - Engineering log: `docs/_archive/TIER1_PROMOTION_PROGRESS.md`
 - User-facing guide: `docs/MOD_AUTHOR_GUIDE.md` §12
 - `.paatt` BaseData field directory: `docs/BINARY_FORMATS.md#paatt-basedata-field-layout`
+
+## Havok-Layer Formats (Tier 1)
+
+Shipped over iters 3-15 of the Havok+1.06 repair loop. All 7 modules
+follow the same `parse_X_bytes` / `serialize_X` pattern — bytes in,
+JSON dict out, byte-perfect round-trip via `body_b64`-style opaque
+fields. Each parser additionally exposes a few named convenience
+fields (version constants, scanned strings, etc.) that mod tools can
+use without round-tripping the whole body.
+
+### `.pami` — Static Mesh Instance (XML)
+
+```python
+parsed = dmm_parser.parse_pami_bytes(open("foo.pami", "rb").read())
+# {
+#   "key": 0, "string_key": "",
+#   "xml_body": "<StaticMeshInstance Version='1'>...</StaticMeshInstance>",
+#   "version": 1,
+#   "mesh_paths": ["object/03_cube.pa", ...],
+# }
+new_bytes = dmm_parser.serialize_pami(parsed)
+```
+
+Despite the file extension's resemblance to `.pam`, **.pami is plain
+UTF-8 XML** — not Havok-related. Root element is always
+`<StaticMeshInstance>`. 200/200 audited game files conform.
+
+### `.pab` / `.paa` / `.pam` / `.pabc` / `.pabv` / `.pac` — PAR family
+
+```python
+parsed = dmm_parser.parse_par_bytes(open("character.pab", "rb").read())
+# {
+#   "magic": "PAR ",
+#   "version": 16778497,          # u32 from header
+#   "version_hex": "0x01050001",
+#   "ext_classification": "pab",  # "pab"|"paa"|"pam"|"pabc"|"pabv"|"pac"|"unknown"
+#   "body_b64": "<base64 of body bytes>",
+#   "body_len": 345,
+# }
+```
+
+| Ext   | Version u32  | Bytes (LE)    | Notes                       |
+|-------|--------------|---------------|-----------------------------|
+| .pab  | `0x01050001` | `01 05 00 01` | skeletal volume             |
+| .paa  | `0x01000302` | `02 03 00 01` | animation set entry         |
+| .pam  | `0x00001802` | `02 18 00 00` | single animation file       |
+| .pabc | `0x01000134` | `34 01 00 01` | PA character body           |
+| .pabv | `0x01000136`/`0x01000137` | varies | PA body variant (2 minor versions) |
+| .pac  | `0x01000503`/`0x01000003` | varies | character archive |
+
+### `.motionblending` — named-property records
+
+```python
+parsed = dmm_parser.parse_motionblending_bytes(data)
+# {
+#   "magic_a": "0xffff",
+#   "version": 3 | 4,            # v3 = 16-byte header, v4 = 24-byte
+#   "type_name": "ParameterizedMotionSpace",
+#   "field_records": [
+#     {"name": "_skeletonFileName", "type_tag": "staticstringA"},
+#     {"name": "_animationFileNames", "type_tag": "staticstringA"},
+#     # ...15 stable fields total...
+#   ],
+#   "scanned_strings": [...flat list including all strings...],
+#   "body_b64": "..."
+# }
+```
+
+The full corpus (1574 files) carries the same 15 fields in
+deterministic order. Type tags in use: `staticstringA` (string array)
+and `bool`. Typed value decode is queued — recovering the byte layout
+of each tag's value section needs IDA RE.
+
+### `.pamlod` — PA Mesh LOD descriptor
+
+```python
+parsed = dmm_parser.parse_pamlod_bytes(data)
+# {
+#   "lod_count": 1|4|5|6|7|8|9,   # observed range across 50 files
+#   "size_hint": <u32>,
+#   "lod_distance": <f32>,
+#   "geometry_format": 4,         # constant across the corpus
+#   "texture_paths": ["03_plane.dds", ...],  # deduped scan
+#   "body_b64": "..."
+# }
+```
+
+### `.paasmt` — Animation Set Matching Table
+
+```python
+parsed = dmm_parser.parse_paasmt_bytes(data)
+# {
+#   "record_count": 58,
+#   "record_pairs": [
+#     {"model_path": "character/model/.../X.pac",
+#      "animset_xml_path": "character/descriptors/animationset/.../X.animset.xml"},
+#     # ...
+#   ],
+#   "paths": ["<raw list with null-byte terminators preserved>"],
+#   "body_b64": "..."
+# }
+```
+
+### `.paccd` — Character Customization Data
+
+```python
+parsed = dmm_parser.parse_paccd_bytes(data)
+# {
+#   "zero_marker": 0,
+#   "format_version": 14,         # constant across the corpus
+#   "flags": 2,                   # constant
+#   "no_override_byte_count": <count of 0xFF bytes in body>,
+#   "body_b64": "..."
+# }
+```
+
+`0xFF` in the body is the "no-override" sentinel — `body_len - 12 -
+no_override_byte_count` is the count of explicitly-set slider params.
+Per-slider semantic mapping (which byte = which slider) is queued
+pending IDA RE of the character editor.
+
+### `.hkx` — Havok Tag-format
+
+```python
+parsed = dmm_parser.parse_hkx_bytes(data)
+# {
+#   "magic": "TAG0",
+#   "outer_length_be": <u32 big-endian section length>,
+#   "sdk_version": "20240200",    # Havok SDK 2024.2.00 — constant for CD
+#   "body_b64": "..."
+# }
+```
+
+Crimson Desert links Havok 2024.2 statically. Full object-graph
+deserialization would require the in-binary Havok class registry
+(`hkClass` family) — queued as long-term TBD.
+
+### Round-trip discipline
+
+All 7 parsers preserve the file body via a `body_b64` field. Mods
+that want to make targeted edits should:
+1. Parse with `parse_X_bytes`
+2. Decode `body_b64` (base64) to a `bytearray`
+3. Mutate at known offsets
+4. Re-encode `body_b64` and write the dict back via `serialize_X`
+
+Most named convenience fields (e.g. `mesh_paths`, `field_records`,
+`record_pairs`) are **read-only views derived from the body** —
+mutating them in the dict will NOT affect the serialized output;
+edit the body bytes directly.

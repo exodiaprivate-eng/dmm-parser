@@ -241,9 +241,11 @@ Honest accounting of what's still blocked or future work:
     was running BEFORE `MANUAL_OVERRIDES` check, silently dropping
     overrides for placeholder-pattern rust field names
     (`lookup_a`/`unk_*`/`flag_*`/`raw_*`)
-- **Havok binary layer (`.pac`/`.pacc`/`.pam`/`.pami`/`.pamlod`)** has
-  0% native parsing. Layer B in `ENGINE_INTERNALS.md`. Standard Havok
-  2024.2 SDK, would need DCC-plugin-equivalent reader.
+- ~~**Havok binary layer (`.pac`/`.pacc`/`.pam`/`.pami`/`.pamlod`)** has~~
+  ~~0% native parsing.~~ **Closed by the Havok+1.06 repair loop**
+  (2026-05-11, iter 3-25; see new section below). All 12 Havok-layer
+  extensions now Tier 1 classifier + round-trip. Full object-graph
+  decode for `.hkx` (the `hkClass` family registry) still needs IDA RE.
 - **`paatt_basedata.rs` 35 `_unkXXXX` fields** are the only remaining
   placeholders in the codebase, structurally unrecoverable without new
   evidence (PS5 demo binary or pycrimson .paatt support).
@@ -254,3 +256,105 @@ Tests: 562 passing throughout. No source-code regressions.
 
 Cron loop scheduled by id `15ac410b` at `*/1 * * * *`; auto-expires
 2026-05-17. Cancel with CronDelete.
+
+---
+
+## Havok+1.06 Repair Loop (2026-05-11, iter 1-25)
+
+**Trigger:** Crimson Desert 1.06 patch dropped overnight (Win build
+`23174122` published 2026-05-11 00:52 AM). Initial diff showed 5
+PABGH PARSE FAILED tables. User asked: fix the broken tables AND
+parse the unparsed-Havok-layer extensions for mod tool authors.
+
+**Cron job:** `af43c492` at `* * * * *`; auto-expires 2026-05-18.
+
+### Critical fixes (1.06 regression triage)
+- **5 broken pabgh-bounded tables fixed** (iter 1-2). All 5 had
+  always-broken pabgh layouts the parser never supported — the
+  1.06 diff merely exposed them. Added 3 new format variants to
+  `src/binary/pabgh.rs`:
+  - `U16CountU8Key` (5-byte entries) — fixes mercenarygroupinfo,
+    mercenaryinfo, relationinfo
+  - `U32CountU32KeyExtra4` (12-byte) — fixes characterappearanceindexinfo,
+    `parent_id` field decoded (-2 = root sentinel, 86% of 8143 entries)
+  - `U16CountExtra12` (16-byte) — fixes aieventtableinfo,
+    `hash_key` + `aux_c` fields decoded (corrected iter-1 wrong-key bug)
+- Round-trip preserved via `extra_bytes`. `parent_id()` + `aux_c()`
+  accessors on `PabghEntry`. `pabgh parse fails: 5 → 0`.
+
+### New format parsers (Tier 1, byte-perfect round-trip + Python bindings)
+
+**Havok-layer family (12 extensions):**
+| Ext | Module | Key | Iter |
+|---|---|---|---|
+| `.hkx` | `binary::hkx` | TAG0 magic + SDK version (Havok 2024.2.00) | 7 |
+| `.pami` | `binary::pami` | XML `<StaticMeshInstance>` (was wrongly labeled "Animation index"; corrected) | 3 |
+| `.pab`/`.paa`/`.pam`/`.pabc`/`.pabv`/`.pac`/`.pat`/`.papr` | `binary::par_resource` | "PAR " magic + per-ext version constants (9 versions catalogued) | 4-20 |
+| `.motionblending` | `binary::motionblending` | Named-property records, **full corpus vocab decoded** (15 stable fields × 2 type tags across 1574 files) | 5, 11 |
+| `.pamlod` | `binary::pamlod` | Static Mesh LOD (was wrongly labeled "Animation LOD"; corrected) | 6, 14 |
+| `.paasmt` | `binary::paasmt` | Animation Set Matching Table | 8, 13 |
+| `.paccd` | `binary::paccd` | Character Customization Data (corpus-wide constants + 0xFF "no-override" sentinel) | 8, 12 |
+
+**Non-Havok extensions (+12 more):**
+| Ext | Module | Iter |
+|---|---|---|
+| `.binarystring` | `binary::binarystring` | 17 |
+| `.material`/`.technique`/`.mi`/`.spline`/`.spline2d`/`.pma` | `binary::xml_resource` (one module covers 6 formats) | 18, 20 |
+| `.imp`/`.impostor` | `binary::impostor` | 19 |
+| `.paprojdesc`/`.pashv` | reuses `binarystring` | 20-21 |
+| `.paseqh`/`.paschedulectx` | `binary::count_record_table` (generic classifier) | 22 |
+
+### Infrastructure
+- **Partial-compression unblock** (iter 9): the `is_partial=true` flag
+  was misnamed — actually meant "uncompressed passthrough". One-line
+  fix in `src/binary/paz.rs::read_pack_file`. Unlocked extraction for
+  29/30 `.pamlod`, 24/30 `.pac`, 13/30 `.pam` files that had been
+  stuck behind `OSError: partial compression extraction not yet
+  implemented`. (Remaining failures are a separate
+  partial-compression-with-size-differential variant — IDA-RE blocked.)
+- **3 generic classifiers** that proved high-leverage: `par_resource`
+  (8 PAR-family ext), `xml_resource` (6 XML ext), `count_record_table`
+  (2 record-table ext)
+- **24 Python bindings** added: `parse_<ext>_bytes` + `serialize_<ext>`
+  for every new format. Mod authors can `import dmm_parser` and call
+  any of them directly.
+
+### Diff tool extensions (`dmm-pabgb-aio/diff_pabgb_versions.py`)
+- **3 new pabgh format variants** added to the Python `parse_pabgh`
+  shim so the diff tool can read the previously-broken tables
+- **Iteminfo typed diff** (iter 8) — reports by `string_key`
+  ("Poison_Arrow") instead of raw hex keys; catches same-byte-size
+  field-value changes the byte-size diff missed
+- **Sequential pabgb diff** (no pabgh sister) — typed-parse via
+  `parse_table(name, body, None)`
+- **Tier 2 file diff** (iter 24) — 24 Havok-layer + XML + small-binary
+  extensions now diffed file-by-file
+- **Typed field deltas** (iter 25) — per-format semantic deltas:
+  `.pami.mesh_paths` add/remove, `.pamlod.lod_count` changes,
+  `.paccd.no_override_byte_count`, PAR `version` "FORMAT CHANGE"
+  warnings, `.hkx.sdk_version` SDK upgrade detection
+
+### Documentation
+- `docs/_HAVOK_TABLES_WORKPLAN.md` — full per-iter log
+- `docs/api.md` — new "Havok-Layer Formats (Tier 1)" section with
+  JSON-shape examples for every new parser
+- `docs/MOD_AUTHOR_GUIDE.md` §13 — single-page summary table of all
+  12 extensions + mod-relevant fields
+- `docs/BINARY_FORMATS.md` — every ⚠️ → Tier 1 promotion tracked
+- `docs/ENGINE_INTERNALS.md` — Havok status refresh
+
+### Tests + corpus validation
+- Tests: **567 → 635** (+68 new tests across 25 iters), all passing
+- Real-world corpus validation for every shipped format (20-1641
+  samples per format depending on install footprint)
+- Caught 2 wrong-field-name bugs from earlier "1-sample" ships
+  via post-unblock corpus audits (iter 11 for motionblending,
+  iter 14 for pamlod)
+
+### Known blockers (deferred, all need IDA RE)
+- Partial-compression-with-size-differential variant (~17 .pam +
+  ~6 .pac files still inextractable)
+- `.motionblending` per-tag typed value decode
+- `.paccd` per-slider semantic mapping
+- `.hkx` Havok class registry / object-graph decode
+- `.questgaugecount`, `.pathc`, `.paproj`, `.pai` per-record decode

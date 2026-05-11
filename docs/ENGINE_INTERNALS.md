@@ -29,13 +29,41 @@ Research notes from binary analysis of `CrimsonDesert.exe` (Win retail build).
 Triggered by community question about whether the engine uses Havok rigid
 bodies for skin proxies.
 
-**Status:** Research notes only. The Havok layer itself (mesh/skel/anim binary
-content) remains Layer 5 — not yet field-level parsed in dmm-parser. The
-**Pearl Abyss-side metadata wrappers** that reference these Havok assets ARE
-now reachable via the pycrimson reflection workflow shipped in Session 28
-(commit `6273c7f`); see "Updates from Session 28" below.
+**Status (refreshed iter 25 of Havok+1.06 repair loop, 2026-05-11):**
+The "Havok-layer" extension family is now **classified + round-trip**
+at Tier 1 in dmm-parser. Twelve formats covered:
 
-**Last refresh:** 2026-05-10.
+| Ext | dmm-parser handler | Status |
+|---|---|---|
+| `.hkx` | `binary::hkx` | Havok tag-format magic + SDK version (`20240200` = Havok 2024.2.00, confirmed 30/30 sampled files) |
+| `.pami` | `binary::pami` | Static Mesh Instance XML (root `<StaticMeshInstance>`) — NOT animation-index as previously labeled |
+| `.pab`/`.paa`/`.pam`/`.pabc`/`.pabv`/`.pac`/`.pat`/`.papr` | `binary::par_resource` | "PAR " magic + per-ext version constants (9 versions catalogued) |
+| `.motionblending` | `binary::motionblending` | Named-property records, 15 stable fields decoded across 1574-file corpus |
+| `.pamlod` | `binary::pamlod` | Static Mesh LOD descriptor (NOT "Animation LOD") |
+| `.paasmt` | `binary::paasmt` | Animation Set Matching Table (`.pac` ↔ `.animset.xml`) |
+| `.paccd` | `binary::paccd` | Character Customization Data (slider params, 0xFF "no-override" sentinel) |
+
+Every parser ships byte-perfect round-trip via `body_b64`-style opaque
+fields. Python bindings exposed via `dmm_parser.parse_<ext>_bytes` /
+`serialize_<ext>`. See `docs/api.md` "Havok-Layer Formats (Tier 1)"
+for JSON shapes.
+
+**What is NOT done yet (queued for IDA RE):**
+- Object-graph deserialization for `.hkx` (the in-binary
+  `hkClass` family registry needs walking)
+- Typed value decode for `.motionblending` per-tag records
+  (`staticstringA`/`bool` payload layouts)
+- Per-slider semantic mapping for `.paccd`
+- Partial-compression-with-size-differential variant (blocks
+  ~17 .pam + ~6 .pac files from extracting)
+
+The **Pearl Abyss-side metadata wrappers** that reference these Havok
+assets were already reachable via the pycrimson reflection workflow
+shipped in Session 28 (commit `6273c7f`); see "Updates from Session 28"
+below. Iter 3-25 of the Havok+1.06 repair loop added the Layer-B
+wrappers themselves.
+
+**Last refresh:** 2026-05-11 (iter 25 of Havok+1.06 repair loop).
 
 ## TL;DR
 

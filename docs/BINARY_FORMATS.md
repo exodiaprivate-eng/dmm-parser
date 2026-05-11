@@ -42,8 +42,8 @@ Status legend:
 | `.papgt` | ✅ | Pack group tree (meta/0.papgt — top-level dispatch) | `src/binary/papgt.rs` |
 | `.pabgh` | ✅ | Per-table offset-index file (companion to .pabgb) | `src/binary/pabgh.rs` |
 | `.pabgb` | ✅ | Raw table entries (122 *Info tables decode through this) | `src/binary/pabgb.rs` + `src/tables/*` |
-| `.pathc` | ⚠️ | Texture header cache | none (referenced by PackageContext) |
-| `.binarystring` | ⚠️ | u16 count + u8-cstrings | none |
+| `.pathc` | ⚠️ (structure identified) | **Texture header collection** (2.3 MB). Header: `u64 zero + u32 size_a(148) + u32 size_b(672) + u32 total_records(279221) + u32 + records`. Body is dense binary texture metadata — only 14 embedded `.dds` paths despite huge file size. Per-record decode needs IDA. | none |
+| `.binarystring` | 🟢 Tier 1 | **Packed UTF-8 string list** — `u16 count + (u8 len + utf8) × N`. 1/1 game file (`gamestring.binarystring`, 19259b). | `src/binary/binarystring.rs` — strings extracted as a list, byte-perfect round-trip |
 
 ### Localization
 
@@ -60,17 +60,19 @@ Status legend:
 | `.paac` | 🟡 | (file-format table; partial decode) | `src/tables/paac/` |
 | `.pappt` | 🟡 | (file-format table; partial decode) | `src/tables/pappt/` |
 | `.paacdesc` | 🚫 | unknown | pycrimson blocked |
-| `.paprojdesc` | ⚠️ | projectile descriptor | none |
-| `.paproj` | ⚠️ | projectile data | none |
+| `.paprojdesc` | 🟡 Tier 1 (string section) | **Projectile descriptor** — string-prefix section uses `.binarystring` format (`u16 count + (u8 len + utf8) × N`); use `parse_binarystring_bytes`. 32-byte trailing record after the string list (per-projectile data, TBD). | `src/binary/binarystring.rs` covers the prefix section |
+| `.paproj` | ⚠️ (structure identified) | **Projectile data** binary. Layout: `u32 record_count + u32 type_hash + u32 something + zero-padding + records`. Per-record structure pending RE. | none |
 | `.pas` | 🚫 | unknown | pycrimson blocked |
-| `.pashv` | ⚠️ | unknown shader-related | none |
-| `.papr` | ⚠️ | unknown | none |
+| `.pashv` | 🟡 Tier 1 (string prefix) | **AI Share Values** — string-prefix section uses `.binarystring` format (`u16 count + (u8 len + null-terminated utf8) × N`). Verified on `allweaponcommonaisharevalue.pashv`: 193/193 strings parsed (e.g. `c_sequencer_movetype`, `c_sequencer_aiactiontype`). Tail section (~85% of file) contains the actual share values keyed by string index — TBD. Use `parse_binarystring_bytes` for the string section. | `src/binary/binarystring.rs` covers prefix |
+| `.papr` | 🟢 Tier 1 (classify+round-trip) | **PA particle/projectile resource** — PAR family, version `0x01000135`. | `src/binary/par_resource.rs` |
 | `.paschedule` | 🟡 | schedule data (typed prefix + opaque body) | `src/binary/paschedule.rs` |
-| `.paschedulectx` | ⚠️ | schedule context | none |
+| `.paschedulectx` | 🟡 Tier 1.5 (count + paths) | **Schedule context** binary. `u32 count + per-record (u32 hash + u8 flag + u32 len + utf8 path)` referencing `sequencer/.../*.paschedule` files. Verified on `schedulecontext.paschedulectx`: count=4088, scanned 4118 paths. Use `parse_count_record_table_bytes`. | `src/binary/count_record_table.rs` |
 | `.paschedulepath` | 🟡 | schedule path data | `src/binary/paschedulepath.rs` |
 | `.pastage` | 🟡 | stage data | `src/binary/pastage.rs` |
-| `.pai` / `.pi` | ⚠️ | unknown | none |
-| `.pma` / `.pmb` | ⚠️ | unknown PA format | none |
+| `.pai` | ⚠️ | AI chart data, large binary (3 MB). u32 count header. Audit pending. | none |
+| `.pi` | ⚠️ | NOT FOUND in 1.06 install | none |
+| `.pma` | 🟢 Tier 1 | **UTF-8 XML** (no BOM), root `<ARFaceAnimation>` — face/animation reference. Use `parse_xml_bytes`. | `src/binary/xml_resource.rs` |
+| `.pmb` | ⚠️ | NOT FOUND in 1.06 install — likely deprecated or generated at runtime | none |
 
 ### Reflection-format files (pycrimson territory)
 
@@ -92,33 +94,38 @@ Status legend:
 | `.binarygimmickcacheddata` | 🚫 | Gimmick cached data | pycrimson buffer underflow |
 | `.binarygimmickframeevent` | 🚫 | Gimmick frame events | pycrimson buffer underflow |
 | `.seqmt` | 🚫 | (`! ???????` in pycrimson notes) | pycrimson buffer underflow |
-| `.paseqh` | ⚠️ | Sequence header | none |
-| `.questgaugecount` | ⚠️ | Quest gauge counter | none |
+| `.paseqh` | 🟡 Tier 1.5 (count + names) | **Sequence header** binary. `u32 record_count + per-record (u32 name_len + name + binary fields)`. Verified on `sequencerstageheader.paseqh`: count=2949, scanned 6042 names (~2 per record). Use `parse_count_record_table_bytes`. Per-record typed value decode is TBD. | `src/binary/count_record_table.rs` |
+| `.questgaugecount` | ⚠️ (structure identified) | **Quest gauge counter**. Layout `u32 count(=382) + variable-size records separated by `0xFFFFFFFF` markers`. 305 separator markers across 25350 u32 values total. Each record carries `u32 hash + u32 sub_value + u32 ref + u32 zero + 0xFFFFFFFF + N×u32 extra`. Per-record decode needs IDA. Only 1 file in install. | `parse_count_record_table_bytes` returns count successfully but extracts no string names (records are binary-only) |
 
 ### Havok-layer files (Layer B per ENGINE_INTERNALS.md)
 
 | Ext | Status | Purpose | Handler |
 |---|---|---|---|
-| `.hkx` | ⚠️ | Havok native (anim/ragdoll/mesh, sig `57 E0 E0 57…`) | none — Layer B |
-| `.pac` | ⚠️ | Havok-wrapped character archive | none — Layer B |
-| `.pacc` | ⚠️ | (variant of .pac) | none — Layer B |
-| `.pam` | ⚠️ | Havok animation file | none — Layer B |
-| `.pami` | ⚠️ | Animation index | none — Layer B |
-| `.pamlod` | ⚠️ | Animation LOD | none — Layer B |
-| `.motionblending` | ⚠️ | Motion blending | none |
-| `.pab` / `.pabc` / `.pabv` / `.paasmt` / `.paccd` | ⚠️ | unknown (likely Havok-related) | none |
+| `.hkx` | 🟢 Tier 1 (classify+SDK-version) | Havok native **Tag-format** ("TAG0" magic at offset 4). Iter-7 audit: **30/30 game files** contain SDK string `20240200` = **Havok 2024.2.00**. Full object-graph decode requires the in-binary Havok class registry RE (TBD). | `src/binary/hkx.rs` — TAG0 magic + SDKV version extraction + round-trip |
+| `.pac` | 🟢 Tier 1 (classify+round-trip) | **PAR family** — main ver `0x01000503` (19/20), older ver `0x01000003` (1/20). Iter 10: added to PAR family classifier. 24/30 extractable; remaining 6 use a partial-compression-with-size-differential format that needs RE (IDA blocker, queued). | `src/binary/par_resource.rs` |
+| `.pacc` | ⚠️ | (variant of .pac, deprecated?) | NOT FOUND in 1.06 install — likely removed |
+| `.pam` | 🟢 Tier 1 (classify+round-trip) | Single animation file, **PAR family** (magic `"PAR "` + version `0x00001802`). Partial-compression blocker fixed iter 9 (was misnamed flag = "stored uncompressed"). Some .pam still fail on other compression types — queued. | `src/binary/par_resource.rs` |
+| `.pami` | 🟢 Tier 1 | **Static Mesh Instance** (XML, root `<StaticMeshInstance>`) — earlier "Animation index" label was wrong; corrected iter 3 (verified 200/200 game files). NOT a Havok-layer file. | `src/binary/pami.rs` (parse + serialize, byte-perfect round-trip, version + mesh_paths extracted) |
+| `.pamlod` | 🟢 Tier 1 | **PA Mesh LOD** descriptor (NOT "Animation LOD") — `StaticMeshLODStreamingContext`. **Iter-14 corrected header** (was wrong in iter 6): `u32 lod_count (1-9 observed) + u32 size_hint + f32 lod_distance + u32 geometry_format (always 4) + LOD entries + .dds paths`. 50/50 sampled files parse cleanly post iter-14 correction. Corpus sizes: 802b to 2.4 MB. | `src/binary/pamlod.rs` |
+| `.motionblending` | 🟢 Tier 1 | Motion blending — named-property records, root type `ParameterizedMotionSpace`. Two versions (v3 16-byte header, v4 24-byte header), magic `0xFFFF`. 30/30 sampled files decode. **Full corpus vocabulary** (1574 files, iter 11): 15 stable fields per file (`_skeletonFileName`, `_animationFileNames`, ... `_delaunayTriangles`), 2 type tags (`staticstringA`, `bool`). | `src/binary/motionblending.rs` — header + field/type pairs exposed via `field_records`, body round-trip. Typed value decode queued. |
+| `.pab` | 🟢 Tier 1 (classify+round-trip) | Skeletal volume, **PAR family** (`"PAR "` + ver `0x01050001`) — verified 30/30 samples | `src/binary/par_resource.rs` |
+| `.paa` | 🟢 Tier 1 (classify+round-trip) | Animation set entry, **PAR family** (`"PAR "` + ver `0x01000302`) — verified 20/20 samples | `src/binary/par_resource.rs` |
+| `.pabc` | 🟢 Tier 1 (classify+round-trip) | **PAR family** ver `0x01000134`. 20/20 game samples decode. | `src/binary/par_resource.rs` |
+| `.pabv` | 🟢 Tier 1 (classify+round-trip) | **PAR family**, two sub-versions: `0x01000136` (14/20) + `0x01000137` (6/20). All samples decode. | `src/binary/par_resource.rs` |
+| `.paasmt` | 🟢 Tier 1 | **PA Animation Set Matching Table** — maps `.pac` model paths to `.animset.xml` descriptor paths. `u32 record_count + (u32 path_len + utf8 path) × (2 × record_count)`. 1/1 game file, **100% byte coverage**: 58 records × 2 paths = 116 paths. Iter 13: paths grouped into structured `record_pairs` for mod tooling convenience. | `src/binary/paasmt.rs` |
+| `.paccd` | 🟢 Tier 1 | **PA Character Customization Data**. Header (verified across **full 1641-file corpus**): `u32 zero=0 + u32 format_version=14 + u32 flags=2` (both constants — was misnamed as "version_or_count" + "record_count_or_flags" in iter 8). Body is packed slider bytes — **`0xff` is the "no-override" sentinel** (51% of body bytes). Common slider values: 0 (20%), 100 (8%), 50 (6%). | `src/binary/paccd.rs` — header + no-override count + round-trip. Per-slider semantic mapping TBD (needs IDA RE). |
 
 ### Texture / mesh assets
 
 | Ext | Status | Purpose | Handler |
 |---|---|---|---|
 | `.dds` | 🟡 | DDS texture (DXT/BC compressed) | `src/binary/dds.rs` (classify + validate + vpath inference) |
-| `.paa` | ⚠️ | unknown PA texture variant | none |
-| `.pat` | ⚠️ | unknown PA texture variant | none |
-| `.imp` / `.impostor` | ⚠️ | impostor (low-poly fallback) | none |
-| `.material` | ⚠️ | Material definition | none |
-| `.technique` | ⚠️ | Render technique | none |
-| `.mi` | ⚠️ | unknown | none |
+| `.pat` | 🟢 Tier 1 (classify+round-trip) | **PA texture data** — PAR family, version `0x01000404` (verified 3/3 sampled). | `src/binary/par_resource.rs` |
+| `.imp` | 🟢 Tier 1 | **Impostor billboard descriptor** — fixed 72 bytes: `magic "IMP " + u32 reserved=256 (constant) + 64-byte body`. 30/30 sampled. | `src/binary/impostor.rs::parse_imp_to_json` |
+| `.impostor` | 🟢 Tier 1 | **Impostor spatial parameters** — fixed 48 bytes = 12 × little-endian f32. floats[4..6] always 0 (rotation padding); other floats vary per mesh. | `src/binary/impostor.rs::parse_impostor_to_json` — structured `floats` array, byte-perfect round-trip |
+| `.material` | 🟢 Tier 1 | **UTF-8 XML** with BOM, root `<Technique Name="...">`. 10/10 sampled. | `src/binary/xml_resource.rs` (shared with `.technique`, `.mi`, `.spline`, `.spline2d`) |
+| `.technique` | 🟢 Tier 1 | **UTF-8 XML** with BOM, root `<Category Name="...">`. 10/10 sampled. | `src/binary/xml_resource.rs` |
+| `.mi` | 🟢 Tier 1 | **UTF-8 XML** (no BOM), root `<SkinnedDecalProperty>` — skinned-decal material instance. 10/10 sampled. | `src/binary/xml_resource.rs` |
 
 ### Audio
 
@@ -134,7 +141,8 @@ Status legend:
 |---|---|---|---|
 | `.nav` | ⚠️ | Navigation mesh | none |
 | `.road` / `.roadsector` / `.roadidx` | ⚠️ | Road geometry/index | none |
-| `.spline` / `.spline2d` | ⚠️ | Spline data (Spline* classes catalogued via reflection) | none |
+| `.spline` | 🟢 Tier 1 | **UTF-8 XML** (no BOM), root `<SplineDataGroup>` — 3D spline curves. 10/10 sampled. | `src/binary/xml_resource.rs` |
+| `.spline2d` | 🟢 Tier 1 | **UTF-8 XML** (no BOM), root `<SplinePresetData>` — 2D spline presets. 10/10 sampled. | `src/binary/xml_resource.rs` |
 
 ### Save / template
 

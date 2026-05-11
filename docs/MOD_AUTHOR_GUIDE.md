@@ -987,3 +987,33 @@ in-game C++ struct holds; wire width is what's stored in the
 ---
 
 - `samples/` — runnable example mods (each its own README).
+
+## §13: Havok-Layer Files (Tier 1, iter 3-15 of repair loop)
+
+Crimson Desert ships a family of PA-engine wrappers around Havok 2024.2
+content. As of the iter-15 ship, **all 12** original Havok-layer
+extensions are Tier 1 with byte-perfect round-trip and Python bindings
+exposed via `dmm_parser`:
+
+| Ext | Module | Mod-relevant fields |
+|---|---|---|
+| `.pami` | StaticMeshInstance XML | `mesh_paths`, `version`, `xml_body` |
+| `.pab`/`.paa`/`.pam`/`.pabc`/`.pabv`/`.pac` | PAR family | `ext_classification`, `version_hex`, `body_b64` |
+| `.motionblending` | Animation blend tree | 15 named fields × 2 type tags (`staticstringA`, `bool`) |
+| `.pamlod` | Mesh LOD descriptor | `lod_count`, `lod_distance`, `texture_paths` |
+| `.paasmt` | Animation Set Matching | `record_pairs[].model_path` ↔ `animset_xml_path` |
+| `.paccd` | Customization Data | `format_version=14`, `no_override_byte_count` |
+| `.hkx` | Havok native | `sdk_version` (always `20240200`), TAG0 sections |
+
+See `docs/api.md` → "Havok-Layer Formats (Tier 1)" for full JSON-shape
+documentation and round-trip discipline. Each format's parse function
+is exposed as `dmm_parser.parse_<format>_bytes(data) -> dict`.
+
+**What's not done yet (queued for future iters):**
+- Typed value decode for `.motionblending` records (`staticstringA` array
+  body layout, `bool` payload — needs IDA RE)
+- Per-slider semantic mapping for `.paccd` (which byte = which slider)
+- Havok class-registry decode for `.hkx` (the `hkClass` family lives
+  inside `CrimsonDesert.exe`)
+- Partial-compression-with-size-differential format used by ~17 .pam
+  and ~6 .pac files (also IDA RE blocker)
