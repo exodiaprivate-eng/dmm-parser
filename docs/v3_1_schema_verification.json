@@ -583,16 +583,15 @@
     "field_info": {
       "schema_key": "FieldInfo",
       "in_schema": true,
-      "alias_count": 18,
+      "alias_count": 19,
       "schema_field_count": 24,
-      "verified": 18,
+      "verified": 19,
       "mismatch": [],
-      "missing_in_dmm_count": 6,
+      "missing_in_dmm_count": 5,
       "missing_in_dmm": [
         "_endSectorIndex",
         "_fixedFieldTime",
         "_isEnableAutoSave",
-        "_regionBitmapPositionInfo",
         "_sequencerSpawnKey",
         "_useFixedFieldTime"
       ]
@@ -1697,9 +1696,9 @@
     }
   },
   "totals": {
-    "verified": 1229,
+    "verified": 1230,
     "mismatch": 0,
-    "missing_in_dmm": 480,
+    "missing_in_dmm": 479,
     "extra_in_dmm": 0
   }
 }

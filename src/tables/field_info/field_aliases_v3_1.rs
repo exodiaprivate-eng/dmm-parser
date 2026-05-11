@@ -29,4 +29,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("byte_at_82", "_natureRegionBitmapPositionInfo"),
     ("byte_at_83", "_alwaysCallVehicle_dev"),
     ("byte_at_84", "_startSectorIndex"),
+    ("byte_at_126", "_regionBitmapPositionInfo"),
 ];

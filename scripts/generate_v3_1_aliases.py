@@ -449,6 +449,17 @@ MANUAL_OVERRIDES = {
     ("field_info",                     "byte_at_82"):                        "_natureRegionBitmapPositionInfo",
     ("field_info",                     "byte_at_83"):                        "_alwaysCallVehicle_dev",
     ("field_info",                     "byte_at_84"):                        "_startSectorIndex",
+
+    # Iter 126: field_info `_regionBitmapPositionInfo` singleton close.
+    # Last visible u8 wire read (byte_at_126 at wire 122) ↔ last direct_u8
+    # canonical by setter-string addr (_regionBitmapPositionInfo at
+    # 0x14492f290 — the highest of all direct_u8 setter addresses for
+    # field_info). Singleton 1:1 of last-of-each-end. The 3 remaining
+    # direct_u8 (_endSectorIndex, _isEnableAutoSave, _useFixedFieldTime)
+    # likely live inside FieldInfoComposite sub-struct (1 visible u8 there:
+    # byte_at_20) plus 2 more not yet identified — needs class-2 expansion
+    # of alias mechanism to reach.
+    ("field_info",                     "byte_at_126"):                       "_regionBitmapPositionInfo",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
