@@ -290,6 +290,17 @@ MANUAL_OVERRIDES = {
     ("mission_info",                   "flag_438"):                          "_preCheck",
     ("mission_info",                   "flag_439"):                          "_existFail",
     ("mission_info",                   "flag_440"):                          "_completeType",
+
+    # Iter 115: tribe_info first direct_u8. Schema has 12 missing direct_u8
+    # canonicals; rust has 12 u8 placeholders split into 3 runs (unk_22
+    # alone, unk_28..36 = 9 consecutive, unk_80/_81 = 2 consecutive). Iter
+    # 109 confirmed unk_22 is the 1st u8 in wire-read order (mem 17 / 22).
+    # `_tribeMassLevel` is the 1st direct_u8 in setter-string declaration
+    # order (0x14495c5f0, well before all other direct_u8s in the
+    # 0x14495e3xx-9xx range). Both 1st-of-each-end → safe singleton match.
+    # The 9-consecutive run (unk_28..36) and 2-consecutive run (unk_80/_81)
+    # need IDA cross-run-order verification before shipping en bloc — defer.
+    ("tribe_info",                     "unk_22"):                            "_tribeMassLevel",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
