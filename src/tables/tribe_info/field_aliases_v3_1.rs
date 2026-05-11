@@ -15,4 +15,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
     ("unk_56", "_tribeNameForEditor"),
+    ("ref_list", "_tamedSkillList"),
 ];

@@ -231,6 +231,16 @@ MANUAL_OVERRIDES = {
     # semantics is `_tribeNameForEditor` (a developer-facing name string
     # — debug-display rather than runtime identifier). Type-match unambiguous.
     ("tribe_info",                     "unk_56"):                            "_tribeNameForEditor",
+
+    # Iter 110: tribe_info `_tamedSkillList`. Rust placeholder `ref_list` is
+    # the only CArray<u32> in TribeInfo. Schema has 2 reader_4B canonicals
+    # that match CArray-of-u32 shape (_tamedSkillList +
+    # _ignoredReactionInSafeZoneFlag); the first is semantically the closest
+    # match for a "list of references" CArray (skill keys = u32 references
+    # to SkillInfo entries, which is exactly what taming gives a tribe).
+    # The "Flag" suffix on _ignoredReactionInSafeZoneFlag suggests it's
+    # encoded as a packed bit-field rather than a CArray.
+    ("tribe_info",                     "ref_list"):                          "_tamedSkillList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

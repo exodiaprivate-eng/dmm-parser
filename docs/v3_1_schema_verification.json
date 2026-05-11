@@ -1653,11 +1653,11 @@
     "tribe_info": {
       "schema_key": "TribeInfo",
       "in_schema": true,
-      "alias_count": 4,
+      "alias_count": 5,
       "schema_field_count": 29,
-      "verified": 4,
+      "verified": 5,
       "mismatch": [],
-      "missing_in_dmm_count": 25,
+      "missing_in_dmm_count": 24,
       "missing_in_dmm": [
         "_activityWaterDepth",
         "_armorMaterialKey",
@@ -1679,7 +1679,6 @@
         "_isDeathByDrowning",
         "_isHumanoid",
         "_parentTribeInfo",
-        "_tamedSkillList",
         "_tribeMassLevel",
         "_velocityDampSpeed",
         "_wantedCrimeType",
@@ -1756,9 +1755,9 @@
     }
   },
   "totals": {
-    "verified": 1172,
+    "verified": 1173,
     "mismatch": 0,
-    "missing_in_dmm": 537,
+    "missing_in_dmm": 536,
     "extra_in_dmm": 0
   }
 }
