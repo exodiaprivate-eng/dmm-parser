@@ -1627,34 +1627,25 @@
     "tribe_info": {
       "schema_key": "TribeInfo",
       "in_schema": true,
-      "alias_count": 6,
+      "alias_count": 15,
       "schema_field_count": 29,
-      "verified": 6,
+      "verified": 15,
       "mismatch": [],
-      "missing_in_dmm_count": 23,
+      "missing_in_dmm_count": 14,
       "missing_in_dmm": [
         "_activityWaterDepth",
         "_armorMaterialKey",
         "_baseMaterialKey",
         "_bumpTypeHash",
         "_characterPauseType",
-        "_detectModeShowEnemy",
         "_detourMaxDegree",
-        "_detourOnRoad",
         "_escapePlatform",
         "_footMaterialKey",
         "_footStepTypeEffectName",
-        "_hasChild",
         "_ignoreOverlapPush",
-        "_ignoreWaterFall",
         "_ignoredReactionInSafeZoneFlag",
-        "_interactionUIDistanceLv",
-        "_isBird",
-        "_isDeathByDrowning",
-        "_isHumanoid",
         "_parentTribeInfo",
         "_velocityDampSpeed",
-        "_wantedCrimeType",
         "_weaponMaterialKey"
       ]
     },
@@ -1728,9 +1719,9 @@
     }
   },
   "totals": {
-    "verified": 1199,
+    "verified": 1208,
     "mismatch": 0,
-    "missing_in_dmm": 510,
+    "missing_in_dmm": 501,
     "extra_in_dmm": 0
   }
 }

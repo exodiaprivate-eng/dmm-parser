@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1199**
+- Total field aliases verified:       **1208**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **510**
+- Total schema fields not decoded:    **501**
 
 ## Tables not in NattKh schema
 
@@ -147,7 +147,7 @@ Korean-error-string parser path.
 | `sub_level_info` | 22 | 22 | 0 | 1 |
 | `terrain_region_auto_spawn_info` | 24 | 24 | 0 | 0 |
 | `terrain_region_navi_info` | 4 | 4 | 0 | 0 |
-| `tribe_info` | 6 | 6 | 0 | 23 |
+| `tribe_info` | 15 | 15 | 0 | 14 |
 | `trigger_region_info` | 4 | 4 | 0 | 0 |
 | `valid_schedule_action_info` | 6 | 6 | 0 | 0 |
 | `vehicle_info` | 19 | 19 | 0 | 2 |
@@ -733,30 +733,21 @@ Korean-error-string parser path.
 
 ### `tribe_info` (schema key: `TribeInfo`)
 
-**Schema fields not in dmm-parser** (23):
+**Schema fields not in dmm-parser** (14):
 
 - `_activityWaterDepth`
 - `_armorMaterialKey`
 - `_baseMaterialKey`
 - `_bumpTypeHash`
 - `_characterPauseType`
-- `_detectModeShowEnemy`
 - `_detourMaxDegree`
-- `_detourOnRoad`
 - `_escapePlatform`
 - `_footMaterialKey`
 - `_footStepTypeEffectName`
-- `_hasChild`
 - `_ignoreOverlapPush`
-- `_ignoreWaterFall`
 - `_ignoredReactionInSafeZoneFlag`
-- `_interactionUIDistanceLv`
-- `_isBird`
-- `_isDeathByDrowning`
-- `_isHumanoid`
 - `_parentTribeInfo`
 - `_velocityDampSpeed`
-- `_wantedCrimeType`
 - `_weaponMaterialKey`
 
 ### `vehicle_info` (schema key: `VehicleInfo`)

@@ -348,6 +348,33 @@ MANUAL_OVERRIDES = {
     ("mission_info",                   "result_data_2_lookup"):              "_targetQuestDialogKey",
     ("mission_info",                   "category_info"):                     "_parentMissionInfo",
     ("mission_info",                   "trailing_u32"):                      "_repeatCondition",
+
+    # Iter 121: tribe_info 9-consecutive direct_u8 run. Apply iter-120's
+    # within-type-group setter-order rule. Per iter-109 IDA decompile,
+    # tribe_info wire reads include 9× consecutive 1-byte reads at mem
+    # 28-36 (rust unk_28..36). Setter-string order for direct_u8 (12 total,
+    # _tribeMassLevel at #1 shipped iter 115):
+    #   #1 _tribeMassLevel (0x14495c5f0)              → unk_22 (iter 115)
+    #   #2 _wantedCrimeType (0x14495e320)             → unk_28
+    #   #3 _interactionUIDistanceLv (0x14495e410)     → unk_29
+    #   #4 _ignoreWaterFall (0x14495e5f0)             → unk_30
+    #   #5 _isBird (0x14495e818)                      → unk_31
+    #   #6 _isHumanoid (0x14495e858)                  → unk_32
+    #   #7 _hasChild (0x14495e898)                    → unk_33
+    #   #8 _isDeathByDrowning (0x14495e8e0)           → unk_34
+    #   #9 _detourOnRoad (0x14495e928)                → unk_35
+    #   #10 _detectModeShowEnemy (0x14495e970)        → unk_36
+    #   (#11 _escapePlatform / #12 _ignoreOverlapPush deferred to iter 122
+    #    for the unk_80/81 pair)
+    ("tribe_info",                     "unk_28"):                            "_wantedCrimeType",
+    ("tribe_info",                     "unk_29"):                            "_interactionUIDistanceLv",
+    ("tribe_info",                     "unk_30"):                            "_ignoreWaterFall",
+    ("tribe_info",                     "unk_31"):                            "_isBird",
+    ("tribe_info",                     "unk_32"):                            "_isHumanoid",
+    ("tribe_info",                     "unk_33"):                            "_hasChild",
+    ("tribe_info",                     "unk_34"):                            "_isDeathByDrowning",
+    ("tribe_info",                     "unk_35"):                            "_detourOnRoad",
+    ("tribe_info",                     "unk_36"):                            "_detectModeShowEnemy",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
