@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] DOCS iter 163: 463 → 460 ripple part 2 (LOOP_ASSESSMENT + SHIPPED + IMPLEMENTER_ONBOARDING) — 2026-05-10 SUCCESS. Iter 162 covered the 5 main v3.1 docs but missed: V3_1_LOOP_ASSESSMENT.md (2 refs), SHIPPED.md narrative (3 refs), V3_1_IMPLEMENTER_ONBOARDING.md (2 expected-delta refs). Updated all 7 occurrences to 460. Closures total: 89 (was 86). Class-5 giants subtotal: 411 (was 412). All 9 v3.1 surface docs now perfectly consistent with iter-158 baseline. Docs-only commit.
+
 - [x] DOCS iter 162: 463 → 460 ripple update across 5 main v3.1 docs — 2026-05-10 SUCCESS. Iters 154/155/158 closed 3 more singletons (raw_340 → _spawnDistanceLevel, label_b → _closeDialogString, lookup_u → _weatherInfo) bringing 463 → 460 but the headline numbers in master plan, cheatsheet, decoder gaps, README, MOD_AUTHOR_GUIDE all still cited 463. Updated all 6 places in 5 docs. Class-5 giant subtotal updated 412 → 411 (gimmick_group_info closed 1 via iter 154). Docs-only commit. All v3.1 surface docs now consistently reflect iter-158 baseline numbers (460 missing, 19 with-gaps, 90 fully-covered).
 
 - [x] DOCS iter 161: 3 stale-549 sweep (CUSTOM_ITEM_CREATOR + 449_TABLE_CATALOG + T0_AUDIT_TRACKING) — 2026-05-10 SUCCESS. Found 3 docs still citing iter-86 baseline 549/iter-89 numbers despite iters-87-158 closing the count to 460. Updated all to current 460 with iter-158 attribution + 549/584 trend annotations. Iter-89's earlier sweep had refreshed these to 549; iter-148 master plan refresh updated to 463; iter-158 brought to 460. These 3 hadn't caught the latest. Other 549 mentions left as-is (historical trend rows in SHIPPED.md/V3_1_DECODER_GAPS.md, dated context in design memos). Docs-only commit.

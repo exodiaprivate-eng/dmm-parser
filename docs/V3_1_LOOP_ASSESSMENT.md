@@ -6,7 +6,7 @@
 
 ## What the loop accomplished (iters 70-150)
 
-- **86 closures shipped** (549 → 463 missing canonicals).
+- **89 closures shipped** (549 → 460 missing canonicals).
 - **4 class-5 tables fully closed**: global_game_event_group_info,
   level_gimmick_scene_object_info, mission_info, tribe_info.
 - **Class 3 (semantic ambiguity) fully closed** via fixture data-range
@@ -37,7 +37,7 @@
 
 ## Why the loop stopped
 
-The remaining 463 gaps split into:
+The remaining 460 gaps split into:
 
 | Source | # gaps | Why blocked |
 |---|---|---|

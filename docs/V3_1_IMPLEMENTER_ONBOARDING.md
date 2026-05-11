@@ -78,7 +78,7 @@ sketch:
 5. Run `python scripts/audit_manual_overrides.py` + verifier to confirm
    no regressions.
 
-Expected delta: 463 → ~452 missing.
+Expected delta: 460 → ~449 missing.
 
 ## Day 3-4 — Class 6: sub-struct decompose (1-2 days, +30+ closures)
 
@@ -98,7 +98,7 @@ analysis already documented `ActionPoint { field_a: u32, block_a: [u8; 24] }`
 — that 24-byte block decomposes into Vec3 + f32 = `_actionPosition` +
 `_actionYaw`.
 
-Expected delta: 463 → ~395-425 missing depending on Class-6 scope.
+Expected delta: 460 → ~395-425 missing depending on Class-6 scope.
 
 ## Day 5 — Class 2: global_game_event_info decompose (0.5 day, +3 closures)
 
