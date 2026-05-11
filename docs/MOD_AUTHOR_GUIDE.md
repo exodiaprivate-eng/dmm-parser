@@ -94,6 +94,37 @@ raw = dmm_parser.serialize_table("skill_info", items, shape="v3.1")
 - **Stay on v3 (default)** if you're maintaining an existing mod or have
   tooling that assumes snake_case. Nothing changes.
 
+### Mixed-shape input is accepted
+
+You can author with EITHER snake_case OR _camelCase keys (or mix them
+within the same item) — the parser accepts both regardless of the
+`shape` parameter. The `shape` only controls the EMIT side:
+
+```python
+import dmm_parser, json
+
+# Mix of v3 (snake) and v3.1 (camel) in the same dict — both accepted
+edits = [
+    {
+        "key": 12345,
+        "_cooltime": 30,            # v3.1-style
+        "skeleton_name": "...",     # v3-style
+        "_isBlocked": 0,            # v3.1-style
+    },
+]
+
+# Emit shape controls output:
+v3_bytes = dmm_parser.serialize_table("skill_info", edits)              # snake_case keys
+v31_bytes = dmm_parser.serialize_table("skill_info", edits, shape="v3.1")  # _camelCase keys
+
+# Round-trip: parse(serialize(items)) == items at byte level
+items = dmm_parser.parse_table("skill_info", v31_bytes, pabgh, shape="v3.1")
+```
+
+This means you can MIGRATE an existing mod from v3 → v3.1 by simply
+re-serializing with `shape="v3.1"`. Or upgrade individual entries by
+just changing the key names you write.
+
 ### Canonical-field reference
 
 Every *Info table now has a **canonical-field catalog comment block** at the
