@@ -470,6 +470,13 @@ MANUAL_OVERRIDES = {
     # is the obvious mate by both type+name.
     ("faction_node_info",              "final_list_u16"):                    "_religionEffectRegionInfoList",
     ("faction_node_info",              "faction_schedule_list"):             "_factionScheduleInfoList",
+
+    # Iter 128: faction_node_info `_subInnerTypeString` singleton close.
+    # Rust `key_str_after: CString` is the only CString-shape unaliased
+    # field (besides standard string_key/memo). Schema's _subInnerTypeString
+    # (None type) — name explicitly says "TypeString" suggesting a CString
+    # carrier. Semantic + structural singleton match.
+    ("faction_node_info",              "key_str_after"):                     "_subInnerTypeString",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

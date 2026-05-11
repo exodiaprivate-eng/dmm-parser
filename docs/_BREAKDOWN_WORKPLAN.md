@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 128: faction_node_info `_subInnerTypeString` singleton close — 2026-05-10 SUCCESS. Rust `key_str_after: CString` is the only CString-shape unaliased field (besides standard string_key/memo). Schema canonical name `_subInnerTypeString` (None type) explicitly contains "TypeString" suggesting CString carrier. Semantic + structural singleton match. faction_node_info: 19/31 → 20/31 verified (65%). Total: 477 → 476.
+
 - [x] GAP iter 127: faction_node_info 2 type-unique singleton closures — 2026-05-10 SUCCESS. First class-4 closures (per iter 93 audit memo). Two type-unique 1:1 mappings: `final_list_u16: CArray<u16>` (ONLY CArray<u16> in rust struct) ↔ `_religionEffectRegionInfoList` (ONLY reader_2B missing canonical) — unambiguous type-match singleton; `faction_schedule_list: CArray<FactionSchedule>` ↔ `_factionScheduleInfoList` (only "schedule list" canonical missing — semantic + type match unambiguous). faction_node_info: 17/31 → 19/31 verified (61%). Total: 479 → 477.
 
 - [x] GAP iter 126: field_info `_regionBitmapPositionInfo` singleton close — 2026-05-10 SUCCESS. Last visible u8 wire read (byte_at_126 at wire 122) ↔ last direct_u8 canonical by setter-string addr (_regionBitmapPositionInfo at 0x14492f290). Singleton 1:1 of last-of-each-end → high-confidence match. The 3 remaining direct_u8 (_endSectorIndex, _isEnableAutoSave, _useFixedFieldTime) likely live inside FieldInfoComposite sub-struct (1 visible u8 there: byte_at_20) plus 2 more not yet identified — needs alias mechanism extension to reach sub-struct fields. field_info: 18/24 → 19/24 verified (79%). Total: 480 → 479.

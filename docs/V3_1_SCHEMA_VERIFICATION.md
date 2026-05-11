@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1232**
+- Total field aliases verified:       **1233**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **477**
+- Total schema fields not decoded:    **476**
 
 ## Tables not in NattKh schema
 
@@ -73,7 +73,7 @@ Korean-error-string parser path.
 | `equip_type_info` | 19 | 19 | 0 | 1 |
 | `faction_group_info` | 8 | 8 | 0 | 0 |
 | `faction_info` | 19 | 19 | 0 | 0 |
-| `faction_node_info` | 19 | 19 | 0 | 12 |
+| `faction_node_info` | 20 | 20 | 0 | 11 |
 | `faction_node_spawn_info` | 5 | 5 | 0 | 1 |
 | `faction_relation_group_info` | 3 | 3 | 0 | 1 |
 | `faction_spawn_data_info` | 7 | 7 | 0 | 0 |
@@ -346,7 +346,7 @@ Korean-error-string parser path.
 
 ### `faction_node_info` (schema key: `FactionNodeInfo`)
 
-**Schema fields not in dmm-parser** (12):
+**Schema fields not in dmm-parser** (11):
 
 - `_bitMapColorKey`
 - `_factionEventDataList`
@@ -357,7 +357,6 @@ Korean-error-string parser path.
 - `_religionMaxBlockDay`
 - `_religionSubLevelInfo`
 - `_researchDataList`
-- `_subInnerTypeString`
 - `_useCustomWayPointforDev`
 - `_workerCount`
 

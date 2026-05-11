@@ -509,11 +509,11 @@
     "faction_node_info": {
       "schema_key": "FactionNodeInfo",
       "in_schema": true,
-      "alias_count": 19,
+      "alias_count": 20,
       "schema_field_count": 31,
-      "verified": 19,
+      "verified": 20,
       "mismatch": [],
-      "missing_in_dmm_count": 12,
+      "missing_in_dmm_count": 11,
       "missing_in_dmm": [
         "_bitMapColorKey",
         "_factionEventDataList",
@@ -524,7 +524,6 @@
         "_religionMaxBlockDay",
         "_religionSubLevelInfo",
         "_researchDataList",
-        "_subInnerTypeString",
         "_useCustomWayPointforDev",
         "_workerCount"
       ]
@@ -1694,9 +1693,9 @@
     }
   },
   "totals": {
-    "verified": 1232,
+    "verified": 1233,
     "mismatch": 0,
-    "missing_in_dmm": 477,
+    "missing_in_dmm": 476,
     "extra_in_dmm": 0
   }
 }

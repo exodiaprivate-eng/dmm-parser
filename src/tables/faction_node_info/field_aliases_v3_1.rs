@@ -29,5 +29,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("revival_stage_info_list", "_revivalStageInfoList"),
     ("way_point_data_list_deprecated", "_wayPointDataList_deprecated"),
     ("faction_schedule_list", "_factionScheduleInfoList"),
+    ("key_str_after", "_subInnerTypeString"),
     ("final_list_u16", "_religionEffectRegionInfoList"),
 ];
