@@ -106,6 +106,43 @@ impl<'a> ConditionInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+
+        let game_condition = track_read_with(offset, path, ranges, "game_condition", "GameCondition", |o| {
+            let post_pre = *o;
+            let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
+            let wrapper_bytes = &data[post_pre..post_pre + variant_size];
+            let mut wrapper_cur = 0usize;
+            let gc = GameCondition::read_from(wrapper_bytes, &mut wrapper_cur)?;
+            *o = post_pre + variant_size;
+            Ok(gc)
+        })?;
+
+        let original_string = track_read_field::<CString<'a>>(data, offset, path, ranges, "original_string", "CString")?;
+        let parser_type = track_read_field::<u8>(data, offset, path, ranges, "parser_type", "u8")?;
+
+        Ok(Self {
+            key,
+            string_key,
+            is_blocked,
+            game_condition,
+            original_string,
+            parser_type,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

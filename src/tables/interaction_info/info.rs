@@ -421,6 +421,34 @@ impl<'a> InteractionInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let interaction_type = track_read_field::<u8>(data, offset, path, ranges, "interaction_type", "u8")?;
+        let interaction_show_ui_type = track_read_field::<u8>(data, offset, path, ranges, "interaction_show_ui_type", "u8")?;
+        let preemption_type = track_read_field::<u8>(data, offset, path, ranges, "preemption_type", "u8")?;
+        let interaction_name = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "interaction_name", "LocalizableString")?;
+        let pivot_selection_target = track_read_field::<u8>(data, offset, path, ranges, "pivot_selection_target", "u8")?;
+        let interaction_pivot_list = track_read_field::<CArray<InteractionPivotData<'a>>>(data, offset, path, ranges, "interaction_pivot_list", "CArray<InteractionPivotData>")?;
+        let tail = track_read_with(offset, path, ranges, "tail", "InteractionTail", |o| {
+            InteractionTail::read_with_size(data, o, entry_end)
+        })?;
+        Ok(Self {
+            key, string_key, is_blocked, interaction_type, interaction_show_ui_type,
+            preemption_type, interaction_name, pivot_selection_target,
+            interaction_pivot_list, tail,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

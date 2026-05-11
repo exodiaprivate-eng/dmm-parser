@@ -383,6 +383,75 @@ impl<'a> QuestInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let quest_type = track_read_field::<u8>(data, offset, path, ranges, "quest_type", "u8")?;
+        let quest_category = track_read_field::<u8>(data, offset, path, ranges, "quest_category", "u8")?;
+        let name = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "name", "LocalizableString")?;
+        let desc = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "desc", "LocalizableString")?;
+        let quest_group_info = track_read_field::<u16>(data, offset, path, ranges, "quest_group_info", "u16")?;
+        let faction_info = track_read_field::<u32>(data, offset, path, ranges, "faction_info", "u32")?;
+        let faction_state_data = track_read_field::<FactionStateData>(data, offset, path, ranges, "faction_state_data", "FactionStateData")?;
+        let branch_data = track_read_field::<BranchData>(data, offset, path, ranges, "branch_data", "BranchData")?;
+        let start_player_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "start_player_list", "CArray<u32>")?;
+        let branch_data_list = track_read_field::<CArray<BranchData>>(data, offset, path, ranges, "branch_data_list", "CArray<BranchData>")?;
+        let executor_quest_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "executor_quest_list", "CArray<u32>")?;
+        let gauge_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "gauge_list", "CArray<u32>")?;
+        let mission_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "mission_list", "CArray<u32>")?;
+        let stage_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "stage_list", "CArray<u32>")?;
+        let start_mission = track_read_field::<u32>(data, offset, path, ranges, "start_mission", "u32")?;
+        let start_stage = track_read_field::<u32>(data, offset, path, ranges, "start_stage", "u32")?;
+        let stage_icon_path = track_read_field::<u32>(data, offset, path, ranges, "stage_icon_path", "u32")?;
+        let stage_text_icon_path = track_read_field::<u32>(data, offset, path, ranges, "stage_text_icon_path", "u32")?;
+        let stage_image_path = track_read_field::<u32>(data, offset, path, ranges, "stage_image_path", "u32")?;
+        let playable_mission_count = track_read_field::<u32>(data, offset, path, ranges, "playable_mission_count", "u32")?;
+        let playable_stage_count = track_read_field::<u32>(data, offset, path, ranges, "playable_stage_count", "u32")?;
+        let test_tag = track_read_field::<CString<'a>>(data, offset, path, ranges, "test_tag", "CString")?;
+        let game_start_stage = track_read_field::<u32>(data, offset, path, ranges, "game_start_stage", "u32")?;
+        let game_start_sub_timeline = track_read_field::<CString<'a>>(data, offset, path, ranges, "game_start_sub_timeline", "CString")?;
+        let memo = track_read_field::<CString<'a>>(data, offset, path, ranges, "memo", "CString")?;
+
+        let quest_dialog_filter_data_list = track_read_with(offset, path, ranges, "quest_dialog_filter_data_list", "QuestDialogFilterDataList", |o| {
+            let post_pre = *o;
+            let blob_size = find_variant_boundary(data, post_pre, entry_end, 0, |probe| {
+                try_read_trailer(data, probe, entry_end)
+            })?;
+            let region_end = post_pre + blob_size;
+            QuestDialogFilterDataList::read_with_size(data, o, region_end)
+        })?;
+
+        let dialog_must_mission_info_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "dialog_must_mission_info_list", "CArray<u32>")?;
+        let npc_dialog_must_condition = track_read_field::<u32>(data, offset, path, ranges, "npc_dialog_must_condition", "u32")?;
+        let is_save = track_read_field::<u8>(data, offset, path, ranges, "is_save", "u8")?;
+        let is_continuous_mission = track_read_field::<u8>(data, offset, path, ranges, "is_continuous_mission", "u8")?;
+        let is_repeatable = track_read_field::<u8>(data, offset, path, ranges, "is_repeatable", "u8")?;
+        let debug_color = track_read_field::<u32>(data, offset, path, ranges, "debug_color", "u32")?;
+
+        Ok(Self {
+            key, string_key, is_blocked, quest_type, quest_category,
+            name, desc, quest_group_info, faction_info, faction_state_data,
+            branch_data, start_player_list, branch_data_list,
+            executor_quest_list, gauge_list, mission_list, stage_list,
+            start_mission, start_stage, stage_icon_path, stage_text_icon_path,
+            stage_image_path, playable_mission_count, playable_stage_count,
+            test_tag, game_start_stage, game_start_sub_timeline, memo,
+            quest_dialog_filter_data_list,
+            dialog_must_mission_info_list, npc_dialog_must_condition,
+            is_save, is_continuous_mission, is_repeatable, debug_color,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

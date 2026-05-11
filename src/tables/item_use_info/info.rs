@@ -568,6 +568,26 @@ impl<'a> ItemUseInfo<'a> {
         Ok(ItemUseInfo { key, string_key, is_blocked, variant })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let disc = track_read_field::<u8>(data, offset, path, ranges, "disc", "u8")?;
+        let entry_end = start + entry_size;
+        let payload_size = entry_end - *offset;
+        let variant = track_read_with(offset, path, ranges, "variant", "ItemUseDataVariant", |o| {
+            ItemUseDataVariant::read_with_size(data, o, disc, payload_size)
+        })?;
+        Ok(ItemUseInfo { key, string_key, is_blocked, variant })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

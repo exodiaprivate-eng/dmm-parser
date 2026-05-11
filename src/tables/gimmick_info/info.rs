@@ -1592,6 +1592,29 @@ impl<'a> GimmickInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_end = *offset + entry_size;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let prefab_path = track_read_field::<CString<'a>>(data, offset, path, ranges, "prefab_path", "CString")?;
+        let gimmick_group_info = track_read_field::<u32>(data, offset, path, ranges, "gimmick_group_info", "u32")?;
+        let breakable_object_info = track_read_field::<u16>(data, offset, path, ranges, "breakable_object_info", "u16")?;
+        let tail = track_read_with(offset, path, ranges, "tail", "GimmickTail", |o| {
+            GimmickTail::read_with_size(data, o, entry_end)
+        })?;
+        Ok(Self {
+            key, string_key, is_blocked, prefab_path,
+            gimmick_group_info, breakable_object_info, tail,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

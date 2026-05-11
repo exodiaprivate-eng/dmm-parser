@@ -87,6 +87,39 @@ impl<'a> CharacterChangeInfo<'a> {
         Ok(())
     }
 
+    /// Tracked variant of `read_with_size`. Records one FieldRange per
+    /// top-level field so v2-byte-patches can map their offset to a
+    /// structured field path.
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        _entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let name_list = track_read_with(offset, path, ranges, "name_list", "Vec<CString>", |o| {
+            let n = u32::read_from(data, o)? as usize;
+            let mut v = Vec::with_capacity(n);
+            for _ in 0..n {
+                v.push(CString::read_from(data, o)?);
+            }
+            Ok(v)
+        })?;
+        let hash_lookup_list = track_read_field::<CArray<u16>>(data, offset, path, ranges, "hash_lookup_list", "CArray<u16>")?;
+        let trailing_id = track_read_field::<u32>(data, offset, path, ranges, "trailing_id", "u32")?;
+        Ok(Self {
+            key,
+            string_key,
+            is_blocked,
+            name_list,
+            hash_lookup_list,
+            trailing_id,
+        })
+    }
+
     /// Fully typed JSON: every field is editable. `name_list` rides as a
     /// JSON array of strings; the wire-format u32-length prefix is implicit.
     pub fn to_json_dict(&self) -> Map<String, Value> {

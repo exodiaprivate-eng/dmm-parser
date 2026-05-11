@@ -267,6 +267,62 @@ macro_rules! pabgh_typed_blob_table {
                 Ok(Self { $($field,)* $tail })
             }
 
+            /// Tracked variant of `read_with_size` for the converter's
+            /// byte→field resolver. Walks the typed prefix the same way
+            /// `read_with_size` does but uses `read_tracked` per field
+            /// so callers learn the byte range each leaf occupies.
+            ///
+            /// The opaque tail isn't decoded into ranges (we have no
+            /// schema for it in a Tier 1.5 table by definition); its
+            /// span is reported as a single `FieldRange` with path
+            /// `"_tail_blob"` so byte→field lookups land cleanly on
+            /// "this offset is in the tail" rather than missing entirely.
+            ///
+            /// All ranges are returned RELATIVE to `entry_start` (caller
+            /// adds the record's body offset to make them absolute).
+            pub fn read_tracked_with_size(
+                data: &'a [u8],
+                offset: &mut usize,
+                entry_size: usize,
+                path: &mut String,
+                ranges: &mut Vec<$crate::binary::FieldRange>,
+            ) -> std::io::Result<Self> {
+                use $crate::binary::BinaryReadTracked;
+                let entry_start = *offset;
+                let entry_end = entry_start + entry_size;
+                $(
+                    let $field = {
+                        let __saved = $crate::binary::push_path(path, stringify!($field));
+                        let __v = <$ty as BinaryReadTracked>::read_tracked(
+                            data, offset, path, ranges,
+                        )?;
+                        $crate::binary::pop_path(path, __saved);
+                        __v
+                    };
+                )*
+                if *offset > entry_end {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "{} typed prefix overran entry: consumed {} of {} bytes",
+                            stringify!($name), *offset - entry_start, entry_size
+                        ),
+                    ));
+                }
+                let tail_start_abs = *offset;
+                let $tail = data[*offset..entry_end].to_vec();
+                if !$tail.is_empty() {
+                    ranges.push($crate::binary::FieldRange {
+                        path: "_tail_blob".to_string(),
+                        start: tail_start_abs,
+                        end: entry_end,
+                        ty: "opaque_tail",
+                    });
+                }
+                *offset = entry_end;
+                Ok(Self { $($field,)* $tail })
+            }
+
             pub fn write_to(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
                 use $crate::binary::BinaryWrite;
                 $(self.$field.write_to(w)?;)*

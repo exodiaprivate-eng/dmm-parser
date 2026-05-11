@@ -184,6 +184,35 @@ impl<'a> BuffInfo<'a> {
         Ok(())
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        _entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let buff_data_list = track_read_field::<CArray<BuffDataEntry<'a>>>(data, offset, path, ranges, "buff_data_list", "CArray<BuffDataEntry>")?;
+        let min_level = track_read_field::<u32>(data, offset, path, ranges, "min_level", "u32")?;
+        let max_level = track_read_field::<u32>(data, offset, path, ranges, "max_level", "u32")?;
+        let sequencer_file_name = track_read_field::<CString<'a>>(data, offset, path, ranges, "sequencer_file_name", "CString")?;
+        let buff_level_calculate_type = track_read_field::<u8>(data, offset, path, ranges, "buff_level_calculate_type", "u8")?;
+        let ui_template_name = track_read_field::<u32>(data, offset, path, ranges, "ui_template_name", "u32")?;
+        let ui_component_name = track_read_field::<u32>(data, offset, path, ranges, "ui_component_name", "u32")?;
+        let elemental_status_info = track_read_field::<u32>(data, offset, path, ranges, "elemental_status_info", "u32")?;
+        let is_use_skill_info_pattern_description = track_read_field::<u8>(data, offset, path, ranges, "is_use_skill_info_pattern_description", "u8")?;
+        let use_counting_by_global_timer = track_read_field::<u8>(data, offset, path, ranges, "use_counting_by_global_timer", "u8")?;
+        Ok(Self {
+            key, string_key, is_blocked, buff_data_list,
+            min_level, max_level, sequencer_file_name,
+            buff_level_calculate_type, ui_template_name, ui_component_name,
+            elemental_status_info,
+            is_use_skill_info_pattern_description, use_counting_by_global_timer,
+        })
+    }
+
     /// Convert this BuffInfo record to a JSON dict. `buff_data_list` is
     /// a fully typed CArray of BuffDataEntry; each BuffData drills into
     /// the typed BuffDataBase (28 fields) plus per-variant body via the

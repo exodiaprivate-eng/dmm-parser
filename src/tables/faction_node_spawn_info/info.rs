@@ -212,6 +212,31 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_end = *offset + entry_size;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let faction_node_info = track_read_field::<u32>(data, offset, path, ranges, "faction_node_info", "u32")?;
+        let boundary_box_min = track_read_field::<[f32; 3]>(data, offset, path, ranges, "boundary_box_min", "[f32;3]")?;
+        let boundary_box_max = track_read_field::<[f32; 3]>(data, offset, path, ranges, "boundary_box_max", "[f32;3]")?;
+        let patrol_ai_spline_data_list = track_read_field::<CArray<PatrolSplineEntry>>(data, offset, path, ranges, "patrol_ai_spline_data_list", "CArray<PatrolSplineEntry>")?;
+        if *offset != entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("FactionNodeSpawnInfo: under/over-read (cursor {} expected {})", *offset, entry_end)));
+        }
+        Ok(Self {
+            key, string_key, is_blocked, faction_node_info,
+            boundary_box_min, boundary_box_max, patrol_ai_spline_data_list,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

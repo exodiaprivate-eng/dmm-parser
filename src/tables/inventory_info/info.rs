@@ -294,6 +294,49 @@ impl<'a> InventoryInfo<'a> {
         Ok(())
     }
 
+    /// Tracked variant of `read_with_size`. Top-level FieldRange per field.
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let key = track_read_field::<u16>(data, offset, path, ranges, "key", "u16")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let pushable_item_type_list = track_read_field::<CArray<InventoryPushableData>>(data, offset, path, ranges, "pushable_item_type_list", "CArray<InventoryPushableData>")?;
+        let excluded_item_type_list = track_read_field::<CArray<InventoryPushableData>>(data, offset, path, ranges, "excluded_item_type_list", "CArray<InventoryPushableData>")?;
+        let inventory_move_data_list = track_read_field::<CArray<InventoryMoveData<'a>>>(data, offset, path, ranges, "inventory_move_data_list", "CArray<InventoryMoveData>")?;
+        let default_slot_count = track_read_field::<u16>(data, offset, path, ranges, "default_slot_count", "u16")?;
+        let max_slot_count = track_read_field::<u16>(data, offset, path, ranges, "max_slot_count", "u16")?;
+        let push_item_alert_ui_text = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "push_item_alert_ui_text", "LocalizableString")?;
+        let inventory_name_ui_text = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "inventory_name_ui_text", "LocalizableString")?;
+        let key_guide_local_string_info = track_read_field::<u32>(data, offset, path, ranges, "key_guide_local_string_info", "u32")?;
+        let pushable_check_type = track_read_field::<u8>(data, offset, path, ranges, "pushable_check_type", "u8")?;
+        let npc_usable_cooltime_min = track_read_field::<u32>(data, offset, path, ranges, "npc_usable_cooltime_min", "u32")?;
+        let npc_usable_cooltime_max = track_read_field::<u32>(data, offset, path, ranges, "npc_usable_cooltime_max", "u32")?;
+        let is_moveable_inventory = track_read_field::<u8>(data, offset, path, ranges, "is_moveable_inventory", "u8")?;
+        let need_save_slot_count = track_read_field::<u8>(data, offset, path, ranges, "need_save_slot_count", "u8")?;
+        let is_pushable_item_only_one = track_read_field::<u8>(data, offset, path, ranges, "is_pushable_item_only_one", "u8")?;
+        let collection_item_list = track_read_field::<CArray<InventoryCollectionItemData>>(data, offset, path, ranges, "collection_item_list", "CArray<InventoryCollectionItemData>")?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("InventoryInfo: consumed {} bytes, expected {}", consumed, entry_size)));
+        }
+        Ok(Self {
+            key, string_key, is_blocked, pushable_item_type_list,
+            excluded_item_type_list, inventory_move_data_list, default_slot_count,
+            max_slot_count, push_item_alert_ui_text, inventory_name_ui_text,
+            key_guide_local_string_info, pushable_check_type,
+            npc_usable_cooltime_min, npc_usable_cooltime_max,
+            is_moveable_inventory, need_save_slot_count,
+            is_pushable_item_only_one, collection_item_list,
+        })
+    }
+
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("key".to_string(), self.key.to_json_value());

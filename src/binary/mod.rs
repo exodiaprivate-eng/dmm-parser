@@ -99,6 +99,86 @@ pub(crate) fn pop_path(path: &mut String, saved: usize) {
     path.truncate(saved);
 }
 
+// Public re-exports of path helpers so per-table hand-written
+// `read_tracked_with_size` impls can use them without depending on the
+// trait machinery. Hand-rolled Tier 1.5 tables (character_change_info,
+// inventory_info, buff_info, condition_info, drop_set_info, effect_info,
+// gimmick_info, interaction_info, store_info, faction_node_spawn_info,
+// quest_info, item_use_info, ai_dialog_string_info,
+// frame_event_attr_group_info, stage_info) record a top-level FieldRange
+// per field rather than recursing through nested types. That's enough
+// granularity for v2-byte-patch resolution: any patch whose offset falls
+// inside a field's bytes can be resolved to that field name, and the
+// converter promotes the patched bytes to a whole-field intent.
+#[doc(hidden)]
+pub fn _push_path_pub(path: &mut String, seg: &str) -> usize {
+    push_path(path, seg)
+}
+#[doc(hidden)]
+pub fn _pop_path_pub(path: &mut String, saved: usize) {
+    pop_path(path, saved)
+}
+
+/// Helper for hand-rolled `read_tracked_with_size` impls. Reads one
+/// field via `BinaryRead`, registers its byte span as one
+/// `FieldRange`, and returns the value. Use for primitives and for
+/// types where field-level granularity is sufficient (containers like
+/// `Vec<CString>` get tracked as one opaque field; that's still
+/// enough to route a v2 byte-patch to the correct field name).
+pub fn track_read_field<'a, T>(
+    data: &'a [u8],
+    offset: &mut usize,
+    path: &mut String,
+    ranges: &mut Vec<FieldRange>,
+    field_name: &str,
+    ty_name: &'static str,
+) -> io::Result<T>
+where
+    T: BinaryRead<'a>,
+{
+    let saved = push_path(path, field_name);
+    let start = *offset;
+    let v = T::read_from(data, offset)?;
+    let end = *offset;
+    ranges.push(FieldRange {
+        path: path.clone(),
+        start,
+        end,
+        ty: ty_name,
+    });
+    pop_path(path, saved);
+    Ok(v)
+}
+
+/// Same as `track_read_field` but for fields read via a custom closure
+/// rather than `BinaryRead`. Use when the field's bytes are consumed
+/// by a custom helper (e.g. Vec<CString> via for-loop, polymorphic
+/// CArray with per-variant body).
+pub fn track_read_with<'a, T, F>(
+    offset: &mut usize,
+    path: &mut String,
+    ranges: &mut Vec<FieldRange>,
+    field_name: &str,
+    ty_name: &'static str,
+    read_fn: F,
+) -> io::Result<T>
+where
+    F: FnOnce(&mut usize) -> io::Result<T>,
+{
+    let saved = push_path(path, field_name);
+    let start = *offset;
+    let v = read_fn(offset)?;
+    let end = *offset;
+    ranges.push(FieldRange {
+        path: path.clone(),
+        start,
+        end,
+        ty: ty_name,
+    });
+    pop_path(path, saved);
+    Ok(v)
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 pub(crate) fn check_remaining(data: &[u8], offset: usize, need: usize) -> io::Result<()> {

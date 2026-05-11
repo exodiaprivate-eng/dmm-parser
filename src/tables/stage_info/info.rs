@@ -675,6 +675,141 @@ impl<'a> StageInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let name = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "name", "LocalizableString")?;
+        let stage_desc = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "stage_desc", "LocalizableString")?;
+        let complete_log = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "complete_log", "LocalizableString")?;
+        let sequencer_desc = track_read_field::<SequencerStageChartDescPartial<'a>>(data, offset, path, ranges, "sequencer_desc", "SequencerStageChartDescPartial")?;
+        let spawn_faction_spawn_data_info = track_read_field::<u32>(data, offset, path, ranges, "spawn_faction_spawn_data_info", "u32")?;
+        let spawn_faction_node_info = track_read_field::<u32>(data, offset, path, ranges, "spawn_faction_node_info", "u32")?;
+        let disable_faction_spawn_party_name_hash_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "disable_faction_spawn_party_name_hash_list", "CArray<u32>")?;
+        let raw_a = track_read_field::<u64>(data, offset, path, ranges, "raw_a", "u64")?;
+        let raw_b = track_read_field::<u64>(data, offset, path, ranges, "raw_b", "u64")?;
+        let raw_c = track_read_field::<u64>(data, offset, path, ranges, "raw_c", "u64")?;
+        let list_a = track_read_field::<CArray<u32>>(data, offset, path, ranges, "list_a", "CArray<u32>")?;
+        let flag_a = track_read_field::<u8>(data, offset, path, ranges, "flag_a", "u8")?;
+        let flag_b = track_read_field::<u8>(data, offset, path, ranges, "flag_b", "u8")?;
+        let lookup_c = track_read_field::<u32>(data, offset, path, ranges, "lookup_c", "u32")?;
+        let lookup_d = track_read_field::<u32>(data, offset, path, ranges, "lookup_d", "u32")?;
+        let lookup_e = track_read_field::<u32>(data, offset, path, ranges, "lookup_e", "u32")?;
+        let close_filter_a = track_read_field::<CArray<u32>>(data, offset, path, ranges, "close_filter_a", "CArray<u32>")?;
+        let close_filter_b = track_read_field::<CArray<u32>>(data, offset, path, ranges, "close_filter_b", "CArray<u32>")?;
+        let close_filter_c = track_read_field::<CArray<u32>>(data, offset, path, ranges, "close_filter_c", "CArray<u32>")?;
+        let filter_entry_list = track_read_field::<CArray<StageFilterEntry>>(data, offset, path, ranges, "filter_entry_list", "CArray<StageFilterEntry>")?;
+        let lookup_f = track_read_field::<u32>(data, offset, path, ranges, "lookup_f", "u32")?;
+        let lookup_g = track_read_field::<u32>(data, offset, path, ranges, "lookup_g", "u32")?;
+        let lookup_h = track_read_field::<u32>(data, offset, path, ranges, "lookup_h", "u32")?;
+        let list_b = track_read_field::<CArray<u32>>(data, offset, path, ranges, "list_b", "CArray<u32>")?;
+        let list_c = track_read_field::<CArray<u32>>(data, offset, path, ranges, "list_c", "CArray<u32>")?;
+        let unk_new_carray_a = track_read_field::<CArray<u32>>(data, offset, path, ranges, "unk_new_carray_a", "CArray<u32>")?;
+        let unk_new_cbytes = track_read_field::<CBytes<'a>>(data, offset, path, ranges, "unk_new_cbytes", "CBytes")?;
+        let unk_new_carray_b = track_read_field::<CArray<u32>>(data, offset, path, ranges, "unk_new_carray_b", "CArray<u32>")?;
+        let lookup_i = track_read_field::<u32>(data, offset, path, ranges, "lookup_i", "u32")?;
+        let raw_d = track_read_field::<u32>(data, offset, path, ranges, "raw_d", "u32")?;
+        let cstring_a = track_read_field::<CString<'a>>(data, offset, path, ranges, "cstring_a", "CString")?;
+        let flag_c = track_read_field::<u8>(data, offset, path, ranges, "flag_c", "u8")?;
+        let flag_d = track_read_field::<u8>(data, offset, path, ranges, "flag_d", "u8")?;
+        let raw_e = track_read_field::<u32>(data, offset, path, ranges, "raw_e", "u32")?;
+        let raw_f = track_read_field::<u32>(data, offset, path, ranges, "raw_f", "u32")?;
+        let pair_a = track_read_field::<u32>(data, offset, path, ranges, "pair_a", "u32")?;
+        let pair_b = track_read_field::<u32>(data, offset, path, ranges, "pair_b", "u32")?;
+        let raw_g = track_read_field::<u64>(data, offset, path, ranges, "raw_g", "u64")?;
+        let raw_h = track_read_field::<u32>(data, offset, path, ranges, "raw_h", "u32")?;
+        let raw_i = track_read_field::<u16>(data, offset, path, ranges, "raw_i", "u16")?;
+        let mob_map_list = track_read_field::<CArray<StageMobMapEntry>>(data, offset, path, ranges, "mob_map_list", "CArray<StageMobMapEntry>")?;
+        let lookup_j = track_read_field::<u32>(data, offset, path, ranges, "lookup_j", "u32")?;
+        let string_entry_list = track_read_field::<CArray<StageU32StringEntry<'a>>>(data, offset, path, ranges, "string_entry_list", "CArray<StageU32StringEntry>")?;
+        let adjacency_mob_list_a = track_read_field::<CArray<FactionAdjacencyMobItem>>(data, offset, path, ranges, "adjacency_mob_list_a", "CArray<FactionAdjacencyMobItem>")?;
+        let adjacency_mob_list_b = track_read_field::<CArray<FactionAdjacencyMobItem>>(data, offset, path, ranges, "adjacency_mob_list_b", "CArray<FactionAdjacencyMobItem>")?;
+        let adjacency_mob_list_c = track_read_field::<CArray<FactionAdjacencyMobItem>>(data, offset, path, ranges, "adjacency_mob_list_c", "CArray<FactionAdjacencyMobItem>")?;
+        let adjacency_mob_list_d = track_read_field::<CArray<FactionAdjacencyMobItem>>(data, offset, path, ranges, "adjacency_mob_list_d", "CArray<FactionAdjacencyMobItem>")?;
+        let close_filter_d_a = track_read_field::<CArray<u32>>(data, offset, path, ranges, "close_filter_d_a", "CArray<u32>")?;
+        let close_filter_d_b = track_read_field::<CArray<u32>>(data, offset, path, ranges, "close_filter_d_b", "CArray<u32>")?;
+        let close_filter_d_c = track_read_field::<CArray<u32>>(data, offset, path, ranges, "close_filter_d_c", "CArray<u32>")?;
+        let close_filter_d_d = track_read_field::<CArray<u32>>(data, offset, path, ranges, "close_filter_d_d", "CArray<u32>")?;
+        let list_d = track_read_field::<CArray<u32>>(data, offset, path, ranges, "list_d", "CArray<u32>")?;
+        let platform_entry = track_read_field::<OptStageOpt52<'a>>(data, offset, path, ranges, "platform_entry", "OptStageOpt52")?;
+        let lookup_k = track_read_field::<u32>(data, offset, path, ranges, "lookup_k", "u32")?;
+        let lookup_l = track_read_field::<u32>(data, offset, path, ranges, "lookup_l", "u32")?;
+        let lookup_m = track_read_field::<u32>(data, offset, path, ranges, "lookup_m", "u32")?;
+        let lookup_n = track_read_field::<u32>(data, offset, path, ranges, "lookup_n", "u32")?;
+        let lookup_o = track_read_field::<u32>(data, offset, path, ranges, "lookup_o", "u32")?;
+        let lookup_p = track_read_field::<u32>(data, offset, path, ranges, "lookup_p", "u32")?;
+        let lookup_q = track_read_field::<u32>(data, offset, path, ranges, "lookup_q", "u32")?;
+        let lookup_r = track_read_field::<u32>(data, offset, path, ranges, "lookup_r", "u32")?;
+        let label_b = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "label_b", "LocalizableString")?;
+        let lookup_s = track_read_field::<u32>(data, offset, path, ranges, "lookup_s", "u32")?;
+        let flag_e = track_read_field::<u8>(data, offset, path, ranges, "flag_e", "u8")?;
+        let flag_f = track_read_field::<u8>(data, offset, path, ranges, "flag_f", "u8")?;
+        let lookup_t = track_read_field::<u32>(data, offset, path, ranges, "lookup_t", "u32")?;
+        let behavior_entry_list = track_read_field::<CArray<StageBehaviorEntry>>(data, offset, path, ranges, "behavior_entry_list", "CArray<StageBehaviorEntry>")?;
+        let raw_j = track_read_field::<u32>(data, offset, path, ranges, "raw_j", "u32")?;
+        let lookup_u = track_read_field::<u16>(data, offset, path, ranges, "lookup_u", "u16")?;
+        let lookup_v = track_read_field::<u32>(data, offset, path, ranges, "lookup_v", "u32")?;
+        let lookup_w = track_read_field::<u32>(data, offset, path, ranges, "lookup_w", "u32")?;
+        let raw_k = track_read_field::<u32>(data, offset, path, ranges, "raw_k", "u32")?;
+        let raw_l = track_read_field::<u32>(data, offset, path, ranges, "raw_l", "u32")?;
+        let raw_m = track_read_field::<u32>(data, offset, path, ranges, "raw_m", "u32")?;
+        let raw_n = track_read_field::<u32>(data, offset, path, ranges, "raw_n", "u32")?;
+        let raw_o = track_read_field::<u32>(data, offset, path, ranges, "raw_o", "u32")?;
+        let raw_p = track_read_field::<u32>(data, offset, path, ranges, "raw_p", "u32")?;
+        let flag_g = track_read_field::<u8>(data, offset, path, ranges, "flag_g", "u8")?;
+        let flag_h = track_read_field::<u8>(data, offset, path, ranges, "flag_h", "u8")?;
+        let flag_i = track_read_field::<u8>(data, offset, path, ranges, "flag_i", "u8")?;
+        let flag_j = track_read_field::<u8>(data, offset, path, ranges, "flag_j", "u8")?;
+        let flag_k = track_read_field::<u8>(data, offset, path, ranges, "flag_k", "u8")?;
+        let flag_l = track_read_field::<u8>(data, offset, path, ranges, "flag_l", "u8")?;
+        let flag_m = track_read_field::<u8>(data, offset, path, ranges, "flag_m", "u8")?;
+        let flag_n = track_read_field::<u8>(data, offset, path, ranges, "flag_n", "u8")?;
+        let flag_o = track_read_field::<u8>(data, offset, path, ranges, "flag_o", "u8")?;
+        let flag_p = track_read_field::<u8>(data, offset, path, ranges, "flag_p", "u8")?;
+        let flag_q = track_read_field::<u8>(data, offset, path, ranges, "flag_q", "u8")?;
+        let flag_r = track_read_field::<u8>(data, offset, path, ranges, "flag_r", "u8")?;
+        let flag_s = track_read_field::<u8>(data, offset, path, ranges, "flag_s", "u8")?;
+        let flag_t = track_read_field::<u8>(data, offset, path, ranges, "flag_t", "u8")?;
+        let flag_u = track_read_field::<u8>(data, offset, path, ranges, "flag_u", "u8")?;
+
+        if *offset != entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("StageInfo: typed prefix under/over-read ({} expected {})", *offset, entry_end)));
+        }
+
+        Ok(Self {
+            key, string_key, is_blocked, name, stage_desc, complete_log,
+            sequencer_desc, spawn_faction_spawn_data_info, spawn_faction_node_info,
+            disable_faction_spawn_party_name_hash_list, raw_a, raw_b, raw_c,
+            list_a, flag_a, flag_b, lookup_c, lookup_d, lookup_e,
+            close_filter_a, close_filter_b, close_filter_c, filter_entry_list,
+            lookup_f, lookup_g, lookup_h, list_b, list_c, unk_new_carray_a, unk_new_cbytes, unk_new_carray_b, lookup_i, raw_d,
+            cstring_a, flag_c, flag_d, raw_e, raw_f, pair_a, pair_b,
+            raw_g, raw_h, raw_i,
+            mob_map_list, lookup_j, string_entry_list,
+            adjacency_mob_list_a, adjacency_mob_list_b,
+            adjacency_mob_list_c, adjacency_mob_list_d,
+            close_filter_d_a, close_filter_d_b,
+            close_filter_d_c, close_filter_d_d,
+            list_d, platform_entry,
+            lookup_k, lookup_l, lookup_m, lookup_n, lookup_o, lookup_p,
+            lookup_q, lookup_r, label_b, lookup_s, flag_e, flag_f, lookup_t,
+            behavior_entry_list, raw_j, lookup_u, lookup_v, lookup_w,
+            raw_k, raw_l, raw_m, raw_n, raw_o, raw_p,
+            flag_g, flag_h, flag_i, flag_j, flag_k, flag_l, flag_m, flag_n,
+            flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

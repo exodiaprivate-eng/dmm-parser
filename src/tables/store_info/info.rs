@@ -547,6 +547,59 @@ impl<'a> StoreInfo<'a> {
         Ok(item)
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let key = track_read_field::<u16>(data, offset, path, ranges, "key", "u16")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let exchange_item_info_for_buy = track_read_field::<u32>(data, offset, path, ranges, "exchange_item_info_for_buy", "u32")?;
+        let exchange_item_info_list_for_sell = track_read_field::<CArray<u32>>(data, offset, path, ranges, "exchange_item_info_list_for_sell", "CArray<u32>")?;
+        let sell_percents = track_read_field::<u64>(data, offset, path, ranges, "sell_percents", "u64")?;
+        let store_type = track_read_field::<u8>(data, offset, path, ranges, "store_type", "u8")?;
+        let price_increase_percent_list = track_read_field::<CArray<u64>>(data, offset, path, ranges, "price_increase_percent_list", "CArray<u64>")?;
+        let sellable_character_condition_logic = track_read_field::<u32>(data, offset, path, ranges, "sellable_character_condition_logic", "u32")?;
+        let reset_hour = track_read_field::<u32>(data, offset, path, ranges, "reset_hour", "u32")?;
+        let reset_day = track_read_field::<u32>(data, offset, path, ranges, "reset_day", "u32")?;
+        let buyable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "buyable_stock_count", "u32")?;
+        let sellable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "sellable_stock_count", "u32")?;
+        let sellable_type = track_read_field::<u8>(data, offset, path, ranges, "sellable_type", "u8")?;
+        let stock_data_list = track_read_with(offset, path, ranges, "stock_data_list", "Vec<StoreStockData>", |o| {
+            let count = u32::read_from(data, o)?;
+            let mut v = Vec::with_capacity(count as usize);
+            for _ in 0..count {
+                v.push(StoreStockData::read_from(data, o)?);
+            }
+            Ok(v)
+        })?;
+        let sale_item_type_list = track_read_field::<CArray<u8>>(data, offset, path, ranges, "sale_item_type_list", "CArray<u8>")?;
+        let not_sale_item_type_list = track_read_field::<CArray<u8>>(data, offset, path, ranges, "not_sale_item_type_list", "CArray<u8>")?;
+        let custom_mesh_obb_max_length = track_read_field::<u32>(data, offset, path, ranges, "custom_mesh_obb_max_length", "u32")?;
+        let fixed_price = track_read_field::<u8>(data, offset, path, ranges, "fixed_price", "u8")?;
+        let use_housing_gimmick = track_read_field::<u8>(data, offset, path, ranges, "use_housing_gimmick", "u8")?;
+        let reduce_price_by_looted_dead_body = track_read_field::<u8>(data, offset, path, ranges, "reduce_price_by_looted_dead_body", "u8")?;
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("StoreInfo: consumed {} bytes, expected {}", consumed, entry_size)));
+        }
+        Ok(Self {
+            key, string_key, is_blocked,
+            exchange_item_info_for_buy, exchange_item_info_list_for_sell,
+            sell_percents, store_type, price_increase_percent_list,
+            sellable_character_condition_logic, reset_hour, reset_day,
+            buyable_stock_count, sellable_stock_count, sellable_type,
+            stock_data_list, sale_item_type_list, not_sale_item_type_list,
+            custom_mesh_obb_max_length,
+            fixed_price, use_housing_gimmick, reduce_price_by_looted_dead_body,
+        })
+    }
+
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let key = u16::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;

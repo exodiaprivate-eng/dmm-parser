@@ -295,6 +295,64 @@ impl<'a> EffectInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+
+        if *offset + TAIL_SIZE > entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                "effectinfo: entry too small for tail"));
+        }
+        let blob_end = entry_end - TAIL_SIZE;
+        let mesh_split = find_mesh_split(&data[*offset..blob_end])? + *offset;
+
+        let effect_data = track_read_with(offset, path, ranges, "effect_data", "Vec<EffectDataElement>", |o| {
+            let n_effect = u32::read_from(data, o)? as usize;
+            let mut v = Vec::with_capacity(n_effect);
+            for _ in 0..n_effect {
+                v.push(EffectDataElement::read_from(data, o)?);
+            }
+            if *o != mesh_split {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("effectinfo: effect_data under/over-consumed: cursor {} != mesh_split {}", *o, mesh_split)));
+            }
+            Ok(v)
+        })?;
+
+        let mesh_effect_data = track_read_with(offset, path, ranges, "mesh_effect_data", "Vec<MeshEffectData>", |o| {
+            let n_mesh = u32::read_from(data, o)? as usize;
+            let mut v = Vec::with_capacity(n_mesh);
+            for _ in 0..n_mesh {
+                v.push(MeshEffectData::read_from(data, o)?);
+            }
+            if *o != blob_end {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("effectinfo: mesh data under/over-consumed: cursor {} != blob_end {}", *o, blob_end)));
+            }
+            Ok(v)
+        })?;
+        *offset = blob_end;
+
+        let has_equip_type = track_read_field::<u8>(data, offset, path, ranges, "has_equip_type", "u8")?;
+        let has_preset = track_read_field::<u8>(data, offset, path, ranges, "has_preset", "u8")?;
+        let target_color_lerp_type = track_read_field::<u8>(data, offset, path, ranges, "target_color_lerp_type", "u8")?;
+
+        Ok(Self {
+            key, string_key, is_blocked, effect_data, mesh_effect_data,
+            has_equip_type, has_preset, target_color_lerp_type,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;

@@ -223,6 +223,37 @@ impl<'a> BinaryRead<'a> for GimmickInteractionOverrideCArray<'a> {
     }
 }
 
+// Tracked variant. The CArray holds polymorphic body bytes whose
+// individual leaves we don't decode here, so we register one range
+// per element covering the consumed bytes. Good enough for the
+// converter's byte→field resolver: an offset inside the CArray maps
+// to its indexed element, and the converter can fall back to
+// file_replacement (no per-leaf resolution inside the element body
+// until the variant decoder lands).
+impl<'a> crate::binary::BinaryReadTracked<'a> for GimmickInteractionOverrideCArray<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        _path: &mut String,
+        ranges: &mut Vec<crate::binary::FieldRange>,
+    ) -> io::Result<Self> {
+        let count = u32::read_from(data, offset)?;
+        let mut items = Vec::with_capacity(count as usize);
+        for i in 0..count {
+            let elem_start = *offset;
+            let item = OptionalGimmickInteractionOverrideData::read_from(data, offset)?;
+            ranges.push(crate::binary::FieldRange {
+                path: format!("[{}]", i),
+                start: elem_start,
+                end: *offset,
+                ty: "polymorphic_blob",
+            });
+            items.push(item);
+        }
+        Ok(Self { items })
+    }
+}
+
 impl<'a> BinaryWrite for GimmickInteractionOverrideCArray<'a> {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         (self.items.len() as u32).write_to(w)?;

@@ -14,6 +14,7 @@ mod python;
 pub(crate) mod python_traits;
 pub mod save;
 pub mod tables;
+pub mod tracked;
 
 pub use dispatch::{
     is_supported_table, parse_table_to_json, serialize_table_from_json,

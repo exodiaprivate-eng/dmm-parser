@@ -177,6 +177,37 @@ impl<'a> AIDialogStringInfo<'a> {
         })
     }
 
+    pub fn read_tracked_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let entry_start = *offset;
+        let entry_end = entry_start + entry_size;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let flag_a = track_read_field::<u8>(data, offset, path, ranges, "flag_a", "u8")?;
+        let flag_b = track_read_field::<u8>(data, offset, path, ranges, "flag_b", "u8")?;
+        let list_a = track_read_field::<CArray<u16>>(data, offset, path, ranges, "list_a", "CArray<u16>")?;
+        let lookup_a = track_read_field::<u16>(data, offset, path, ranges, "lookup_a", "u16")?;
+        let lookup_b = track_read_field::<u32>(data, offset, path, ranges, "lookup_b", "u32")?;
+        let dialog_map = track_read_field::<CArray<AIDialogMapEntry<'a>>>(data, offset, path, ranges, "dialog_map", "CArray<AIDialogMapEntry>")?;
+        let trailing_byte = track_read_field::<u8>(data, offset, path, ranges, "trailing_byte", "u8")?;
+        let extra_data = track_read_field::<COptional<AIDialogExtraData>>(data, offset, path, ranges, "extra_data", "COptional<AIDialogExtraData>")?;
+        if *offset != entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("AIDialogStringInfo: under/over-read (consumed {} of {} bytes)", *offset - entry_start, entry_size)));
+        }
+        Ok(Self {
+            key, string_key, is_blocked, flag_a, flag_b,
+            list_a, lookup_a, lookup_b,
+            dialog_map, trailing_byte, extra_data,
+        })
+    }
+
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;
