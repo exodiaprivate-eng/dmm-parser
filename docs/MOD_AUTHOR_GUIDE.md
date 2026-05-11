@@ -118,16 +118,22 @@ intentional, see `docs/V3_1_DECODER_GAPS.md` § "Auto-closure analysis":
 - `_complteDescription` (multi_change_info) — missing 'e' (complete)
 - `_overriedMaxHeight` (region_info) — missing 'd' (overridden/overrided)
 
-### Residual v3.1 surface coverage (as of 2026-05-10, iter 82)
+### Residual v3.1 surface coverage (as of 2026-05-10, iter 144)
 
 Of 126 dmm-parser tables, **109 are in NattKh's canonical schema**. After
-the resumed-loop closure work (iters 70-82):
+the resumed-loop closure work (iters 70-143):
 
-- **86 tables** — 100% canonical coverage (every `_camelCase` aliased,
+- **90 tables** — 100% canonical coverage (every `_camelCase` aliased,
   shape='v3.1' is a drop-in for snake_case).
-- **23 tables** — still have ≥1 gap. Total residual gaps: **549**.
+- **19 tables** — still have ≥1 gap. Total residual gaps: **463**.
 
-The 23 remaining tables fall into four classes:
+Progress this loop (iter 84 → 144): +4 fully-covered tables, -86 residual
+gaps. 4 class-5 tables fully closed: global_game_event_group_info (iter 96),
+level_gimmick_scene_object_info (iter 97), mission_info (iter 120, 7 closures),
+tribe_info (iter 123, 25 closures). Plus deep-progress on faction_node_info
+(0% → 90%, 11 closures) and field_info (8% → 79%, 17 closures).
+
+The 19 remaining tables fall into three classes (class 3 closed iters 96-97):
 
 1. **1-to-N wrap, pending alias-mechanism extension** (~10 tables).
    The current `FIELD_ALIASES_V3_1` mechanism only maps 1 snake → 1 camel.
@@ -136,27 +142,30 @@ The 23 remaining tables fall into four classes:
    `_destroyedAiEvent` ↔ four `destroyed_ai_event_*` fields). Closure is
    purely cosmetic — wire bytes already round-trip identically. Resolution
    is to extend the alias mechanism to support `(snake, &[snake...])`
-   1-to-N tuple-keyed entries.
+   1-to-N tuple-keyed entries (per `docs/V3_1_ALIAS_MECHANISM_EXTENSION_DESIGN.md`).
 
-2. **Real decoder work needed** (~2 tables, ~6 gaps).
+2. **Real decoder work needed / sub-struct decomposition** (~6 tables, ~50 gaps).
    Notably `global_game_event_info` (3 gaps: `_eventDesc`, `_uiIconPath`,
    `_targetRegionInfoList`) where the current `execute_data` polymorphic
-   wrapper absorbs three separate canonical reads as a single typed field.
-   Closure requires decomposing the wrapper into 3 distinct typed fields.
+   wrapper absorbs 3 separate canonical reads as a single typed field.
+   Plus `interaction_info` (28 gaps inside InteractionTailDecoded sub-struct),
+   field_info (5 gaps inside FieldInfoComposite), faction_node_info residual
+   (3 gaps inside big_composite_slots/de690_data sub-structs), action_point_info
+   (2 gaps inside ActionPoint sub-struct). Closure requires decomposing
+   sub-structs into top-level rust fields OR extending the alias mechanism
+   to support nested field paths.
 
-3. **Semantic ambiguity** (~2 tables, 2 gaps).
-   `_onDiscoverOnlyEnable` (level_gimmick_scene_object_info) and
-   `_executePercent` (global_game_event_group_info) each map to one of
-   two unaliased rust fields — disambiguation needs sample-data range
-   analysis or function-string xref work.
+3. **Larger un-audited tables** (4 tables holding 412 of 463 gaps =
+   89% of remaining): `gimmick_info` (153 gaps, Tier-1.5 typed-prefix +
+   opaque blob), `character_info` (146 gaps, 8.7KB per-record reader),
+   `gimmick_group_info` (45 gaps, interleaved wire layout per iter 118),
+   `stage_info` (68 gaps, 3.5KB reader). Each needs its own audit pass
+   per `docs/V3_1_REMAINING_GAPS_MASTER_PLAN.md`.
 
-4. **Larger tables not yet audited** (1 table — `faction_node_info`,
-   14 gaps).
-
-Day-to-day mods are unaffected. If your mod targets one of the 86 fully-
+Day-to-day mods are unaffected. If your mod targets one of the 90 fully-
 covered tables, both `shape='v3.1'` and the snake_case default round-trip
 identically. The residual gaps only matter if you author against canonical
-names for one of the 23 partially-covered tables — and even there, the
+names for one of the 19 partially-covered tables — and even there, the
 snake_case rust names still work as input.
 
 ---
