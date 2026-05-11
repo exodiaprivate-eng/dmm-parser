@@ -53,6 +53,15 @@ descriptor class via Win-IDA).
 
 ## Queue
 
+**iteminfo v3.1 closure track (iter 165+ resumed for this)** — user (2026-05-11) wants iteminfo's _camelCase aliases wired so DMM can apply intents using PA canonical names. iteminfo is already Tier 1 (114 fields decoded, 105 schema canonicals); work is alias-only.
+
+- [ ] ITEMINFO-1: Create `src/item_info/field_aliases_v3_1.rs` with FIELD_ALIASES_V3_1 const containing mechanical snake → _camelCase translations for every iteminfo field
+- [ ] ITEMINFO-2: Wire `("iteminfo", crate::item_info::field_aliases_v3_1::FIELD_ALIASES_V3_1)` into `src/json_shape_table_registry.rs` so the dispatcher sees it
+- [ ] ITEMINFO-3: Extend `scripts/generate_v3_1_aliases.py` to ALSO walk `src/item_info/item.rs` (currently only walks `src/tables/<name>/info.rs`) — make iteminfo regen-able like the other 126 tables
+- [ ] ITEMINFO-4: Run schema verifier — confirm iteminfo appears in the per-table verification report with N/105 verified (was excluded entirely before)
+- [ ] ITEMINFO-5: Per-canonical closure pass — for each missing iteminfo canonical, apply MANUAL_OVERRIDES per the iter-113 methodology techniques (singleton, within-type-group, PA typo recognition)
+- [ ] ITEMINFO-6: Refresh all 9 v3.1 surface docs to acknowledge iteminfo coverage (was 109 schema tables → now 110 with iteminfo)
+- [ ] ITEMINFO-7: Verify with `cargo build --release` + `cargo test` after each rust-source change
 
 ## Done
 - [x] STOP iter 164: invoked workplan stop condition — 2026-05-10. Per the iter-151 LOOP_ASSESSMENT recommendation, the loop's productive ceiling has been reached for top-level closure work. Iters 152-163 produced: 3 closures (iters 154/155/158 totaling +3, leveraging the iter-122 generator bug fix + iter-158 tool fix), 5 new docs (LOOP_ASSESSMENT, IMPLEMENTER_ONBOARDING, SUB_STRUCT_DECOMPOSE_DESIGN, the 2 audit/scan tools), and consistency refresh across all 9 v3.1 surface docs. Per the workplan stop conditions: "Queue empty AND auto-generation produces no new tasks → send PushNotification + CronDelete this job." Sent PushNotification with final state (460/19/90 vs 549/23/86 baseline). Invoked CronDelete on job `a51bccde`. **Loop stopped at iter 164.** Final state: 89 closures across iters 70-158, full handoff package in `docs/V3_1_LOOP_ASSESSMENT.md` + `docs/V3_1_IMPLEMENTER_ONBOARDING.md`. Future closures require human-decision items: (1) resolve iter-83 cargo build break, then (2) Class 1 alias mech extension OR Class 6 sub-struct decompose per the design memos.

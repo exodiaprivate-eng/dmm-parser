@@ -134,4 +134,9 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("vehicle_info", crate::tables::vehicle_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("vibrate_pattern_info", crate::tables::vibrate_pattern_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("wanted_info", crate::tables::wanted_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    // iteminfo lives in src/item_info/ (legacy module, separate from
+    // src/tables/). Wired manually iter 165 (2026-05-11) per user request.
+    // First iteminfo v3.1 alias support — DMM can now apply intents
+    // using PA canonical names like _prefabDataList[0].whatever.
+    ("iteminfo", crate::item_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
 ];

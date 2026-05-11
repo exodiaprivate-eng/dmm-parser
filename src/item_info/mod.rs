@@ -13,6 +13,7 @@ pub mod keys;
 pub mod structs;
 #[allow(dead_code)]
 pub mod item;
+pub mod field_aliases_v3_1;
 
 pub use item::{parse_iteminfo_to_json, serialize_iteminfo_from_json, ItemInfo};
 
