@@ -583,11 +583,11 @@
     "field_info": {
       "schema_key": "FieldInfo",
       "in_schema": true,
-      "alias_count": 10,
+      "alias_count": 11,
       "schema_field_count": 24,
-      "verified": 10,
+      "verified": 11,
       "mismatch": [],
-      "missing_in_dmm_count": 14,
+      "missing_in_dmm_count": 13,
       "missing_in_dmm": [
         "_addFieldStyle",
         "_alwaysCallVehicle_dev",
@@ -596,7 +596,6 @@
         "_fieldRegistType",
         "_fixedFieldTime",
         "_isEnableAutoSave",
-        "_maxPlayerCount",
         "_natureRegionBitmapPositionInfo",
         "_readOnly",
         "_regionBitmapPositionInfo",
@@ -1758,9 +1757,9 @@
     }
   },
   "totals": {
-    "verified": 1170,
+    "verified": 1171,
     "mismatch": 0,
-    "missing_in_dmm": 539,
+    "missing_in_dmm": 538,
     "extra_in_dmm": 0
   }
 }

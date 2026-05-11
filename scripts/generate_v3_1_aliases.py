@@ -215,6 +215,15 @@ MANUAL_OVERRIDES = {
     # the "universal" pattern fits _spawnPath.
     ("field_info",                     "lookup_u32_b"):                      "_sceneLevelPath",
     ("field_info",                     "lookup_u32_c"):                      "_spawnPath",
+
+    # Iter 106: field_info `_maxPlayerCount`. Rust placeholder `unk_u32_b`
+    # is the only raw u32 field (no hash lookup). Data shows all 7
+    # entries = 0, which fits "no player limit set" — a sensible vanilla
+    # default for a max_player_count field. Schema type "None" doesn't
+    # constrain us. Among the 4 unmapped u32 slots, this is the only
+    # non-NaN-prone one (unk_u32_d/e/f are NaN-heavy, suggesting they're
+    # optional/sentinel-encoded).
+    ("field_info",                     "unk_u32_b"):                         "_maxPlayerCount",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
