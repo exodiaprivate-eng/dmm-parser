@@ -58,6 +58,15 @@ gaps. Read this BEFORE attacking any class-5 table.
   Across type groups, wire order can differ (e.g. `_key` is at
   setter-position 9 in field_info but wire-position 1).
 
+- **Don't assume contiguous rust placeholder runs ARE wire-contiguous
+  type-unique runs.** Iters 117-118 found gimmick_group_info has
+  rust `flag_344..356` (13 consecutive u8 fields) BUT the wire reads
+  for those mem positions are interleaved with u32 + sub-reader
+  reads. Verify wire-contiguity via IDA decompile BEFORE applying
+  iter-114's N-block shipping technique. The rust struct order
+  reflects the in-memory layout, which may pad/group differently
+  than the wire layout.
+
 ## Workflow per table
 
 1. Run `python scripts/verify_v3_1_against_schema.py` and dump the
