@@ -301,6 +301,20 @@ MANUAL_OVERRIDES = {
     # The 9-consecutive run (unk_28..36) and 2-consecutive run (unk_80/_81)
     # need IDA cross-run-order verification before shipping en bloc — defer.
     ("tribe_info",                     "unk_22"):                            "_tribeMassLevel",
+
+    # Iter 116: mission_info 3 closures via type-match + setter-string order.
+    # Schema has exactly 2 missing direct_u16 canonicals; rust has exactly 2
+    # adjacent u16 fields (raw_418, raw_420) just before the 13-u8 flag run.
+    # Setter-string order: _completeTime (0x1449453b0) < _limitTime
+    # (0x1449453f8). By wire-order-matches-setter-order within type-unique
+    # run: raw_418 → _completeTime, raw_420 → _limitTime.
+    # Schema's only missing direct_u32 canonical is _completeCount; rust's
+    # raw_424 (u32, immediately after the u16 pair, immediately before the
+    # 13-u8 flag run) is its natural mate by both type-uniqueness and
+    # adjacency to the named-by-iter-114 flag block.
+    ("mission_info",                   "raw_418"):                           "_completeTime",
+    ("mission_info",                   "raw_420"):                           "_limitTime",
+    ("mission_info",                   "raw_424"):                           "_completeCount",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

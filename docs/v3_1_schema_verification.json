@@ -1200,16 +1200,13 @@
     "mission_info": {
       "schema_key": "MissionInfo",
       "in_schema": true,
-      "alias_count": 32,
+      "alias_count": 35,
       "schema_field_count": 40,
-      "verified": 32,
+      "verified": 35,
       "mismatch": [],
-      "missing_in_dmm_count": 8,
+      "missing_in_dmm_count": 5,
       "missing_in_dmm": [
         "_challengeEventList",
-        "_completeCount",
-        "_completeTime",
-        "_limitTime",
         "_missionFunctionList",
         "_parentMissionInfo",
         "_repeatCondition",
@@ -1737,9 +1734,9 @@
     }
   },
   "totals": {
-    "verified": 1191,
+    "verified": 1194,
     "mismatch": 0,
-    "missing_in_dmm": 518,
+    "missing_in_dmm": 515,
     "extra_in_dmm": 0
   }
 }
