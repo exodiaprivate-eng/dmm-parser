@@ -559,6 +559,17 @@ MANUAL_OVERRIDES = {
     # string_key). Only None-typed string-named canonical missing.
     # Singleton type-and-semantic match.
     ("stage_info",                     "cstring_a"):                         "_platformSocketName",
+
+    # Iter 139: faction_node_info `_researchDataList` close. Iter-139's
+    # programmatic singleton scan revealed this: only None-typed list
+    # canonical missing for faction_node_info ↔ only top-level
+    # CArray-of-struct unaliased rust field (`adjacency_list:
+    # CArray<FactionAdjacencyEntry>`). Iter-134 deferred this because the
+    # rust "adjacency" naming doesn't semantically match "research", but
+    # the type-singleton match is unambiguous and the rust naming is
+    # known-placeholder (faction_node_info has many unk_*/raw_*/lookup_*
+    # placeholder names per iter-93 audit). Shipped on type-uniqueness.
+    ("faction_node_info",              "adjacency_list"):                    "_researchDataList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
