@@ -6,24 +6,44 @@
 the v3.1 surface coverage. Picks priorities, estimates effort, points to
 the per-class design memos.
 
-## Where we are (iter 107 update)
+## Where we are (iter 124 update)
 
 ```
 126 dmm-parser tables
  └─ 109 in NattKh canonical schema
-     ├─  88 fully-aliased (100% _camelCase coverage)   [+2 since iter 94]
-     └─  21 with-gaps  →  538 missing canonicals total  [-11 since iter 94]
+     ├─  90 fully-aliased (100% _camelCase coverage)   [+4 since iter 94]
+     └─  19 with-gaps  →  487 missing canonicals total  [-62 since iter 94]
 ```
 
-**Iters 96-106 progress** (resumed-loop):
-- iter 96: closed `_executePercent` in global_game_event_group_info via fixture
-  data-range analysis (resolved iter-81 deferred ambiguity 1 of 2). Table now
-  100% covered.
-- iter 97: closed `_onDiscoverOnlyEnable` in level_gimmick_scene_object_info
-  via fixture data-range analysis (resolved iter-80 deferred ambiguity 2 of 2,
-  also closing class-3 entirely). Table now 100% covered.
-- iters 99-106: 9 partial closures in field_info via type-match + data-pattern
-  + IDA wire-read disambiguation. Now 11/24 verified (was 2/24).
+**Resumed-loop progress** (iters 96-123):
+- iters 96-97 (class 3 closed): closed `_executePercent` and
+  `_onDiscoverOnlyEnable` via fixture data-range analysis. Both tables
+  100% covered. Class 3 of 4-class taxonomy fully resolved.
+- iters 99-106 (field_info partial): 9 closures via type-match + data-pattern
+  + IDA wire-read disambiguation. Now 11/24.
+- iter 108 (tribe_info opening): `_tribeNameForEditor` (singleton CString).
+- iter 110 (tribe_info CArray): `_tamedSkillList` (only CArray<u32>).
+- iter 112 (mission_info 4-shot): 4 LocalizableString labels via IDA + setter
+  order — first big N-to-N closure.
+- iter 113: V3_1_CLOSURE_METHODOLOGY.md force-multiplier guide written.
+- iter 114 (mission_info 13-shot): biggest single-iter closure. 13 direct_15B
+  u8 booleans via type-unique wire-contiguous run + setter order.
+- iter 115: tribe_info `_tribeMassLevel` singleton.
+- iter 116 (mission_info 3-shot): 2 direct_u16 + 1 direct_u32 via type-match
+  + positional adjacency.
+- iter 119 (mission_info 2-shot): 2 None-typed CArray closures.
+- iter 120 (mission_info FULL): final 3 reader_4B via within-type-group rule
+  with non-contiguous-but-order-preserving reads. **mission_info 100% (40/40)**.
+- iter 121 (tribe_info 9-shot): 9-consecutive direct_u8 run via the iter-120
+  technique. Crossed below 500 missing-canonicals threshold.
+- iter 122 (tribe_info 4-shot + bug fix): discovered + fixed critical generator
+  bug (`is_placeholder` filter ran BEFORE `MANUAL_OVERRIDES` check, silently
+  dropping overrides for placeholder-pattern rust field names). 4 closures.
+- iter 123 (tribe_info FULL): 9 direct_u32 via within-type-group rule + final
+  singleton. **tribe_info 100% (29/29)**.
+
+4 class-5 tables fully closed this session: global_game_event_group_info,
+level_gimmick_scene_object_info, mission_info, tribe_info.
 
 The 21 with-gaps tables fall into 4 active closure classes (per
 `MOD_AUTHOR_GUIDE.md` § Residual coverage; class 3 is now CLOSED).
@@ -163,12 +183,30 @@ many class-5 tables likely close mostly via wrap aliases.
 
 | Priority | Effort | Closures | Cumulative coverage |
 |---|---|---|---|
-| (today, iter 107) | — | (88/109 closed) | 81% |
-| A (alias mech)    | 1 day  | +11  | 91% |
-| B (ambiguity)     | DONE iters 96-97 — class 3 closed | (+2 done) | (was 91%, now 81% baseline already includes this) |
-| C (decoder split) | 0.5 day | +3  | 92% |
+| (today, iter 124) | — | (90/109 closed) | 83% |
+| A (alias mech)    | 1 day | +11 (the 9 single-missing wrap tables + 2 vehicle_info wraps) | 93% |
+| C (decoder split) | 0.5 day | +3  | 95% |
 | D (faction audit) | 1.5 day | +14 | 99% (no — see note) |
-| E (class-5 sweep) | weeks (started iter 99) | +517 → 506 in-progress | 100% |
+| E (class-5 sweep, ongoing) | weeks | -62 done, ~456 remaining | 100% |
+
+Class B (ambiguity) closed in iters 96-97. Class 3 from the 4-class
+taxonomy is fully resolved.
+
+**Remaining gap distribution by table** (iter 124 snapshot):
+
+| Table | Gaps | Notes |
+|---|---|---|
+| `gimmick_info` | 153 | Tier-1.5 typed-prefix + opaque blob |
+| `character_info` | 146 | Largest table by per-record reader (8.7KB) |
+| `stage_info` | 72 | 3.5KB reader; 60+ placeholder rust fields |
+| `gimmick_group_info` | 45 | Wire reads heavily interleaved per iter 118 |
+| `interaction_info` | 28 | All 28 inside InteractionTailDecoded sub-struct (class-2) |
+| `faction_node_info` | 14 | Per iter 93 audit memo |
+| `field_info` | 13 | Iter 103 closure plan; needs 13 more u8 mappings |
+| `global_game_event_info` | 3 | Per iter 92 design memo |
+| `vehicle_info` | 2 | 1-to-N wraps (class 1) |
+| `action_point_info` | 2 | Hidden wrap (class 1) |
+| 8× single-missing tables | 8 | All 1-to-N wraps (class 1) |
 
 **Iters 96-106 actual closures: -11 from iter-94's 549 baseline → 538.**
 
