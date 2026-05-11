@@ -583,11 +583,11 @@
     "field_info": {
       "schema_key": "FieldInfo",
       "in_schema": true,
-      "alias_count": 3,
+      "alias_count": 4,
       "schema_field_count": 24,
-      "verified": 3,
+      "verified": 4,
       "mismatch": [],
-      "missing_in_dmm_count": 21,
+      "missing_in_dmm_count": 20,
       "missing_in_dmm": [
         "_addFieldStyle",
         "_alwaysCallVehicle_dev",
@@ -604,7 +604,6 @@
         "_natureRegionBitmapPositionInfo",
         "_readOnly",
         "_regionBitmapPositionInfo",
-        "_returnPosition",
         "_sceneLevelPath",
         "_sequencerSpawnKey",
         "_spawnPath",
@@ -1765,9 +1764,9 @@
     }
   },
   "totals": {
-    "verified": 1163,
+    "verified": 1164,
     "mismatch": 0,
-    "missing_in_dmm": 546,
+    "missing_in_dmm": 545,
     "extra_in_dmm": 0
   }
 }

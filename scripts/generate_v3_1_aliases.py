@@ -167,6 +167,13 @@ MANUAL_OVERRIDES = {
     # convention places _isBlocked at this position. Fixture verifies: all 7
     # entries have byte_at_16 = 0 (consistent with vanilla un-blocked data).
     ("field_info",                     "byte_at_16"):                        "_isBlocked",
+
+    # Iter 100: field_info `_returnPosition` — schema marks it `direct_12B`
+    # (12 wire bytes, the only direct_12B canonical in this table). Rust's
+    # `bounds: [f32; 3]` is the only 12-byte field. Type-match is
+    # unambiguous and the `bounds` placeholder is semantically consistent
+    # with a return-position Vec3 (player respawn coords).
+    ("field_info",                     "bounds"):                            "_returnPosition",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

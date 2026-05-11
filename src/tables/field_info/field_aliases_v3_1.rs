@@ -14,4 +14,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("key", "_key"),
     ("string_key", "_stringKey"),
     ("byte_at_16", "_isBlocked"),
+    ("bounds", "_returnPosition"),
 ];
