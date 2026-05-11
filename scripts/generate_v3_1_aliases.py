@@ -241,6 +241,23 @@ MANUAL_OVERRIDES = {
     # The "Flag" suffix on _ignoredReactionInSafeZoneFlag suggests it's
     # encoded as a packed bit-field rather than a CArray.
     ("tribe_info",                     "ref_list"):                          "_tamedSkillList",
+
+    # Iter 112: mission_info 4 LocalizableString labels. IDA decompile of
+    # sub_1410B9BA0 shows exactly 4 consecutive sub_140F34760 reads at mem
+    # 248/280/312/344 (32 bytes each = LocalizableString). Schema has
+    # exactly 4 reader_8B canonicals; setter-string addresses give the
+    # declaration order:
+    #   _completeName  (0x144945600)
+    #   _name          (0x144945648)
+    #   _completeLog   (0x144945690)
+    #   _desc          (0x1449456d0)
+    # By PA's wire-order-matches-setter-order convention WITHIN a type-
+    # unique run (4 consecutive same-shape reads), the rust label_a/b/c/d
+    # placeholder names map 1:1 to canonicals in declaration order.
+    ("mission_info",                   "label_a"):                           "_completeName",
+    ("mission_info",                   "label_b"):                           "_name",
+    ("mission_info",                   "label_c"):                           "_completeLog",
+    ("mission_info",                   "label_d"):                           "_desc",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

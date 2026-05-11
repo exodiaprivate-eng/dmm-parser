@@ -26,4 +26,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("result_data_list", "_resultDataList"),
     ("reward_inventory_key", "_rewardInventoryKey"),
     ("ui_desc", "_uiDesc"),
+    ("label_a", "_completeName"),
+    ("label_b", "_name"),
+    ("label_c", "_completeLog"),
+    ("label_d", "_desc"),
 ];
