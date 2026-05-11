@@ -258,6 +258,38 @@ MANUAL_OVERRIDES = {
     ("mission_info",                   "label_b"):                           "_name",
     ("mission_info",                   "label_c"):                           "_completeLog",
     ("mission_info",                   "label_d"):                           "_desc",
+
+    # Iter 114: mission_info 13 consecutive direct_15B u8 booleans. Schema has
+    # exactly 13 missing direct_15B canonicals (the 14th, _isBlocked, is
+    # already aliased). Rust has exactly 13 consecutive `flag_428..440` u8
+    # fields after the per-record reader's mid-section. Type-unique run +
+    # setter-string declaration order:
+    #   flag_428 (mem 428, 1st wire u8 of run)  -> _showMiniMap         (1st by setter addr)
+    #   flag_429                                -> _checkCompleteCountAtOnce
+    #   flag_430                                -> _ignoreRepeatOnDead
+    #   flag_431                                -> _isOperationMission
+    #   flag_432                                -> _isShowAlertPlaying
+    #   flag_433                                -> _checkOverlapType
+    #   flag_434                                -> _existStart
+    #   flag_435                                -> _optional
+    #   flag_436                                -> _existComplete
+    #   flag_437                                -> _existHaveCount
+    #   flag_438                                -> _preCheck
+    #   flag_439                                -> _existFail
+    #   flag_440 (mem 440, 13th)                -> _completeType
+    ("mission_info",                   "flag_428"):                          "_showMiniMap",
+    ("mission_info",                   "flag_429"):                          "_checkCompleteCountAtOnce",
+    ("mission_info",                   "flag_430"):                          "_ignoreRepeatOnDead",
+    ("mission_info",                   "flag_431"):                          "_isOperationMission",
+    ("mission_info",                   "flag_432"):                          "_isShowAlertPlaying",
+    ("mission_info",                   "flag_433"):                          "_checkOverlapType",
+    ("mission_info",                   "flag_434"):                          "_existStart",
+    ("mission_info",                   "flag_435"):                          "_optional",
+    ("mission_info",                   "flag_436"):                          "_existComplete",
+    ("mission_info",                   "flag_437"):                          "_existHaveCount",
+    ("mission_info",                   "flag_438"):                          "_preCheck",
+    ("mission_info",                   "flag_439"):                          "_existFail",
+    ("mission_info",                   "flag_440"):                          "_completeType",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

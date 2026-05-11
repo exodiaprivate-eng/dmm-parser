@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1177**
+- Total field aliases verified:       **1190**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **532**
+- Total schema fields not decoded:    **519**
 
 ## Tables not in NattKh schema
 
@@ -114,7 +114,7 @@ Korean-error-string parser path.
 | `material_relation_info` | 4 | 4 | 0 | 0 |
 | `mercenary_info` | 15 | 15 | 0 | 0 |
 | `mini_game_data_info` | 16 | 16 | 0 | 0 |
-| `mission_info` | 19 | 19 | 0 | 21 |
+| `mission_info` | 32 | 32 | 0 | 8 |
 | `multi_change_info` | 25 | 25 | 0 | 0 |
 | `npc_info` | 15 | 15 | 0 | 0 |
 | `part_prefab_dye_slot_info` | 5 | 5 | 0 | 0 |
@@ -644,28 +644,15 @@ Korean-error-string parser path.
 
 ### `mission_info` (schema key: `MissionInfo`)
 
-**Schema fields not in dmm-parser** (21):
+**Schema fields not in dmm-parser** (8):
 
 - `_challengeEventList`
-- `_checkCompleteCountAtOnce`
-- `_checkOverlapType`
 - `_completeCount`
 - `_completeTime`
-- `_completeType`
-- `_existComplete`
-- `_existFail`
-- `_existHaveCount`
-- `_existStart`
-- `_ignoreRepeatOnDead`
-- `_isOperationMission`
-- `_isShowAlertPlaying`
 - `_limitTime`
 - `_missionFunctionList`
-- `_optional`
 - `_parentMissionInfo`
-- `_preCheck`
 - `_repeatCondition`
-- `_showMiniMap`
 - `_targetQuestDialogKey`
 
 ### `royal_supply_info` (schema key: `RoyalSupplyInfo`)

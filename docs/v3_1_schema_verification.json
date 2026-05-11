@@ -1200,32 +1200,19 @@
     "mission_info": {
       "schema_key": "MissionInfo",
       "in_schema": true,
-      "alias_count": 19,
+      "alias_count": 32,
       "schema_field_count": 40,
-      "verified": 19,
+      "verified": 32,
       "mismatch": [],
-      "missing_in_dmm_count": 21,
+      "missing_in_dmm_count": 8,
       "missing_in_dmm": [
         "_challengeEventList",
-        "_checkCompleteCountAtOnce",
-        "_checkOverlapType",
         "_completeCount",
         "_completeTime",
-        "_completeType",
-        "_existComplete",
-        "_existFail",
-        "_existHaveCount",
-        "_existStart",
-        "_ignoreRepeatOnDead",
-        "_isOperationMission",
-        "_isShowAlertPlaying",
         "_limitTime",
         "_missionFunctionList",
-        "_optional",
         "_parentMissionInfo",
-        "_preCheck",
         "_repeatCondition",
-        "_showMiniMap",
         "_targetQuestDialogKey"
       ]
     },
@@ -1751,9 +1738,9 @@
     }
   },
   "totals": {
-    "verified": 1177,
+    "verified": 1190,
     "mismatch": 0,
-    "missing_in_dmm": 532,
+    "missing_in_dmm": 519,
     "extra_in_dmm": 0
   }
 }
