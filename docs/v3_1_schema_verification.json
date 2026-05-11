@@ -1200,14 +1200,12 @@
     "mission_info": {
       "schema_key": "MissionInfo",
       "in_schema": true,
-      "alias_count": 35,
+      "alias_count": 37,
       "schema_field_count": 40,
-      "verified": 35,
+      "verified": 37,
       "mismatch": [],
-      "missing_in_dmm_count": 5,
+      "missing_in_dmm_count": 3,
       "missing_in_dmm": [
-        "_challengeEventList",
-        "_missionFunctionList",
         "_parentMissionInfo",
         "_repeatCondition",
         "_targetQuestDialogKey"
@@ -1734,9 +1732,9 @@
     }
   },
   "totals": {
-    "verified": 1194,
+    "verified": 1196,
     "mismatch": 0,
-    "missing_in_dmm": 515,
+    "missing_in_dmm": 513,
     "extra_in_dmm": 0
   }
 }

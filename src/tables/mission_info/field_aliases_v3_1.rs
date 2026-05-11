@@ -30,6 +30,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("label_b", "_name"),
     ("label_c", "_completeLog"),
     ("label_d", "_desc"),
+    ("result_data_list_2", "_missionFunctionList"),
+    ("mission_stage_list", "_challengeEventList"),
     ("raw_418", "_completeTime"),
     ("raw_420", "_limitTime"),
     ("raw_424", "_completeCount"),

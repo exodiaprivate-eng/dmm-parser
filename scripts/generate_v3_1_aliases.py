@@ -315,6 +315,20 @@ MANUAL_OVERRIDES = {
     ("mission_info",                   "raw_418"):                           "_completeTime",
     ("mission_info",                   "raw_420"):                           "_limitTime",
     ("mission_info",                   "raw_424"):                           "_completeCount",
+
+    # Iter 119: mission_info 2 None-typed list canonicals. Schema has exactly 2
+    # None-typed list-shaped canonicals missing (_missionFunctionList,
+    # _challengeEventList); rust has exactly 2 unaliased CArray fields
+    # (result_data_list_2, mission_stage_list) that get read as the only 2
+    # CArrays in the table's mid-section after the iter-112-aliased
+    # result_data_list. Setter-string order: _missionFunctionList
+    # (0x144945270) < _challengeEventList (0x144945360). Wire order matches:
+    # rust struct positions result_data_list_2 BEFORE mission_stage_list.
+    # Type-unique 2-block ship via N-to-N rule (verified non-interleaved per
+    # IDA decompile inspection — both CArrays are truly the only ones in
+    # this wire region).
+    ("mission_info",                   "result_data_list_2"):                "_missionFunctionList",
+    ("mission_info",                   "mission_stage_list"):                "_challengeEventList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
