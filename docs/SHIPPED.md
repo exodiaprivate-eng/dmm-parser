@@ -197,14 +197,20 @@ Honest accounting of what's still blocked or future work:
   BuffData, EffectData, ConditionData) cannot have their canonical PA
   field names verified from any current source. Triple-blocked.
   Decoders work; only naming is unverified.
-- **549 schema-listed `_camelCase` fields** across 23 *Info tables are
-  not decoded by dmm-parser yet (down from 584/41 at iter-35 baseline,
-  and from 398/14 in this doc's earlier draft — that figure was stale).
-  Per the 4-class taxonomy in `MOD_AUTHOR_GUIDE.md` § Residual coverage,
-  ~10 tables are 1-to-N wraps blocked on the alias-mechanism extension,
-  ~2 need real decoder work, ~2 have semantic ambiguity, 1 (faction_node_info,
-  14 gaps) is a larger un-audited table. Catalogued in info.rs comments
-  and in `V3_1_DECODER_GAPS.md`.
+- **463 schema-listed `_camelCase` fields** across 19 *Info tables are
+  not decoded by dmm-parser yet (was 584/41 at iter-35 baseline, then
+  549/23 at iter-87 → 463/19 at iter-148). Per the 6-class taxonomy in
+  `MOD_AUTHOR_GUIDE.md` § Residual coverage:
+  - ~10 wrap-pattern tables blocked on alias-mechanism extension (Class 1)
+  - 1 table needs real decoder work (Class 2: global_game_event_info)
+  - Class 3 (semantic ambiguity) — **CLOSED iters 96-97**
+  - faction_node_info residual (3 gaps inside sub-structs, Class 4+6)
+  - 4 giants holding 412 of 463 = 89% (gimmick_info 153, character_info
+    146, gimmick_group_info 45, stage_info 68 — Class 5)
+  - ~5 tables have sub-struct fields needing decomposition (Class 6:
+    interaction_info 28, field_info 5, action_point_info 2)
+  See `docs/V3_1_LOOP_ASSESSMENT.md` for full state + recommended
+  resumption priority order.
 
 - **iter 70-148 closure work (resumed-loop, 2026-05-10)**: 86 closures
   shipped across 80 iters (549 → 463 missing canonicals). 4 class-5
