@@ -84,17 +84,18 @@ Resumed-loop closure work (iters 70-82, 2026-05-10):
   tables (all proven to be 1-to-N structural wraps via Win-IDA per-record
   reader cross-checks); shippable when the alias mechanism is extended.
 
-### Schema verifier snapshot (iter 82)
+### Schema verifier snapshot (iter 145)
 
 | Metric | Value |
 |---|---|
 | dmm-parser tables | 126 |
 | Tables in NattKh canonical schema | 109 |
-| **Tables with 100% canonical coverage** | **86** |
-| Tables with ≥1 residual gap | 23 |
-| Total residual gaps | 549 |
-| Verified aliases | 1,160 |
+| **Tables with 100% canonical coverage** | **90** (was 86 at iter 82) |
+| Tables with ≥1 residual gap | 19 (was 23) |
+| Total residual gaps | 463 (was 549) |
+| Verified aliases | 1,246 (was 1,160) |
 | Aliases with confirmed mismatches | 0 |
+| Class-3 (semantic ambiguity) status | **CLOSED** iters 96-97 |
 
 See `docs/MOD_AUTHOR_GUIDE.md` § "Residual v3.1 surface coverage" for the
 4-class breakdown of the remaining 23 tables (alias-mechanism extension

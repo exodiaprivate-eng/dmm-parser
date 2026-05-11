@@ -12,17 +12,27 @@ The schema for each missing field includes the byte-offset string address,
 reader-function pointer, and stream/type category — enough to write the
 field decode without IDA work.
 
-## Summary (refreshed iter 86, 2026-05-10)
+## Summary (refreshed iter 145, 2026-05-10)
 
-- **Tables fully decoded (0 gaps)**: 86 of 109 (79%)
-- **Tables with gaps**: 23
-- **Total missing fields**: 549
+- **Tables fully decoded (0 gaps)**: 90 of 109 (83%)
+- **Tables with gaps**: 19
+- **Total missing fields**: 463
 
 | Iter window | Tables fully covered | Total missing | Verified aliases |
 |---|---|---|---|
 | pre-loop start (~iter 35)   | 68 / 109 (62%) | 584   | 1,125 |
 | iter 36-65 (audit + closure plans) | 78 / 109 (72%) | 557 | 1,144 |
-| iter 70-82 (resumed-loop overrides) | **86 / 109 (79%)** | **549** | **1,160** |
+| iter 70-82 (resumed-loop overrides) | 86 / 109 (79%) | 549 | 1,160 |
+| iter 96-143 (deep methodology + class-3 close) | **90 / 109 (83%)** | **463** | **1,246** |
+
+**Iter 96-143 highlights**: Class 3 (semantic ambiguity) fully closed via
+fixture data-range analysis. 4 class-5 tables fully closed
+(global_game_event_group_info, level_gimmick_scene_object_info,
+mission_info, tribe_info). faction_node_info: 0% → 90% (11 closures).
+field_info: 8% → 79% (17 closures). Methodology techniques distilled
+into `docs/V3_1_CLOSURE_METHODOLOGY.md` (iter 113); programmatic
+audit + singleton-scan tools in `scripts/audit_manual_overrides.py`
+(iter 141) + `scripts/find_singleton_closures.py` (iter 142).
 
 To regenerate this report, run `python scripts/verify_v3_1_against_schema.py`
 which writes the canonical JSON to `docs/v3_1_schema_verification.json`.
