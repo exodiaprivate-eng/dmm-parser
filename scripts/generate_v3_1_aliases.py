@@ -181,6 +181,15 @@ MANUAL_OVERRIDES = {
     # Type-match unambiguous and the "lookup" prefix matches the
     # reader_2B hash-table dispatch pattern.
     ("field_info",                     "lookup_u16_a"):                      "_detectInfo",
+
+    # Iter 102: field_info `_levelName` — column-wise data dump shows
+    # `lookup_u32_a` has 7 distinct values across 7 entries (1:1 unique
+    # per entry). That's the per-entry-unique pattern expected for
+    # _levelName (each field has its own name string). The other two
+    # lookup_u32 fields show shared-value patterns (lookup_u32_b: 3
+    # distinct, mostly the same; lookup_u32_c: 1 distinct = same across
+    # all entries) — those need their own iters with cross-entry context.
+    ("field_info",                     "lookup_u32_a"):                      "_levelName",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
