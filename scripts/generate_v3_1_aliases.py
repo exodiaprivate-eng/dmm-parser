@@ -174,6 +174,13 @@ MANUAL_OVERRIDES = {
     # unambiguous and the `bounds` placeholder is semantically consistent
     # with a return-position Vec3 (player respawn coords).
     ("field_info",                     "bounds"):                            "_returnPosition",
+
+    # Iter 101: field_info `_detectInfo` — schema marks it `reader_2B`
+    # (u16 hash). Rust's only u16 field is `lookup_u16_a` (per the
+    # struct comment: "u16 lookup via sub_141100C20 → qword_145F290B8").
+    # Type-match unambiguous and the "lookup" prefix matches the
+    # reader_2B hash-table dispatch pattern.
+    ("field_info",                     "lookup_u16_a"):                      "_detectInfo",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
