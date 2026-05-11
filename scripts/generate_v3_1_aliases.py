@@ -375,6 +375,21 @@ MANUAL_OVERRIDES = {
     ("tribe_info",                     "unk_34"):                            "_isDeathByDrowning",
     ("tribe_info",                     "unk_35"):                            "_detourOnRoad",
     ("tribe_info",                     "unk_36"):                            "_detectModeShowEnemy",
+
+    # Iter 122: tribe_info 2 direct_u8 pair (continuation of iter 121's
+    # 9-run) + 2 reader_4B pair. The remaining 2 direct_u8s by setter order:
+    #   #11 _escapePlatform     (0x14495e9c0) → unk_80 (1st of pair in wire)
+    #   #12 _ignoreOverlapPush  (0x14495ea10) → unk_81 (2nd of pair)
+    # The 2 reader_4B canonicals (excluding _key already aliased and
+    # _tamedSkillList shipped iter 110), by setter-string order:
+    #   #1 _footStepTypeEffectName       (0x14495c510) → lookup_a (1st 4B-hash wire read at mem 18)
+    #   #2 _ignoredReactionInSafeZoneFlag (0x14495e4b0) → lookup_b (2nd 4B-hash wire read at mem 20)
+    # Within-type-group ordering rule (iter 120) applied — should be safe
+    # for both pairs.
+    ("tribe_info",                     "unk_80"):                            "_escapePlatform",
+    ("tribe_info",                     "unk_81"):                            "_ignoreOverlapPush",
+    ("tribe_info",                     "lookup_a"):                          "_footStepTypeEffectName",
+    ("tribe_info",                     "lookup_b"):                          "_ignoredReactionInSafeZoneFlag",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
@@ -460,13 +475,16 @@ def extract_main_struct_fields(info_rs_path: Path, dir_name: str,
 
     aliases = []
     for snake in fields:
-        if is_placeholder(snake):
-            continue
-        # Manual override takes precedence (for fields where Rust snake_case
-        # doesn't mechanically translate to the schema's canonical name).
+        # Manual override takes precedence — checked BEFORE the placeholder
+        # filter, since some valid overrides target rust field names that
+        # match placeholder regexes (e.g. tribe_info `lookup_a/b` →
+        # `_footStepTypeEffectName`/`_ignoredReactionInSafeZoneFlag` per
+        # iter 122 mapping).
         override_key = (dir_name, snake)
         if manual_overrides and override_key in manual_overrides:
             aliases.append((snake, manual_overrides[override_key]))
+            continue
+        if is_placeholder(snake):
             continue
         camel = snake_to_underscore_camel(snake)
         if schema_canonical_names is not None:

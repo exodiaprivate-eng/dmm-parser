@@ -14,6 +14,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("key", "_key"),
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
+    ("lookup_a", "_footStepTypeEffectName"),
+    ("lookup_b", "_ignoredReactionInSafeZoneFlag"),
     ("unk_22", "_tribeMassLevel"),
     ("unk_28", "_wantedCrimeType"),
     ("unk_29", "_interactionUIDistanceLv"),
@@ -25,5 +27,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("unk_35", "_detourOnRoad"),
     ("unk_36", "_detectModeShowEnemy"),
     ("unk_56", "_tribeNameForEditor"),
+    ("unk_80", "_escapePlatform"),
+    ("unk_81", "_ignoreOverlapPush"),
     ("ref_list", "_tamedSkillList"),
 ];
