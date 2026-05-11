@@ -496,6 +496,19 @@ MANUAL_OVERRIDES = {
     # canonical missing. The "max block day" semantic (a day count)
     # matches a raw integer, not a hash-lookup result.
     ("faction_node_info",              "raw_after_de690"):                   "_religionMaxBlockDay",
+
+    # Iter 131: faction_node_info 2 single-u32-ref reader_4B closures.
+    # Of 3 remaining reader_4B missing canonicals, 1 is list-shaped
+    # (_religionBlockCostList, deferred — likely lives inside one of the
+    # sub-structs big_composite_slots/de690_data) and 2 are single-u32-ref:
+    #   _religionSubLevelInfo (0x14492a770, earlier setter addr)
+    #   _knockDownCondition   (0x14492aa70, later setter addr)
+    # Rust top-level unaliased u32-lookup fields: lookup_after (early in
+    # struct, before adjacency_list) and final_lookup (last in struct).
+    # 2-to-2 type-unique within-type-group rule with rust mem-order matching
+    # wire order:
+    ("faction_node_info",              "lookup_after"):                      "_religionSubLevelInfo",
+    ("faction_node_info",              "final_lookup"):                      "_knockDownCondition",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
