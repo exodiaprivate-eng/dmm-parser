@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1222**
+- Total field aliases verified:       **1229**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **487**
+- Total schema fields not decoded:    **480**
 
 ## Tables not in NattKh schema
 
@@ -78,7 +78,7 @@ Korean-error-string parser path.
 | `faction_relation_group_info` | 3 | 3 | 0 | 1 |
 | `faction_spawn_data_info` | 7 | 7 | 0 | 0 |
 | `fail_message_info` | 4 | 4 | 0 | 0 |
-| `field_info` | 11 | 11 | 0 | 13 |
+| `field_info` | 18 | 18 | 0 | 6 |
 | `field_level_name_table_info` | 5 | 5 | 0 | 0 |
 | `field_revive_info` | 10 | 10 | 0 | 0 |
 | `formation_info` | 6 | 6 | 0 | 0 |
@@ -377,20 +377,13 @@ Korean-error-string parser path.
 
 ### `field_info` (schema key: `FieldInfo`)
 
-**Schema fields not in dmm-parser** (13):
+**Schema fields not in dmm-parser** (6):
 
-- `_addFieldStyle`
-- `_alwaysCallVehicle_dev`
-- `_crimeRegionBitmapPositionInfo`
 - `_endSectorIndex`
-- `_fieldRegistType`
 - `_fixedFieldTime`
 - `_isEnableAutoSave`
-- `_natureRegionBitmapPositionInfo`
-- `_readOnly`
 - `_regionBitmapPositionInfo`
 - `_sequencerSpawnKey`
-- `_startSectorIndex`
 - `_useFixedFieldTime`
 
 ### `gimmick_group_info` (schema key: `GimmickGroupInfo`)

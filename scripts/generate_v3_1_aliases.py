@@ -423,6 +423,32 @@ MANUAL_OVERRIDES = {
     # packed u32 components like (key + slot_index)). Singleton 1:1 of
     # last-of-each-end → ship and bring tribe_info to 100%.
     ("tribe_info",                     "unk_88"):                            "_parentTribeInfo",
+
+    # Iter 125: field_info 7 direct_u8 closures via within-type-group rule.
+    # Schema has 11 direct_u8 missing canonicals; rust has 8 visible u8
+    # placeholders + 1 inside FieldInfoComposite sub-struct (not visible to
+    # alias mechanism). The 7 wire-consecutive visible u8s (byte_at_28..31
+    # at wire 21-24, byte_at_82..84 at wire 75-77) map 1:1 to the first 7
+    # missing direct_u8 canonicals in setter-string order:
+    #   #1 _readOnly                          (0x14492ccb8) → byte_at_28
+    #   #2 _addFieldStyle                     (0x14492cd00) → byte_at_29
+    #   #3 _fieldRegistType                   (0x14492cd90) → byte_at_30
+    #   #4 _crimeRegionBitmapPositionInfo     (0x14492ee40) → byte_at_31
+    #   #5 _natureRegionBitmapPositionInfo    (0x14492ee90) → byte_at_82
+    #   #6 _alwaysCallVehicle_dev             (0x14492ef30) → byte_at_83
+    #   #7 _startSectorIndex                  (0x14492f0c0) → byte_at_84
+    # Remaining 4 direct_u8 (_endSectorIndex, _isEnableAutoSave,
+    # _useFixedFieldTime, _regionBitmapPositionInfo) need disambiguation
+    # for byte_at_126 + 3 fields possibly inside FieldInfoComposite —
+    # deferred. _isBlocked at setter pos 4 was a special case (reading
+    # first) — skipped in this ordering.
+    ("field_info",                     "byte_at_28"):                        "_readOnly",
+    ("field_info",                     "byte_at_29"):                        "_addFieldStyle",
+    ("field_info",                     "byte_at_30"):                        "_fieldRegistType",
+    ("field_info",                     "byte_at_31"):                        "_crimeRegionBitmapPositionInfo",
+    ("field_info",                     "byte_at_82"):                        "_natureRegionBitmapPositionInfo",
+    ("field_info",                     "byte_at_83"):                        "_alwaysCallVehicle_dev",
+    ("field_info",                     "byte_at_84"):                        "_startSectorIndex",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
