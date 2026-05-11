@@ -1627,23 +1627,12 @@
     "tribe_info": {
       "schema_key": "TribeInfo",
       "in_schema": true,
-      "alias_count": 19,
+      "alias_count": 29,
       "schema_field_count": 29,
-      "verified": 19,
+      "verified": 29,
       "mismatch": [],
-      "missing_in_dmm_count": 10,
-      "missing_in_dmm": [
-        "_activityWaterDepth",
-        "_armorMaterialKey",
-        "_baseMaterialKey",
-        "_bumpTypeHash",
-        "_characterPauseType",
-        "_detourMaxDegree",
-        "_footMaterialKey",
-        "_parentTribeInfo",
-        "_velocityDampSpeed",
-        "_weaponMaterialKey"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "trigger_region_info": {
       "schema_key": "TriggerRegionInfo",
@@ -1715,9 +1704,9 @@
     }
   },
   "totals": {
-    "verified": 1212,
+    "verified": 1222,
     "mismatch": 0,
-    "missing_in_dmm": 497,
+    "missing_in_dmm": 487,
     "extra_in_dmm": 0
   }
 }

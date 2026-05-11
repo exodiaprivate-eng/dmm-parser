@@ -390,6 +390,39 @@ MANUAL_OVERRIDES = {
     ("tribe_info",                     "unk_81"):                            "_ignoreOverlapPush",
     ("tribe_info",                     "lookup_a"):                          "_footStepTypeEffectName",
     ("tribe_info",                     "lookup_b"):                          "_ignoredReactionInSafeZoneFlag",
+
+    # Iter 123: tribe_info 9 direct_u32 closures via within-type-group rule.
+    # Schema has 9 direct_u32 missing canonicals; rust has 9 unaliased u32
+    # fields in wire order (unk_24, unk_40, unk_44, unk_48, unk_64, unk_68,
+    # unk_72, unk_76, unk_84). Setter-string declaration order:
+    #   #1 _bumpTypeHash         (0x14495c5a8) → unk_24
+    #   #2 _footMaterialKey      (0x14495e370) → unk_40
+    #   #3 _characterPauseType   (0x14495e3c0) → unk_44
+    #   #4 _detourMaxDegree      (0x14495e5a0) → unk_48
+    #   #5 _velocityDampSpeed    (0x14495e640) → unk_64
+    #   #6 _activityWaterDepth   (0x14495e690) → unk_68
+    #   #7 _weaponMaterialKey    (0x14495e6e0) → unk_72
+    #   #8 _armorMaterialKey     (0x14495e780) → unk_76
+    #   #9 _baseMaterialKey      (0x14495e7d0) → unk_84
+    ("tribe_info",                     "unk_24"):                            "_bumpTypeHash",
+    ("tribe_info",                     "unk_40"):                            "_footMaterialKey",
+    ("tribe_info",                     "unk_44"):                            "_characterPauseType",
+    ("tribe_info",                     "unk_48"):                            "_detourMaxDegree",
+    ("tribe_info",                     "unk_64"):                            "_velocityDampSpeed",
+    ("tribe_info",                     "unk_68"):                            "_activityWaterDepth",
+    ("tribe_info",                     "unk_72"):                            "_weaponMaterialKey",
+    ("tribe_info",                     "unk_76"):                            "_armorMaterialKey",
+    ("tribe_info",                     "unk_84"):                            "_baseMaterialKey",
+
+    # Iter 123 (continued): tribe_info final close. _parentTribeInfo (None
+    # type, no schema-type-tag constraint on wire size) is the last
+    # unmapped canonical. unk_88 (u64 in rust) is the last unaliased rust
+    # field. Even though "parent tribe info" semantically suggests u32 ref,
+    # the schema's None-type tag doesn't constrain wire size; an 8-byte
+    # raw read landing in u64 is plausible (e.g. extended hash, or 2
+    # packed u32 components like (key + slot_index)). Singleton 1:1 of
+    # last-of-each-end → ship and bring tribe_info to 100%.
+    ("tribe_info",                     "unk_88"):                            "_parentTribeInfo",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

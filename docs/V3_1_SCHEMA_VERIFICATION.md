@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1212**
+- Total field aliases verified:       **1222**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **497**
+- Total schema fields not decoded:    **487**
 
 ## Tables not in NattKh schema
 
@@ -147,7 +147,7 @@ Korean-error-string parser path.
 | `sub_level_info` | 22 | 22 | 0 | 1 |
 | `terrain_region_auto_spawn_info` | 24 | 24 | 0 | 0 |
 | `terrain_region_navi_info` | 4 | 4 | 0 | 0 |
-| `tribe_info` | 19 | 19 | 0 | 10 |
+| `tribe_info` | 29 | 29 | 0 | 0 |
 | `trigger_region_info` | 4 | 4 | 0 | 0 |
 | `valid_schedule_action_info` | 6 | 6 | 0 | 0 |
 | `vehicle_info` | 19 | 19 | 0 | 2 |
@@ -730,21 +730,6 @@ Korean-error-string parser path.
 **Schema fields not in dmm-parser** (1):
 
 - `_exp`
-
-### `tribe_info` (schema key: `TribeInfo`)
-
-**Schema fields not in dmm-parser** (10):
-
-- `_activityWaterDepth`
-- `_armorMaterialKey`
-- `_baseMaterialKey`
-- `_bumpTypeHash`
-- `_characterPauseType`
-- `_detourMaxDegree`
-- `_footMaterialKey`
-- `_parentTribeInfo`
-- `_velocityDampSpeed`
-- `_weaponMaterialKey`
 
 ### `vehicle_info` (schema key: `VehicleInfo`)
 
