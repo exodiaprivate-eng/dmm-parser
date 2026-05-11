@@ -30,8 +30,10 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("label_b", "_name"),
     ("label_c", "_completeLog"),
     ("label_d", "_desc"),
+    ("result_data_2_lookup", "_targetQuestDialogKey"),
     ("result_data_list_2", "_missionFunctionList"),
     ("mission_stage_list", "_challengeEventList"),
+    ("category_info", "_parentMissionInfo"),
     ("raw_418", "_completeTime"),
     ("raw_420", "_limitTime"),
     ("raw_424", "_completeCount"),
@@ -48,4 +50,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("flag_438", "_preCheck"),
     ("flag_439", "_existFail"),
     ("flag_440", "_completeType"),
+    ("trailing_u32", "_repeatCondition"),
 ];

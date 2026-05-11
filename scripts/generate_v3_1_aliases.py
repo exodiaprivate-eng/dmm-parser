@@ -329,6 +329,25 @@ MANUAL_OVERRIDES = {
     # this wire region).
     ("mission_info",                   "result_data_list_2"):                "_missionFunctionList",
     ("mission_info",                   "mission_stage_list"):                "_challengeEventList",
+
+    # Iter 120: mission_info last 3 reader_4B canonicals. Schema has exactly
+    # 3 missing reader_4B canonicals (_targetQuestDialogKey,
+    # _parentMissionInfo, _repeatCondition); rust has exactly 3 unaliased
+    # u32 fields (result_data_2_lookup, category_info, trailing_u32). The
+    # 3 wire reads (sub_1410CFB80 @ mem 376, sub_1410CC220 @ mem 416,
+    # sub_141BA9E90 @ mem 444) are NON-CONTIGUOUS in wire order — other
+    # reads (CArrays, u16s, u8s) sit between them. Per iter-118 anti-pattern
+    # this is normally risky, BUT iter-104's finding was specifically about
+    # CROSS-TYPE-GROUP setter-order mismatches (e.g. _key at setter-pos 9
+    # but wire-pos 1). Within a single type group, wire order should still
+    # match setter order even with non-contiguous reads, because PA emits
+    # setters in declaration order. Setter-string order:
+    #   _targetQuestDialogKey  (0x144944f40)  -> result_data_2_lookup (1st wire)
+    #   _parentMissionInfo     (0x1449452c0)  -> category_info        (2nd wire)
+    #   _repeatCondition       (0x144945310)  -> trailing_u32         (3rd wire)
+    ("mission_info",                   "result_data_2_lookup"):              "_targetQuestDialogKey",
+    ("mission_info",                   "category_info"):                     "_parentMissionInfo",
+    ("mission_info",                   "trailing_u32"):                      "_repeatCondition",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

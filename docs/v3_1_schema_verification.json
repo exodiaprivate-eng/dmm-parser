@@ -1200,16 +1200,12 @@
     "mission_info": {
       "schema_key": "MissionInfo",
       "in_schema": true,
-      "alias_count": 37,
+      "alias_count": 40,
       "schema_field_count": 40,
-      "verified": 37,
+      "verified": 40,
       "mismatch": [],
-      "missing_in_dmm_count": 3,
-      "missing_in_dmm": [
-        "_parentMissionInfo",
-        "_repeatCondition",
-        "_targetQuestDialogKey"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "multi_change_info": {
       "schema_key": "MultiChangeInfo",
@@ -1732,9 +1728,9 @@
     }
   },
   "totals": {
-    "verified": 1196,
+    "verified": 1199,
     "mismatch": 0,
-    "missing_in_dmm": 513,
+    "missing_in_dmm": 510,
     "extra_in_dmm": 0
   }
 }
