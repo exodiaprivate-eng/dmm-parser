@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 130: faction_node_info `_religionMaxBlockDay` singleton close — 2026-05-10 SUCCESS. Only missing direct_u32 canonical (= raw u32, no hash lookup) ↔ rust's `raw_after_de690: u32` (only "raw" u32 placeholder unaliased; lookup_after and final_lookup both use hash lookups). Type-unique singleton + naming convention match. The "max block day" semantic = day count = raw integer, fits raw-u32 over hash-lookup. faction_node_info: 21/31 → 22/31 verified (71%). Total: 475 → 474.
+
 - [x] GAP iter 129: faction_node_info `_factionEventDataList` close — 2026-05-10 SUCCESS. Of 4 missing reader_4B canonicals, 2 are list-shaped (`_religionBlockCostList`, `_factionEventDataList`), 2 are single-u32-ref (`_religionSubLevelInfo`, `_knockDownCondition`). Rust's only top-level unaliased CArray<u32> is `final_list_u32`. Two convergent ordering cues both point to `_factionEventDataList`: it has the higher setter-string addr (0x14492aac0 vs `_religionBlockCostList` at 0x14492a6d0) AND the rust "final" naming convention indicates the last wire read (matches highest setter addr position). faction_node_info: 20/31 → 21/31 verified (68%). Total: 476 → 475.
 
 - [x] GAP iter 128: faction_node_info `_subInnerTypeString` singleton close — 2026-05-10 SUCCESS. Rust `key_str_after: CString` is the only CString-shape unaliased field (besides standard string_key/memo). Schema canonical name `_subInnerTypeString` (None type) explicitly contains "TypeString" suggesting CString carrier. Semantic + structural singleton match. faction_node_info: 19/31 → 20/31 verified (65%). Total: 477 → 476.

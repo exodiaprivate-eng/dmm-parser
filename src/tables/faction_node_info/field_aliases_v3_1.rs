@@ -30,6 +30,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("way_point_data_list_deprecated", "_wayPointDataList_deprecated"),
     ("faction_schedule_list", "_factionScheduleInfoList"),
     ("key_str_after", "_subInnerTypeString"),
+    ("raw_after_de690", "_religionMaxBlockDay"),
     ("final_list_u32", "_factionEventDataList"),
     ("final_list_u16", "_religionEffectRegionInfoList"),
 ];

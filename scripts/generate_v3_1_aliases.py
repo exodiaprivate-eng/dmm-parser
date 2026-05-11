@@ -487,6 +487,15 @@ MANUAL_OVERRIDES = {
     # at 0x14492a6d0) AND the rust "final" naming convention indicates last
     # wire read — both alignment cues say final_list_u32 → _factionEventDataList.
     ("faction_node_info",              "final_list_u32"):                    "_factionEventDataList",
+
+    # Iter 130: faction_node_info `_religionMaxBlockDay` close. The only
+    # missing direct_u32 canonical (= raw u32, no hash lookup). Rust's
+    # `raw_after_de690: u32` has the "raw" naming convention indicating
+    # no lookup (vs lookup_after / final_lookup which DO use hash lookups).
+    # Type-unique singleton: only raw u32 placeholder ↔ only raw u32
+    # canonical missing. The "max block day" semantic (a day count)
+    # matches a raw integer, not a hash-lookup result.
+    ("faction_node_info",              "raw_after_de690"):                   "_religionMaxBlockDay",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
