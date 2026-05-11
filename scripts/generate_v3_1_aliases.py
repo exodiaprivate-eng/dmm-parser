@@ -203,6 +203,18 @@ MANUAL_OVERRIDES = {
     # field-info-table semantics (a field is bounded by a min/max box).
     ("field_info",                     "size_pair"):                         "_boundaryPositionMin",
     ("field_info",                     "height_pair"):                       "_boundaryPositionMax",
+
+    # Iter 105: field_info `_sceneLevelPath` + `_spawnPath`. Three reader_4B
+    # canonicals: _levelName (iter 102 = lookup_u32_a, unique-per-entry),
+    # _sceneLevelPath, _spawnPath. The remaining lookup_u32_b/c data:
+    #   lookup_u32_b: 3 distinct (5 entries share default + 2 custom)
+    #   lookup_u32_c: 1 distinct (all 7 entries identical)
+    # In Crimson Desert: scene files are sometimes individualized (boss
+    # arenas etc.) while spawn-data files tend to share a universal default
+    # template. The "5 default + 2 custom" pattern fits _sceneLevelPath;
+    # the "universal" pattern fits _spawnPath.
+    ("field_info",                     "lookup_u32_b"):                      "_sceneLevelPath",
+    ("field_info",                     "lookup_u32_c"):                      "_spawnPath",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

@@ -15,6 +15,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("string_key", "_stringKey"),
     ("byte_at_16", "_isBlocked"),
     ("lookup_u32_a", "_levelName"),
+    ("lookup_u32_b", "_sceneLevelPath"),
+    ("lookup_u32_c", "_spawnPath"),
     ("bounds", "_returnPosition"),
     ("size_pair", "_boundaryPositionMin"),
     ("height_pair", "_boundaryPositionMax"),
