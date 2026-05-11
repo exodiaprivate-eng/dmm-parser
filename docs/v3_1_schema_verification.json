@@ -727,11 +727,11 @@
     "gimmick_group_info": {
       "schema_key": "GimmickGroupInfo",
       "in_schema": true,
-      "alias_count": 25,
+      "alias_count": 26,
       "schema_field_count": 70,
-      "verified": 25,
+      "verified": 26,
       "mismatch": [],
-      "missing_in_dmm_count": 45,
+      "missing_in_dmm_count": 44,
       "missing_in_dmm": [
         "_combinationAliasDataList",
         "_combinationLinkDataList",
@@ -768,7 +768,6 @@
         "_pushObjectSocketList",
         "_remoteCatchPullOutUseAction",
         "_saveLevelData",
-        "_spawnDistanceLevel",
         "_stickToObjectSocketList",
         "_stickToObjectType",
         "_targetableRange",
@@ -1680,9 +1679,9 @@
     }
   },
   "totals": {
-    "verified": 1246,
+    "verified": 1247,
     "mismatch": 0,
-    "missing_in_dmm": 463,
+    "missing_in_dmm": 462,
     "extra_in_dmm": 0
   }
 }

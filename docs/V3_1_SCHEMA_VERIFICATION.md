@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1246**
+- Total field aliases verified:       **1247**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **463**
+- Total schema fields not decoded:    **462**
 
 ## Tables not in NattKh schema
 
@@ -93,7 +93,7 @@ Korean-error-string parser path.
 | `gimmick_event_table_info` | 7 | 7 | 0 | 0 |
 | `gimmick_gate_connection_info` | 9 | 9 | 0 | 0 |
 | `gimmick_gate_info` | 6 | 6 | 0 | 0 |
-| `gimmick_group_info` | 25 | 25 | 0 | 45 |
+| `gimmick_group_info` | 26 | 26 | 0 | 44 |
 | `gimmick_info` | 6 | 6 | 0 | 153 |
 | `global_game_event_group_info` | 5 | 5 | 0 | 0 |
 | `global_game_event_info` | 5 | 5 | 0 | 3 |
@@ -375,7 +375,7 @@ Korean-error-string parser path.
 
 ### `gimmick_group_info` (schema key: `GimmickGroupInfo`)
 
-**Schema fields not in dmm-parser** (45):
+**Schema fields not in dmm-parser** (44):
 
 - `_combinationAliasDataList`
 - `_combinationLinkDataList`
@@ -412,7 +412,6 @@ Korean-error-string parser path.
 - `_pushObjectSocketList`
 - `_remoteCatchPullOutUseAction`
 - `_saveLevelData`
-- `_spawnDistanceLevel`
 - `_stickToObjectSocketList`
 - `_stickToObjectType`
 - `_targetableRange`

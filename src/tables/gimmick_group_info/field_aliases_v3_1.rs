@@ -36,4 +36,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("gimmick_alias_data_list", "_gimmickAliasDataList"),
     ("logout_time_after_break", "_logoutTimeAfterBreak"),
     ("attack_by_collision_info_list_key", "_attackByCollisionInfoListKey"),
+    ("raw_340", "_spawnDistanceLevel"),
 ];

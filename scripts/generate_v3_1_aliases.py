@@ -570,6 +570,17 @@ MANUAL_OVERRIDES = {
     # known-placeholder (faction_node_info has many unk_*/raw_*/lookup_*
     # placeholder names per iter-93 audit). Shipped on type-uniqueness.
     ("faction_node_info",              "adjacency_list"):                    "_researchDataList",
+
+    # Iter 154: gimmick_group_info `_spawnDistanceLevel` singleton close.
+    # Schema's only direct_u32 missing canonical; rust struct has only
+    # one u32 placeholder unaliased (`raw_340`). Type-unique 1:1 singleton.
+    # Setter-string addr 0x144932100 places it immediately before the
+    # u8 flag block (_isMacroGimmick at 0x144932150 etc.), matching rust
+    # mem-order (raw_340 followed by flag_344..356). High-confidence ship
+    # despite gimmick_group_info's overall interleaved wire layout
+    # (per iter 118) — singleton type-uniqueness overrides the
+    # wire-contiguity concern for one isolated u32.
+    ("gimmick_group_info",             "raw_340"):                           "_spawnDistanceLevel",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
