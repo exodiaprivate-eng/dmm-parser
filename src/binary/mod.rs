@@ -30,6 +30,17 @@ pub mod paschedulepath;
 pub mod dds;
 pub mod wem;
 pub mod bnk;
+pub mod pami;
+pub mod par_resource;
+pub mod motionblending;
+pub mod pamlod;
+pub mod hkx;
+pub mod paasmt;
+pub mod paccd;
+pub mod binarystring;
+pub mod xml_resource;
+pub mod impostor;
+pub mod count_record_table;
 
 pub use types::*;
 

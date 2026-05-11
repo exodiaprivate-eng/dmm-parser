@@ -1302,6 +1302,94 @@ bind_typed_format!(
     crate::binary::paatt::PaattFile
 );
 
+// Iter 15: Python bindings for Tier 1 Havok-layer format parsers.
+// Each module exposes `parse_X_to_json(&[u8]) -> Value` and
+// `serialize_X_from_json(&Value) -> Vec<u8>`. We forward those via
+// json_to_py / py_to_json since the return shapes are arbitrary
+// JSON objects (no fixed struct).
+macro_rules! bind_json_format {
+    ($parse_name:ident, $serialize_name:ident, $module:path) => {
+        #[pyfunction]
+        pub fn $parse_name(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+            use $module as m;
+            let v = m::parse(data)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            json_to_py(py, &v)
+        }
+        #[pyfunction]
+        pub fn $serialize_name(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+            use $module as m;
+            let v = py_to_json(value)?;
+            let bytes = m::serialize(&v)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            Ok(PyBytes::new(py, &bytes).into_any().unbind())
+        }
+    };
+}
+
+// Shim modules so the macro's `parse` / `serialize` calls resolve.
+mod pami_pyshim {
+    pub use crate::binary::pami::parse_pami_to_json as parse;
+    pub use crate::binary::pami::serialize_pami_from_json as serialize;
+}
+mod par_pyshim {
+    pub use crate::binary::par_resource::parse_par_to_json as parse;
+    pub use crate::binary::par_resource::serialize_par_from_json as serialize;
+}
+mod motionblending_pyshim {
+    pub use crate::binary::motionblending::parse_motionblending_to_json as parse;
+    pub use crate::binary::motionblending::serialize_motionblending_from_json as serialize;
+}
+mod pamlod_pyshim {
+    pub use crate::binary::pamlod::parse_pamlod_to_json as parse;
+    pub use crate::binary::pamlod::serialize_pamlod_from_json as serialize;
+}
+mod paasmt_pyshim {
+    pub use crate::binary::paasmt::parse_paasmt_to_json as parse;
+    pub use crate::binary::paasmt::serialize_paasmt_from_json as serialize;
+}
+mod paccd_pyshim {
+    pub use crate::binary::paccd::parse_paccd_to_json as parse;
+    pub use crate::binary::paccd::serialize_paccd_from_json as serialize;
+}
+mod hkx_pyshim {
+    pub use crate::binary::hkx::parse_hkx_to_json as parse;
+    pub use crate::binary::hkx::serialize_hkx_from_json as serialize;
+}
+mod binarystring_pyshim {
+    pub use crate::binary::binarystring::parse_binarystring_to_json as parse;
+    pub use crate::binary::binarystring::serialize_binarystring_from_json as serialize;
+}
+mod xml_resource_pyshim {
+    pub use crate::binary::xml_resource::parse_xml_to_json as parse;
+    pub use crate::binary::xml_resource::serialize_xml_from_json as serialize;
+}
+mod imp_pyshim {
+    pub use crate::binary::impostor::parse_imp_to_json as parse;
+    pub use crate::binary::impostor::serialize_imp_from_json as serialize;
+}
+mod impostor_pyshim {
+    pub use crate::binary::impostor::parse_impostor_to_json as parse;
+    pub use crate::binary::impostor::serialize_impostor_from_json as serialize;
+}
+mod count_record_table_pyshim {
+    pub use crate::binary::count_record_table::parse_count_record_table_to_json as parse;
+    pub use crate::binary::count_record_table::serialize_count_record_table_from_json as serialize;
+}
+
+bind_json_format!(parse_pami_bytes, serialize_pami, crate::python::pami_pyshim);
+bind_json_format!(parse_par_bytes, serialize_par, crate::python::par_pyshim);
+bind_json_format!(parse_motionblending_bytes, serialize_motionblending, crate::python::motionblending_pyshim);
+bind_json_format!(parse_pamlod_bytes, serialize_pamlod, crate::python::pamlod_pyshim);
+bind_json_format!(parse_paasmt_bytes, serialize_paasmt, crate::python::paasmt_pyshim);
+bind_json_format!(parse_paccd_bytes, serialize_paccd, crate::python::paccd_pyshim);
+bind_json_format!(parse_hkx_bytes, serialize_hkx, crate::python::hkx_pyshim);
+bind_json_format!(parse_binarystring_bytes, serialize_binarystring, crate::python::binarystring_pyshim);
+bind_json_format!(parse_xml_bytes, serialize_xml, crate::python::xml_resource_pyshim);
+bind_json_format!(parse_imp_bytes, serialize_imp, crate::python::imp_pyshim);
+bind_json_format!(parse_impostor_bytes, serialize_impostor, crate::python::impostor_pyshim);
+bind_json_format!(parse_count_record_table_bytes, serialize_count_record_table, crate::python::count_record_table_pyshim);
+
 /// Parse the outer class field directory from a `.paseq` file. Returns
 /// a list of dicts: `[{"field_name": str, "type_name": str,
 /// "type_meta_b64": str}, ...]`. Every vanilla `.paseq` exposes the
@@ -1801,6 +1889,31 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_paschedulepath, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paatt_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_paatt, m)?)?;
+    // Iter 15: bindings for new Havok-layer format parsers
+    m.add_function(wrap_pyfunction!(parse_pami_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_pami, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_par_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_par, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_motionblending_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_motionblending, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_pamlod_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_pamlod, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paasmt_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paasmt, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_paccd_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_paccd, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_hkx_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_hkx, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_binarystring_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_binarystring, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_xml_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_xml, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_imp_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_imp, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_impostor_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_impostor, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_count_record_table_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(serialize_count_record_table, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paseq_field_directory, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paseqc_field_directory, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paseq_all_class_blocks, m)?)?;

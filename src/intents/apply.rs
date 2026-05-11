@@ -307,11 +307,76 @@ pub fn apply_intents_to_iteminfo(
     use crate::item_info::{parse_iteminfo_to_json, serialize_iteminfo_from_json};
 
     let mut records = parse_iteminfo_to_json(body)?;
-    let outcomes = apply_resolved_intents(&mut records, intents).map_err(|e| {
+
+    // Normalize v3.1 _camelCase field paths to rust snake_case BEFORE apply.
+    let intents: Vec<Intent> = intents.iter().map(|i| {
+        let mut clone = i.clone();
+        normalize_intent_v3_1(&mut clone, "iteminfo");
+        clone
+    }).collect();
+
+    let outcomes = apply_resolved_intents(&mut records, &intents).map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidData, format!("iteminfo apply: {}", e))
     })?;
     let new_body = serialize_iteminfo_from_json(&records)?;
     Ok((new_body, outcomes))
+}
+
+/// Normalize a single intent so that v3.1 PA-canonical `_camelCase` field
+/// paths are translated to rust snake_case (the form the apply pipeline's
+/// `set_value_at_path` walks against). Mutates the intent in place.
+///
+/// Translates BOTH `intent.field` AND every `patch.path` for record-level
+/// ops (clone_record, new_record patches, etc.). Sub-segments (after `.`
+/// or `[`) are preserved verbatim — only the LEADING field name maps to
+/// the alias table, since aliases are top-level field renames only.
+///
+/// Callers that bypass `apply_intents_to_iteminfo` (DMM-BETA's
+/// `dispatch_record_level_op`, Crimson Forge, third-party tooling) MUST
+/// call this helper before forwarding intents to `apply_resolved_intents`,
+/// otherwise v3.1-named intents silently insert junk keys instead of
+/// updating the targeted field. The bug ΛεroωynX hit on 2026-05-11.
+///
+/// No-op if the table has no registered alias table (returns silently —
+/// a non-v3.1 table just passes through).
+pub fn normalize_intent_v3_1(intent: &mut Intent, table_name: &str) {
+    let aliases = match crate::json_shape::lookup_table_aliases_v3_1(table_name) {
+        Some(a) if !a.is_empty() => a,
+        _ => return,
+    };
+
+    if let Some(field) = &intent.field {
+        intent.field = Some(translate_v3_1_path_to_snake(field, aliases));
+    }
+    if let Some(patches) = &mut intent.patches {
+        for p in patches.iter_mut() {
+            p.path = translate_v3_1_path_to_snake(&p.path, aliases);
+        }
+    }
+}
+
+/// Translate the LEADING field name of a path from v3.1 _camelCase to
+/// rust snake_case using the table's alias table. Only the FIRST segment
+/// is rewritten — sub-struct fields keep their snake form (which is what
+/// the iteminfo struct definition uses internally).
+///
+/// Examples (with iteminfo's alias table):
+///   "_prefabDataList"             -> "prefab_data_list"
+///   "_prefabDataList[0]"          -> "prefab_data_list[0]"
+///   "_prefabDataList[0].something" -> "prefab_data_list[0].something"
+///   "prefab_data_list"            -> "prefab_data_list"  (unchanged)
+fn translate_v3_1_path_to_snake(path: &str, aliases: &[(&str, &str)]) -> String {
+    // Split off the first path segment (everything before the first '.' or '[').
+    let head_end = path.find(|c: char| c == '.' || c == '[').unwrap_or(path.len());
+    let head = &path[..head_end];
+    let rest = &path[head_end..];
+
+    for &(snake, camel) in aliases {
+        if head == camel {
+            return format!("{}{}", snake, rest);
+        }
+    }
+    path.to_string()
 }
 
 #[cfg(test)]
@@ -335,6 +400,46 @@ mod tests {
                 "max_stack_count": 99,
             }),
         ]
+    }
+
+    #[test]
+    fn v3_1_path_translation() {
+        // Mock alias table for testing.
+        let aliases: &[(&str, &str)] = &[
+            ("prefab_data_list", "_prefabDataList"),
+            ("max_stack_count", "_maxStackCount"),
+        ];
+        // _camelCase head → snake_case head, rest preserved.
+        assert_eq!(translate_v3_1_path_to_snake("_prefabDataList", aliases),
+                   "prefab_data_list");
+        assert_eq!(translate_v3_1_path_to_snake("_prefabDataList[0]", aliases),
+                   "prefab_data_list[0]");
+        assert_eq!(translate_v3_1_path_to_snake("_prefabDataList[0].sub_field", aliases),
+                   "prefab_data_list[0].sub_field");
+        assert_eq!(translate_v3_1_path_to_snake("_prefabDataList.sub", aliases),
+                   "prefab_data_list.sub");
+        // snake form passes through unchanged.
+        assert_eq!(translate_v3_1_path_to_snake("prefab_data_list", aliases),
+                   "prefab_data_list");
+        assert_eq!(translate_v3_1_path_to_snake("prefab_data_list[0]", aliases),
+                   "prefab_data_list[0]");
+        // Unknown name: pass through (caller handles "field not found").
+        assert_eq!(translate_v3_1_path_to_snake("_unknownField", aliases),
+                   "_unknownField");
+    }
+
+    #[test]
+    fn iteminfo_aliases_are_wired() {
+        // Regression: ensure the iteminfo alias table is registered in
+        // TABLE_FIELD_ALIASES_V3_1 and reachable from apply_intents_to_iteminfo.
+        let aliases = crate::json_shape::lookup_table_aliases_v3_1("iteminfo");
+        assert!(aliases.is_some(), "iteminfo not in TABLE_FIELD_ALIASES_V3_1");
+        let aliases = aliases.unwrap();
+        assert!(!aliases.is_empty(), "iteminfo alias table is empty");
+        // Sanity: prefab_data_list should map to _prefabDataList per
+        // PA naming convention (the field used by transmog mods).
+        let has_prefab = aliases.iter().any(|(s, _)| *s == "prefab_data_list");
+        assert!(has_prefab, "prefab_data_list missing from iteminfo aliases");
     }
 
     #[test]
