@@ -509,14 +509,13 @@
     "faction_node_info": {
       "schema_key": "FactionNodeInfo",
       "in_schema": true,
-      "alias_count": 20,
+      "alias_count": 21,
       "schema_field_count": 31,
-      "verified": 20,
+      "verified": 21,
       "mismatch": [],
-      "missing_in_dmm_count": 11,
+      "missing_in_dmm_count": 10,
       "missing_in_dmm": [
         "_bitMapColorKey",
-        "_factionEventDataList",
         "_factionType",
         "_knockDownCondition",
         "_observeData",
@@ -1693,9 +1692,9 @@
     }
   },
   "totals": {
-    "verified": 1233,
+    "verified": 1234,
     "mismatch": 0,
-    "missing_in_dmm": 476,
+    "missing_in_dmm": 475,
     "extra_in_dmm": 0
   }
 }

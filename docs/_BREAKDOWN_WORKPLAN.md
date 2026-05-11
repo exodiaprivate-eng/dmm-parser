@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 129: faction_node_info `_factionEventDataList` close — 2026-05-10 SUCCESS. Of 4 missing reader_4B canonicals, 2 are list-shaped (`_religionBlockCostList`, `_factionEventDataList`), 2 are single-u32-ref (`_religionSubLevelInfo`, `_knockDownCondition`). Rust's only top-level unaliased CArray<u32> is `final_list_u32`. Two convergent ordering cues both point to `_factionEventDataList`: it has the higher setter-string addr (0x14492aac0 vs `_religionBlockCostList` at 0x14492a6d0) AND the rust "final" naming convention indicates the last wire read (matches highest setter addr position). faction_node_info: 20/31 → 21/31 verified (68%). Total: 476 → 475.
+
 - [x] GAP iter 128: faction_node_info `_subInnerTypeString` singleton close — 2026-05-10 SUCCESS. Rust `key_str_after: CString` is the only CString-shape unaliased field (besides standard string_key/memo). Schema canonical name `_subInnerTypeString` (None type) explicitly contains "TypeString" suggesting CString carrier. Semantic + structural singleton match. faction_node_info: 19/31 → 20/31 verified (65%). Total: 477 → 476.
 
 - [x] GAP iter 127: faction_node_info 2 type-unique singleton closures — 2026-05-10 SUCCESS. First class-4 closures (per iter 93 audit memo). Two type-unique 1:1 mappings: `final_list_u16: CArray<u16>` (ONLY CArray<u16> in rust struct) ↔ `_religionEffectRegionInfoList` (ONLY reader_2B missing canonical) — unambiguous type-match singleton; `faction_schedule_list: CArray<FactionSchedule>` ↔ `_factionScheduleInfoList` (only "schedule list" canonical missing — semantic + type match unambiguous). faction_node_info: 17/31 → 19/31 verified (61%). Total: 479 → 477.

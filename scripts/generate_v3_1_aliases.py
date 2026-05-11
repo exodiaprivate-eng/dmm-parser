@@ -477,6 +477,16 @@ MANUAL_OVERRIDES = {
     # (None type) — name explicitly says "TypeString" suggesting a CString
     # carrier. Semantic + structural singleton match.
     ("faction_node_info",              "key_str_after"):                     "_subInnerTypeString",
+
+    # Iter 129: faction_node_info `_factionEventDataList`. Of 4 missing
+    # reader_4B canonicals, 2 are list-shaped (_religionBlockCostList +
+    # _factionEventDataList), 2 are single-u32-ref (_religionSubLevelInfo
+    # + _knockDownCondition). Only top-level rust CArray<u32> unaliased
+    # is `final_list_u32`. Of the 2 list candidates, `_factionEventDataList`
+    # has the higher setter-string addr (0x14492aac0 vs _religionBlockCostList
+    # at 0x14492a6d0) AND the rust "final" naming convention indicates last
+    # wire read — both alignment cues say final_list_u32 → _factionEventDataList.
+    ("faction_node_info",              "final_list_u32"):                    "_factionEventDataList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
