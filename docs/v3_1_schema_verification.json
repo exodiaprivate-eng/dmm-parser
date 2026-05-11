@@ -1453,11 +1453,11 @@
     "stage_info": {
       "schema_key": "StageInfo",
       "in_schema": true,
-      "alias_count": 10,
+      "alias_count": 11,
       "schema_field_count": 82,
-      "verified": 10,
+      "verified": 11,
       "mismatch": [],
-      "missing_in_dmm_count": 72,
+      "missing_in_dmm_count": 71,
       "missing_in_dmm": [
         "_beginTime",
         "_changeTime",
@@ -1469,7 +1469,6 @@
         "_closeFilter",
         "_closeFilterByGroup",
         "_completeAlertType",
-        "_completeCount",
         "_completeImagePath",
         "_disableGiveUp",
         "_endTime",
@@ -1685,9 +1684,9 @@
     }
   },
   "totals": {
-    "verified": 1241,
+    "verified": 1242,
     "mismatch": 0,
-    "missing_in_dmm": 468,
+    "missing_in_dmm": 467,
     "extra_in_dmm": 0
   }
 }

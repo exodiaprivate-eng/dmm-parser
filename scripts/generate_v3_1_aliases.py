@@ -537,6 +537,12 @@ MANUAL_OVERRIDES = {
     # after the iter-132-aliased u8 cluster. Wire-4th-u8 unknown_d is
     # the natural mate.
     ("faction_node_info",              "unknown_d"):                         "_bitMapColorKey",
+
+    # Iter 135: stage_info `_completeCount` singleton close. Schema has
+    # exactly 1 direct_u16 missing canonical; rust struct has exactly 1
+    # u16 field (`raw_i`). Type-unique singleton — both at last position
+    # of their respective ordering in the trailing-block region.
+    ("stage_info",                     "raw_i"):                             "_completeCount",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
