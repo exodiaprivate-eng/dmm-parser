@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1247**
+- Total field aliases verified:       **1248**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **462**
+- Total schema fields not decoded:    **461**
 
 ## Tables not in NattKh schema
 
@@ -139,7 +139,7 @@ Korean-error-string parser path.
 | `socket_info` | 5 | 5 | 0 | 0 |
 | `spawning_pool_auto_spawn_info` | 15 | 15 | 0 | 0 |
 | `special_mode_info` | 24 | 24 | 0 | 0 |
-| `stage_info` | 14 | 14 | 0 | 68 |
+| `stage_info` | 15 | 15 | 0 | 67 |
 | `status_group_info` | 8 | 8 | 0 | 0 |
 | `status_info` | 34 | 34 | 0 | 0 |
 | `store_info` | 21 | 21 | 0 | 0 |
@@ -629,7 +629,7 @@ Korean-error-string parser path.
 
 ### `stage_info` (schema key: `StageInfo`)
 
-**Schema fields not in dmm-parser** (68):
+**Schema fields not in dmm-parser** (67):
 
 - `_beginTime`
 - `_changeTime`
@@ -637,7 +637,6 @@ Korean-error-string parser path.
 - `_closeCondition`
 - `_closeDialogSoundEventName`
 - `_closeDialogSpeakerCharacter`
-- `_closeDialogString`
 - `_completeAlertType`
 - `_completeImagePath`
 - `_disableGiveUp`

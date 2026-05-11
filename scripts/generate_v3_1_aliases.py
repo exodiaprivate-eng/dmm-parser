@@ -581,6 +581,13 @@ MANUAL_OVERRIDES = {
     # (per iter 118) — singleton type-uniqueness overrides the
     # wire-contiguity concern for one isolated u32.
     ("gimmick_group_info",             "raw_340"):                           "_spawnDistanceLevel",
+
+    # Iter 155: stage_info `_closeDialogString` singleton close. Iter 143
+    # missed this — `label_b: LocalizableString` is the 4th LocalizableString
+    # in stage_info (3 aliased: name/stage_desc/complete_log). Only
+    # reader_8B canonical missing in stage_info is `_closeDialogString`.
+    # Type-unique singleton 1:1.
+    ("stage_info",                     "label_b"):                           "_closeDialogString",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

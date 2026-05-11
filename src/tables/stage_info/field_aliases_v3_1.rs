@@ -25,4 +25,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("close_filter_b", "_closeFilter"),
     ("cstring_a", "_platformSocketName"),
     ("raw_i", "_completeCount"),
+    ("label_b", "_closeDialogString"),
 ];
