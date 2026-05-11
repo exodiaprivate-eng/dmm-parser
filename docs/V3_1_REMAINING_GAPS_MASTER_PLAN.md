@@ -6,18 +6,29 @@
 the v3.1 surface coverage. Picks priorities, estimates effort, points to
 the per-class design memos.
 
-## Where we are (iter 94 baseline)
+## Where we are (iter 107 update)
 
 ```
 126 dmm-parser tables
  └─ 109 in NattKh canonical schema
-     ├─  86 fully-aliased (100% _camelCase coverage)
-     └─  23 with-gaps  →  549 missing canonicals total
+     ├─  88 fully-aliased (100% _camelCase coverage)   [+2 since iter 94]
+     └─  21 with-gaps  →  538 missing canonicals total  [-11 since iter 94]
 ```
 
-The 23 with-gaps tables fall into 4 closure classes (per
-`MOD_AUTHOR_GUIDE.md` § Residual coverage). Each class has a dedicated
-design memo. This doc is the index + priority recommendation.
+**Iters 96-106 progress** (resumed-loop):
+- iter 96: closed `_executePercent` in global_game_event_group_info via fixture
+  data-range analysis (resolved iter-81 deferred ambiguity 1 of 2). Table now
+  100% covered.
+- iter 97: closed `_onDiscoverOnlyEnable` in level_gimmick_scene_object_info
+  via fixture data-range analysis (resolved iter-80 deferred ambiguity 2 of 2,
+  also closing class-3 entirely). Table now 100% covered.
+- iters 99-106: 9 partial closures in field_info via type-match + data-pattern
+  + IDA wire-read disambiguation. Now 11/24 verified (was 2/24).
+
+The 21 with-gaps tables fall into 4 active closure classes (per
+`MOD_AUTHOR_GUIDE.md` § Residual coverage; class 3 is now CLOSED).
+Each class has a dedicated design memo. This doc is the index +
+priority recommendation.
 
 ## Class summary + memo links
 
@@ -152,18 +163,22 @@ many class-5 tables likely close mostly via wrap aliases.
 
 | Priority | Effort | Closures | Cumulative coverage |
 |---|---|---|---|
-| (today) | — | (86/109 closed) | 79% |
-| A | 1 day  | +11  | 89% |
-| B | 1 hour | +2   | 91% |
-| C | 0.5 day | +3  | 92% |
-| D | 1.5 day | +14 | 99% (no — see note) |
-| E | weeks  | +519 | 100% |
+| (today, iter 107) | — | (88/109 closed) | 81% |
+| A (alias mech)    | 1 day  | +11  | 91% |
+| B (ambiguity)     | DONE iters 96-97 — class 3 closed | (+2 done) | (was 91%, now 81% baseline already includes this) |
+| C (decoder split) | 0.5 day | +3  | 92% |
+| D (faction audit) | 1.5 day | +14 | 99% (no — see note) |
+| E (class-5 sweep) | weeks (started iter 99) | +517 → 506 in-progress | 100% |
+
+**Iters 96-106 actual closures: -11 from iter-94's 549 baseline → 538.**
 
 **Note**: cumulative coverage is by table-count, not by gap-count. The
-86 → 99 jump after D is misleading — D closes 14 gaps in 1 table, but
-9 tables remain in class 5. True 100% coverage requires E.
+88 → 99 jump after D is misleading — D closes 14 gaps in 1 table, but
+8 tables remain in class 5. True 100% coverage requires E.
 
-By gap-count: closing A+B+C+D drops 549 → 519. E owns the rest.
+By gap-count: closing A+C+D drops 538 → 510. E owns the rest (~510 gaps,
+of which 13 already closed in field_info iters 99-106 and ~13 remain
+there for follow-up iters).
 
 ## Cross-cutting follow-ups
 
