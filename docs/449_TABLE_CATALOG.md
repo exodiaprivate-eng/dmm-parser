@@ -59,9 +59,10 @@ schema (`equip_slot_info`, `faction_waypoint_info`, `house_info`,
 `mercenary_group_info`) and fall back to mechanical translation with
 the placeholder filter. See `docs/V3_1_SCHEMA_VERIFICATION.md` for
 per-table verification status and `docs/V3_1_DECODER_GAPS.md` for the
-549 schema-listed fields the structs don't currently expose (down from
-the 584 iter-35 baseline; iters 70-82 closed 35 via PA-typo + name-
-divergence MANUAL_OVERRIDES — see V3_1_DECODER_GAPS.md trend table).
+460 schema-listed fields the structs don't currently expose (down from
+the 584 iter-35 baseline through 549 at iter 86 → 460 at iter 158;
+closed via PA-typo + name-divergence MANUAL_OVERRIDES + within-type-group
+rule for many tables — see V3_1_DECODER_GAPS.md trend table).
 
 ## Categories
 
