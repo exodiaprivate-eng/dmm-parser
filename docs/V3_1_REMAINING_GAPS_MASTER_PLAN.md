@@ -6,14 +6,23 @@
 the v3.1 surface coverage. Picks priorities, estimates effort, points to
 the per-class design memos.
 
-## Where we are (iter 124 update)
+## Where we are (iter 148 update)
 
 ```
 126 dmm-parser tables
  └─ 109 in NattKh canonical schema
      ├─  90 fully-aliased (100% _camelCase coverage)   [+4 since iter 94]
-     └─  19 with-gaps  →  487 missing canonicals total  [-62 since iter 94]
+     └─  19 with-gaps  →  463 missing canonicals total  [-86 since iter 94]
 ```
+
+**Iters 124-147 progress** (post-iter-124 baseline):
+- iters 125-126: field_info 8 closures (+ singleton _regionBitmapPositionInfo).
+- iters 127-133+139: faction_node_info 11 closures (now 29/31 = 94%).
+- iters 135-137: stage_info 4 closures (now 14/82 = 17%).
+- iter 141: persisted MANUAL_OVERRIDES audit as scripts/audit_manual_overrides.py.
+- iter 142: persisted singleton-scan as scripts/find_singleton_closures.py.
+- iter 147: V3_1_SUB_STRUCT_DECOMPOSE_DESIGN.md (Class 6 design).
+- Total iters-124-147 delta: -24 missing (487 → 463).
 
 **Resumed-loop progress** (iters 96-123):
 - iters 96-97 (class 3 closed): closed `_executePercent` and
@@ -56,14 +65,15 @@ priority recommendation.
 |---|---|---|---|---|
 | 1. **1-to-N alias mechanism extension** | ~10 | ~10 | Mechanism + per-table aliases | `V3_1_ALIAS_MECHANISM_EXTENSION_DESIGN.md` |
 | 2. **Real decoder work — struct decompose** | 1 (`global_game_event_info`) | 3 | Decompose `execute_data` polymorphic wrapper | `V3_1_GLOBAL_GAME_EVENT_INFO_DECOMPOSE_DESIGN.md` |
-| 3. **Semantic ambiguity** | 2 | 2 | String-xref work via function-string-associate | (no dedicated memo — see below) |
-| 4. **Larger un-audited table** | 1 (`faction_node_info`) | 14 | Per-record-reader decompile + struct cleanup | `V3_1_FACTION_NODE_INFO_AUDIT.md` |
-| 5. **Other partially-aliased tables** | ~9 | ~520 | Per-table audit (likely mix of all above) | TBD per-table |
+| 3. **Semantic ambiguity** | ~~2~~ | ~~2~~ | **CLOSED iters 96-97** via fixture data-range analysis | (resolution recipes inline above) |
+| 4. **Larger un-audited table** | 1 (`faction_node_info` residual) | 3 | Sub-struct decomposition (overlaps Class 6) | `V3_1_FACTION_NODE_INFO_AUDIT.md` |
+| 5. **The 4 giants** | 4 | 412 (gimmick_info 153 + character_info 146 + gimmick_group_info 45 + stage_info 68) | Per-table audit + multiple sub-classes | TBD per-table |
+| 6. **Sub-struct decompose** | 5 (interaction_info, field_info, action_point_info, faction_node_info residual, plus all giants) | 38+ across smalls + most of class 5 | Path A (flatten) or Path B (nested-path mech) | `V3_1_SUB_STRUCT_DECOMPOSE_DESIGN.md` (iter 147) |
 
-**Total reachable via classes 1-4**: ~29 closures (~5% of 549).
-**Class 5 dominates the residual** — those 9 unaudited tables hold
-~95% of remaining gaps. They likely contain the same mix of patterns
-documented in classes 1-4, just spread across more tables.
+**Total reachable via classes 1+2+4+6 (small tables)**: ~52 closures.
+**Class 5 (the 4 giants) dominates the residual**: 412 of 463 = 89%
+of remaining gaps. Those tables likely benefit from a mix of class 1,
+2, and 6 techniques as their internal structure varies.
 
 ## Recommended priority order
 
