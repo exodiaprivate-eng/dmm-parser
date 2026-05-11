@@ -160,6 +160,13 @@ MANUAL_OVERRIDES = {
     # Mapping: unk_new_u8_a -> _onDiscoverOnlyEnable. Resolves iter-80's
     # deferred ambiguity 2 of 2.
     ("level_gimmick_scene_object_info", "unk_new_u8_a"):                     "_onDiscoverOnlyEnable",
+
+    # Iter 99: field_info `_isBlocked` — placeholder rust field `byte_at_16` is
+    # the first u8 after the empty CString (offset 8 on wire for all 7 vanilla
+    # entries since their string_key length is 0). Universal table-prefix
+    # convention places _isBlocked at this position. Fixture verifies: all 7
+    # entries have byte_at_16 = 0 (consistent with vanilla un-blocked data).
+    ("field_info",                     "byte_at_16"):                        "_isBlocked",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

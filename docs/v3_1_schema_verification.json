@@ -583,11 +583,11 @@
     "field_info": {
       "schema_key": "FieldInfo",
       "in_schema": true,
-      "alias_count": 2,
+      "alias_count": 3,
       "schema_field_count": 24,
-      "verified": 2,
+      "verified": 3,
       "mismatch": [],
-      "missing_in_dmm_count": 22,
+      "missing_in_dmm_count": 21,
       "missing_in_dmm": [
         "_addFieldStyle",
         "_alwaysCallVehicle_dev",
@@ -598,7 +598,6 @@
         "_endSectorIndex",
         "_fieldRegistType",
         "_fixedFieldTime",
-        "_isBlocked",
         "_isEnableAutoSave",
         "_levelName",
         "_maxPlayerCount",
@@ -1766,9 +1765,9 @@
     }
   },
   "totals": {
-    "verified": 1162,
+    "verified": 1163,
     "mismatch": 0,
-    "missing_in_dmm": 547,
+    "missing_in_dmm": 546,
     "extra_in_dmm": 0
   }
 }
