@@ -28,4 +28,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("resource_item_list", "_resourceItemList"),
     ("revival_stage_info_list", "_revivalStageInfoList"),
     ("way_point_data_list_deprecated", "_wayPointDataList_deprecated"),
+    ("faction_schedule_list", "_factionScheduleInfoList"),
+    ("final_list_u16", "_religionEffectRegionInfoList"),
 ];

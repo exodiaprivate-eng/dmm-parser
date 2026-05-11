@@ -460,6 +460,16 @@ MANUAL_OVERRIDES = {
     # byte_at_20) plus 2 more not yet identified — needs class-2 expansion
     # of alias mechanism to reach.
     ("field_info",                     "byte_at_126"):                       "_regionBitmapPositionInfo",
+
+    # Iter 127: faction_node_info 2 type-unique singleton closures.
+    # `_religionEffectRegionInfoList` is the ONLY reader_2B canonical
+    # missing for faction_node_info; rust's `final_list_u16` is the
+    # ONLY CArray<u16> field in the struct. Type-match unambiguous.
+    # `_factionScheduleInfoList` is the ONLY "schedule list" canonical
+    # missing; rust's `faction_schedule_list: CArray<FactionSchedule>`
+    # is the obvious mate by both type+name.
+    ("faction_node_info",              "final_list_u16"):                    "_religionEffectRegionInfoList",
+    ("faction_node_info",              "faction_schedule_list"):             "_factionScheduleInfoList",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

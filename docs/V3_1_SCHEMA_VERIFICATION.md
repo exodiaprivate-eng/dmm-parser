@@ -11,9 +11,9 @@ Schema source: https://github.com/NattKh/CrimsonDesertModdingTools
 - Tables with aliases in dmm-parser: **126**
 - Tables present in NattKh schema:    **109**
 - Tables missing from schema:         **17**
-- Total field aliases verified:       **1230**
+- Total field aliases verified:       **1232**
 - Total mechanical-rule mismatches:   **0**
-- Total schema fields not decoded:    **479**
+- Total schema fields not decoded:    **477**
 
 ## Tables not in NattKh schema
 
@@ -73,7 +73,7 @@ Korean-error-string parser path.
 | `equip_type_info` | 19 | 19 | 0 | 1 |
 | `faction_group_info` | 8 | 8 | 0 | 0 |
 | `faction_info` | 19 | 19 | 0 | 0 |
-| `faction_node_info` | 17 | 17 | 0 | 14 |
+| `faction_node_info` | 19 | 19 | 0 | 12 |
 | `faction_node_spawn_info` | 5 | 5 | 0 | 1 |
 | `faction_relation_group_info` | 3 | 3 | 0 | 1 |
 | `faction_spawn_data_info` | 7 | 7 | 0 | 0 |
@@ -346,16 +346,14 @@ Korean-error-string parser path.
 
 ### `faction_node_info` (schema key: `FactionNodeInfo`)
 
-**Schema fields not in dmm-parser** (14):
+**Schema fields not in dmm-parser** (12):
 
 - `_bitMapColorKey`
 - `_factionEventDataList`
-- `_factionScheduleInfoList`
 - `_factionType`
 - `_knockDownCondition`
 - `_observeData`
 - `_religionBlockCostList`
-- `_religionEffectRegionInfoList`
 - `_religionMaxBlockDay`
 - `_religionSubLevelInfo`
 - `_researchDataList`
