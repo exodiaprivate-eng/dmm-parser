@@ -514,7 +514,7 @@ pub fn serialize_table_from_json_with_pabgh(
 
     let entries: Vec<PabghEntry> = offsets
         .into_iter()
-        .map(|(key, offset)| PabghEntry { key, offset })
+        .map(|(key, offset)| PabghEntry { key, offset, extra_bytes: Vec::new() })
         .collect();
     let new_pabgh = Pabgh { format, entries }.to_bytes()?;
     Ok((new_body, new_pabgh))

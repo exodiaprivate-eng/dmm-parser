@@ -73,6 +73,15 @@ py_binary_struct! {
         pub mercenary_type: u8,
         pub is_growable: u8,
         pub parent_mercenary_group_info: u8,
+        // 1.06 added 6 new bytes here. Field semantics TBD — names are
+        // placeholders pending IDA RE of the parse function. Byte-perfect
+        // round-trip preserved.
+        pub _unk_106_1: u8,
+        pub _unk_106_2: u8,
+        pub _unk_106_3: u8,
+        pub _unk_106_4: u8,
+        pub _unk_106_5: u8,
+        pub _unk_106_6: u8,
         pub hired_skill_info_list: CArray<HiredSkillData>,
     }
 }

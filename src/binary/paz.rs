@@ -449,12 +449,25 @@ pub fn extract_file(
         )),
     };
 
-    // Decompress (partial-compression files not yet supported)
+    // Iter 9 decode: the "partial" flag (compression-nibble == 1) is
+    // not "partially compressed" as the name suggested — it actually
+    // means "stored uncompressed (raw passthrough)". Verified iter 9
+    // against `03_sphere.pam`: compressed_size == uncompressed_size,
+    // and reading raw bytes yields the literal file content
+    // (`50 41 52 20 ...` = PAR magic + .pam version). So we return
+    // the decrypted bytes directly. `compression` is already None.
     if file.file.is_partial {
-        return Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            "partial compression extraction not yet implemented",
-        ));
+        // Sanity: the on-disk size must match the expected uncompressed size
+        // for the no-op decompress to be safe.
+        if file.file.compressed_size != file.file.uncompressed_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("is_partial=true but compressed_size {} != uncompressed_size {} \
+                    (suggests the flag's meaning is different from 'raw passthrough')",
+                    file.file.compressed_size, file.file.uncompressed_size),
+            ));
+        }
+        return Ok(decrypted);
     }
     decompress(&decrypted, file.file.compression, file.file.uncompressed_size as usize)
 }
