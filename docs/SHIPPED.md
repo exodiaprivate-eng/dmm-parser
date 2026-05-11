@@ -206,13 +206,34 @@ Honest accounting of what's still blocked or future work:
   14 gaps) is a larger un-audited table. Catalogued in info.rs comments
   and in `V3_1_DECODER_GAPS.md`.
 
-- **iter 70-86 closure work (resumed-loop, 2026-05-10)**: shipped 7
-  PA-internal-typo MANUAL_OVERRIDES (`_complteDescription`,
-  `_overriedMaxHeight`, `_questGroupkey`, etc.) and 6 name-divergence
-  tuple-scoped overrides. Documented per-table closure plans for 11
-  single-missing-canonical tables (proven 1-to-N wraps via Win-IDA
-  per-record reader cross-checks). Schema verifier: 86 of 109
-  schema-covered tables are now 100% canonical-aliased (up from 68).
+- **iter 70-148 closure work (resumed-loop, 2026-05-10)**: 86 closures
+  shipped across 80 iters (549 → 463 missing canonicals). 4 class-5
+  tables fully closed: global_game_event_group_info, level_gimmick_scene_object_info,
+  mission_info, tribe_info. faction_node_info: 0 → 90% (11 closures).
+  field_info: 8% → 79% (17 closures). Class 3 (semantic ambiguity)
+  fully closed via fixture data-range analysis (iters 96-97).
+  Schema verifier: 90 of 109 schema-covered tables are now 100%
+  canonical-aliased (up from 68 at iter-35 baseline). Best single-iter
+  closures: 13 (mission_info iter 114), 10 (tribe_info iter 123), 9
+  (tribe_info iter 121).
+
+  **Methodology + tooling shipped**:
+  - `docs/V3_1_CLOSURE_METHODOLOGY.md` (iter 113, refreshed iter 149)
+    — 7 closure techniques in priority order + 5 anti-patterns + workflow
+  - `scripts/find_singleton_closures.py` (iter 142) — surfaces
+    type-singleton ship opportunities across all gap tables
+  - `scripts/audit_manual_overrides.py` (iter 141) — validates 121
+    MANUAL_OVERRIDES integrity (guards iter-122 silent-drop bug)
+  - 5 design memos for the remaining closure classes:
+    `V3_1_ALIAS_MECHANISM_EXTENSION_DESIGN.md` (iter 91, class 1),
+    `V3_1_GLOBAL_GAME_EVENT_INFO_DECOMPOSE_DESIGN.md` (iter 92, class 2),
+    `V3_1_FACTION_NODE_INFO_AUDIT.md` (iter 93, class 4),
+    `V3_1_REMAINING_GAPS_MASTER_PLAN.md` (iter 94, coordination),
+    `V3_1_SUB_STRUCT_DECOMPOSE_DESIGN.md` (iter 147, class 6)
+  - Critical generator bug-fix (iter 122): `is_placeholder` filter
+    was running BEFORE `MANUAL_OVERRIDES` check, silently dropping
+    overrides for placeholder-pattern rust field names
+    (`lookup_a`/`unk_*`/`flag_*`/`raw_*`)
 - **Havok binary layer (`.pac`/`.pacc`/`.pam`/`.pami`/`.pamlod`)** has
   0% native parsing. Layer B in `ENGINE_INTERNALS.md`. Standard Havok
   2024.2 SDK, would need DCC-plugin-equivalent reader.
