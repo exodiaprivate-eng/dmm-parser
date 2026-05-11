@@ -32,6 +32,7 @@ where a TYPE GROUP had exactly N missing canonicals matching N rust
 unaliased fields of the same shape.
 """
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -41,6 +42,70 @@ SCHEMA_PATH = Path(
     r"C:\Users\corin\Desktop\CD DUMPING TOOLS\_research_cache\pabgb_complete_schema.json"
 )
 VERIF_PATH = REPO / "docs" / "v3_1_schema_verification.json"
+TABLES_DIR = REPO / "src" / "tables"
+
+# Schema-type to rust-type mapping for the rust-side singleton check.
+# Conservative — only types where we can confidently grep the rust struct.
+SCHEMA_TO_RUST_TYPES = {
+    "direct_u8":    [r": u8\b"],
+    "direct_u16":   [r": u16\b"],
+    "direct_u32":   [r": u32\b"],
+    "direct_u64":   [r": u64\b"],
+    "direct_12B":   [r": \[f32; 3\]"],     # Vec3
+    "direct_15B":   [r": u8\b"],            # 15B = setter dispatch class for u8
+    "reader_1B":    [r": u8\b"],            # u8 hash via lookup
+    "reader_2B":    [r": u16\b"],           # u16 hash via lookup
+    "reader_4B":    [r": u32\b", r"CArray<u32>"],  # u32 hash OR CArray<u32>
+    "reader_8B":    [r"LocalizableString"],  # 32 wire bytes / fat pointer
+    # 'None' and 'array_or_complex' too varied to grep reliably
+}
+
+
+def get_unaliased_rust_field_count(table: str, rust_type_patterns: list[str]) -> int | None:
+    """Count rust struct fields matching any of the type patterns whose
+    snake_case name is NOT in the table's existing FIELD_ALIASES_V3_1.
+
+    Returns None if struct or alias file can't be located (graceful skip).
+
+    KNOWN LIMITATION (iter 157): the regex-based struct body extraction
+    sometimes returns 0 even for tables with clearly unaliased fields.
+    The "[BLOCKED rust 0]" annotation should therefore be treated as
+    "needs manual verification" rather than authoritative — re-grep
+    `src/tables/<table>/info.rs` to confirm. The tool's [SHIPPABLE]
+    annotation IS reliable when it appears (rust-side singleton confirmed).
+    """
+    info_path = TABLES_DIR / table / "info.rs"
+    alias_path = TABLES_DIR / table / "field_aliases_v3_1.rs"
+    if not info_path.exists():
+        return None
+
+    info_src = info_path.read_text(encoding="utf-8")
+    aliased_fields: set[str] = set()
+    if alias_path.exists():
+        for m in re.finditer(r'\("(\w+)"\s*,', alias_path.read_text(encoding="utf-8")):
+            aliased_fields.add(m.group(1))
+
+    # Locate the main struct body (top-level pub struct <PascalName>)
+    pascal = "".join(p[0].upper() + p[1:] for p in table.split("_") if p)
+    struct_match = re.search(
+        r"pub\s+struct\s+" + re.escape(pascal) + r"\b[^{]*\{([^{}]*)\}",
+        info_src, re.DOTALL,
+    )
+    if not struct_match:
+        return None
+    body = struct_match.group(1)
+
+    # Count `pub <name>: <type>,` lines where type matches AND name not aliased
+    count = 0
+    for m in re.finditer(r"^\s*pub\s+(\w+)\s*:\s*([^,\n]+)", body, re.MULTILINE):
+        snake, rust_type = m.group(1), m.group(2).strip()
+        if snake in aliased_fields:
+            continue
+        for pat in rust_type_patterns:
+            if re.search(pat, rust_type):
+                count += 1
+                break
+    return count
 
 
 def main() -> int:
@@ -96,7 +161,21 @@ def main() -> int:
             total_singletons += len(singletons)
             print(f"  {name} ({t['missing_in_dmm_count']} gaps total):")
             for typ, canonical in singletons:
-                print(f"    [{typ}] {canonical}")
+                # Annotate with rust-side type-singleton check (iter 155 lesson)
+                rust_patterns = SCHEMA_TO_RUST_TYPES.get(typ)
+                if rust_patterns:
+                    rust_count = get_unaliased_rust_field_count(name, rust_patterns)
+                    if rust_count is None:
+                        marker = "[?]"
+                    elif rust_count == 1:
+                        marker = "[SHIPPABLE]"  # Both sides singleton
+                    elif rust_count == 0:
+                        marker = "[BLOCKED rust 0]"  # Likely class-2 sub-struct
+                    else:
+                        marker = f"[N-to-1 rust={rust_count}]"
+                else:
+                    marker = "[type ungreppable]"
+                print(f"    [{typ}] {canonical}  {marker}")
             print()
 
     print(
