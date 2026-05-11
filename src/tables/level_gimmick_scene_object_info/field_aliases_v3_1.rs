@@ -29,6 +29,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("use_guide_effect", "_useGuideEffect"),
     ("is_sub_inner_gimmick", "_isSubInnerGimmick"),
     ("check_game_level_load_state", "_checkGameLevelLoadState"),
+    ("unk_new_u8_a", "_onDiscoverOnlyEnable"),
     ("guide_effect_socket_name", "_guideEffectSocketName"),
     ("ore_vein_index", "_oreVeinIndex"),
     ("discover_type", "_discoverType"),

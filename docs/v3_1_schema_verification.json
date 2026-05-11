@@ -1134,14 +1134,12 @@
     "level_gimmick_scene_object_info": {
       "schema_key": "LevelGimmickSceneObjectInfo",
       "in_schema": true,
-      "alias_count": 23,
+      "alias_count": 24,
       "schema_field_count": 24,
-      "verified": 23,
+      "verified": 24,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_onDiscoverOnlyEnable"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "local_string_info": {
       "schema_key": "LocalStringInfo",
@@ -1768,9 +1766,9 @@
     }
   },
   "totals": {
-    "verified": 1161,
+    "verified": 1162,
     "mismatch": 0,
-    "missing_in_dmm": 548,
+    "missing_in_dmm": 547,
     "extra_in_dmm": 0
   }
 }

@@ -146,6 +146,20 @@ MANUAL_OVERRIDES = {
     # That u32 lands in `unk_a` in the rust struct (NOT `unk_b`/`unk_c` as iter 82
     # had hypothesized). Closes the iter-81-deferred ambiguity.
     ("global_game_event_group_info",   "unk_a"):                             "_executePercent",
+
+    # Iter 97: level_gimmick_scene_object_info `_onDiscoverOnlyEnable`. Iter 80
+    # left the rust field assignment ambiguous (could be unk_new_u8_a or _b).
+    # Data-range analysis on the iter-95-located fixture (1.0.4 PABGB_PABGH/
+    # levelgimmicksceneobjectinfo.pabgb, 140 entries) via backward-walk to find
+    # the 7-u8 cluster yields:
+    #   unk_new_u8_a: 119 zeros / 21 ones (15% opt-in — matches "only enable
+    #                                       when discovered" semantic for
+    #                                       hidden-until-discovered gimmicks)
+    #   unk_new_u8_b:   5 zeros / 135 ones (96% default-on — likely a rust-
+    #                                       extra not in schema)
+    # Mapping: unk_new_u8_a -> _onDiscoverOnlyEnable. Resolves iter-80's
+    # deferred ambiguity 2 of 2.
+    ("level_gimmick_scene_object_info", "unk_new_u8_a"):                     "_onDiscoverOnlyEnable",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
