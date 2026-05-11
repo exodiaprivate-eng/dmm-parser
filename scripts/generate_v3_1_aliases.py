@@ -524,6 +524,19 @@ MANUAL_OVERRIDES = {
     ("faction_node_info",              "unknown_a"):                         "_useCustomWayPointforDev",
     ("faction_node_info",              "unknown_b"):                         "_factionType",
     ("faction_node_info",              "unknown_c"):                         "_workerCount",
+
+    # Iter 133: faction_node_info `_bitMapColorKey` close. Schema's
+    # `_bitMapColorKey` is None-typed but the name strongly suggests a
+    # u8 color value (single-byte color key into a bitmap palette).
+    # Of remaining unaliased rust u8 placeholders (unknown_d,
+    # flag_after_slots) after iter 132's first 3 mapped, unknown_d sits
+    # just before adjacency_list in mem-order — likely the 4th wire u8
+    # read. Setter-string position of _bitMapColorKey (0x14492aa20) puts
+    # it BETWEEN _subInnerTypeString (0x14492a9d0, mem position around
+    # key_str_after) and _knockDownCondition (0x14492aa70) — placing it
+    # after the iter-132-aliased u8 cluster. Wire-4th-u8 unknown_d is
+    # the natural mate.
+    ("faction_node_info",              "unknown_d"):                         "_bitMapColorKey",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

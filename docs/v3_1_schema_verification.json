@@ -509,13 +509,12 @@
     "faction_node_info": {
       "schema_key": "FactionNodeInfo",
       "in_schema": true,
-      "alias_count": 27,
+      "alias_count": 28,
       "schema_field_count": 31,
-      "verified": 27,
+      "verified": 28,
       "mismatch": [],
-      "missing_in_dmm_count": 4,
+      "missing_in_dmm_count": 3,
       "missing_in_dmm": [
-        "_bitMapColorKey",
         "_observeData",
         "_religionBlockCostList",
         "_researchDataList"
@@ -1686,9 +1685,9 @@
     }
   },
   "totals": {
-    "verified": 1240,
+    "verified": 1241,
     "mismatch": 0,
-    "missing_in_dmm": 469,
+    "missing_in_dmm": 468,
     "extra_in_dmm": 0
   }
 }

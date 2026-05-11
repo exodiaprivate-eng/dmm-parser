@@ -34,6 +34,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("unknown_b", "_factionType"),
     ("lookup_after", "_religionSubLevelInfo"),
     ("unknown_c", "_workerCount"),
+    ("unknown_d", "_bitMapColorKey"),
     ("raw_after_de690", "_religionMaxBlockDay"),
     ("final_list_u32", "_factionEventDataList"),
     ("final_list_u16", "_religionEffectRegionInfoList"),

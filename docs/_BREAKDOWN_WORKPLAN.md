@@ -55,6 +55,8 @@ descriptor class via Win-IDA).
 
 
 ## Done
+- [x] GAP iter 133: faction_node_info `_bitMapColorKey` singleton close — 2026-05-10 SUCCESS. `_bitMapColorKey` is None-typed but name strongly suggests u8 color value (palette index). Setter addr 0x14492aa20 places it AFTER iter-132's aliased u8 cluster (in 0x14492a6-9 range). Rust `unknown_d` is the natural 4th-wire-u8 mate (sits between iter-132's last unknown_c and adjacency_list in mem order). faction_node_info: 27/31 → 28/31 verified (90%). Total: 469 → 468.
+
 - [x] GAP iter 132: faction_node_info 3 direct_15B u8 closures (within-type-group rule) — 2026-05-10 SUCCESS. 3 missing direct_15B canonicals (after _isBlocked aliased) ↔ first 3 wire u8 reads in rust struct (unknown_a/b/c). Setter-string order: _useCustomWayPointforDev (1st by addr) → unknown_a, _factionType (2nd) → unknown_b, _workerCount (3rd) → unknown_c. unknown_d and flag_after_slots are extras (likely correspond to non-direct_15B canonicals or rust-only fields). faction_node_info: 24/31 → 27/31 verified (87%). Total: 472 → 469.
 
 - [x] GAP iter 131: faction_node_info 2 single-u32-ref reader_4B closures — 2026-05-10 SUCCESS. Of 3 remaining reader_4B missing canonicals, 1 is list-shaped (deferred — likely inside sub-struct), 2 are single-u32-ref: `_religionSubLevelInfo` (early setter addr) and `_knockDownCondition` (later). Rust top-level unaliased u32-lookup fields: `lookup_after` (early in mem-struct, before adjacency_list) and `final_lookup` (last). 2-to-2 type-unique within-type-group rule with rust mem-order matching wire order. faction_node_info: 22/31 → 24/31 verified (77%). Total: 474 → 472.
