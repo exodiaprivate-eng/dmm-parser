@@ -21,5 +21,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("spawn_faction_spawn_data_info", "_spawnFactionSpawnDataInfo"),
     ("spawn_faction_node_info", "_spawnFactionNodeInfo"),
     ("disable_faction_spawn_party_name_hash_list", "_disableFactionSpawnPartyNameHashList"),
+    ("close_filter_a", "_closeFilterByGroup"),
+    ("close_filter_b", "_closeFilter"),
     ("raw_i", "_completeCount"),
 ];

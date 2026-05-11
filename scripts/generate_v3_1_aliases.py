@@ -543,6 +543,16 @@ MANUAL_OVERRIDES = {
     # u16 field (`raw_i`). Type-unique singleton — both at last position
     # of their respective ordering in the trailing-block region.
     ("stage_info",                     "raw_i"):                             "_completeCount",
+
+    # Iter 136: stage_info 2 close_filter closures via within-type-group rule.
+    # Schema has 2 None-typed "close filter" canonicals; rust has 3
+    # close_filter_a/b/c CArray<u32> placeholders. Setter-string order:
+    #   _closeFilterByGroup  (0x14495bd10, earlier)
+    #   _closeFilter         (0x14495bd58, later)
+    # First 2 in rust wire/mem order map to first 2 by setter. close_filter_c
+    # is a rust-extra (likely an undocumented additional filter list).
+    ("stage_info",                     "close_filter_a"):                    "_closeFilterByGroup",
+    ("stage_info",                     "close_filter_b"):                    "_closeFilter",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.

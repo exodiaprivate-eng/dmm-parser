@@ -1453,11 +1453,11 @@
     "stage_info": {
       "schema_key": "StageInfo",
       "in_schema": true,
-      "alias_count": 11,
+      "alias_count": 13,
       "schema_field_count": 82,
-      "verified": 11,
+      "verified": 13,
       "mismatch": [],
-      "missing_in_dmm_count": 71,
+      "missing_in_dmm_count": 69,
       "missing_in_dmm": [
         "_beginTime",
         "_changeTime",
@@ -1466,8 +1466,6 @@
         "_closeDialogSoundEventName",
         "_closeDialogSpeakerCharacter",
         "_closeDialogString",
-        "_closeFilter",
-        "_closeFilterByGroup",
         "_completeAlertType",
         "_completeImagePath",
         "_disableGiveUp",
@@ -1684,9 +1682,9 @@
     }
   },
   "totals": {
-    "verified": 1242,
+    "verified": 1244,
     "mismatch": 0,
-    "missing_in_dmm": 467,
+    "missing_in_dmm": 465,
     "extra_in_dmm": 0
   }
 }
