@@ -92,7 +92,7 @@ Resumed-loop closure work (iters 70-82, 2026-05-10):
 | Tables in NattKh canonical schema | 109 |
 | **Tables with 100% canonical coverage** | **90** (was 86 at iter 82) |
 | Tables with ≥1 residual gap | 19 (was 23) |
-| Total residual gaps | 463 (was 549) |
+| Total residual gaps | 460 (was 549 at iter 82, 463 at iter 124) |
 | Verified aliases | 1,246 (was 1,160) |
 | Aliases with confirmed mismatches | 0 |
 | Class-3 (semantic ambiguity) status | **CLOSED** iters 96-97 |

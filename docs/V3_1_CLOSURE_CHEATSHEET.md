@@ -8,7 +8,7 @@ follow links to full memos as needed.
 ```
 90 / 109 schema-tables fully aliased       (83%)   [+4 since iter 95]
 19 / 109 with residual gaps                (17%)
-463      total missing canonicals          [-86 since iter 95]
+460      total missing canonicals          [-89 since iter 95]
 ```
 
 ## Pick a class, follow the link
@@ -20,7 +20,7 @@ follow links to full memos as needed.
 | 2. **Decoder split** | [GGEI decompose](V3_1_GLOBAL_GAME_EVENT_INFO_DECOMPOSE_DESIGN.md) | Split `execute_data` into 3 typed fields | 0.5 day | +3 closures (1 table) |
 | 3. **Ambiguity** | ~~inline in master plan §3~~ | **CLOSED** iters 96-97 via fixture data-range analysis | (done) | (+2 done) |
 | 4. **Big audit** | [FNI audit](V3_1_FACTION_NODE_INFO_AUDIT.md) | faction_node_info residual (3 of 14 left, all in sub-structs) | 0.5 day | +3 closures |
-| 5. **Class-5 sweep** | per-table TBD | 4 giants holding 412 of 463 = 89% (gimmick_info 153, character_info 146, gimmick_group_info 45, stage_info 68) | weeks | +412 closures |
+| 5. **Class-5 sweep** | per-table TBD | 4 giants holding 411 of 460 = 89% (gimmick_info 153, character_info 146, gimmick_group_info 44, stage_info 68 → was 412/463 pre-iter-154+158 closures) | weeks | +411 closures |
 | 6. **Sub-struct decompose** | [Sub-struct decompose](V3_1_SUB_STRUCT_DECOMPOSE_DESIGN.md) | Unblocks iter-143-surfaced singletons in interaction_info, field_info residual, action_point_info, faction_node_info residual | varies (Path A: per-table flatten; Path B: nested-path mech) | +30+ closures across multiple tables |
 
 ## Tables you can act on TODAY (after iter 91 mech ships)

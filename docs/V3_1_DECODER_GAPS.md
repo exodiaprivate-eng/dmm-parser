@@ -16,7 +16,7 @@ field decode without IDA work.
 
 - **Tables fully decoded (0 gaps)**: 90 of 109 (83%)
 - **Tables with gaps**: 19
-- **Total missing fields**: 463
+- **Total missing fields**: 460 (was 463 at iter 145; iter 154/155/158 closed 3 more singletons)
 
 | Iter window | Tables fully covered | Total missing | Verified aliases |
 |---|---|---|---|

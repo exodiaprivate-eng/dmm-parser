@@ -12,7 +12,7 @@ the per-class design memos.
 126 dmm-parser tables
  └─ 109 in NattKh canonical schema
      ├─  90 fully-aliased (100% _camelCase coverage)   [+4 since iter 94]
-     └─  19 with-gaps  →  463 missing canonicals total  [-86 since iter 94]
+     └─  19 with-gaps  →  460 missing canonicals total  [-89 since iter 94]
 ```
 
 **Iters 124-147 progress** (post-iter-124 baseline):
@@ -22,7 +22,7 @@ the per-class design memos.
 - iter 141: persisted MANUAL_OVERRIDES audit as scripts/audit_manual_overrides.py.
 - iter 142: persisted singleton-scan as scripts/find_singleton_closures.py.
 - iter 147: V3_1_SUB_STRUCT_DECOMPOSE_DESIGN.md (Class 6 design).
-- Total iters-124-147 delta: -24 missing (487 → 463).
+- Total iters-124-158 delta: -27 missing (487 → 460).
 
 **Resumed-loop progress** (iters 96-123):
 - iters 96-97 (class 3 closed): closed `_executePercent` and
@@ -71,7 +71,7 @@ priority recommendation.
 | 6. **Sub-struct decompose** | 5 (interaction_info, field_info, action_point_info, faction_node_info residual, plus all giants) | 38+ across smalls + most of class 5 | Path A (flatten) or Path B (nested-path mech) | `V3_1_SUB_STRUCT_DECOMPOSE_DESIGN.md` (iter 147) |
 
 **Total reachable via classes 1+2+4+6 (small tables)**: ~52 closures.
-**Class 5 (the 4 giants) dominates the residual**: 412 of 463 = 89%
+**Class 5 (the 4 giants) dominates the residual**: 411 of 460 = 89%
 of remaining gaps. Those tables likely benefit from a mix of class 1,
 2, and 6 techniques as their internal structure varies.
 

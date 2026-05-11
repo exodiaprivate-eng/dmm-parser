@@ -156,7 +156,7 @@ the resumed-loop closure work (iters 70-143):
 
 - **90 tables** — 100% canonical coverage (every `_camelCase` aliased,
   shape='v3.1' is a drop-in for snake_case).
-- **19 tables** — still have ≥1 gap. Total residual gaps: **463**.
+- **19 tables** — still have ≥1 gap. Total residual gaps: **460**.
 
 Progress this loop (iter 84 → 144): +4 fully-covered tables, -86 residual
 gaps. 4 class-5 tables fully closed: global_game_event_group_info (iter 96),
@@ -186,7 +186,7 @@ The 19 remaining tables fall into three classes (class 3 closed iters 96-97):
    sub-structs into top-level rust fields OR extending the alias mechanism
    to support nested field paths.
 
-3. **Larger un-audited tables** (4 tables holding 412 of 463 gaps =
+3. **Larger un-audited tables** (4 tables holding 411 of 460 gaps =
    89% of remaining): `gimmick_info` (153 gaps, Tier-1.5 typed-prefix +
    opaque blob), `character_info` (146 gaps, 8.7KB per-record reader),
    `gimmick_group_info` (45 gaps, interleaved wire layout per iter 118),
