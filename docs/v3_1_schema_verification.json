@@ -583,16 +583,14 @@
     "field_info": {
       "schema_key": "FieldInfo",
       "in_schema": true,
-      "alias_count": 6,
+      "alias_count": 8,
       "schema_field_count": 24,
-      "verified": 6,
+      "verified": 8,
       "mismatch": [],
-      "missing_in_dmm_count": 18,
+      "missing_in_dmm_count": 16,
       "missing_in_dmm": [
         "_addFieldStyle",
         "_alwaysCallVehicle_dev",
-        "_boundaryPositionMax",
-        "_boundaryPositionMin",
         "_crimeRegionBitmapPositionInfo",
         "_endSectorIndex",
         "_fieldRegistType",
@@ -1762,9 +1760,9 @@
     }
   },
   "totals": {
-    "verified": 1166,
+    "verified": 1168,
     "mismatch": 0,
-    "missing_in_dmm": 543,
+    "missing_in_dmm": 541,
     "extra_in_dmm": 0
   }
 }

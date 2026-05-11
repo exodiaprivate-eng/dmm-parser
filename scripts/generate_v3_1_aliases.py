@@ -190,6 +190,19 @@ MANUAL_OVERRIDES = {
     # distinct, mostly the same; lookup_u32_c: 1 distinct = same across
     # all entries) — those need their own iters with cross-entry context.
     ("field_info",                     "lookup_u32_a"):                      "_levelName",
+
+    # Iter 104: field_info `_boundaryPositionMin/Max`. Schema has exactly
+    # two `direct_u64` (8-byte slot) canonicals; rust struct has exactly
+    # two 8-byte adjacent fields in wire order: size_pair (wire offset
+    # 41) and height_pair (wire offset 49), both [f32; 2]. By PA's
+    # convention of wire-order matching declaration-order:
+    #   first 8B read (size_pair)   -> _boundaryPositionMin
+    #   second 8B read (height_pair)-> _boundaryPositionMax
+    # Both rust placeholders' "size"/"height" naming was an early-decode
+    # guess; the canonical "boundaryPosition" pairing better matches the
+    # field-info-table semantics (a field is bounded by a min/max box).
+    ("field_info",                     "size_pair"):                         "_boundaryPositionMin",
+    ("field_info",                     "height_pair"):                       "_boundaryPositionMax",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
