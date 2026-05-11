@@ -224,6 +224,13 @@ MANUAL_OVERRIDES = {
     # non-NaN-prone one (unk_u32_d/e/f are NaN-heavy, suggesting they're
     # optional/sentinel-encoded).
     ("field_info",                     "unk_u32_b"):                         "_maxPlayerCount",
+
+    # Iter 108: tribe_info `_tribeNameForEditor`. Rust placeholder `unk_56`
+    # is the only CString in the TribeInfo struct (besides the standard
+    # `string_key`). Schema's only string-named canonical with "name"
+    # semantics is `_tribeNameForEditor` (a developer-facing name string
+    # — debug-display rather than runtime identifier). Type-match unambiguous.
+    ("tribe_info",                     "unk_56"):                            "_tribeNameForEditor",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
