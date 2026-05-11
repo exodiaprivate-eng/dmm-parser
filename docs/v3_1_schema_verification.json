@@ -976,14 +976,12 @@
     "global_game_event_group_info": {
       "schema_key": "GlobalGameEventGroupInfo",
       "in_schema": true,
-      "alias_count": 4,
+      "alias_count": 5,
       "schema_field_count": 5,
-      "verified": 4,
+      "verified": 5,
       "mismatch": [],
-      "missing_in_dmm_count": 1,
-      "missing_in_dmm": [
-        "_executePercent"
-      ]
+      "missing_in_dmm_count": 0,
+      "missing_in_dmm": []
     },
     "global_game_event_info": {
       "schema_key": "GlobalGameEventInfo",
@@ -1770,9 +1768,9 @@
     }
   },
   "totals": {
-    "verified": 1160,
+    "verified": 1161,
     "mismatch": 0,
-    "missing_in_dmm": 549,
+    "missing_in_dmm": 548,
     "extra_in_dmm": 0
   }
 }

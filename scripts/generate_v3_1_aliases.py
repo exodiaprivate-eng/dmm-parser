@@ -136,6 +136,16 @@ MANUAL_OVERRIDES = {
     # generator skipped them by default. Ship via tuple-scoped overrides.
     ("global_stage_sequencer_info",    "loading_target"):                    "_loadingTargetInfo",
     ("global_stage_sequencer_info",    "behavior_optional"):                 "_gameEventExecuteData",
+
+    # Iter 96: global_game_event_group_info — `_executePercent`. Schema metadata
+    # marks it `direct_u64`, but iter-22's earlier discovery that schema "direct_u64"
+    # is the setter-dispatch class (not wire size) was confirmed: actual wire is u32.
+    # Data-range analysis on the iter-95-located fixture (1.0.4 PABGB_PABGH/
+    # globalgameeventgroup.pabgb) shows the u32 at wire offset 24 takes percent-range
+    # values across both entries: WeatherEventGroup=79, RoyalSupplyEventGroup=1.
+    # That u32 lands in `unk_a` in the rust struct (NOT `unk_b`/`unk_c` as iter 82
+    # had hypothesized). Closes the iter-81-deferred ambiguity.
+    ("global_game_event_group_info",   "unk_a"):                             "_executePercent",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
