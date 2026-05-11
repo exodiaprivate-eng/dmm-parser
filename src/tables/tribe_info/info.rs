@@ -2,6 +2,42 @@
 //!
 //! Reader: `sub_1410FBC30` in CrimsonDesert.exe (Win build).
 //!
+//! ─── v3.1 closure plan (iter 109) ───────────────────────────────────────
+//! Cross-checked via the iter-42-registry per-record reader
+//! `sub_1410C8A20`. Wire-read sequence (mem offsets):
+//!
+//!   wire 0   4 bytes        key (u32)              SHIPPED → _key
+//!   wire 4   CString        string_key             SHIPPED → _stringKey
+//!   wire 8   1 byte         is_blocked             SHIPPED → _isBlocked
+//!   wire 9   sub_1410CD790  lookup_a (4B → u16 mem 18)  ⏳ reader_4B
+//!   wire 13  sub_1410CBB90  lookup_b (4B → u16 mem 20)  ⏳ reader_4B
+//!   wire 17  1 byte         unk_22                       ⏳ direct_u8
+//!   wire 18  4 bytes        unk_24                       ⏳ direct_u32
+//!   wire 22  9× 1 byte      unk_28..36                   ⏳ 9 direct_u8 booleans
+//!   wire 31  3× 4 bytes     unk_40, unk_44, unk_48       ⏳ 3 direct_u32
+//!   wire 43  CString        unk_56                  iter 108 → _tribeNameForEditor
+//!   wire ?   4× 4 bytes     unk_64..76                   ⏳ 4 direct_u32
+//!   wire ?   2× 1 byte      unk_80, unk_81               ⏳ 2 direct_u8
+//!   wire ?   4 bytes        unk_84                       ⏳ direct_u32
+//!   wire ?   8 bytes raw    unk_88 (u64)                 ⏳ NO direct_u64 in
+//!                            schema — possibly 2× direct_u32 packed,
+//!                            or a [f32;2]?
+//!   wire ?   sub_1410CCE80  ref_list (CArray<u32>)       ⏳ reader_4B
+//!
+//! Schema has 4 reader_4B canonicals (excluding _key): _footStepTypeEffectName,
+//! _tamedSkillList, _ignoredReactionInSafeZoneFlag, _parentTribeInfo. The 3
+//! reader_4B wire reads at mem 18 / mem 20 / ref_list need 1 more candidate
+//! mapping — possibly _parentTribeInfo lives in one of the unk_64..76 slots
+//! (since "parent tribe info" semantically = "u32 reference to another
+//! tribe's _key" which is just a raw u32, not a CArray).
+//!
+//! Strong candidate ships (next iter, with semantic disambiguation):
+//!   ref_list       → _tamedSkillList       (only CArray = list-of-skills)
+//!   lookup_a / b   → _footStepTypeEffectName + _ignoredReactionInSafeZoneFlag
+//!                    (need IDA function-string-associate to confirm order)
+//!
+//! schema verifier: 4 of 29 verified after iter 108. 25 still pending.
+//!
 //! Every helper in the read chain is non-polymorphic (u32 lookups via
 //! `sub_1411008D0`, `read_u32_lookup_DA30`, plus a CArray<u32> via
 //! `sub_141100090`). No COptional, no `sub_141D8C6D0` dispatcher. Wire
