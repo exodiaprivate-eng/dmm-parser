@@ -48,6 +48,28 @@ when checking decoder-gap progress.
 python scripts/verify_v3_1_against_schema.py
 ```
 
+### `audit_manual_overrides.py` (~85 lines)
+
+**Purpose:** Validate that every entry in `MANUAL_OVERRIDES` (in
+`generate_v3_1_aliases.py`) targets an existing `pub <field>:`
+declaration in `src/tables/<table>/info.rs`.
+
+**Why this matters:** iter 122 fixed a silent-drop bug where the
+`is_placeholder` filter ran BEFORE the `MANUAL_OVERRIDES` check,
+silently dropping overrides for placeholder-pattern names like
+`lookup_a` (matching `^lookup_[a-z]$`). This script catches:
+- Overrides that target renamed/removed rust fields
+- Override field-name typos (silent-drop has same effect as success)
+- Overrides re-introduced for placeholder-pattern names if the
+  pre-iter-122 generator code is ever re-applied
+
+Exit code 0 if all overrides are valid, 1 if any are stale (with
+details).
+
+```bash
+python scripts/audit_manual_overrides.py
+```
+
 ### `harvest_reflection_schema.py` (102 lines)
 
 **Purpose:** Walks a directory of pycrimson-parsed JSON output and
