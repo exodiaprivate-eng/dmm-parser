@@ -1,5 +1,45 @@
 //! IDA-derived parser for `FieldInfo.pabgb`.
 //!
+//! ─── v3.1 closure progress (iters 99-103) ───────────────────────────────
+//! Cross-checked via `sub_1410AD060` (the iter 49 typeinfo registry's
+//! per-record reader at typeinfo `0x144ac6a60`). Walking wire reads in
+//! source order with rust mem-offset annotations:
+//!
+//!   wire 0   4 bytes      key (u32)                       SHIPPED → _key
+//!   wire 4   CString      string_key (sub_141076050)      SHIPPED → _stringKey
+//!   wire 8   1 byte       byte_at_16  is_blocked          iter 99 → _isBlocked
+//!   wire 9   sub_1410CBB90 lookup_u32_a (4B u32 hash)     iter 102 → _levelName
+//!                          (per-entry-unique signature)
+//!   wire 13  sub_1410CBB90 lookup_u32_b (4B u32 hash)     PENDING → _spawnPath OR
+//!                          (3 distinct, mostly default)            _sceneLevelPath
+//!   wire 17  4 bytes      unk_u32_b   (raw u32, =0 for all)        ⏳ unmapped
+//!   wire 21  1 byte       byte_at_28                              ⏳ direct_u8
+//!   wire 22  1 byte       byte_at_29                              ⏳ direct_u8
+//!   wire 23  1 byte       byte_at_30                              ⏳ direct_u8
+//!   wire 24  1 byte       byte_at_31                              ⏳ direct_u8
+//!   wire 25  sub_1410CBB90 lookup_u32_c (4B u32 hash)     PENDING → _spawnPath OR
+//!                          (single shared value across 7)         _sceneLevelPath
+//!   wire 29  12 bytes     bounds [f32;3]                  iter 100 → _returnPosition
+//!   wire 41  8 bytes      size_pair [f32;2]                       ⏳ → _boundaryPositionMin?
+//!   wire 49  8 bytes      height_pair [f32;2]                     ⏳ → _boundaryPositionMax?
+//!   wire 57  4 bytes      unk_u32_d (NaN in 7/7)                  ⏳ unmapped
+//!   wire 61  4 bytes      unk_u32_e (NaN in 6/7)                  ⏳ unmapped
+//!   wire 65  4 bytes      unk_u32_f (NaN in 2/7)                  ⏳ unmapped
+//!   wire 69  4 bytes      unk_f32_g (clean f32, 7/7)              ⏳ → _fixedFieldTime?
+//!   wire 73  sub_1410CDAE0 lookup_u16_a (2B u16 hash)     iter 101 → _detectInfo
+//!   wire 75  1 byte       byte_at_82                              ⏳ direct_u8
+//!   wire 76  1 byte       byte_at_83                              ⏳ direct_u8
+//!   wire 77  1 byte       byte_at_84                              ⏳ direct_u8
+//!   wire 78  sub_141B3B300 32-byte composite (next at +120)       ⏳ unmapped
+//!   wire 110 sub_1410CBB90 (4B u32 hash → mem u16 at 120)         ⏳ ???
+//!   wire 114 sub_1410CBB90 (4B u32 hash → mem u16 at 122)         ⏳ ???
+//!   wire 118 sub_1410CBB90 (4B u32 hash → mem u16 at 124)         ⏳ ???
+//!   wire 122 1 byte                                                ⏳ direct_u8
+//!
+//! Per-record total = 121 wire bytes (matches fixture entries' length).
+//! Schema has 24 canonicals, 6 shipped (key/stringKey/isBlocked +
+//! _levelName + _returnPosition + _detectInfo). 18 still pending.
+//!
 //! Field layout extracted from Hex-Rays decompile of `sub_1410E0940` in the
 //! current Win exe (CrimsonDesert.exe). Each record is 122 wire bytes
 //! (variable in principle via the embedded CString, but all vanilla
