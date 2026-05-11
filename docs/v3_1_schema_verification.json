@@ -509,19 +509,16 @@
     "faction_node_info": {
       "schema_key": "FactionNodeInfo",
       "in_schema": true,
-      "alias_count": 24,
+      "alias_count": 27,
       "schema_field_count": 31,
-      "verified": 24,
+      "verified": 27,
       "mismatch": [],
-      "missing_in_dmm_count": 7,
+      "missing_in_dmm_count": 4,
       "missing_in_dmm": [
         "_bitMapColorKey",
-        "_factionType",
         "_observeData",
         "_religionBlockCostList",
-        "_researchDataList",
-        "_useCustomWayPointforDev",
-        "_workerCount"
+        "_researchDataList"
       ]
     },
     "faction_node_spawn_info": {
@@ -1689,9 +1686,9 @@
     }
   },
   "totals": {
-    "verified": 1237,
+    "verified": 1240,
     "mismatch": 0,
-    "missing_in_dmm": 472,
+    "missing_in_dmm": 469,
     "extra_in_dmm": 0
   }
 }

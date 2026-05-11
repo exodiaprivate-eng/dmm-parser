@@ -509,6 +509,21 @@ MANUAL_OVERRIDES = {
     # wire order:
     ("faction_node_info",              "lookup_after"):                      "_religionSubLevelInfo",
     ("faction_node_info",              "final_lookup"):                      "_knockDownCondition",
+
+    # Iter 132: faction_node_info 3 direct_15B (u8) closures via
+    # within-type-group setter-order rule. Schema's 3 missing direct_15B
+    # canonicals (after _isBlocked aliased):
+    #   _useCustomWayPointforDev  (0x14492a680, 1st by setter)
+    #   _factionType              (0x14492a8e0, 2nd)
+    #   _workerCount              (0x14492a980, 3rd)
+    # Rust wire-order u8 reads (after _isBlocked = wire-1st): unknown_a,
+    # unknown_b, unknown_c, unknown_d, flag_after_slots = 5 u8 placeholders.
+    # First 3 in wire order map to first 3 missing direct_15B canonicals
+    # by setter-string order. unknown_d and flag_after_slots are extras
+    # (likely correspond to non-direct_15B canonicals or rust-only fields).
+    ("faction_node_info",              "unknown_a"):                         "_useCustomWayPointforDev",
+    ("faction_node_info",              "unknown_b"):                         "_factionType",
+    ("faction_node_info",              "unknown_c"):                         "_workerCount",
 }
 
 # Field-name patterns that are clearly placeholders — skip them, no alias.
