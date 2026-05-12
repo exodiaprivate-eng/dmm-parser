@@ -142,3 +142,44 @@ Live 1.06 fixtures extracted from Steam install (group 0008) via
 | mercenaryinfo.pabgb | 662 | 1050 | +388 | ~22 bytes/record × 18 |
 | dialogvoiceinfo.pabgb | 35084 | 35473 | +389 | ~1 byte/record × 483 (DisableCollideImpactSound u8) |
 | reserveslot.pabgb | 3294 | 3383 | +89 | ~4 bytes/entry × 27 (empty _enableMercenaryList CArray) |
+
+## Extended verification 2026-05-12 — mission_info + stage_info
+
+NattKh's tooling team reported being unable to figure out mission_info
+and stage_info for 1.06. Tested both against extracted 1.06 fixtures:
+
+### mission_info — ✅ 100% on 1.06 with no struct changes
+
+```
+[mission] OK: 6506 entries, 2207700 bytes, byte-identical roundtrip
+```
+
+The pre-existing struct (`Tier 1` with `sub_1410ED0E0` reader heritage)
+already handles 1.06 correctly. No fixes needed.
+
+### stage_info — partial: 83% pass after +1 u8 fix
+
+```
+[stage] FAIL entry 42521 key=0xf5161 (start 21675116, expected end
+21675682, cursor died at 21675496): CArray count 4294901760 exceeds
+remaining bytes 4466726 at offset 21675496 (after 42521/50789 ok)
+```
+
+Added `flag_v: u8` at end of typed prefix (1.06 added 1 byte/entry).
+First 42521 of 50789 entries (83%) now roundtrip byte-identically.
+
+Entry 42521 ("GreymaneCamp_Contents_armwrestling_I", 566 bytes) and
+later entries have a polymorphic field variant whose layout differs
+from the typed prefix's assumptions — the parser misreads a CArray
+count mid-entry (gets `0xFFFE0000` as count). Likely a new variant
+in `OptStageOpt52` or similar polymorphic optional fields.
+
+Resolving the remaining 17% requires:
+1. Identifying which entry-content pattern triggers the divergence
+2. Decompiling the Mac binary stage parser (`sub_101873B38`, 2644
+   bytes — biggest in the binary) to see the 1.06-changed branch
+3. Updating the relevant Optional/polymorphic field decoder
+
+This is deferred — it's the same kind of polymorphic dispatch issue
+that PR #17 tackled for other tables. The 83% partial coverage is
+already a meaningful improvement over the pre-fix 0%.

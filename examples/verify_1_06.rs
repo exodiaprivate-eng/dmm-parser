@@ -1,10 +1,12 @@
 //! Roundtrip verification against 1.06 fixtures extracted from live game install.
 
-use dmm_parser::binary::variant::entry_ranges;
+use dmm_parser::binary::variant::{entry_ranges, load_pabgh_offsets_from_bytes};
 use dmm_parser::binary::{BinaryRead, BinaryWrite};
 use dmm_parser::tables::dialog_voice_info::DialogVoiceInfo;
 use dmm_parser::tables::mercenary_info::MercenaryInfo;
+use dmm_parser::tables::mission_info::MissionInfo;
 use dmm_parser::tables::reserve_slot_info::ReserveSlotInfo;
+use dmm_parser::tables::stage_info::StageInfo;
 
 const DIR: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\fixtures_1_06";
 
@@ -81,7 +83,7 @@ fn test_reserve_slot() {
     let pabgh_path = format!(r"{}\reserveslot.pabgh", DIR);
     let pabgb = match std::fs::read(&pabgb_path) { Ok(d) => d, Err(_) => { println!("[reserve_slot] SKIP pabgb"); return; } };
     let pabgh = match std::fs::read(&pabgh_path) { Ok(d) => d, Err(_) => { println!("[reserve_slot] SKIP pabgh"); return; } };
-    let entries = match load_pabgh_offsets(&pabgh) {
+    let entries = match load_pabgh_offsets_from_bytes(&pabgh) {
         Some(e) => e,
         None => { println!("[reserve_slot] FAIL: bad pabgh"); return; }
     };
@@ -110,9 +112,79 @@ fn test_reserve_slot() {
     println!("[reserve_slot] OK: {} entries, {} bytes, byte-identical roundtrip", items.len(), pabgb.len());
 }
 
+fn test_mission() {
+    let pabgb_path = format!(r"{}\missioninfo.pabgb", DIR);
+    let pabgh_path = format!(r"{}\missioninfo.pabgh", DIR);
+    let pabgb = match std::fs::read(&pabgb_path) { Ok(d) => d, Err(_) => { println!("[mission] SKIP"); return; } };
+    let pabgh = match std::fs::read(&pabgh_path) { Ok(d) => d, Err(_) => { println!("[mission] SKIP"); return; } };
+    let entries = match load_pabgh_offsets_from_bytes(&pabgh) {
+        Some(e) => e,
+        None => { println!("[mission] FAIL: bad pabgh"); return; }
+    };
+    let ranges = entry_ranges(&entries, pabgb.len());
+    let mut items: Vec<MissionInfo> = Vec::new();
+    for (i, (k, s, e)) in ranges.iter().enumerate() {
+        let mut c = *s;
+        match MissionInfo::read_from(&pabgb, &mut c) {
+            Ok(it) => items.push(it),
+            Err(er) => { println!("[mission] FAIL entry {} key=0x{:x} at offset {}: {} (after {}/{} ok)", i, k, c, er, items.len(), ranges.len()); return; }
+        }
+        if c != *e {
+            println!("[mission] FAIL entry {} key=0x{:x}: cursor at {} expected {} (delta {}) after {}/{} ok", i, k, c, e, (c as i64) - (*e as i64), items.len(), ranges.len());
+            return;
+        }
+    }
+    let mut out = Vec::with_capacity(pabgb.len());
+    for it in &items {
+        if let Err(e) = it.write_to(&mut out) { println!("[mission] FAIL write: {}", e); return; }
+    }
+    if out != pabgb {
+        let div = out.iter().zip(pabgb.iter()).position(|(a, b)| a != b).unwrap_or(out.len().min(pabgb.len()));
+        println!("[mission] FAIL byte mismatch at offset {} (entries: {}, in: {} bytes, out: {} bytes)", div, items.len(), pabgb.len(), out.len());
+        return;
+    }
+    println!("[mission] OK: {} entries, {} bytes, byte-identical roundtrip", items.len(), pabgb.len());
+}
+
+fn test_stage() {
+    let pabgb_path = format!(r"{}\stageinfo.pabgb", DIR);
+    let pabgh_path = format!(r"{}\stageinfo.pabgh", DIR);
+    let pabgb = match std::fs::read(&pabgb_path) { Ok(d) => d, Err(_) => { println!("[stage] SKIP"); return; } };
+    let pabgh = match std::fs::read(&pabgh_path) { Ok(d) => d, Err(_) => { println!("[stage] SKIP"); return; } };
+    let entries = match load_pabgh_offsets_from_bytes(&pabgh) {
+        Some(e) => e,
+        None => { println!("[stage] FAIL: bad pabgh"); return; }
+    };
+    let ranges = entry_ranges(&entries, pabgb.len());
+    let mut succeeded = 0usize;
+    for (i, (k, s, e)) in ranges.iter().enumerate() {
+        let mut c = *s;
+        let item = match StageInfo::read_with_size(&pabgb, &mut c, *e - *s) {
+            Ok(it) => it,
+            Err(er) => { println!("[stage] FAIL entry {} key=0x{:x} (start {}, expected end {}, cursor died at {}): {} (after {}/{} ok)", i, k, *s, *e, c, er, succeeded, ranges.len()); return; }
+        };
+        if c != *e {
+            println!("[stage] FAIL entry {} key=0x{:x}: cursor at {} expected {} (delta {}) after {}/{} ok", i, k, c, e, (c as i64) - (*e as i64), succeeded, ranges.len());
+            return;
+        }
+        // Per-entry roundtrip check (byte-identical):
+        let mut buf = Vec::with_capacity(*e - *s);
+        if let Err(er) = item.write_to(&mut buf) { println!("[stage] FAIL entry {} write: {}", i, er); return; }
+        if &buf != &pabgb[*s..*e] {
+            let div = buf.iter().zip(pabgb[*s..*e].iter()).position(|(a, b)| a != b).unwrap_or(0);
+            println!("[stage] FAIL entry {} key=0x{:x}: byte mismatch at offset {} of {}-byte entry (after {}/{} ok)", i, k, div, *e - *s, succeeded, ranges.len());
+            return;
+        }
+        succeeded += 1;
+    }
+    println!("[stage] OK: {} entries, {} bytes total, byte-identical roundtrip", succeeded, pabgb.len());
+}
+
 fn main() {
     println!("=== 1.06 ROUNDTRIP VERIFICATION ===\n");
     test_mercenary();
     test_dialog_voice();
     test_reserve_slot();
+    test_mission();
+    test_stage();
 }

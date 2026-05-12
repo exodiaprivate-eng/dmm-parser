@@ -19,6 +19,10 @@ const WANTED: &[&str] = &[
     "dialogvoiceinfo.pabgh",
     "reserveslot.pabgb",
     "reserveslot.pabgh",
+    "missioninfo.pabgb",
+    "missioninfo.pabgh",
+    "stageinfo.pabgb",
+    "stageinfo.pabgh",
 ];
 
 fn main() {

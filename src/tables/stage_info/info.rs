@@ -534,6 +534,12 @@ pub struct StageInfo<'a> {
     pub flag_s: u8,
     pub flag_t: u8,
     pub flag_u: u8,
+    /// 1.06 addition. 1 byte at the very end of the typed prefix.
+    /// Canonical name TBD — likely one of `_allowAccompany` /
+    /// `_useRevivePointForDead` / `_ignoreFactionClose` /
+    /// `_useMercenaryLogout` per Mac string scan (the last few u8
+    /// canonical fields not yet mapped to placeholders).
+    pub flag_v: u8,
 }
 
 impl<'a> StageInfo<'a> {
@@ -640,6 +646,10 @@ impl<'a> StageInfo<'a> {
         let flag_s = u8::read_from(data, offset)?;
         let flag_t = u8::read_from(data, offset)?;
         let flag_u = u8::read_from(data, offset)?;
+        // 2026-05-12: 1.06 added 1 new u8 at end of typed prefix
+        // (verified vs live 1.06 stageinfo.pabgb roundtrip — 50789
+        // entries × 1 byte = 50789 extra bytes vs pre-1.06 struct).
+        let flag_v = u8::read_from(data, offset)?;
 
         if *offset != entry_end {
             return Err(io::Error::new(
@@ -671,7 +681,7 @@ impl<'a> StageInfo<'a> {
             behavior_entry_list, raw_j, lookup_u, lookup_v, lookup_w,
             raw_k, raw_l, raw_m, raw_n, raw_o, raw_p,
             flag_g, flag_h, flag_i, flag_j, flag_k, flag_l, flag_m, flag_n,
-            flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u,
+            flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u, flag_v,
         })
     }
 
@@ -780,6 +790,7 @@ impl<'a> StageInfo<'a> {
         let flag_s = track_read_field::<u8>(data, offset, path, ranges, "flag_s", "u8")?;
         let flag_t = track_read_field::<u8>(data, offset, path, ranges, "flag_t", "u8")?;
         let flag_u = track_read_field::<u8>(data, offset, path, ranges, "flag_u", "u8")?;
+        let flag_v = track_read_field::<u8>(data, offset, path, ranges, "flag_v", "u8")?;
 
         if *offset != entry_end {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -806,7 +817,7 @@ impl<'a> StageInfo<'a> {
             behavior_entry_list, raw_j, lookup_u, lookup_v, lookup_w,
             raw_k, raw_l, raw_m, raw_n, raw_o, raw_p,
             flag_g, flag_h, flag_i, flag_j, flag_k, flag_l, flag_m, flag_n,
-            flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u,
+            flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u, flag_v,
         })
     }
 
@@ -906,6 +917,7 @@ impl<'a> StageInfo<'a> {
         self.flag_s.write_to(w)?;
         self.flag_t.write_to(w)?;
         self.flag_u.write_to(w)?;
+        self.flag_v.write_to(w)?;
         Ok(())
     }
 
@@ -1006,6 +1018,7 @@ impl<'a> StageInfo<'a> {
         m.insert("flag_s".to_string(), self.flag_s.to_json_value());
         m.insert("flag_t".to_string(), self.flag_t.to_json_value());
         m.insert("flag_u".to_string(), self.flag_u.to_json_value());
+        m.insert("flag_v".to_string(), self.flag_v.to_json_value());
         m
     }
 
@@ -1105,6 +1118,7 @@ impl<'a> StageInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_s")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_t")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_v")?)?;
         Ok(())
     }
 }
