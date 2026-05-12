@@ -98,7 +98,6 @@ py_binary_struct! {
         pub escape_road_group_type: u8,
         pub cargo_seat_index_list: CArray<u8>,
         pub call_vehicle_voxel_type: u32,
-        pub is_main_dischargeable: u8,
         pub show_count_on_ui: u8,
         pub ui_map_texture_info: u32,
         pub rider_detect_info: u16,

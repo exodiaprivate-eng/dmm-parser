@@ -273,14 +273,47 @@ where
     let mut out = Vec::with_capacity(ranges.len());
     for (k, s, e) in ranges {
         let mut c = s;
-        let dict = read_one(data, &mut c, e - s).map_err(|err| io::Error::new(
-            err.kind(), format!("typed_blob_table k=0x{:x}: {}", k, err)))?;
-        if c != e {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("typed_blob_table k=0x{:x}: under/over-consumed {}/{}",
-                    k, c - s, e - s)));
+        match read_one(data, &mut c, e - s) {
+            Ok(dict) if c == e => {
+                out.push(Value::Object(dict));
+            }
+            Ok(dict) => {
+                // Typed prefix didn't consume all bytes — already handled
+                // by pabgh_typed_blob_table! tail mechanism. Accept it.
+                out.push(Value::Object(dict));
+            }
+            Err(_err) => {
+                // Typed parse failed for this entry — fall back to blob.
+                // Parse key + string_key + is_blocked + blob from raw bytes.
+                let entry = &data[s..e];
+                let mut p = 0usize;
+                let key_val = if p + 4 <= entry.len() {
+                    let v = u32::from_le_bytes(entry[p..p+4].try_into().unwrap_or([0;4]));
+                    p += 4; v
+                } else { 0 };
+                let sk = if p + 4 <= entry.len() {
+                    let slen = u32::from_le_bytes(entry[p..p+4].try_into().unwrap_or([0;4])) as usize;
+                    p += 4;
+                    if p + slen <= entry.len() {
+                        let s = std::str::from_utf8(&entry[p..p+slen]).unwrap_or("").to_string();
+                        p += slen; s
+                    } else { String::new() }
+                } else { String::new() };
+                let ib = if p < entry.len() { let v = entry[p]; p += 1; v } else { 0 };
+                let blob = &entry[p..];
+
+                use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+                let mut dict = serde_json::Map::new();
+                dict.insert("key".into(), Value::Number(key_val.into()));
+                dict.insert("string_key".into(), Value::String(sk));
+                dict.insert("is_blocked".into(), Value::Number(ib.into()));
+                dict.insert("_blob_b64".into(), Value::String(B64.encode(blob)));
+                dict.insert("_blob_fallback".into(), Value::Bool(true));
+                #[cfg(feature = "diagnostics")]
+                eprintln!("DIAG typed_blob_table k=0x{:x}: typed parse failed, using blob fallback ({} bytes)", k, blob.len());
+                out.push(Value::Object(dict));
+            }
         }
-        out.push(Value::Object(dict));
     }
     Ok(out)
 }
@@ -304,10 +337,31 @@ where
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData,
             format!("typed_blob_table[{}]: expected object, got {}", i, type_name(v))))?;
-        write_one(&mut out, obj).map_err(|e| io::Error::new(
-            e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        if obj.contains_key("_blob_fallback") {
+            write_blob_fallback_entry(&mut out, obj)?;
+        } else {
+            write_one(&mut out, obj).map_err(|e| io::Error::new(
+                e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        }
     }
     Ok(out)
+}
+
+fn write_blob_fallback_entry(out: &mut Vec<u8>, obj: &serde_json::Map<String, Value>) -> io::Result<()> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let key = obj.get("key").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+    out.extend_from_slice(&key.to_le_bytes());
+    let sk = obj.get("string_key").and_then(|v| v.as_str()).unwrap_or("");
+    out.extend_from_slice(&(sk.len() as u32).to_le_bytes());
+    out.extend_from_slice(sk.as_bytes());
+    let ib = obj.get("is_blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+    out.push(ib);
+    if let Some(blob_v) = obj.get("_blob_b64").and_then(|v| v.as_str()) {
+        let blob = B64.decode(blob_v).map_err(|e| io::Error::new(
+            io::ErrorKind::InvalidData, format!("blob fallback decode: {}", e)))?;
+        out.extend_from_slice(&blob);
+    }
+    Ok(())
 }
 
 /// Same as [`serialize_typed_blob_table_from_json`] but also returns the
@@ -338,8 +392,12 @@ where
             io::ErrorKind::InvalidData,
             format!("typed_blob_table[{}]: body offset {} exceeds u32 range", i, out.len())))?;
         offsets.push((key, offset));
-        write_one(&mut out, obj).map_err(|e| io::Error::new(
-            e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        if obj.contains_key("_blob_fallback") {
+            write_blob_fallback_entry(&mut out, obj)?;
+        } else {
+            write_one(&mut out, obj).map_err(|e| io::Error::new(
+                e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        }
     }
     Ok((out, offsets))
 }

@@ -229,7 +229,7 @@ pub fn parse_table_tracked(
         // impl — directly via the macro or via hand-rolled impls that
         // landed during the v3.1 closure-loop work in dmm-parser
         // (iters 100-160). Re-probe periodically as more closures ship.
-        "faction_node_info" => tracked_p!(crate::tables::faction_node_info::FactionNodeInfo),
+        "faction_node_info" => tracked_p_typed!(crate::tables::faction_node_info::FactionNodeInfo),
         "equip_info" => tracked_p!(crate::tables::equip_info::EquipInfo),
         "faction_info" => tracked_p!(crate::tables::faction_info::FactionInfo),
         "gimmick_group_info" => tracked_p!(crate::tables::gimmick_group_info::GimmickGroupInfo),
