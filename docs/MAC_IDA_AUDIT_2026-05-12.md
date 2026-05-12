@@ -110,12 +110,35 @@ Mac total wire byte counts. No changes needed.
 `item_use_info` dispatcher reads 4 fields matching Mac.
 `special_mode_info` has 24 fields matching Mac canonical 1:1.
 
-## Verification status
+## Verification status — 1.06 fixture roundtrip VERIFIED
 
-All 5 fixes preserve wire byte totals per record, so existing fixture
-roundtrip tests should continue to pass. The next pass should:
-1. Run `cargo test --lib` against a real 1.06 fixture
-2. If any roundtrip test fails, decompile the failing field's Mac reader
-   to identify the specific wire-type discrepancy
-3. Verify Swiss save editor read/write against the new struct field
-   names (mercenary_info had the biggest rename)
+Live 1.06 fixtures extracted from Steam install (group 0008) via
+`examples/extract_1_06_test_fixtures.rs`. Roundtrip results
+(`examples/verify_1_06.rs`):
+
+```
+[mercenary]    OK: 18 records,  1050 bytes, byte-identical roundtrip
+[dialog_voice] OK: 483 records, 35473 bytes, byte-identical roundtrip
+[reserve_slot] OK: 27 entries,  3383 bytes, byte-identical roundtrip
+```
+
+### Discoveries during verification
+
+1. **dialog_voice_info `key` is u16, not u8.** Initial Mac decompile
+   pattern-matched on the same name "key reader" pattern across tables,
+   but `sub_100F39E0C` (dialog_voice) reads `__int16 v4` BYREF with
+   vtbl size arg `2LL` — different from `sub_100F3E64C` (mercenary,
+   which is `char v4` with `1LL`). Reverted mid-day u16→u8 change.
+
+2. **`_enableSpecialNameHashList` is STILL present in 1.06.** NattKh
+   CGM v1.1.9 release notes claimed 1.06 removed the field; the
+   live 1.06 fixture proves otherwise — entries are 4 bytes short
+   per record without the (empty) CArray header. Restored the field.
+
+### File size growth 1.05 → 1.06
+
+| Table | 1.05 bytes | 1.06 bytes | Delta | Per-record growth |
+|---|---|---|---|---|
+| mercenaryinfo.pabgb | 662 | 1050 | +388 | ~22 bytes/record × 18 |
+| dialogvoiceinfo.pabgb | 35084 | 35473 | +389 | ~1 byte/record × 483 (DisableCollideImpactSound u8) |
+| reserveslot.pabgb | 3294 | 3383 | +89 | ~4 bytes/entry × 27 (empty _enableMercenaryList CArray) |

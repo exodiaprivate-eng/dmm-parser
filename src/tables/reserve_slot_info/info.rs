@@ -35,15 +35,18 @@
 //!      Mac reader sub_10117EDF4: wire u8 — pre-2026-05-12 dmm-parser
 //!      was MISSING this field entirely, even though Mac canonical
 //!      has it. Restoring it brings dmm-parser to Mac parity.)
-//!  -- 1.06 REMOVED: enable_special_name_hash_list (_enableSpecialNameHashList).
-//!     Per NattKh CrimsonGameMods v1.1.9 release notes "deleted field
-//!     in reserveslot due to game update". Mac binary still has it at
-//!     mem offset 120 (reader sub_1018BB2FC) but the Win 1.06 build
-//!     dropped the read site.
-//!  15. CArray<u16> target_item_group_list       (_targetItemGroupList)
-//!  16. u32 send_gimmick_event_key_for_slot_data_changed
+//!  15. CArray<ReserveSlotPairB> enable_special_name_hash_list
+//!      (_enableSpecialNameHashList, Mac reader sub_1018BB2FC. NattKh
+//!      CGM v1.1.9 claimed 1.06 removed this field, but 1.06 fixture
+//!      roundtrip confirms it's still present — empty CArray for all
+//!      27 vanilla entries.)
+//!  16. CArray<u16> target_item_group_list       (_targetItemGroupList)
+//!  17. u32 send_gimmick_event_key_for_slot_data_changed
 //!      (_sendGimmickEventKeyForSlotDataChanged)
-//!  17. u8 is_self_player_only                   (_isSelfPlayerOnly)
+//!  18. u8 is_self_player_only                   (_isSelfPlayerOnly)
+//!
+//! VERIFIED 2026-05-12 against live 1.06 fixture: 27 entries, 3383
+//! bytes, byte-identical roundtrip.
 
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -53,8 +56,8 @@
 // Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
 // (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
 //
-// Total canonical fields:  18 (Mac binary) / 17 (Win 1.06 after _enableSpecialNameHashList removal)
-// Decoded by dmm-parser:   17
+// Total canonical fields:  18 (Mac binary == 1.06)
+// Decoded by dmm-parser:   18 (1.06 fixture roundtrip verified)
 // Missing in this struct:  0
 //
 // ✅ = present in this struct (round-trips via shape='v3.1')
@@ -118,10 +121,15 @@ py_binary_struct! {
         // missing. Mac canonical position #14 at mem offset 104,
         // reader sub_10117EDF4 (wire u8 per element — mercenary index).
         pub enable_mercenary_list: CArray<u8>,
-        // 1.06 PA REMOVED `enable_special_name_hash_list` here.
-        // Mac canonical position #15 at mem offset 120 (reader
-        // sub_1018BB2FC). Win 1.06 drops the read site per NattKh
-        // CrimsonGameMods v1.1.9 release notes.
+        // RESTORED 2026-05-12: NattKh CGM v1.1.9 release notes claimed
+        // 1.06 removed this field, but live 1.06 .pabgb fixture
+        // roundtrip says otherwise — entries are 4 bytes short without
+        // it (exactly one empty CArray). Mac canonical position #15 at
+        // mem offset 120, reader sub_1018BB2FC. Per element layout is
+        // ReserveSlotPairB { lookup_a: u32, lookup_b: u32 } — 8 bytes.
+        // For all 27 entries in 1.06 vanilla the list is empty (count=0),
+        // so 4 bytes of CArray header per entry.
+        pub enable_special_name_hash_list: CArray<ReserveSlotPairB>,
         pub target_item_group_list: CArray<u16>,
         pub send_gimmick_event_key_for_slot_data_changed: u32,
         pub is_self_player_only: u8,

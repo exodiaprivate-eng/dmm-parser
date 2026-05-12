@@ -5,44 +5,34 @@
 //! Mac binary __cstring declaration order. Round-trip-validated against
 //! the vanilla pabgb dump from the live game install.
 //!
-//! ─── 2026-05-12 Mac IDA verification ────────────────────────────────────
-//! Mac binary parser (`sub_10187EFEC` in `CrimsonDesert_Steam`) reads
-//! 16 wire fields. Wire-byte math is byte-equivalent to the current
-//! 15-field struct — the difference is interpretive:
+//! ─── 2026-05-12 Mac IDA verification (1.06 fixture-confirmed) ──────────
+//! Mac binary parser `sub_10187EFEC` in `CrimsonDesert_Steam` reads
+//! 16 wire fields. Verified against extracted live 1.06 fixture:
+//! 483 records, 35473 bytes, byte-identical roundtrip.
 //!
-//!   Mac canonical wire (Korean error chain, in order):
-//!     1. _key                                  (sub_100F39E0C, u8)
-//!     2. _stringKey                            (CString)
-//!     3. _isBlocked                            (u8)
-//!     4. _soundEvent                           (CString)
-//!     5. _footStepSoundEvent                   (CString)
-//!     6. _footStepCrouchSoundEvent             (CString)
-//!     7. _footStepLandSoundEvent               (CString)
-//!     8. _footStepGroundSoundEvent             (CString)
-//!     9. _footStepDisableCollideImpactSound    (u8, mem 64)
-//!    10. _footStepSoundOffset                  (u8, mem 65)
-//!    11. _footStepCrouchSoundOffset            (u8, mem 66)
-//!    12. _footStepLandSoundOffset              (u8, mem 67)
-//!    13. _footStepGroundSoundOffset            (u8, mem 68)
-//!    14. _gender                               (u8, mem 69)
-//!    15. _characterAge                         (u8, mem 70)
-//!    16. _jobInfoList                          (CArray<u16>)
+//! Wire reads in order:
+//!   1.  _key                                (sub_100F39E0C, u16)
+//!   2.  _stringKey                          (CString)
+//!   3.  _isBlocked                          (u8)
+//!   4.  _soundEvent                         (CString)
+//!   5.  _footStepSoundEvent                 (CString)
+//!   6.  _footStepCrouchSoundEvent           (CString)
+//!   7.  _footStepLandSoundEvent             (CString)
+//!   8.  _footStepGroundSoundEvent           (CString)
+//!   9.  _footStepDisableCollideImpactSound  (u8) ← 1.06 ADDITION
+//!  10.  _footStepSoundOffset                (u8)
+//!  11.  _footStepCrouchSoundOffset          (u8)
+//!  12.  _footStepLandSoundOffset            (u8)
+//!  13.  _footStepGroundSoundOffset          (u8)
+//!  14.  _gender                             (u8)
+//!  15.  _characterAge                       (u8)
+//!  16.  _jobInfoList                        (CArray<u16>)
 //!
-//! Mac total wire: 1 + 6*(4+N) + 1 + 7 + (4+2K) = 37 + 6N + 2K bytes
+//! Total wire: 2 + 6*(4+N) + 1 + 7 + (4+2K) = 38 + 6N + 2K bytes
 //!
-//! Pre-2026-05-12 dmm-parser interpreted the same byte stream as:
-//!     1. key: u16              (2 wire bytes) ← Mac canonical is u8 (1 byte)
-//!     2-8. (same as Mac)
-//!     9. — missing —           ← Mac canonical _footStepDisableCollideImpactSound (1 byte)
-//!    10-15. (same as Mac, names match)
-//!    16. job_info_list
-//!
-//! The 1 extra byte read as part of `key: u16` was precisely the 1
-//! byte missing for `_footStepDisableCollideImpactSound`. Wire round-
-//! trip worked under either interpretation but the semantic field-by-
-//! field decoding was off.
-//!
-//! 2026-05-12 RECONCILED: applied Mac-canonical fix below.
+//! Pre-2026-05-12 dmm-parser was missing `_footStepDisableCollideImpactSound`
+//! at wire position #9 — this commit adds it. Key remains u16 (Mac
+//! reader sub_100F39E0C confirmed via `__int16 v4` BYREF, vtbl `2LL`).
 //!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
@@ -80,11 +70,13 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct DialogVoiceInfo<'a> {
-        // FIX 2026-05-12: was u16, but Mac reader sub_100F39E0C reads u8
-        // (single-byte vtbl call pattern). Pre-fix dmm-parser consumed
-        // an extra wire byte here, which coincidentally cancelled out
-        // the missing _footStepDisableCollideImpactSound below.
-        pub key: u8,
+        // 2026-05-12: confirmed u16 wire via Mac reader sub_100F39E0C
+        // (`__int16 v4` BYREF, vtbl call with `2LL` size arg). An
+        // earlier mid-day commit briefly changed this to u8 — that was
+        // a misread of the reader (mercenary uses sub_100F3E64C which
+        // IS u8 with `1LL` arg; dialog_voice uses a different reader
+        // with `2LL`). 1.06 fixture roundtrip confirms u16.
+        pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
         pub sound_event: CString<'a>,
