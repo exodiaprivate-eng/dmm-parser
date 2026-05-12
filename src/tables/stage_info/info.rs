@@ -194,6 +194,7 @@
 use crate::binary::*;
 use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use crate::py_binary_struct;
 use crate::tables::faction_node_info::info::FactionAdjacencyMobItem;
 use crate::tables::global_stage_sequencer_info::info::PlayerBehaviorOptional;
@@ -467,7 +468,17 @@ pub struct StageInfo<'a> {
     pub lookup_h: u32,
     pub list_b: CArray<u32>,
     pub list_c: CArray<u32>,
-    pub unk_new_carray_a: CArray<u32>,
+    /// 2026-05-12 BUG FIX: unk_new_carray_a was wrongly typed as
+    /// CArray<u32>. For entries with value=0 the CArray header
+    /// (count=0) consumed same 4 bytes as a u32=0, so all-zero
+    /// entries 0-42520 worked. Entry 42521 has value=6 (a real
+    /// lookup ID for the rematch start sub timeline name) — the
+    /// CArray<u32> interpretation read count=6 and tried to consume
+    /// 6 garbage "elements" (24 extra wire bytes), breaking all
+    /// subsequent field positions. Should be u32 lookup ID.
+    pub unk_new_carray_a: u32,
+    /// unk_new_cbytes (CBytes) is correct — it's a length-prefixed
+    /// byte field that holds names like "SCENE_3" for some entries.
     pub unk_new_cbytes: CBytes<'a>,
     pub unk_new_carray_b: CArray<u32>,
     pub lookup_i: u32,
@@ -540,6 +551,11 @@ pub struct StageInfo<'a> {
     /// `_useMercenaryLogout` per Mac string scan (the last few u8
     /// canonical fields not yet mapped to placeholders).
     pub flag_v: u8,
+    /// Trailing bytes 1.06 added per-entry for some entries (e.g.
+    /// entries with non-zero unk_new_carray_a lookup value). 4 bytes
+    /// for entry 42521 (GreymaneCamp_Contents_armwrestling_I).
+    /// Captured opaquely to preserve byte-perfect roundtrip.
+    pub tail_b64: Vec<u8>,
 }
 
 impl<'a> StageInfo<'a> {
@@ -579,7 +595,7 @@ impl<'a> StageInfo<'a> {
         let lookup_h = u32::read_from(data, offset)?;
         let list_b = CArray::<u32>::read_from(data, offset)?;
         let list_c = CArray::<u32>::read_from(data, offset)?;
-        let unk_new_carray_a = CArray::<u32>::read_from(data, offset)?;
+        let unk_new_carray_a = u32::read_from(data, offset)?;
         let unk_new_cbytes = CBytes::read_from(data, offset)?;
         let unk_new_carray_b = CArray::<u32>::read_from(data, offset)?;
         let lookup_i = u32::read_from(data, offset)?;
@@ -651,15 +667,19 @@ impl<'a> StageInfo<'a> {
         // entries × 1 byte = 50789 extra bytes vs pre-1.06 struct).
         let flag_v = u8::read_from(data, offset)?;
 
-        if *offset != entry_end {
+        // Capture any trailing bytes 1.06 added per-entry.
+        let tail_b64 = if *offset < entry_end {
+            let t = data[*offset..entry_end].to_vec();
+            *offset = entry_end;
+            t
+        } else if *offset > entry_end {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!(
-                    "StageInfo: typed prefix under/over-read ({} expected {})",
-                    *offset, entry_end
-                ),
+                format!("StageInfo: typed prefix OVER-read ({} > {})", *offset, entry_end),
             ));
-        }
+        } else {
+            Vec::new()
+        };
 
         Ok(Self {
             key, string_key, is_blocked, name, stage_desc, complete_log,
@@ -682,6 +702,7 @@ impl<'a> StageInfo<'a> {
             raw_k, raw_l, raw_m, raw_n, raw_o, raw_p,
             flag_g, flag_h, flag_i, flag_j, flag_k, flag_l, flag_m, flag_n,
             flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u, flag_v,
+            tail_b64,
         })
     }
 
@@ -723,7 +744,7 @@ impl<'a> StageInfo<'a> {
         let lookup_h = track_read_field::<u32>(data, offset, path, ranges, "lookup_h", "u32")?;
         let list_b = track_read_field::<CArray<u32>>(data, offset, path, ranges, "list_b", "CArray<u32>")?;
         let list_c = track_read_field::<CArray<u32>>(data, offset, path, ranges, "list_c", "CArray<u32>")?;
-        let unk_new_carray_a = track_read_field::<CArray<u32>>(data, offset, path, ranges, "unk_new_carray_a", "CArray<u32>")?;
+        let unk_new_carray_a = track_read_field::<u32>(data, offset, path, ranges, "unk_new_carray_a", "u32")?;
         let unk_new_cbytes = track_read_field::<CBytes<'a>>(data, offset, path, ranges, "unk_new_cbytes", "CBytes")?;
         let unk_new_carray_b = track_read_field::<CArray<u32>>(data, offset, path, ranges, "unk_new_carray_b", "CArray<u32>")?;
         let lookup_i = track_read_field::<u32>(data, offset, path, ranges, "lookup_i", "u32")?;
@@ -792,10 +813,16 @@ impl<'a> StageInfo<'a> {
         let flag_u = track_read_field::<u8>(data, offset, path, ranges, "flag_u", "u8")?;
         let flag_v = track_read_field::<u8>(data, offset, path, ranges, "flag_v", "u8")?;
 
-        if *offset != entry_end {
+        let tail_b64 = if *offset < entry_end {
+            let t = data[*offset..entry_end].to_vec();
+            *offset = entry_end;
+            t
+        } else if *offset > entry_end {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("StageInfo: typed prefix under/over-read ({} expected {})", *offset, entry_end)));
-        }
+                format!("StageInfo: typed prefix OVER-read ({} > {})", *offset, entry_end)));
+        } else {
+            Vec::new()
+        };
 
         Ok(Self {
             key, string_key, is_blocked, name, stage_desc, complete_log,
@@ -818,6 +845,7 @@ impl<'a> StageInfo<'a> {
             raw_k, raw_l, raw_m, raw_n, raw_o, raw_p,
             flag_g, flag_h, flag_i, flag_j, flag_k, flag_l, flag_m, flag_n,
             flag_o, flag_p, flag_q, flag_r, flag_s, flag_t, flag_u, flag_v,
+            tail_b64,
         })
     }
 
@@ -918,6 +946,7 @@ impl<'a> StageInfo<'a> {
         self.flag_t.write_to(w)?;
         self.flag_u.write_to(w)?;
         self.flag_v.write_to(w)?;
+        w.write_all(&self.tail_b64)?;
         Ok(())
     }
 
@@ -1019,6 +1048,9 @@ impl<'a> StageInfo<'a> {
         m.insert("flag_t".to_string(), self.flag_t.to_json_value());
         m.insert("flag_u".to_string(), self.flag_u.to_json_value());
         m.insert("flag_v".to_string(), self.flag_v.to_json_value());
+        if !self.tail_b64.is_empty() {
+            m.insert("_tail_b64".to_string(), Value::String(B64.encode(&self.tail_b64)));
+        }
         m
     }
 
@@ -1051,7 +1083,7 @@ impl<'a> StageInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_h")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_b")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_c")?)?;
-        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_carray_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_carray_a")?)?;
         <CBytes as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_cbytes")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_carray_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_i")?)?;
@@ -1119,6 +1151,15 @@ impl<'a> StageInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_t")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_v")?)?;
+        if let Some(tail_v) = obj.get("_tail_b64") {
+            let tail_s = tail_v.as_str()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    "StageInfo: _tail_b64 must be a base64 string"))?;
+            let tail = B64.decode(tail_s).map_err(|e| io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("StageInfo: _tail_b64 invalid base64: {}", e)))?;
+            w.write_all(&tail)?;
+        }
         Ok(())
     }
 }
