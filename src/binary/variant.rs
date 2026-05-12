@@ -252,17 +252,20 @@ macro_rules! pabgh_typed_blob_table {
                 use $crate::binary::BinaryRead;
                 let entry_start = *offset;
                 let entry_end = entry_start + entry_size;
-                $(let $field = <$ty as BinaryRead>::read_from(data, offset)?;)*
-                if *offset > entry_end {
+                // Bound reads to current entry to prevent overrun into adjacent entries.
+                let entry_slice = &data[entry_start..entry_end];
+                let mut local_offset = 0usize;
+                $(let $field = <$ty as BinaryRead>::read_from(entry_slice, &mut local_offset)?;)*
+                if local_offset > entry_size {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidData,
                         format!(
                             "{} typed prefix overran entry: consumed {} of {} bytes",
-                            stringify!($name), *offset - entry_start, entry_size
+                            stringify!($name), local_offset, entry_size
                         ),
                     ));
                 }
-                let $tail = data[*offset..entry_end].to_vec();
+                let $tail = entry_slice[local_offset..].to_vec();
                 *offset = entry_end;
                 Ok(Self { $($field,)* $tail })
             }
