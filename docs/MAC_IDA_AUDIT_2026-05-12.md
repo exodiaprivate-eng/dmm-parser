@@ -174,12 +174,44 @@ from the typed prefix's assumptions — the parser misreads a CArray
 count mid-entry (gets `0xFFFE0000` as count). Likely a new variant
 in `OptStageOpt52` or similar polymorphic optional fields.
 
-Resolving the remaining 17% requires:
-1. Identifying which entry-content pattern triggers the divergence
-2. Decompiling the Mac binary stage parser (`sub_101873B38`, 2644
-   bytes — biggest in the binary) to see the 1.06-changed branch
-3. Updating the relevant Optional/polymorphic field decoder
+Resolving the remaining 17% — diagnostic findings:
 
-This is deferred — it's the same kind of polymorphic dispatch issue
-that PR #17 tackled for other tables. The 83% partial coverage is
+Entry 42521 ("GreymaneCamp_Contents_armwrestling_I", 566 bytes) is
+the FIRST entry where `unk_new_carray_a` has non-empty content
+(count=6). All 42521 earlier entries had count=0, so the wrong
+element type went undetected. With `CArray<u32>`:
+- 4-byte count header consumed
+- 6 × u32 = 24 bytes of element data consumed
+- Then `unk_new_cbytes` (empty), then `unk_new_carray_b` reads count
+  from bytes that aren't a valid count (0xFFFF0000)
+
+Tested element-type variants:
+- `CArray<u32>`: fails at carray_b count (0xFFFF0000)
+- `CArray<u64>` (8 bytes): parser runs past entry_end
+- `CArray<[u32; 3]>` (12 bytes): subsequent fields align ALMOST
+  correctly but mob_map_list count hits 0xC5E173EA — still wrong
+
+The byte pattern after carray_a in entry 42521 includes a repeating
+0xEAC5E173 hash sequence (the "shared summon count tag" constant
+also seen in mercenary_info). The hash starts at byte 453 (not a
+u32-aligned boundary), suggesting one or more fields between
+`cstring_a` and `mob_map_list` have changed width in 1.06.
+
+Reproduction tool: `examples/debug_stage_42521.rs` uses the tracked
+read variant to dump every field's (start, end, type) up to failure.
+Run as `cargo run --release --example debug_stage_42521 -- <entry>`.
+
+Deferred resolution path:
+1. Decompile Mac stage parser sub_101873B38 around the
+   `_globalFilterCharacterList`/`_playCondition` region to identify
+   the 1.06-changed branch
+2. Cross-reference with the existing dmm-parser placeholder field
+   names (close_filter_a/b/c, list_b/c, unk_new_*) to find the
+   misaligned field
+3. Add a tail_b64 blob fallback (like blob_runtime.rs's
+   `_blob_fallback` pattern in PR #17) for entries where typed
+   parse fails mid-prefix — preserves byte-perfect roundtrip even
+   without semantic decode of the new variant
+
+The 83% partial coverage (42521/50789 entries byte-identical) is
 already a meaningful improvement over the pre-fix 0%.
