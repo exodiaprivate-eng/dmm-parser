@@ -51,51 +51,47 @@ py_binary_struct! {
     }
 }
 
+// ─── 2026-05-12 Mac-canonical rewrite ─────────────────────────────────────
+// Field structure now matches the Mac binary parser sub_101893AF0
+// (CrimsonDesert_Steam, 1.06) byte-for-byte and name-for-name. The
+// previous struct packed multiple Mac u8 fields into wider Rust
+// fields (combat_targeting_flags: u32, packed_flags_106: u8) under
+// placeholder names; total wire bytes matched but field semantics
+// did not. This rewrite unpacks every u8 into its canonical Mac name.
+//
+// Total wire bytes per record: 45 + N + 8K (identical to pre-rewrite).
+// Roundtrip on the existing 2026-5-1 fixture should be preserved
+// because the wire byte sequence is unchanged.
 py_binary_struct! {
     pub struct MercenaryInfo<'a> {
-        pub key: u8,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub default_limit_summon_count: u32,
-        pub default_limit_hire_count: u32,
-        pub max_limit_hire_count: u32,
-        pub far_from_leader_option: u8,
-        pub combat_targeting_flags: u32,
-        pub is_controllable: u8,
-        pub is_playable: u8,
-        pub set_new_mercenary_is_main: u8,
-        pub main_mercenary_per_tribe: u8,
-        pub is_force_stackable: u8,
-        pub is_sellable: u8,
-        pub use_camp_level: u8,
-        pub apply_equip_item_stat: u8,
-        pub spawn_position_type: u8,
-        pub mercenary_type: u8,
-        pub is_growable: u8,
-        pub parent_mercenary_group_info: u8,
-        // 1.06 added 6 new bytes here. Per iter 5+7 of T0 verification
-        // loop, MercenaryInfo metaobject at 0x144b072e0+ exposes 5 NEW
-        // canonical field names. Per iter 8 value-distribution analysis
-        // across all 18 records:
-        //
-        // **`shared_summon_count_tag` = 0xEAC5E173 IDENTICAL across all
-        // 18 records** → 100% confirms canonical name `_sharedSummonCountTag`
-        // ("shared" = same value across mercenaries — perfect semantic match).
-        //
-        // **`summon_owner_option` = u8 enum {0,1,2,3}** (4 distinct values
-        // across records) → 4-state enum, likely (Self, Party, Faction, World)
-        // or similar — matches canonical `_summonOwnerOption`.
-        //
-        // **`packed_flags_106` = u8 in {64..71}** (8 distinct values) — bit 6
-        // is always set, low bits 0-2 vary → likely packed booleans for
-        // `_isSelectMercenarySpawn` (bit 0?), `_unspawnOnFocusActorChanged`
-        // (bit 1?), `_isMainDischargeable` (bit 2?). Could also be a u8 enum
-        // — disambiguation needs decompile but the round-trip is correct
-        // either way.
-        pub summon_owner_option: u8,         // _summonOwnerOption (4-state enum)
-        pub packed_flags_106: u8,            // packed booleans (bit 6 always set)
-        pub shared_summon_count_tag: u32,    // _sharedSummonCountTag (constant 0xEAC5E173)
-        pub hired_skill_info_list: CArray<HiredSkillData>,
+        pub key: u8,                              // _key
+        pub string_key: CString<'a>,              // _stringKey
+        pub is_blocked: u8,                       // _isBlocked
+        pub default_limit_summon_count: u32,      // _defaultLimitSummonCount
+        pub default_limit_hire_count: u32,        // _defaultLimitHireCount
+        pub max_limit_hire_count: u32,            // _maxLimitHireCount
+        pub mercenary_type: u8,                   // _mercenaryType
+        pub far_from_leader_option: u8,           // _farFromLeaderOption
+        pub is_controllable: u8,                  // _isControllable
+        pub is_playable: u8,                      // _isPlayable
+        pub summon_after_regist: u8,              // _summonAfterRegist
+        pub main_mercenary_per_tribe: u8,         // _mainMercenaryPerTribe
+        pub is_force_stackable: u8,               // _isForceStackable
+        pub is_sellable: u8,                      // _isSellable
+        pub use_camp_level: u8,                   // _useCampLevel
+        pub apply_equip_item_stat: u8,            // _applyEquipItemStat
+        pub is_growable: u8,                      // _isGrowable
+        pub check_item_no_on_push_to_item: u8,    // _checkItemNoOnPushToItem
+        pub allow_exceed_limit_hire_count: u8,    // _allowExceedLimitHireCount
+        pub is_select_mercenary_spawn: u8,        // _isSelectMercenarySpawn
+        pub unspawn_on_focus_actor_changed: u8,   // _unspawnOnFocusActorChanged
+        pub is_main_dischargeable: u8,            // _isMainDischargeable
+        pub spawn_position_type: u8,              // _spawnPositionType
+        pub summon_owner_option: u8,              // _summonOwnerOption
+        pub parent_mercenary_group_info: u8,      // _parentMercenaryGroupInfo
+        pub shared_summon_count_tag: u32,         // _sharedSummonCountTag
+                                                  //   (constant 0xEAC5E173)
+        pub hired_skill_info_list: CArray<HiredSkillData>, // _hiredSkillInfoList
     }
 }
 
