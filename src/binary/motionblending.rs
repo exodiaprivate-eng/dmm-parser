@@ -41,30 +41,59 @@
 //!   - `u32 type_len` + UTF-8 type bytes (e.g. `staticstringA`)
 //!   - typed value bytes (depends on type)
 //!
-//! **Vocabulary (iter 11 audit across all 1574 .motionblending files):**
+//! **Vocabulary (iter 11 + iter 8 of T0 verification loop, deeper walk):**
 //!
 //! Root type: `ParameterizedMotionSpace` (every file)
 //!
-//! Type tags observed (only 2 in use):
-//!   - `staticstringA` — static string array (4722 occurrences corpus-wide)
-//!   - `bool` — boolean (4764 occurrences)
+//! **Type tags (CORRECTED from iter 11's "2 tags" to 7+):**
+//! Iter-11 audit only counted strings that match `staticstringA`/`bool`
+//! verbatim — missed most type tags. Per-field walk (iter 8) reveals:
+//!   - `staticstringA` — string array
+//!   - `bool` — boolean
+//!   - `uint32` — 32-bit unsigned int
+//!   - `uint16` — 16-bit unsigned int
+//!   - `float` — IEEE 754 f32
+//!   - `ReflectObjectPtr` — sub-object reference (used for nested
+//!     records like _dimensions, _phaseInfo, _motionExamples,
+//!     _delaunayTriangles, _delaunayPointIndexMap)
+//!   - `ParameterDimensionType` — enum-like typed field
+//!   - (more may exist in long-tail files)
 //!
-//! 15 stable named fields (each appears once per file, in this order):
-//!   1. `_skeletonFileName`
-//!   2. `_animationFileNames`
-//!   3. `_motionPhaseType`
-//!   4. `_isLoopMotionBlending`
-//!   5. `_numPhases`
-//!   6. `_animationScale`
-//!   7. `_dimensions`
-//!   8. `_thirdDimensionSplitInfo`
-//!   9. `_parameterMinMax`
-//!   10. `_keepInitialBlendWeights`
-//!   11. `_weightSmoothingMinSpeed`
-//!   12. `_weightSmoothingMaxSpeed`
-//!   13. `_phaseInfo`
-//!   14. `_motionExamples`
-//!   15. `_delaunayTriangles`
+//! **Wire format**: each field record is:
+//!   `u32 name_len + utf8 name + u32 type_tag_len + utf8 type_tag +
+//!    8 bytes value-chunk`
+//!
+//! The 8-byte value-chunk is type-specific:
+//!   - For string-array types, it's a (count, marker, ...) tuple where
+//!     the actual string contents live in the file's tail values section
+//!   - For numeric types, the actual value bytes are in the chunk
+//!     (with trailing marker padding)
+//!
+//! **Field count CORRECTED**: file has at least 18 fields (was 15 per
+//! iter 11 — three more discovered by walking past the "first 15"
+//! cluster: `_delaunayPointIndexMap` (uint16),
+//! `_dimensionType` (ParameterDimensionType), `_enableParam...`).
+//!
+//! 18+ stable named fields per file (in declaration order):
+//!   1. `_skeletonFileName`         (staticstringA)
+//!   2. `_animationFileNames`       (staticstringA)
+//!   3. `_motionPhaseType`          (staticstringA)
+//!   4. `_isLoopMotionBlending`     (bool)
+//!   5. `_isSyncMotionBlending`     (bool)
+//!   6. `_numPhases`                (uint32)
+//!   7. `_animationScale`           (float)
+//!   8. `_dimensions`               (ReflectObjectPtr)
+//!   9. `_thirdDimensionSplitInfo`  (float)
+//!   10. `_parameterMinMax`         (float)
+//!   11. `_keepInitialBlendWeights` (uint32)
+//!   12. `_weightSmoothingMinSpeed` (float)
+//!   13. `_weightSmoothingMaxSpeed` (float)
+//!   14. `_phaseInfo`               (ReflectObjectPtr)
+//!   15. `_motionExamples`          (ReflectObjectPtr)
+//!   16. `_delaunayTriangles`       (ReflectObjectPtr)
+//!   17. `_delaunayPointIndexMap`   (uint16)
+//!   18. `_dimensionType`           (ParameterDimensionType)
+//!   ... more fields possible in long-tail files
 //!
 //! This module ships the **classify + round-trip + type/field-name
 //! extraction** layer (Tier 1). Typed value decoding for the property
@@ -246,20 +275,31 @@ fn split_value_strings(
 /// Pair every `_`-prefixed name string with the following type-tag string.
 /// Returns a list of (field_name, type_tag) tuples in document order.
 ///
-/// Observed type tags (across all .motionblending samples):
-///   `staticstringA`, `staticstring`, `staticfloat`, `staticint`,
-///   `staticbool`, `bool`, `floatA`, `intA`.
+/// Observed type tags (iter 8 of T0 verification — corrected from 2 to 7+):
+///   `staticstringA`, `bool`, `uint32`, `uint16`, `float`,
+///   `ReflectObjectPtr`, `ParameterDimensionType`.
 ///
 /// Field names always start with underscore (`_skeletonFileName`,
 /// `_animationFileNames`, `_motionPhaseType`, `_isLoopMotionBlending`,
 /// `_isSyncMotionBlending`, ...).
 fn extract_field_records(strings: &[String]) -> Vec<(String, String)> {
+    // Known type tags seen in real .motionblending files. The field
+    // walker pairs every `_`-prefixed name with the immediately-following
+    // string IF it's a known type tag. (Iter 8: pre-iter-8 versions
+    // accepted ANY non-`_` string as type, which incorrectly paired
+    // some intermediate metadata strings.)
+    const KNOWN_TYPE_TAGS: &[&str] = &[
+        "staticstringA", "staticstring", "staticfloat", "staticint",
+        "staticbool", "bool", "floatA", "intA",
+        "uint32", "uint16", "uint8", "int32", "int16", "int8",
+        "float", "ReflectObjectPtr", "ParameterDimensionType",
+    ];
     let mut out = Vec::new();
     let mut i = 0;
     while i + 1 < strings.len() {
         let a = &strings[i];
         let b = &strings[i + 1];
-        if a.starts_with('_') && !b.starts_with('_') {
+        if a.starts_with('_') && KNOWN_TYPE_TAGS.contains(&b.as_str()) {
             out.push((a.clone(), b.clone()));
             i += 2;
         } else {

@@ -30,6 +30,27 @@
 //!   - `0x32` (= 50) = 6% — slider midpoint
 //!   - `0x7d`, `0x63`, `0x01`..`0x04` — other slider values + bitfield bits
 //!
+//! **B3 (iter 9 of T0 verification): slider semantic mapping**
+//! IDA evidence: the CharacterCustomizationData class (`.?AVCharacter
+//! CustomizationData@pa@@` at 0x145c41598) has 3 schema fields
+//! discovered at 0x144963fe0+:
+//!   - `_customizationFileName` (0x144963fe0)
+//!   - `_decorationParamFileName` (0x144964020)
+//!   - `_meshParamFileName` (0x144964040)
+//!
+//! The .paccd file is a **TOP-LEVEL CONTAINER** that references
+//! `.meshparam` and `.decorationparam` files where actual slider
+//! data lives. The body bytes (post 12-byte header) are likely an
+//! INDIRECTION INDEX into those referenced files — not direct slider
+//! names. So `.paccd[byte i] = 100` means "slider i in the referenced
+//! mesh/decoration param file is set to value 100".
+//!
+//! Per-byte → per-named-slider mapping needs cross-file decode of
+//! the referenced .meshparam / .decorationparam formats (which are
+//! not yet parsed by dmm-parser). This is a multi-file dependency
+//! chain. Status: **per-slider mapping NOT FEASIBLE without decoding
+//! the referenced parameter files first**. Logged as long-haul work.
+//!
 //! Size range across corpus: 298 to 3370 bytes (avg 434).
 //!
 //! Round-trip is byte-perfect via `body_b64`. Per-slider semantic

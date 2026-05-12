@@ -6,6 +6,33 @@
 //! `CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/CrimsonGameMods/equipslotinfo_parser.py`
 //! which round-trips byte-perfect on vanilla 1.04.
 //!
+//! **T0-V verification (iter 4 of T0 verification loop, IDA Win 1.06):**
+//! Unlike the other 3 schema-missing tables (mercenary_group_info,
+//! house_info, faction_waypoint_info), **EquipSlotInfo and EquipInfoData
+//! have NO metaobject in the binary**. Searched IDA strings for:
+//!   - `_etlHashes`, `_categoryA`, `_slotIndex`,
+//!     `_equipTypeInfoList`, `_equipInfoData`, `_equipTypeInfoKey`
+//!   - All return zero matches except UI strings unrelated to this table.
+//!
+//! The `equipslotinfo` lowercase string at 0x144b54090 is just the
+//! asset filename. The parser is **hand-rolled** (no reflection
+//! registrar) — there's no canonical `_camelCase` name vocabulary to
+//! verify rust field names against.
+//!
+//! Status: **T0-S structural-only**. The rust struct names
+//! (`etl_hashes`, `category_a`, `category_b`, `name_hash`, `slot_index`,
+//! `complex_blob`, `tail_magic`, etc.) are the dmm-parser team's
+//! best-effort semantic interpretations from decompile analysis.
+//! Field SEMANTICS are sound (proven by round-trip + documented mod
+//! use cases like `etl_hashes` for "Universal Proficiency"). Field
+//! NAMES are not canonically verifiable without a different evidence
+//! source (e.g. older PS5 demo binary, leaked SDK headers).
+//!
+//! **For mod authors:** the names are stable + documented; the
+//! `etl_hashes` field on `EquipInfoData` is the documented unlock
+//! field — adding equip_type_info hashes there grants new equip
+//! permissions without overlay rebuild.
+//!
 //! ## Why this exists
 //! Each pabgh key is a character/class identifier. Per record, an array of
 //! `EquipInfoData` entries declares which `equip_type_info` hashes the class

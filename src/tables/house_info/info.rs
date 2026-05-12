@@ -5,16 +5,39 @@
 //! Mac binary __cstring declaration order. Round-trip-validated against
 //! the vanilla pabgb dump from the live game install.
 //!
+//! **T0-V verification (iter 2 of T0 verification loop, IDA Win 1.06):**
+//! HouseInfo is NOT in NattKh's pabgb_complete_schema.json. IDA cross-
+//! references the rust struct against the in-binary metaobject at
+//! 0x144afbcd0+. **6/6 top-level fields verified canonical:**
+//!
+//! | rust field | canonical PA name | IDA address |
+//! |---|---|---|
+//! | `key` | `_key` | 0x144afc014 ✓ |
+//! | `string_key` | `_stringKey` | 0x144afbe1c ✓ |
+//! | `is_blocked` | `_isBlocked` | 0x144afbe5c ✓ |
+//! | `house_name` | `_houseName` | 0x144afbe9c ✓ |
+//! | `unlock_condition_info` | `_unlockConditionInfo` | 0x144afbedc ✓ |
+//! | `house_region_data_list` | `_houseRegionDataList` | 0x144afbcdc ✓ |
+//!
+//! Renamed nested `HouseRegionPhase` → `HouseRegionData` (canonical
+//! class name from IDA at 0x144afbf20+; "Phase" was a mechanical guess).
+//! The 3 nested-struct fields (`phase_id`, `region_hash`, `texture_path`)
+//! are not directly readable from the metaobject (pointer-table format);
+//! their canonical names need decompile of the parser's nested-record
+//! reader. Field semantics (positional decode) verified by the existing
+//! roundtrip test against 4 vanilla entries.
+//!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
 use crate::binary::*;
 use crate::py_binary_struct;
 
-// Hand-corrected: sub_141112CE0 is CArray<{u16 + u32 + CString}>, not CArray<u16>
-// as the auto-classifier guessed. Verified by decoding 4 vanilla entries against
-// the pabgh-given entry sizes.
+// Renamed iter 2 of T0 verification loop: canonical class name is
+// `HouseRegionData` (verified in IDA at 0x144afbf20+). Old name
+// `HouseRegionPhase` was a mechanical guess from `_houseRegionDataList`
+// container field name.
 py_binary_struct! {
-    pub struct HouseRegionPhase<'a> {
+    pub struct HouseRegionData<'a> {
         pub phase_id: u16,
         pub region_hash: u32,
         pub texture_path: CString<'a>,
@@ -28,7 +51,7 @@ py_binary_struct! {
         pub is_blocked: u8,
         pub house_name: LocalizableString<'a>,
         pub unlock_condition_info: u32,
-        pub house_region_data_list: CArray<HouseRegionPhase<'a>>,
+        pub house_region_data_list: CArray<HouseRegionData<'a>>,
     }
 }
 

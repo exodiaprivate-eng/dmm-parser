@@ -10,6 +10,30 @@
 //!      - u32 to_node_info    (FactionNodeKey lookup, wire 4)
 //!      - CArray<[u8;12]> way_point_list  (CArray of vec3s via
 //!        sub_1013AC340 → sub_1006B48A8 12-byte element reader)
+//!
+//! **T0-V verification (iter 3 of T0 verification loop, IDA Win 1.06):**
+//! FactionWayPointInfo is NOT in NattKh's pabgb_complete_schema.json.
+//! IDA cross-references against the in-binary metaobject at
+//! 0x144af0d80+. **7/7 fields verified canonical** (full match):
+//!
+//! Top-level `FactionWaypointInfo` (canonical: `FactionWayPointInfo`):
+//! | rust field | canonical PA name | IDA address |
+//! |---|---|---|
+//! | `key` | `_key` | 0x144af0fc6 ✓ |
+//! | `string_key` | `_stringKey` | 0x144af0d96 ✓ |
+//! | `is_blocked` | `_isBlocked` | 0x144af0de6 ✓ |
+//! | `way_point_data` | `_wayPointData` | 0x144af0e36 ✓ |
+//!
+//! Nested `FactionWayPointData`:
+//! | rust field | canonical PA name | IDA address |
+//! |---|---|---|
+//! | `from_node_info` | `_fromNodeInfo` | 0x144af0ed6 ✓ |
+//! | `to_node_info` | `_toNodeInfo` | 0x144af0f26 ✓ |
+//! | `way_point_list` | `_wayPointList` | 0x144af0f76 ✓ |
+//!
+//! Note: rust uses `Waypoint` (one word) in struct names; canonical PA
+//! uses `WayPoint` (two words / camelCase). Functionally identical.
+//! Status: **T0-V FULL** — all fields verified canonical.
 
 use crate::binary::*;
 use crate::py_binary_struct;

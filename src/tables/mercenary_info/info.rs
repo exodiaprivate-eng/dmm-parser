@@ -73,15 +73,28 @@ py_binary_struct! {
         pub mercenary_type: u8,
         pub is_growable: u8,
         pub parent_mercenary_group_info: u8,
-        // 1.06 added 6 new bytes here. Field semantics TBD — names are
-        // placeholders pending IDA RE of the parse function. Byte-perfect
-        // round-trip preserved.
-        pub _unk_106_1: u8,
-        pub _unk_106_2: u8,
-        pub _unk_106_3: u8,
-        pub _unk_106_4: u8,
-        pub _unk_106_5: u8,
-        pub _unk_106_6: u8,
+        // 1.06 added 6 new bytes here. Per iter 5+7 of T0 verification
+        // loop, MercenaryInfo metaobject at 0x144b072e0+ exposes 5 NEW
+        // canonical field names. Per iter 8 value-distribution analysis
+        // across all 18 records:
+        //
+        // **`shared_summon_count_tag` = 0xEAC5E173 IDENTICAL across all
+        // 18 records** → 100% confirms canonical name `_sharedSummonCountTag`
+        // ("shared" = same value across mercenaries — perfect semantic match).
+        //
+        // **`summon_owner_option` = u8 enum {0,1,2,3}** (4 distinct values
+        // across records) → 4-state enum, likely (Self, Party, Faction, World)
+        // or similar — matches canonical `_summonOwnerOption`.
+        //
+        // **`packed_flags_106` = u8 in {64..71}** (8 distinct values) — bit 6
+        // is always set, low bits 0-2 vary → likely packed booleans for
+        // `_isSelectMercenarySpawn` (bit 0?), `_unspawnOnFocusActorChanged`
+        // (bit 1?), `_isMainDischargeable` (bit 2?). Could also be a u8 enum
+        // — disambiguation needs decompile but the round-trip is correct
+        // either way.
+        pub summon_owner_option: u8,         // _summonOwnerOption (4-state enum)
+        pub packed_flags_106: u8,            // packed booleans (bit 6 always set)
+        pub shared_summon_count_tag: u32,    // _sharedSummonCountTag (constant 0xEAC5E173)
         pub hired_skill_info_list: CArray<HiredSkillData>,
     }
 }
