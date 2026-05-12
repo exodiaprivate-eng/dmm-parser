@@ -278,11 +278,12 @@ where
                 out.push(Value::Object(dict));
             }
             Ok(dict) => {
-                // Typed prefix didn't consume all bytes — already handled
-                // by pabgh_typed_blob_table! tail mechanism. Accept it.
                 out.push(Value::Object(dict));
             }
             Err(_err) => {
+                if out.len() < 3 {
+                    eprintln!("BLOB_FALLBACK k=0x{:x} size={}: {}", k, e - s, _err);
+                }
                 // Typed parse failed for this entry — fall back to blob.
                 // Parse key + string_key + is_blocked + blob from raw bytes.
                 let entry = &data[s..e];

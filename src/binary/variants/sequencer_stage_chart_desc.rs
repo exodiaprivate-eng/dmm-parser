@@ -768,6 +768,25 @@ impl<'a> BinaryRead<'a> for SequencerStageChartDescPartial<'a> {
     }
 }
 
+impl<'a> BinaryReadTracked<'a> for SequencerStageChartDescPartial<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let item = Self::read_from(data, offset)?;
+        ranges.push(FieldRange {
+            path: path.clone(),
+            start,
+            end: *offset,
+            ty: "SequencerStageChartDescPartial",
+        });
+        Ok(item)
+    }
+}
+
 impl<'a> BinaryWrite for SequencerStageChartDescPartial<'a> {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         Self::write_to(self, w)
