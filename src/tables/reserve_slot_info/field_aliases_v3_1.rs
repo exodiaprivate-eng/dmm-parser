@@ -24,6 +24,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("using_type", "_usingType"),
     ("enable_tribe_list", "_enableTribeList"),
     ("enable_vehicle_list", "_enableVehicleList"),
+    ("enable_mercenary_list", "_enableMercenaryList"),
     // 1.06 REMOVED: enable_special_name_hash_list (per NattKh CGM 1.1.9
     // release notes + verified parse-fail on 1.06 install)
     ("target_item_group_list", "_targetItemGroupList"),

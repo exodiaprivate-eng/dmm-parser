@@ -6,37 +6,44 @@
 //! at qword_145F0DAxx / qword_145F0E9C0 / qword_145F0DA40 / qword_145F0DA20.
 //! Raw wire u16/u32 round-trip directly.
 //!
-//! Wire reads, in order (canonical names from Mac Korean error strings —
-//! 1.3.5 audit re-mapped placeholder field names like `raw_24`, `lookup_36`,
-//! `u8_64`, `list_72` to canonical `_timeLimit`, `_autoUseItemInfo`,
-//! `_reserveSlotType`, `_enableTribeList`, etc.):
+//! Wire reads, in order. Canonical names verified against the Mac
+//! binary's pa::ReserveSlotInfo parser (`sub_101889F14` in
+//! `CrimsonDesert_Steam`) via the Korean error strings at
+//! 0x1073b0ee4..0x1073b139d. Wire-type widths confirmed by
+//! decompiling each CArray reader (see notes below):
 //!   1. u32 key                                  (_key)
 //!   2. CString string_key                       (_stringKey)
 //!   3. u8 is_blocked                            (_isBlocked)
 //!   4. u64 time_limit                           (_timeLimit)
 //!   5. u32 cool_time                            (_coolTime)
-//!   6. u32 auto_use_item_info                   (_autoUseItemInfo,
-//!      sub_1410FF5C0 → qword_145F0DA00)
-//!   7. u32 convert_item_info                    (_convertItemInfo,
-//!      sub_1410FF5C0 → qword_145F0DA00)
+//!   6. u32 auto_use_item_info                   (_autoUseItemInfo)
+//!   7. u32 convert_item_info                    (_convertItemInfo)
 //!   8. CArray<ReserveSlotPairA> fill_data_list  (_fillDataList,
-//!      element: u32 lookup sub_1410FF430 + u64)
+//!      element: u32 lookup + u64)
 //!   9. CString memo                             (_memo)
 //!  10. u8 reserve_slot_type                     (_reserveSlotType)
 //!  11. u8 using_type                            (_usingType)
-//!  12. CArray<u32> enable_tribe_list            (_enableTribeList,
-//!      sub_1410FF9A0 → qword_145F0DA50)
+//!  12. CArray<u16> enable_tribe_list            (_enableTribeList,
+//!      Mac reader sub_1018BB0A4: wire u16 hash. Pre-2026-05-12
+//!      dmm-parser had this as CArray<u32>, doubling the per-record
+//!      drift for any record with tribe_count > 0 — the root cause
+//!      of the "1.06 first record OK, later records fail at random
+//!      offsets" symptom NattKh saw before their v1.1.9 fix.)
 //!  13. CArray<u16> enable_vehicle_list          (_enableVehicleList,
-//!      sub_1411075A0 → qword_145F0DA40)
+//!      Mac reader sub_10104DC90: wire u16 hash)
+//!  14. CArray<u8>  enable_mercenary_list        (_enableMercenaryList,
+//!      Mac reader sub_10117EDF4: wire u8 — pre-2026-05-12 dmm-parser
+//!      was MISSING this field entirely, even though Mac canonical
+//!      has it. Restoring it brings dmm-parser to Mac parity.)
 //!  -- 1.06 REMOVED: enable_special_name_hash_list (_enableSpecialNameHashList).
 //!     Per NattKh CrimsonGameMods v1.1.9 release notes "deleted field
-//!     in reserveslot due to game update". Verified: pre-removal struct
-//!     fails 1.06 parse with "offset 0x8c: not enough data".
-//!  14. CArray<u16> target_item_group_list       (_targetItemGroupList,
-//!      sub_1411022B0 → qword_145F0DA20)
-//!  15. u32 send_gimmick_event_key_for_slot_data_changed
+//!     in reserveslot due to game update". Mac binary still has it at
+//!     mem offset 120 (reader sub_1018BB2FC) but the Win 1.06 build
+//!     dropped the read site.
+//!  15. CArray<u16> target_item_group_list       (_targetItemGroupList)
+//!  16. u32 send_gimmick_event_key_for_slot_data_changed
 //!      (_sendGimmickEventKeyForSlotDataChanged)
-//!  16. u8 is_self_player_only                   (_isSelfPlayerOnly)
+//!  17. u8 is_self_player_only                   (_isSelfPlayerOnly)
 
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -46,7 +53,7 @@
 // Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
 // (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
 //
-// Total canonical fields:  17
+// Total canonical fields:  18 (Mac binary) / 17 (Win 1.06 after _enableSpecialNameHashList removal)
 // Decoded by dmm-parser:   17
 // Missing in this struct:  0
 //
@@ -101,26 +108,37 @@ py_binary_struct! {
         pub memo: CString<'a>,
         pub reserve_slot_type: u8,
         pub using_type: u8,
-        pub enable_tribe_list: CArray<u32>,
+        // FIX 2026-05-12: was CArray<u32>, but Mac reader sub_1018BB0A4
+        // shows wire u16 per element (same shape as enable_vehicle_list).
+        // The old u32 read drifted 2 bytes per tribe — the root cause of
+        // the "1.06 first record OK, later records fail" symptom.
+        pub enable_tribe_list: CArray<u16>,
         pub enable_vehicle_list: CArray<u16>,
+        // NEW 2026-05-12: restored field that dmm-parser was always
+        // missing. Mac canonical position #14 at mem offset 104,
+        // reader sub_10117EDF4 (wire u8 per element — mercenary index).
+        pub enable_mercenary_list: CArray<u8>,
         // 1.06 PA REMOVED `enable_special_name_hash_list` here.
-        // Confirmed by NattKh CrimsonGameMods v1.1.9 release notes
-        // and verified in-place: pre-removal struct fails parse on
-        // 1.06 with "offset 0x8c: not enough data" because the
-        // record is shorter than expected.
+        // Mac canonical position #15 at mem offset 120 (reader
+        // sub_1018BB2FC). Win 1.06 drops the read site per NattKh
+        // CrimsonGameMods v1.1.9 release notes.
         pub target_item_group_list: CArray<u16>,
         pub send_gimmick_event_key_for_slot_data_changed: u32,
         pub is_self_player_only: u8,
     }
 }
 
-// 1.06 NOTE: removing `enable_special_name_hash_list` (per NattKh CGM
-// 1.1.9) makes the FIRST record parse but later records still fail at
-// random offsets — record SIZES vary across the corpus in ways the
-// pre-1.06 struct can't account for. There may be additional 1.06
-// schema changes beyond just the one field removal. Full RE needs
-// decompile of `sub_1410F6600` (the updated parse function) to map
-// the exact wire layout. Documented as IDA-blocker for follow-up.
+// 2026-05-12 follow-up: the partial fix shipped in commit 2df98d2
+// removed enable_special_name_hash_list (correct per NattKh CGM 1.1.9
+// notes) but left two latent bugs that caused "first record OK, later
+// records fail at offset 0x79c" on 1.06:
+//   (a) enable_tribe_list was CArray<u32> (4 bytes/elem) but the Mac
+//       reader sub_1018BB0A4 confirms wire u16 (2 bytes/elem). Each
+//       record with tribe_count > 0 drifted 2*tribe_count bytes.
+//   (b) enable_mercenary_list (Mac mem offset 104, reader sub_10117EDF4,
+//       wire u8) was missing from the struct entirely.
+// Both fixed in this commit by IDA decompile of the Mac binary
+// reserveslot parser sub_101889F14.
 
 #[cfg(test)]
 mod tests {
