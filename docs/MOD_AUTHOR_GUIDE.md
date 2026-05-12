@@ -1012,8 +1012,76 @@ is exposed as `dmm_parser.parse_<format>_bytes(data) -> dict`.
 **What's not done yet (queued for future iters):**
 - Typed value decode for `.motionblending` records (`staticstringA` array
   body layout, `bool` payload — needs IDA RE)
-- Per-slider semantic mapping for `.paccd` (which byte = which slider)
+- Per-slider semantic mapping for `.paccd` (which byte = which slider).
+  Iter 9 finding: `.paccd` is a TOP-LEVEL CONTAINER referencing
+  `.meshparam`/`.decorationparam` files — the slider data lives in those
+  referenced files, not directly in .paccd
 - Havok class-registry decode for `.hkx` (the `hkClass` family lives
   inside `CrimsonDesert.exe`)
 - Partial-compression-with-size-differential format used by ~17 .pam
   and ~6 .pac files (also IDA RE blocker)
+
+## §14: Long-tail format vocabularies (iter 10-13 of T0 verification loop)
+
+For mod authors targeting AI behavior, projectile combat, quest
+gauges, etc., here are the named record subclasses + field
+vocabularies discovered via IDA. **Per-byte field offsets still
+need decompile** but the vocabulary lets mod tools identify which
+records to address.
+
+### `.paproj` — projectile data
+Polymorphic — 8 record subclasses, each with Client/Common/Server
+triplet variants:
+- `CommonProjectile` (base type)
+- `CommonProjectile_Repeat` (repeating shot pattern)
+- `CommonProjectile_AnimatedSpline` (curved path)
+- `CommonProjectile_Wave` (wave pattern)
+- `CommonProjectile_RagdollCollision` (physics collision)
+- `CommonProjectile_AttachToActor` (sticks to target)
+- `CommonProjectile_Laser` (continuous beam)
+- `CommonProjectileBuffProcessor` (buff application)
+
+11 mod-actionable fields per record:
+| Field | Mod use case |
+|---|---|
+| `_projectileShotCount` | bullets/arrows per shot |
+| `_projectileShotSpread` | cone angle |
+| `_projectileShotInterval` | time between shots |
+| `_projectileHitRate` | accuracy |
+| `_projectileHeightOffset` | vertical aim |
+| `_projectileCreateDelayTime` | initial delay |
+| `_projectileChasePhysicsMaterialHash` | homing target type |
+| `_projectileKey` / `_projectileShotKey` | identity refs |
+| `_projectileKeyColor` | visual tint |
+| `_projectileInfoPackage` | parent package |
+
+### `.pai` — AI behavior chart
+Polymorphic — 20+ AIActionChart subclasses for NPC AI:
+- Schedule family: `_NPCScheduleAction`, `_NPCScheduleIngEndAction`,
+  `_NPCScheduleWaitAction`, `_NPCScheduleExtraAction`
+- Patrol family: `_PatrolPointAction`, `_PatrolPointEndAction`
+- Sequencer family: `_SequencerAction`, `_SequencerEndInputAction`
+- StageEnd family: `_StageEndBehaviorAction`,
+  `_StageEndBehaviorEndAction`, `_StageEndBehaviorDelayIdleAction`
+- Movement: `_SplinePathMoveAction`, `_PitchJumpAction`
+- Spawn: `_AISpawnAction`, `_CatchSpawnAction`
+- Misc: `_Normal`, `_DefaultAction`, `_Event`, `_ActionPoint`,
+  `_Custom`
+
+For mod authors: each subclass governs a specific AI behavior. To
+"make NPC X patrol differently", target their AIActionChart_Patrol*
+records.
+
+### `.questgaugecount` — quest gauge counters
+Class hierarchy: `QuestGaugeCountData` (parent, with `_stageList`
+field) → nested `QuestGaugeCountData_Stage` (child, with `_stageType`
+field). 382 quest gauge records, each with nested stages separated
+by `0xFFFFFFFF` markers.
+
+### `.pashv` / `.paseqh` / `.paschedulectx`
+Binary formats with named-prefix sections. See per-format docstrings
+in `src/binary/` modules.
+
+### `.pathc`
+Runtime texture lookup cache, NOT mod-relevant. Texture mods use
+`.dds` replacement; the engine rebuilds `.pathc` at load time.

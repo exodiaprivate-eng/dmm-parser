@@ -358,3 +358,82 @@ parse the unparsed-Havok-layer extensions for mod tool authors.
 - `.paccd` per-slider semantic mapping
 - `.hkx` Havok class registry / object-graph decode
 - `.questgaugecount`, `.pathc`, `.paproj`, `.pai` per-record decode
+
+---
+
+## T0 Verification + Long-tail Game Breakdown Loop (2026-05-11, iter 1-13)
+
+**Trigger:** "Now I want you to continue breaking down the game and
+documenting all your findings for mod authors and tool authors."
++ "get those 4 [schema-missing T0] tables parsed anyways please."
+
+### Phase A — 4 schema-missing T0 tables verified
+| Table | Status | Verified |
+|---|---|---|
+| `faction_waypoint_info` | **T0-V FULL** | 7/7 fields (4 top-level + 3 nested) |
+| `house_info` | **T0-V FULL top-level** | 6/6 top-level + nested rename `HouseRegionPhase` → `HouseRegionData` (canonical class name from IDA) |
+| `mercenary_group_info` | **T0-V FULL** (after iter 6 retroactive) | 4/4 named CArrays incl. rename `mercenary_key_list` → `allow_operation_type_list` (canonical `_allowOperationTypeList`) |
+| `equip_slot_info` | **T0-S structural** | No metaobject in binary (hand-rolled parser) — names not canonically verifiable |
+
+Catalog impact: T0-V graduates from 109 → 112 (3 of the 4 tables
+graduated; equip_slot_info remains T0-S). All 4 tables already
+parsed + round-tripped before — verification was about NAMING
+accuracy.
+
+### Phase B — Continued game breakdown
+- **`mercenaryinfo`** `_unk_106_*` placeholder fields decoded into
+  3 named, typed fields via value-distribution analysis across all
+  18 records: `summon_owner_option: u8` (4-state enum),
+  `packed_flags_106: u8` (3 packed booleans), `shared_summon_count_tag:
+  u32` (constant 0xEAC5E173 across all records → 100% confirmed
+  canonical `_sharedSummonCountTag`)
+- **`.motionblending`** schema vocabulary CORRECTED: iter-11 audit
+  said "2 type tags"; reality is **7+ type tags** (`staticstringA`,
+  `bool`, `uint32`, `uint16`, `float`, `ReflectObjectPtr`,
+  `ParameterDimensionType`). Field count corrected 15 → 18+. Wire
+  format clarified: each field has an 8-byte value chunk
+- **`.paccd`** found to be a TOP-LEVEL CONTAINER referencing
+  `.meshparam` + `.decorationparam` files (per-slider mapping
+  requires decoding those referenced formats first)
+- **`.questgaugecount`** class hierarchy: `QuestGaugeCountData` →
+  nested `QuestGaugeCountData_Stage` (with `_stageList` + `_stageType`
+  fields)
+- **`.paproj`** **8 polymorphic CommonProjectile subclasses** +
+  11 named mod-actionable fields (`_projectileShotCount`,
+  `_projectileShotSpread`, `_projectileHitRate`, etc.)
+- **`.pai`** **20+ AIActionChart subclasses** for AI behavior
+  modding (Schedule/Patrol/Sequencer/StageEnd/Movement/Spawn families)
+- **`.pathc`** confirmed runtime cache (NOT mod-relevant)
+
+### Documentation
+- `docs/_T0_VERIFICATION_WORKPLAN.md` — full per-iter log
+- `docs/V3_1_T0_VERIFICATION_PHASE_A_SUMMARY.md` — phase-A summary
+- `docs/V3_1_T0_VERIFICATION_4_MISSING.md` — per-table IDA findings
+- `docs/MOD_AUTHOR_GUIDE.md` §14 — long-tail vocabulary for mod authors
+- `docs/BINARY_FORMATS.md` — every long-tail entry refreshed with
+  IDA-discovered subclass + field name vocabulary
+- Per-table module docstrings updated with verification tables
+
+### Tests
+- 635 → 635 (no functional changes — all work was metadata/docs +
+  field renames that the round-trip layer normalizes)
+- 0 build failures, 0 test regressions across all 13 iters
+
+### Methodology
+- **IDA MCP** (live Win 1.06 binary at `C:\Program Files (x86)\Steam\
+  steamapps\common\Crimson Desert\bin64\CrimsonDesert.exe`) used
+  throughout for canonical name extraction via metaobject probing
+  + class registry walk
+- **Value-distribution analysis** across full corpus replaced
+  guess-based field interpretations (caught 2 wrong-field-name bugs
+  in mercenaryinfo and pamlod from earlier 1-sample ships)
+- **Per-iter mod-author docs** ensured every iter's findings
+  immediately accessible to downstream tooling
+
+### What's still IDA-blocked (multi-iter long-haul)
+- Per-byte field-offset mapping for `.paproj` subclasses,
+  `.pai` AIActionChart variants, `.questgaugecount`, `.paseqh`
+- `.motionblending` per-tag value byte layout
+- `.paccd` slider mapping (also needs `.meshparam`/`.decorationparam`
+  parsers as prerequisites)
+- Havok class registry for `.hkx` object-graph decode
