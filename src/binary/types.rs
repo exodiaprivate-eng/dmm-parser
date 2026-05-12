@@ -157,7 +157,7 @@ impl<'a, T: BinaryRead<'a>> BinaryRead<'a> for CArray<T> {
         // prefix). Without this check, `Vec::with_capacity(huge)` can
         // attempt a multi-GB allocation before the actual read fails.
         let remaining = data.len().saturating_sub(*offset);
-        if count > remaining {
+        if count > remaining || count > 10_000 {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!(
                     "CArray count {} exceeds remaining bytes {} at offset {}",
@@ -203,7 +203,7 @@ impl<'a, T: BinaryReadTracked<'a>> BinaryReadTracked<'a> for CArray<T> {
 
         // Same sanity clamp as `BinaryRead` impl — see notes there.
         let remaining = data.len().saturating_sub(*offset);
-        if count > remaining {
+        if count > remaining || count > 10_000 {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!(
                     "CArray count {} exceeds remaining bytes {} at offset {}",

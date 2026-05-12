@@ -115,6 +115,7 @@
 // ✅ _key (direct_u32, stream=4)
 
 use crate::binary::*;
+use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -403,7 +404,7 @@ py_binary_struct! {
     }
 }
 
-py_binary_struct! {
+pabgh_typed_blob_table! {
     pub struct FactionNodeInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
@@ -434,25 +435,12 @@ py_binary_struct! {
         pub flag_after_slots: u8,
         pub de690_data: FactionNodeDE690,
         pub raw_after_de690: u32,
-        pub final_list_u32: CArray<u32>,    // sub_141100510 wire u32
-        pub final_list_u16: CArray<u16>,    // sub_1410FFAC0 wire u16
-        pub final_lookup: u32,              // sub_141103770 wire u32
+        pub final_list_u32: CArray<u32>,
+        pub final_list_u16: CArray<u16>,
+        pub final_lookup: u32,
+        pub religion_max_block_day: u32,
     }
-}
-
-impl<'a> FactionNodeInfo<'a> {
-    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
-        let start = *offset;
-        let item = Self::read_from(data, offset)?;
-        let consumed = *offset - start;
-        if consumed != entry_size {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("FactionNodeInfo: consumed {} bytes, expected {}", consumed, entry_size),
-            ));
-        }
-        Ok(item)
-    }
+    tail: tail_blob;
 }
 
 #[cfg(test)]
