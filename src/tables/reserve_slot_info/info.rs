@@ -28,14 +28,15 @@
 //!      sub_1410FF9A0 → qword_145F0DA50)
 //!  13. CArray<u16> enable_vehicle_list          (_enableVehicleList,
 //!      sub_1411075A0 → qword_145F0DA40)
-//!  14. CArray<ReserveSlotPairB> enable_special_name_hash_list
-//!      (_enableSpecialNameHashList, element: u32 read_u32_lookup_DA30 +
-//!      u32 sub_1410FF430)
-//!  15. CArray<u16> target_item_group_list       (_targetItemGroupList,
+//!  -- 1.06 REMOVED: enable_special_name_hash_list (_enableSpecialNameHashList).
+//!     Per NattKh CrimsonGameMods v1.1.9 release notes "deleted field
+//!     in reserveslot due to game update". Verified: pre-removal struct
+//!     fails 1.06 parse with "offset 0x8c: not enough data".
+//!  14. CArray<u16> target_item_group_list       (_targetItemGroupList,
 //!      sub_1411022B0 → qword_145F0DA20)
-//!  16. u32 send_gimmick_event_key_for_slot_data_changed
+//!  15. u32 send_gimmick_event_key_for_slot_data_changed
 //!      (_sendGimmickEventKeyForSlotDataChanged)
-//!  17. u8 is_self_player_only                   (_isSelfPlayerOnly)
+//!  16. u8 is_self_player_only                   (_isSelfPlayerOnly)
 
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -102,12 +103,24 @@ py_binary_struct! {
         pub using_type: u8,
         pub enable_tribe_list: CArray<u32>,
         pub enable_vehicle_list: CArray<u16>,
-        pub enable_special_name_hash_list: CArray<ReserveSlotPairB>,
+        // 1.06 PA REMOVED `enable_special_name_hash_list` here.
+        // Confirmed by NattKh CrimsonGameMods v1.1.9 release notes
+        // and verified in-place: pre-removal struct fails parse on
+        // 1.06 with "offset 0x8c: not enough data" because the
+        // record is shorter than expected.
         pub target_item_group_list: CArray<u16>,
         pub send_gimmick_event_key_for_slot_data_changed: u32,
         pub is_self_player_only: u8,
     }
 }
+
+// 1.06 NOTE: removing `enable_special_name_hash_list` (per NattKh CGM
+// 1.1.9) makes the FIRST record parse but later records still fail at
+// random offsets — record SIZES vary across the corpus in ways the
+// pre-1.06 struct can't account for. There may be additional 1.06
+// schema changes beyond just the one field removal. Full RE needs
+// decompile of `sub_1410F6600` (the updated parse function) to map
+// the exact wire layout. Documented as IDA-blocker for follow-up.
 
 #[cfg(test)]
 mod tests {
