@@ -1,0 +1,226 @@
+{
+  "characterinfo_bridge": {
+    "appearance_name": {
+      "source": "Player_PHW",
+      "value": 1767116530
+    },
+    "character_prefab_path": {
+      "source": "Player_PHW_Lower",
+      "value": 3755051597
+    },
+    "flag_c": {
+      "source": "u8 gender enum: 2 = Damiane/PHW",
+      "value": 2
+    },
+    "lookup_24": {
+      "source": "character/model/1_pc/2_phw/phw_01.pab",
+      "value": 2831867940
+    },
+    "lookup_25": {
+      "source": "character/binary/skeletonvariation/1_pc/2_phw/nude/cd_phw_00_nude_00_0001.pabc",
+      "value": 3511542393
+    }
+  },
+  "characterinfo_equip_all_kliff": {
+    "appearance_name": {
+      "source": "Player_PHW",
+      "value": 1767116530
+    },
+    "skeleton_name": {
+      "source": "phm_description_player_001",
+      "value": 524737691
+    }
+  },
+  "equipslotinfo_etl_hashes": {
+    "in_vanilla_pool": 46,
+    "resolved_to_equiptypeinfo": [
+      {
+        "hash": 31650711,
+        "string_key": "OneHandPistol"
+      },
+      {
+        "hash": 170560488,
+        "string_key": "ToolPickaxe"
+      },
+      {
+        "hash": 190908618,
+        "string_key": "OneHandCannon"
+      },
+      {
+        "hash": 249090674,
+        "string_key": "OneHandBow"
+      },
+      {
+        "hash": 257028056,
+        "string_key": "OneHandShield"
+      },
+      {
+        "hash": 340886121,
+        "string_key": "TwoHandGiantAxe"
+      },
+      {
+        "hash": 376426957,
+        "string_key": "HiddenEquip"
+      },
+      {
+        "hash": 517658843,
+        "string_key": "OneHandShieldRight"
+      },
+      {
+        "hash": 585399773,
+        "string_key": "TwoHandAxe"
+      },
+      {
+        "hash": 604374103,
+        "string_key": "TwoHandHammer"
+      },
+      {
+        "hash": 643712710,
+        "string_key": "TwoHandGiantSword"
+      },
+      {
+        "hash": 651520136,
+        "string_key": "TwoHandLightningthrower"
+      },
+      {
+        "hash": 675830862,
+        "string_key": "OneHandDrill"
+      },
+      {
+        "hash": 813798501,
+        "string_key": "ToolAxe"
+      },
+      {
+        "hash": 859321886,
+        "string_key": "OneHandFist"
+      },
+      {
+        "hash": 961643275,
+        "string_key": "TwoHandGiantHammer"
+      },
+      {
+        "hash": 975012496,
+        "string_key": "TwoHandCannon"
+      },
+      {
+        "hash": 1086980073,
+        "string_key": "TwoHandSword"
+      },
+      {
+        "hash": 1187101662,
+        "string_key": "OneHandRapier"
+      },
+      {
+        "hash": 1205223146,
+        "string_key": "SprayBag"
+      },
+      {
+        "hash": 1334259611,
+        "string_key": "OneHandTowerShield"
+      },
+      {
+        "hash": 1584411264,
+        "string_key": "OneHandSword"
+      },
+      {
+        "hash": 1635274900,
+        "string_key": "ToolSythe"
+      },
+      {
+        "hash": 1681771634,
+        "string_key": "ToolHayfork"
+      },
+      {
+        "hash": 1777690142,
+        "string_key": "ToolShovel"
+      },
+      {
+        "hash": 1791130738,
+        "string_key": "TwoHandIcethrower"
+      },
+      {
+        "hash": 1833778307,
+        "string_key": "BackPack"
+      },
+      {
+        "hash": 1976335566,
+        "string_key": "ToolFishingRod"
+      },
+      {
+        "hash": 2181227359,
+        "string_key": "ToolHammer"
+      },
+      {
+        "hash": 2276022818,
+        "string_key": "OneHandMusket"
+      },
+      {
+        "hash": 2327795645,
+        "string_key": "OneHandMace"
+      },
+      {
+        "hash": 2352579380,
+        "string_key": "ToolRake"
+      },
+      {
+        "hash": 2546137832,
+        "string_key": "Lantern"
+      },
+      {
+        "hash": 2548532496,
+        "string_key": "OneHandFan"
+      },
+      {
+        "hash": 2553574904,
+        "string_key": "Bracelet"
+      },
+      {
+        "hash": 2594511993,
+        "string_key": "OneHandAxe"
+      },
+      {
+        "hash": 2914941932,
+        "string_key": "TwoHandSpear"
+      },
+      {
+        "hash": 3150053877,
+        "string_key": "TwoHandWarHammer"
+      },
+      {
+        "hash": 3157212969,
+        "string_key": "TwoHandGiantSpear"
+      },
+      {
+        "hash": 3456689820,
+        "string_key": "TwoHandHalberd"
+      },
+      {
+        "hash": 3832527036,
+        "string_key": "TwoHandFlamethrower"
+      },
+      {
+        "hash": 3885299186,
+        "string_key": "TwoHandPike"
+      },
+      {
+        "hash": 3956795411,
+        "string_key": "OneHandShotgun"
+      },
+      {
+        "hash": 4070810504,
+        "string_key": "OneHandSaw"
+      },
+      {
+        "hash": 4170098215,
+        "string_key": "ToolHoe"
+      },
+      {
+        "hash": 4214303271,
+        "string_key": "ToolBroom"
+      }
+    ],
+    "resolved_to_iteminfo_equipable_hash": [],
+    "total_unique": 46,
+    "unmatched_in_vanilla": []
+  }
+}
