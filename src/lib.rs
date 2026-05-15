@@ -81,8 +81,9 @@ mod tests {
         first_existing(
             "DMM_PARSER_PAPGT_PATH",
             &[
-                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.papgt",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert\meta\0.papgt",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\meta\0.papgt",
+                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.papgt",
             ],
         )
     }
@@ -91,9 +92,11 @@ mod tests {
         first_existing(
             "DMM_PARSER_PAMT_PATH",
             &[
-                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.pamt",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert\meta\0.pamt",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert\0020\0.pamt",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\meta\0.pamt",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\0020\0.pamt",
+                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.pamt",
             ],
         )
     }
@@ -102,8 +105,11 @@ mod tests {
         first_existing(
             "DMM_PARSER_GAME_DIR",
             &[
-                "/mnt/f/Program/Steam/steamapps/common/Crimson Desert",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert",
+                r"D:\Steam\steamapps\common\Crimson Desert",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert",
+                r"C:\SteamLibrary\steamapps\common\Crimson Desert",
+                "/mnt/f/Program/Steam/steamapps/common/Crimson Desert",
             ],
         )
     }
