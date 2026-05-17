@@ -29,4 +29,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("appearance_name", "_appearanceName"),
     ("character_prefab_path", "_characterPrefabPath"),
     ("skeleton_name", "_skeletonName"),
+    ("lookup_24", "_lookup24"),
+    ("lookup_25", "_lookup25"),
+    ("flag_c", "_flagC"),
 ];
