@@ -1,6 +1,48 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410FCD20` in CrimsonDesert.exe (Win build).
+//! Reader (verified 2026-05-19 against CrimsonDesert.exe md5 3d614280…):
+//! `sub_1410DF2F0` — the StoreInfo deserializer. `a1` = byte-stream
+//! reader object (vtable+8 = read-N-bytes), `a2` = StoreInfo struct.
+//! Each field is read individually into a fixed struct offset; the
+//! per-field error string (`unk_144B27XXX`) is that field's name.
+//! (The previously-cited `sub_1410FCD20` was stale — it falls inside
+//! `sub_1410FCC20`, an unrelated GamePlayVariableInfo lookup, in this
+//! build.)
+//!
+//! Full IDA field map (wire-width / mem-offset → Rust field):
+//!   a2+0   u16          key
+//!   a2+8   CString      string_key                (sub_14108B300)
+//!   a2+16  u8           is_blocked
+//!   a2+18  u32 wire     exchange_item_info_for_buy (sub_1410E1B70:
+//!          reads 4 wire bytes, remaps via lookup → u16 in RAM)
+//!   a2+24  CArray<u32>  exchange_item_info_list_for_sell
+//!          (sub_1410E24C0: u32 count + u32 elems, each → u16 in RAM)
+//!   a2+40  u64          sell_percents
+//!   a2+48  u8           store_type
+//!   a2+56  CArray<u64>  price_increase_percent_list (u32 count + u64[])
+//!   a2+72  u32 wire     sellable_character_condition_logic
+//!          (sub_1410E19E0: 4 wire bytes, remap → u16 in RAM)
+//!   a2+76  u32          reset_hour
+//!   a2+80  u32          reset_day
+//!   a2+84  u32          buyable_stock_count
+//!   a2+88  u32          sellable_stock_count
+//!   a2+92  u8           sellable_type
+//!   a2+96  CArray<StoreStockData>  stock_data_list
+//!          (u32 count + 88-mem-byte elems via sub_1410DEEC0)
+//!   a2+112 CArray<u8>   sale_item_type_list      (sub_1410E2850)
+//!   a2+128 CArray<u8>   not_sale_item_type_list  (sub_1410E2850, same)
+//!   a2+144 u32          custom_mesh_obb_max_length
+//!   a2+148 u8           fixed_price
+//!   a2+149 u8           use_housing_gimmick
+//!   a2+150 u8           reduce_price_by_looted_dead_body
+//!
+//! NOTE on wire vs memory type: fields 4, 5, 9 read a **u32** off the
+//! wire then remap it through an ID-resolution table into a **u16**
+//! in-memory slot. The Rust struct models the *wire* type (`u32` /
+//! `CArray<u32>`), which is correct for read/write roundtrip and for
+//! v3 modding — the u16 RAM form is a runtime concern that never hits
+//! disk. Byte-exact roundtrip + this IDA cross-check together prove
+//! both field boundaries *and* field types at the wire level.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u16 key                                  (_key, pabgh format 2)

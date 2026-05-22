@@ -435,10 +435,18 @@ pabgh_typed_blob_table! {
         pub flag_after_slots: u8,
         pub de690_data: FactionNodeDE690,
         pub raw_after_de690: u32,
+        // FIELD ORDER FIX (IDA sub_1410C01B0): religion_max_block_day is a
+        // plain read4 @mem+444 that comes BEFORE the two final lists; the
+        // struct previously placed it after final_lookup. With empty lists
+        // (1148 records) every value is 0 so the mis-order round-tripped;
+        // records with a populated final_list_u32 (10) read its count from
+        // religion's slot → garbage over-read. Order per IDA:
+        // raw_after_de690 (lookup@440), religion (read4@444),
+        // final_list_u32 (@448), final_list_u16 (@464), final_lookup (lookup@480).
+        pub religion_max_block_day: u32,
         pub final_list_u32: CArray<u32>,
         pub final_list_u16: CArray<u16>,
         pub final_lookup: u32,
-        pub religion_max_block_day: u32,
     }
     tail: tail_blob;
 }

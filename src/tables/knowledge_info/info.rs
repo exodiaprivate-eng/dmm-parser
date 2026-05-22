@@ -1,6 +1,23 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410E36C0` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410C51C0` — the KnowledgeInfo deserializer (found
+//! via xref to the "KnowledgeInfo" class block at 0x144AF8110+). All
+//! fields confirmed in order. (Cited `sub_1410E36C0` was stale — it is
+//! an inner reader SHARED with another large table `sub_1410B8D40`,
+//! 800+ byte struct, NOT KnowledgeInfo.)
+//! Type confirmations (the kind byte-roundtrip can't prove):
+//!   - region_info_list (sub_1410E2070): u32 count + **u16** elements
+//!     (2-byte wire read + hash remap). Rust `CArray<u16>` correct —
+//!     genuinely 2-byte, not the usual u32-ref.
+//!   - knowledge_from_list element: u8 flag + u64 value = 9 wire bytes
+//!     (read 1 + read 8). Matches `KnowledgeFromItem`.
+//!   - learning_position: a single **12-byte** raw read. Rust `[f32;3]`
+//!     has the right width; the float interpretation is a modeling
+//!     choice (3-component position) the reader neither confirms nor
+//!     denies — bits are preserved either way.
+//!   - u32-wire ID refs via sub_1410E1350/E2EE0/E2D50/E1B70/E1190 etc.
+//!     (4-byte wire → u16 RAM). Rust `u32` models the wire.
 //!
 //! ─── v3.1 closure analysis (iter 77) ────────────────────────────────────
 //! Cross-check via `sub_1410AFE20` (typeinfo→record-reader path per the
@@ -284,8 +301,8 @@ impl<'a> KnowledgeInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/knowledgeinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/knowledgeinfo.pabgh";
+    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\knowledgeinfo.pabgb";
+    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\knowledgeinfo.pabgh";
 
     #[test]
     fn roundtrip() {

@@ -71,7 +71,7 @@ fn main() {
         } else if atl.items.len() == 1 {
             // count=1: read the trigger name
             let name = atl.items[0].value.as_ref().map(|cs| {
-                cs.data.to_string()
+                format!("{}elems", cs.items.len())
             }).unwrap_or_else(|| "<None>".to_string());
             *atl1_name_hist.entry(name.clone()).or_insert(0) += 1;
             if atl1_samples.len() < 30 && !post_blob.is_empty() {
@@ -124,7 +124,7 @@ fn main() {
         let Some(atl) = alt_trigger_list else { continue };
         if atl.items.len() != 1 { continue; }
         let name = atl.items[0].value.as_ref().map(|cs| {
-            cs.data.to_string()
+            format!("{}elems", cs.items.len())
         }).unwrap_or_default();
         let sz = post_blob.len();
         let e = by_name.entry(name).or_insert((sz, sz));

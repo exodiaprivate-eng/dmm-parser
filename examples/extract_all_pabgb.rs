@@ -21,7 +21,7 @@ const GAME_DIR: &str = r"C:\Program Files (x86)\Steam\steamapps\common\Crimson D
 const PAPGT_PATH: &str =
     r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\meta\0.papgt";
 const VANILLA_DUMPS: &str =
-    r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-pabgb-aio\vanilla_dumps";
+    r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07";
 
 fn existing_dump_basenames(dump_dir: &Path) -> BTreeSet<String> {
     let mut out = BTreeSet::new();

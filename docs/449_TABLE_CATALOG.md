@@ -64,6 +64,344 @@ the 584 iter-35 baseline through 549 at iter 86 → 460 at iter 158;
 closed via PA-typo + name-divergence MANUAL_OVERRIDES + within-type-group
 rule for many tables — see V3_1_DECODER_GAPS.md trend table).
 
+**Session 30 (2026-05-19) — wiring re-confirmation for 11 questioned tables.**
+An external tracker / screenshot raised doubt about whether the following
+11 tables were truly "wired" past parse-only, or were field-level vs
+byte-level. Direct repo audit confirmed:
+
+| Table | info.rs lines | Wire fields | dispatch.rs refs | Field-level |
+|---|---:|---:|---:|---|
+| `store_info` | 770 | 21 | 4 (`parse_table_to_json` / `serialize_table_from_json` / tracked / `supported_tables`) | ✅ — typed StoreStockData (14-arm polymorphic StoreStockDataValuePayload) |
+| `inventory_info` | 456 | (see info.rs) | 4 | ✅ |
+| `sub_level_info` | (see info.rs) | (see info.rs) | 4 | ✅ |
+| `knowledge_info` | 355 | (see info.rs) | 4 | ✅ |
+| `mission_info` | 341 | (see info.rs) | 4 | ✅ |
+| `elemental_material_info` | 231 | (see info.rs) | 4 | ✅ |
+| `equip_info` | 149 | (see info.rs) | 6 (extra aliases) | ✅ |
+| `royal_supply_info` | 176 | (see info.rs) | 4 | ✅ |
+| `game_play_trigger_info` | 339 | (see info.rs) | 4 | ✅ |
+| `gimmick_info` | 2225 | 17 + family decoders | 7 | ✅ — TriggerGameplayEventHandlerData polymorphic |
+| `npc_info` | 268 | (see info.rs) | 4 | ✅ |
+
+All 11 are present in `pub fn supported_tables()` in
+`src/dispatch.rs:730+`. All have byte-exact `roundtrip` and
+`json_roundtrip` tests at the bottom of their `info.rs`. There is
+**no `.pabg` extension**; only `.pabgb` (body) and `.pabgh` (header,
+offset table). `normalize_target_name` in dispatch.rs:646 accepts
+`.pabgb`, `.pamt`, snake_case, compact-lowercase, and a handful of
+aliases — if an external mod manifest writes `storeinfo.pabg` it is
+malformed at the manifest layer, not unwired at the parser layer.
+
+The `roundtrip` tests rely on fixtures at
+`C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\<table>.pabgb`
+(+ `.pabgh`). On environments without those fixtures the tests pass
+trivially (the `let Ok(data) = std::fs::read(PABGB) else { return };`
+SKIP branch fires silently). To get a **real** field-level guarantee
+the fixtures must be present at that path — point this directory at
+your local pabgb dump before running tests.
+
+**Session 30 verification run (2026-05-19).** Hardlinks set up from
+the 1.0.4 PABGB_PABGH dump into the canonical path, then
+`cargo test --release --lib` filtered to the 11 tables:
+
+```
+running 29 tests
+... store_info::info::tests::roundtrip                 ... ok
+... store_info::info::tests::json_roundtrip            ... ok
+... inventory_info::info::tests::roundtrip             ... ok
+... inventory_info::info::tests::json_roundtrip        ... ok
+... inventory_info::info::tests::fields_addressable    ... ok
+... sub_level_info::info::tests::roundtrip             ... ok
+... sub_level_info::info::tests::json_roundtrip        ... ok
+... sub_level_info::info::tests::fields_addressable    ... ok
+... knowledge_info::info::tests::roundtrip             ... ok
+... knowledge_info::info::tests::json_roundtrip        ... ok
+... knowledge_info::info::tests::typed_lists_populated ... ok
+... mission_info::info::tests::roundtrip               ... ok
+... mission_info::info::tests::json_roundtrip          ... ok
+... elemental_material_info::info::tests::roundtrip    ... ok
+... elemental_material_info::info::tests::json_roundtrip ... ok
+... royal_supply_info::info::tests::roundtrip          ... ok
+... royal_supply_info::info::tests::json_roundtrip     ... ok
+... royal_supply_info::info::tests::typed_lists_populated ... ok
+... game_play_trigger_info::info::tests::roundtrip     ... ok
+... game_play_trigger_info::info::tests::json_roundtrip ... ok
+... game_play_trigger_info::info::tests::target_kinds_seen ... ok
+... gimmick_info::info::tests::roundtrip               ... ok
+... gimmick_info::info::tests::json_roundtrip          ... ok
+... gimmick_info::info::tests::generated_blob_diag     ... ok
+... gimmick_info::info::tests::post_body_diag          ... ok
+... gimmick_info::info::tests::variant_diag            ... ok
+... npc_info::info::tests::roundtrip                   ... ok
+... npc_info::info::tests::json_roundtrip              ... ok
+... npc_info::info::tests::dye_lists_populated         ... ok
+
+test result: ok. 29 passed; 0 failed
+```
+
+29 / 29 reported "pass" — but SEE THE VERSION-MISMATCH / SKIP NOTES
+BELOW: that run was almost entirely silent SKIPs (wrong const paths).
+When fixtures were later made to resolve, only 6 of these tables
+actually roundtrip-pass against the 1.0.4 dump; 4 fail due to a
+game-version mismatch (structs target a newer binary). Treat the Tier
+IDA cross-checks as authoritative, not this line.
+
+**But byte-roundtrip proves field _boundaries_, not
+field _types_.** A `u32` mislabeled as `i32`/`f32`, or a `u64` that is
+really two adjacent `u32`s, both still roundtrip byte-identically.
+Roundtrip proves: field count, field order, fixed widths, var-length
+prefix widths (CString/CArray/COptional), and that every polymorphic
+discriminator seen in real data dispatches validly. It does NOT prove
+signed-vs-unsigned, int-vs-float, or single-vs-split field typing.
+
+**Two verification tiers (introduced Session 30):**
+
+- **Tier RT (byte-roundtrip)** — boundaries proven by passing
+  `roundtrip`/`json_roundtrip` against on-disk pabgb. 10 of these 11
+  tables are at Tier RT (all except EquipInfo, which has no fixture).
+- **Tier IDA (field-level)** — each field additionally cross-checked
+  against the engine's own deserializer in CrimsonDesert.exe
+  (md5 3d614280…): real reader located via field-name reflection-string
+  xref, decompiled, every read mapped to a wire width + struct offset.
+
+**StoreInfo — Tier IDA verified (2026-05-19).** Reader = `sub_1410DF2F0`
+(the previously-cited `sub_1410FCD20` was stale — it lands inside an
+unrelated GamePlayVariableInfo lookup in this build). All 21 fields
+confirmed: exact order, exact wire widths, mem offsets matching the
+struct. Field helpers decompiled:
+
+- `sub_1410E1B70` / `sub_1410E24C0` / `sub_1410E19E0` (fields
+  `_exchangeItemInfoForBuy`, `_exchangeItemInfoListForSell`,
+  `_sellableCharacterConditionLogic`) each read a **u32 off the wire**
+  then remap through an ID table into a **u16 in-memory slot**. The
+  Rust struct models the *wire* `u32` / `CArray<u32>` — correct for
+  read/write and modding; the u16 RAM form never touches disk. This
+  wire-vs-memory split is invisible to byte-roundtrip and is exactly
+  the class of thing Tier IDA catches.
+- `sub_1410E2850` (`_saleItemTypeList`, `_notSaleItemTypeList`) reads
+  u32 count + N × 1 byte → `CArray<u8>`. Same reader for both lists.
+
+See `src/tables/store_info/info.rs` module header for the full IDA
+field map.
+
+**Tier IDA progress (running, /loop job 109814a3):**
+
+- ✅ **StoreInfo** — `sub_1410DF2F0`, 21 fields. (above)
+- ✅ **InventoryInfo** — `sub_1410C20A0`, 18 top-level fields + 4 element
+  readers (pushable `sub_1410E6560`/elem `sub_1410E2CA0` u16+u8;
+  collection `sub_1410E58C0` u32+8raw; move-data composite
+  `sub_1410C1F20` 160B/10 fields incl. from/to via `sub_1410E64B0` u16,
+  convert_money via `sub_1410E1B70` u32; key_guide `sub_1410E1600` u32).
+  Stale citations corrected (`sub_1410E05E0`/`sub_1410E0460`).
+- ✅ **SubLevelInfo** — `sub_1410DF7D0`, 23 fields. Confirmed the
+  surprising **1-wire-byte** `additional_buff_apply_mercenary_info`
+  (reader `sub_1410E2FD0` reads u8, not u32) — exactly the kind of
+  per-field width a naive audit would miss. u32 ID refs confirmed via
+  `sub_1410E1350`/`E2920`/`E2D50`/`E19E0`/`E1B70`. Stale cite
+  `sub_1410FD200` corrected.
+- ✅ **KnowledgeInfo** — `sub_1410C51C0` (cite `sub_1410E36C0` was a
+  shared inner reader of a different 800B table). Confirmed
+  `region_info_list` u16 elements (sub_1410E2070), `knowledge_from_list`
+  u8+u64 element, `learning_position` 12-byte [f32;3] read.
+- ✅ **RoyalSupplyInfo** — `sub_1410D89A0` (cite `sub_1410F64D0`
+  stale). 7 fields at bytes 0/8/16/24/56/88/104. RoyalSupplyRandomData
+  element (`sub_1410EC9E0`) = 3 u32 lookups + 8 raw = 20 wire bytes.
+- ✅ **ElementalMaterialInfo** — `sub_1410BE2C0` (cite `sub_1410DC8F0`
+  stale). Struct correct (27 fields incl. 8×u32 fuel/unk block where the
+  engine batches total_fuel+obb_size as one 8-byte read, and the
+  `flag_0..7` 8×u32 loop at a2+136..164). The old prose field-list in
+  the info.rs header was imprecise — header rewritten to match struct.
+- ✅ **GamePlayTriggerInfo** — `sub_1410C1BA0` (cite `sub_1410E0100`
+  stale). 13 fields. position 12-byte [u8;12], rotation_y f32-as-u32,
+  field_revive_info u32→u32 RAM (full-width, unlike u16-remap refs).
+  target_data_list elem (`sub_1410E6300`) = u8 tag + u32 hash, 4-arm.
+- ✅ **NpcInfo** — `sub_1410CDE10` (cite `sub_1410EBEB0` stale). 15
+  fields. store_info genuine **u16** (sub_1410E5BC0 reads 2 bytes),
+  exchange_group_key u16, dye_texture element u16+u32 (6 bytes).
+- ✅ **MissionInfo** — `sub_1410CF190` (cite `sub_1410ED0E0` stale).
+  All **34** fields match reader exactly (incl. 13 consecutive u8 flags
+  at a2+428–440, `trailing_u32` at a2+444). Struct is COMPLETE; the old
+  "TAIL STARTS HERE / 15 of 40" header note was stale (`trigger_volume_
+  data` COptional is fully decoded). info.rs header rewritten.
+- ✅ **GimmickInfo** — `sub_1410C8D20` (cite `sub_1410E6FC0` stale).
+  ~176 reader field-ops ≈ 179 struct fields (6 head + GimmickPostBody
+  139 + lists). Head fields roundtrip on 1.0.4; post-body Raw-falls-back
+  on 1.0.4 (version divergence), field-decoded for current binary.
+  All 9 audited tables now Tier IDA done.
+
+**⚠ Fixture-path issue found (2026-05-19):** most tables' roundtrip test
+consts use `/mnt/c/temp/...` (WSL paths) that do NOT resolve under
+Windows-native `cargo test` — so those roundtrips were **silently
+SKIPPING** (the `let Ok(data) = std::fs::read(...) else { return }`
+branch). Only gimmick_info had a `C:\temp\...` fallback. The earlier "29
+passed" was almost entirely skips. Fixtures were then materialized at
+`C:\mnt\c\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\` (the Windows
+drive-relative interpretation of the WSL const path) so the consts
+resolve and the tests actually execute.
+
+**⚠ VERSION MISMATCH discovered when roundtrips finally ran
+(2026-05-19):** with fixtures resolving, the 1.0.4 PABGB_PABGH dump
+roundtrips reveal the dump is an **OLDER game version** than the IDA
+binary (`CrimsonDesert.exe` md5 3d614280…) the structs target:
+
+- **Roundtrip PASS (5 fully)** — wire format stable across versions,
+  verified BOTH by IDA and by 1.0.4 byte-roundtrip:
+  `store_info`, `sub_level_info`, `royal_supply_info`,
+  `game_play_trigger_info`, `npc_info`.
+- **`gimmick_info` — PASS but largely via Raw fallback**: the 6 head
+  fields decode on 1.0.4, but `GimmickPostBody` (139 fields) diverged
+  since 1.0.4 and falls back to `GimmickTail::Raw(blob)` (post_body_diag
+  shows misaligned CArray counts = ASCII bytes). The 18MB roundtrip
+  passes via blob preservation, NOT post-body field-decode on 1.0.4.
+  Reader `sub_1410C8D20` confirmed (~176 ops ≈ 179 fields); post-body
+  field-decode is current-binary-verified, needs a current-version
+  fixture to byte-roundtrip.
+- **Roundtrip FAIL on 1.0.4 (4)** — wire format CHANGED since 1.0.4;
+  structs are correct for the *current* binary (IDA field-by-field
+  verified) but over-read the older 1.0.4 entries:
+  `inventory_info`, `elemental_material_info`, `knowledge_info`,
+  `mission_info`. Example: an `elemental_material_info` 1.0.4 entry is
+  97 bytes; the current struct reads 2458 (a stale CArray count in the
+  old layout runs away). `elemental_material_info` literally has
+  `unk_new_u32_a/_b` fields — *new* since 1.0.4 — which is the smoking
+  gun. These are NOT parser bugs; they need a fixture from the SAME
+  build as the IDA binary to byte-roundtrip.
+
+**Bottom line:** Tier IDA (decompiler cross-check against the actual
+target binary) is the authoritative field-level proof for all 9 audited
+tables. 1.0.4 byte-roundtrip is a bonus second proof for the 6
+version-stable tables. The 4 changed tables are IDA-verified only until
+a matching-version dump is supplied. The original screenshot's
+"parser done" is correct for the current binary; "byte level" concern
+applies only to having the right-version fixtures, not to the structs.
+- ◐ **EquipInfo** — runtime/conditional table, NEVER serialized to disk
+  (byte-roundtrip N/A by nature). Element reader `sub_1410BC660`
+  ("EquipInfoData" block) confirmed to match the EquipListItem struct;
+  cited table reader `sub_1410DB040` stale (→`sub_1410DAE40`). Top-level
+  7-field reader reconciliation pending/low-priority (no on-disk data to
+  mod). Field-level = documentation/tooling support.
+
+### Final tally (Session 30, 2026-05-19)
+
+All 11 tables from the screenshot addressed. Every cited IDA reader
+address was STALE (wrong build) and has been corrected in each
+`info.rs`. **Tier IDA field-level verified (10):** store, inventory,
+sub_level, knowledge, mission, elemental_material, royal_supply,
+game_play_trigger, npc, gimmick (head + reader-identity; post-body
+current-binary-verified). **EquipInfo:** runtime-only, element readers
+confirmed. **1.0.4 byte-roundtrip PASS (5):** store, sub_level,
+royal_supply, game_play_trigger, npc. **Roundtrip fails on 1.0.4 due to
+version drift (4, NOT bugs):** inventory, elemental_material, knowledge,
+mission — IDA-verified against the current target binary; need a
+matching-version dump to byte-roundtrip. The screenshot's "parser done"
+is correct; "byte level" only applies to needing the right-version
+fixtures, not to the structs.
+
+### Gap closed (2026-05-20) — current-version dump + byte-roundtrip
+
+A full current-version dump was extracted via
+`examples/extract_all_pabgb.rs` (live Steam install →
+`dmm-parser/pabgb-dumps-1.07/`, 246 files / 123 tables). The 4 drifted
+tables' roundtrip consts were re-pointed there and now **PASS**
+byte-exact: `inventory_info`, `elemental_material_info`,
+`knowledge_info`, `mission_info` (all `roundtrip` + `json_roundtrip`
+green). So **all 10 on-disk tables are now verified BOTH ways** — IDA
+field-level AND byte-exact roundtrip against the matching version. The
+1.0.4 failures were confirmed as genuine version drift, not bugs.
+
+- **gimmick_info on 1.07:** roundtrip byte-exact PASS (out==data), so the
+  table is fully usable for read/write/modding. Tail-decode breakdown
+  (corrected 2026-05-20 after a focused RE effort): `decoded=11273 raw=1703`
+  counts records that decode the TAIL PREFIX (F1–F19); of those, only **9**
+  fully decode the `GimmickPostBody` (F20–F179) — the rest keep F20–F179 as
+  raw `post_blob`. So gimmick is **Tier 1.5** (typed prefix + Decoded|Raw
+  tail) and post-body field-decode is PARTIAL. Root cause: ~20 nested element
+  decoders (f34/f76/f78/f79/f81/f87–f97/f117/f119/f125–130/f168/f170 elements)
+  are unverified — they're only exercised when their array is non-empty, which
+  the 9 fully-decoding records never do. Linear scalar chain f20–f179 is
+  IDA-verified; 3 fixes landed this effort (f26_32→[u8;8], added f133b:u32,
+  GimmickF132.val→u32). Finishing = systematic element-by-element verification
+  (~20 structs); tracked as backlog in `docs/_GIMMICK_POSTBODY_RE_PROGRESS.md`
+  with a clean resume plan. NOT a version issue — full field-decode is a
+  richness improvement over the already-correct byte-roundtrip.
+- **EquipInfo:** still no `equipinfo.pabgb` in the 1.07 dump (only
+  `equipslotinfo`/`equiptypeinfo`) — confirms it is genuinely
+  runtime-only, never serialized to disk in any version.
+- **EquipInfo now 100% field-level IDA-verified (2026-05-20):** full
+  reader tree traced and confirmed against the binary —
+  table `sub_1410BC9F0` (7 fields; cite `sub_1410DB040` stale),
+  EquipListItem `sub_1410BC660` (20 fields), ragdoll list
+  `sub_1410F9F80` (raw_a u32 + triples), RagdollGroupTriple
+  `sub_1410FA320` (u32 lookup + u32 + u32). Since no on-disk form exists
+  in any version, this IDA trace IS the complete validation (byte-
+  roundtrip is N/A by nature). info.rs header rewritten with the full
+  reader-tree map.
+
+Recurring pattern confirmed across both verified tables: every
+ID-reference field reads a wider value off the wire (u16 or u32) than
+the engine keeps in RAM (u16 after hash remap). The Rust structs model
+the **wire** width — correct for read/write/modding. This is precisely
+the class of fact byte-roundtrip cannot establish and Tier IDA can.
+
+**EquipInfo (the 11th)**: 1.0.4 PABGB_PABGH dump does **not** include
+`equipinfo.pabgb` — only `equipslotinfo.pabgb` and `equiptypeinfo.pabgb`
+ship in that revision. The parser exists and is wired; needs a fixture
+from a build that actually ships EquipInfo on disk to byte-verify. Until
+then, EquipInfo is field-decoded by structural audit only (typed
+`info.rs`, dispatch.rs wiring, 6 dispatch refs), not byte-roundtrip
+proven.
+
+The IDA reader-address citations in some `info.rs` doc comments
+(e.g. `store_info` cites `sub_1410FCD20`) are from earlier
+CrimsonDesert.exe builds and no longer resolve in the current binary
+(md5 3d614280…); the typed wire-format readers themselves are
+unaffected. Re-citation pending.
+
+### Field-level completion pass (2026-05-22, Session 29)
+
+Full 1.07 field-level sweep over the live dump (123 tables). Coverage
+scanner `examples/scan_field_coverage.rs`; per-table `examples/verify_table.rs`.
+
+**Result: 110/123 tables fully field-level (0 opaque records), and 0
+roundtrip failures across the whole archive.**
+
+Tables driven to **0 opaque** this session (1.07 layout-drift fixes,
+each IDA + real-data validated, byte-roundtrip preserved):
+
+| Table | Fix |
+|-------|-----|
+| `quest_info` | filter-blob sized by decoding `CArray<QuestDialogFilterData>` once (O(R²)→O(R)) |
+| `bitmap_position_info` | unblocked by the `CArray` count-cap removal |
+| `special_mode_info` | added `raw_e2: u32` in `SpecialModeOption` (IDA: 5 u32 reads before the u64) |
+| `faction_node_info` | tail field reorder (`religion_max_block_day` before the lists) |
+| `stage_info` | `platform_character` → `CArray<CString>` (count-prefixed list) |
+| `gimmick_info` | residual post-body drift (99.66%→ near-full prefix) |
+
+Highest-leverage single change: removed the over-strict `CArray` count
+cap in `src/binary/types.rs` (it was rejecting legitimately large arrays,
+forcing blob fallback on several tables).
+
+**`item_use_info` — roundtrip correctness fix (NOT field-level):**
+`ItemUseInfo::read_with_size` now errors when a typed variant fails to
+consume the full payload, so incomplete decodes fall back to a verbatim
+blob rather than silently dropping the undecoded tail. Previously ~137
+records (disc-14 PlaySequencer, whose `SequencerStageChartDescPartial`
+embeds an undecoded ConditionData tail) lost 8766 bytes total on write.
+Now `RT=true`; item_use is intentionally **all-blob** (7994/7994) until
+the ConditionData decoder is completed — honest + roundtrip-safe. Modders
+can safely read/write item_use again.
+
+**6 remaining opaque-tail tables** (all `RT=true`, decode-richness work,
+*not* drift): `condition_info` 5884, `interaction_info` 374,
+`global_game_event_info` 103, `item_use_info` 7994 (disc-14),
+`gimmick_info` 13 (post-body), `mini_game_data_info` 11. All five
+condition-related tables share **one root cause**: the
+ConditionData/GameCondition 405-variant decoder family has per-variant
+under-reads on 1.07 (1.07 added u16s to common variants). One focused IDA
+session on `sub_141C7F010` (the 267KB variant dispatch) closes them — see
+`docs/STATUS.md` Session 29 for the full chain map, localizer tool, and
+the critical validate-via-magnitude-histogram rule.
+
 ## Categories
 
 - [AI](#ai) — 8

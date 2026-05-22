@@ -547,6 +547,13 @@ pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<V
     Ok(items)
 }
 
+/// Append a single record's bytes to `out`. Used by the tracked-offset
+/// apply path in `dispatch.rs` so it can record each record's start
+/// offset for pabgh rebuild.
+pub fn write_skill_info_record(out: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+    SkillInfo::write_from_json(out, v)
+}
+
 /// Inverse of `parse_skill_to_json`: write a sequence of skill dicts back
 /// to pabgb bytes.
 pub fn serialize_skill_from_json(items: &[Value]) -> io::Result<Vec<u8>> {

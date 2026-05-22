@@ -104,4 +104,30 @@ fn main() {
         let delta = *m as i64 - *w as i64;
         println!("  {} bytes Δ {:+}  {}", m, delta, p);
     }
+
+    println!("\n=== ALL CHANGED .hkx (Havok animations) ===");
+    let mut hkx: Vec<_> = changed.iter().filter(|(p, _, _)| p.ends_with(".hkx")).collect();
+    hkx.sort_by_key(|(_, _, m)| std::cmp::Reverse(*m));
+    for (p, w, m) in &hkx {
+        let delta = *m as i64 - *w as i64;
+        println!("  {:>8.1} KB Δ {:+5}  {}", *m as f64 / 1024.0, delta, p);
+    }
+
+    println!("\n=== ALL CHANGED .paschedulepath (AI paths) ===");
+    let mut psp: Vec<_> = changed.iter().filter(|(p, _, _)| p.ends_with(".paschedulepath")).collect();
+    psp.sort_by_key(|(_, _, m)| std::cmp::Reverse(*m));
+    for (p, w, m) in psp.iter().take(80) {
+        let delta = *m as i64 - *w as i64;
+        println!("  {:>7.1} KB Δ {:+5}  {}", *m as f64 / 1024.0, delta, p);
+    }
+    if psp.len() > 80 {
+        println!("  ... and {} more", psp.len() - 80);
+    }
+
+    println!("\n=== OTHER CHANGED files ===");
+    for (p, w, m) in &changed {
+        if p.ends_with(".hkx") || p.ends_with(".paschedulepath") || p.ends_with(".pabgb") { continue; }
+        let delta = *m as i64 - *w as i64;
+        println!("  {:>8.1} KB Δ {:+5}  {}", *m as f64 / 1024.0, delta, p);
+    }
 }

@@ -268,7 +268,12 @@ pabgh_typed_blob_table! {
         pub forbidden_character_list: CArray<u32>,
         // === Fields 30-31: CStrings ===
         pub rematch_stage_desc: CString<'a>,
-        pub platform_character: CString<'a>,
+        // 1.07: platform_character is a count-prefixed list of CStrings, not a
+        // bare CString. count=0 reads identically to an empty CString (u32 0),
+        // so the ~50731 empty records round-tripped under the old model; the 73
+        // records with count>=1 (e.g. ["SCENE_3"]) misread the count as a
+        // CString length → garbage stage_condition_list count downstream.
+        pub platform_character: CArray<CString<'a>>,
         // === Field 32: Stage condition list ===
         pub stage_condition_list: CArray<u32>,
         // === Fields 33-34: Lookups ===

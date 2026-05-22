@@ -1358,6 +1358,17 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// recipe 201 CheckBurnable — was modeled as pure-discriminator, but the
+    /// wire carries a u32 body (a gimmick id, e.g. 0x000f424e). With no body the
+    /// id was misread as the option_block presence → CString len ~3906 → utf-8
+    /// crash. Exclusive to 1 record (tail_start 5140765) so adjusting is safe.
+    pub struct ConditionData_CheckBurnablePayload {
+        pub gimmick_id: u32,
+        pub extra: u16,
+    }
+}
+
+py_binary_struct! {
     /// recipe 212 CheckGimmickAttachmentType — IDA sub_141C91B40: u8@24.
     pub struct ConditionData_CheckGimmickAttachmentTypePayload {
         pub field_at_24: u8,
@@ -2017,7 +2028,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickImpulseWhereType(ConditionData_CheckGimmickImpulseWhereTypePayload),
     ConditionData_CheckElementalMaterialStateSuccess(ConditionData_CheckElementalMaterialStateSuccessPayload),
     ConditionData_CheckCurrentEquipType_OrTag199,
-    ConditionData_CheckBurnable,
+    ConditionData_CheckBurnable(ConditionData_CheckBurnablePayload),
     ConditionData_CheckBreakable,
     ConditionData_CheckOriginalBreakable,
     ConditionData_CheckBreaked,
@@ -2428,7 +2439,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(_) => 198,
             Self::ConditionData_CheckElementalMaterialStateSuccess(_) => 199,
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => 200,
-            Self::ConditionData_CheckBurnable => 201,
+            Self::ConditionData_CheckBurnable(_) => 201,
             Self::ConditionData_CheckBreakable => 202,
             Self::ConditionData_CheckOriginalBreakable => 203,
             Self::ConditionData_CheckBreaked => 204,
@@ -2842,7 +2853,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(_) => "ConditionData_CheckGimmickImpulseWhereType",
             Self::ConditionData_CheckElementalMaterialStateSuccess(_) => "ConditionData_CheckElementalMaterialStateSuccess",
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => "ConditionData_CheckCurrentEquipType_OrTag199",
-            Self::ConditionData_CheckBurnable => "ConditionData_CheckBurnable",
+            Self::ConditionData_CheckBurnable(_) => "ConditionData_CheckBurnable",
             Self::ConditionData_CheckBreakable => "ConditionData_CheckBreakable",
             Self::ConditionData_CheckOriginalBreakable => "ConditionData_CheckOriginalBreakable",
             Self::ConditionData_CheckBreaked => "ConditionData_CheckBreaked",
@@ -3257,7 +3268,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckElementalMaterialStateSuccess(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => {}
-            Self::ConditionData_CheckBurnable => {}
+            Self::ConditionData_CheckBurnable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckBreakable => {}
             Self::ConditionData_CheckOriginalBreakable => {}
             Self::ConditionData_CheckBreaked => {}
@@ -3679,7 +3690,7 @@ impl<'a> ConditionDataVariant<'a> {
             198 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickImpulseWhereType: missing body object"))?; ConditionData_CheckGimmickImpulseWhereTypePayload::write_from_json_dict(w, body)?; }
             199 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckElementalMaterialStateSuccess: missing body object"))?; ConditionData_CheckElementalMaterialStateSuccessPayload::write_from_json_dict(w, body)?; }
             200 => {}
-            201 => {}
+            201 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckBurnable: missing body object"))?; ConditionData_CheckBurnablePayload::write_from_json_dict(w, body)?; }
             202 => {}
             203 => {}
             204 => {}
@@ -4095,7 +4106,7 @@ impl<'a> ConditionDataVariant<'a> {
             198 => Self::ConditionData_CheckGimmickImpulseWhereType(ConditionData_CheckGimmickImpulseWhereTypePayload::read_from(data, offset)?),
             199 => Self::ConditionData_CheckElementalMaterialStateSuccess(ConditionData_CheckElementalMaterialStateSuccessPayload::read_from(data, offset)?),
             200 => Self::ConditionData_CheckCurrentEquipType_OrTag199,
-            201 => Self::ConditionData_CheckBurnable,
+            201 => Self::ConditionData_CheckBurnable(ConditionData_CheckBurnablePayload::read_from(data, offset)?),
             202 => Self::ConditionData_CheckBreakable,
             203 => Self::ConditionData_CheckOriginalBreakable,
             204 => Self::ConditionData_CheckBreaked,
@@ -4507,7 +4518,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(p) => p.write_to(w),
             Self::ConditionData_CheckElementalMaterialStateSuccess(p) => p.write_to(w),
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => Ok(()),
-            Self::ConditionData_CheckBurnable => Ok(()),
+            Self::ConditionData_CheckBurnable(p) => p.write_to(w),
             Self::ConditionData_CheckBreakable => Ok(()),
             Self::ConditionData_CheckOriginalBreakable => Ok(()),
             Self::ConditionData_CheckBreaked => Ok(()),
@@ -4857,7 +4868,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // Class B — vtable[19] = thunk into anti-disassembly runtime
         // (sub_14F0D2550 / sub_14F24B730). Byte-math verified: vanilla
         // `case(1)+tag(2)+body+footer(3)` matches with zero option_block.
-        79 | 196 |
+        79 | 196 | 127 | 201 |
         // Class C — empirical add via LAST_ATTEMPTED_TAG diagnostic on
         // interaction_info. vtable[19] = `0x1413B89E0` (thunk in
         // sub_14139AE80, non-decompilable). Verified Win-IDA this

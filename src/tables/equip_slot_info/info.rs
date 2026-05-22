@@ -434,6 +434,13 @@ pub fn parse_equip_slot_info_to_json_with_pabgh(
 /// Inverse of `parse_equip_slot_info_to_json_with_pabgh`. Writes records back
 /// to pabgb bytes in the order given. The pabgh sister file must be rebuilt
 /// separately from the resulting offsets — this function does not produce one.
+/// Append a single record's bytes to `out`. Used by the tracked-offset
+/// apply path in `dispatch.rs` so it can record each record's start
+/// offset for pabgh rebuild.
+pub fn write_equip_slot_info_record(out: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+    EquipSlotInfo::write_from_json(out, v)
+}
+
 pub fn serialize_equip_slot_info_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
     let mut out = Vec::with_capacity(items.len() * 1024);
     for (i, v) in items.iter().enumerate() {

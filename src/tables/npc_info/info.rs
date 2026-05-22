@@ -32,7 +32,20 @@
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410EBEB0` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410CDE10` — NpcInfo deserializer (via "NpcInfo"
+//! class block at 0x144B0B2C0+). All 15 fields confirmed in order.
+//! (Cited `sub_1410EBEB0` stale.) Type confirmations:
+//!   - store_info (sub_1410E5BC0): **2-byte wire (u16)** + hash remap.
+//!     Rust `u16` correct — a genuine u16 ref, not u32.
+//!   - exchange_group_key: direct 2-byte u16.
+//!   - dye_texture_set_data_list element: u16 texture_set_lookup + u32
+//!     dye_target_key (via sub_1410E19E0, 4-byte wire→u16 RAM) = 6 wire
+//!     bytes.
+//!   - icon_path (sub_1410E1350) & coupon_item_info (sub_1410E1B70):
+//!     u32 wire → u16 RAM. npc_greet_friendly/npc_function_type_flag/
+//!     shop_scenekey: direct u32. dye_color_group element reader
+//!     sub_1410F0C40.
 //! Inner `_dyeColorGroupDataList` reader: `sub_14110E340`.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
