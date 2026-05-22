@@ -266,8 +266,9 @@ impl<'a> SkillInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
         offset: &mut usize,
-        _entry_size: usize,
+        entry_size: usize,
     ) -> io::Result<Self> {
+        let start = *offset;
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
@@ -302,6 +303,14 @@ impl<'a> SkillInfo<'a> {
         let dev_skill_name = CString::read_from(data, offset)?;
         let dev_skill_desc = CString::read_from(data, offset)?;
         let video_path = u32::read_from(data, offset)?;
+
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("SkillInfo key={}: consumed {} bytes, expected {}", key, consumed, entry_size),
+            ));
+        }
 
         Ok(Self {
             key, string_key, is_blocked, cooltime, buff_level_list,
@@ -419,6 +428,20 @@ impl WriteJsonValue for ResourceItem {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "value")?)?;
         Ok(())
+    }
+}
+
+impl<'a> SkillInfo<'a> {
+    pub fn to_json_dict(&self) -> serde_json::Map<String, Value> {
+        match self.to_json_value() {
+            Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        }
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &serde_json::Map<String, Value>) -> io::Result<()> {
+        let v = Value::Object(obj.clone());
+        <Self as WriteJsonValue>::write_from_json(w, &v)
     }
 }
 

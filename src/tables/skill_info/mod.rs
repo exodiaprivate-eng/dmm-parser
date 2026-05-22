@@ -9,3 +9,5 @@
 
 pub mod info; pub use info::{SkillInfo, parse_skill_to_json, parse_skill_to_json_with_pabgh, serialize_skill_from_json};
 pub mod field_aliases_v3_1;
+pub mod blob;
+pub use blob::SkillInfoBlob;

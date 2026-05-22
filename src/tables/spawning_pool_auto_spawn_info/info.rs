@@ -5,126 +5,41 @@
 //! TerrainRegionAutoSpawnInfo; element layout in
 //! `crate::binary::variants::auto_spawn_entry`).
 
-use crate::binary::*;
-use crate::binary::variants::auto_spawn_entry::AutoSpawnEntry;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use serde_json::{Map, Value};
-use std::io::{self, Write};
-
-#[derive(Debug)]
-pub struct SpawningPoolAutoSpawnInfo<'a> {
-    pub key: u32,
-    pub string_key: CString<'a>,
-    pub is_blocked: u8,
-    pub spawn_list: CArray<AutoSpawnEntry>,
-    pub mesh_name_list: CArray<u32>,
-    pub spawning_pool_data: CString<'a>,
-    pub type_: u8,
-    pub level_action_point_info: u32,
-    pub near_inner_radius: u32,
-    pub near_outer_radius: u32,
-    pub spawn_safety_distance: u32,
-    pub use_random_rotation: u8,
-    pub check_forbidden_area: u8,
-    pub attach_to_socket: u8,
-    pub is_exist_indoor_type: u8,
-    pub collect_filter_dev: u8,
+crate::pabgh_blob_table! {
+    pub struct SpawningPoolAutoSpawnInfo<'a> {
+        key: u32,
+        blob_field: body,
+    }
 }
 
 impl<'a> SpawningPoolAutoSpawnInfo<'a> {
-    pub fn read_with_size(
-        data: &'a [u8],
-        offset: &mut usize,
-        entry_size: usize,
-    ) -> io::Result<Self> {
-        let _ = entry_size; // typed reader is byte-perfect; size is informational
-
-        let key = u32::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-
-        let spawn_list = <CArray<AutoSpawnEntry>>::read_from(data, offset)?;
-
-        let mesh_name_list = CArray::<u32>::read_from(data, offset)?;
-        let spawning_pool_data = CString::read_from(data, offset)?;
-        let type_ = u8::read_from(data, offset)?;
-        let level_action_point_info = u32::read_from(data, offset)?;
-        let near_inner_radius = u32::read_from(data, offset)?;
-        let near_outer_radius = u32::read_from(data, offset)?;
-        let spawn_safety_distance = u32::read_from(data, offset)?;
-        let use_random_rotation = u8::read_from(data, offset)?;
-        let check_forbidden_area = u8::read_from(data, offset)?;
-        let attach_to_socket = u8::read_from(data, offset)?;
-        let is_exist_indoor_type = u8::read_from(data, offset)?;
-        let collect_filter_dev = u8::read_from(data, offset)?;
-
-        Ok(Self {
-            key, string_key, is_blocked, spawn_list, mesh_name_list,
-            spawning_pool_data, type_, level_action_point_info,
-            near_inner_radius, near_outer_radius, spawn_safety_distance,
-            use_random_rotation, check_forbidden_area, attach_to_socket,
-            is_exist_indoor_type, collect_filter_dev,
-        })
-    }
-
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
-        self.string_key.write_to(w)?;
-        self.is_blocked.write_to(w)?;
-        self.spawn_list.write_to(w)?;
-        self.mesh_name_list.write_to(w)?;
-        self.spawning_pool_data.write_to(w)?;
-        self.type_.write_to(w)?;
-        self.level_action_point_info.write_to(w)?;
-        self.near_inner_radius.write_to(w)?;
-        self.near_outer_radius.write_to(w)?;
-        self.spawn_safety_distance.write_to(w)?;
-        self.use_random_rotation.write_to(w)?;
-        self.check_forbidden_area.write_to(w)?;
-        self.attach_to_socket.write_to(w)?;
-        self.is_exist_indoor_type.write_to(w)?;
-        self.collect_filter_dev.write_to(w)?;
-        Ok(())
-    }
-
-    pub fn to_json_dict(&self) -> Map<String, Value> {
-        let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
-        m.insert("string_key".to_string(), self.string_key.to_json_value());
-        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("spawn_list".to_string(), self.spawn_list.to_json_value());
-        m.insert("mesh_name_list".to_string(), self.mesh_name_list.to_json_value());
-        m.insert("spawning_pool_data".to_string(), self.spawning_pool_data.to_json_value());
-        m.insert("type_".to_string(), self.type_.to_json_value());
-        m.insert("level_action_point_info".to_string(), self.level_action_point_info.to_json_value());
-        m.insert("near_inner_radius".to_string(), self.near_inner_radius.to_json_value());
-        m.insert("near_outer_radius".to_string(), self.near_outer_radius.to_json_value());
-        m.insert("spawn_safety_distance".to_string(), self.spawn_safety_distance.to_json_value());
-        m.insert("use_random_rotation".to_string(), self.use_random_rotation.to_json_value());
-        m.insert("check_forbidden_area".to_string(), self.check_forbidden_area.to_json_value());
-        m.insert("attach_to_socket".to_string(), self.attach_to_socket.to_json_value());
-        m.insert("is_exist_indoor_type".to_string(), self.is_exist_indoor_type.to_json_value());
-        m.insert("collect_filter_dev".to_string(), self.collect_filter_dev.to_json_value());
+    pub fn to_json_dict(&self) -> serde_json::Map<String, serde_json::Value> {
+        use base64::Engine;
+        let mut m = serde_json::Map::new();
+        m.insert("key".into(), serde_json::Value::from(self.key));
+        m.insert("string_key".into(), serde_json::Value::from(
+            std::str::from_utf8(self.string_key.data.as_bytes()).unwrap_or("")));
+        m.insert("is_blocked".into(), serde_json::Value::from(self.is_blocked));
+        m.insert("_body_b64".into(), serde_json::Value::from(
+            base64::engine::general_purpose::STANDARD.encode(&self.body)));
         m
     }
 
-    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <CArray<AutoSpawnEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_list")?)?;
-        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mesh_name_list")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawning_pool_data")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "type_")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "level_action_point_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "near_inner_radius")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "near_outer_radius")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_safety_distance")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_random_rotation")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "check_forbidden_area")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "attach_to_socket")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_exist_indoor_type")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "collect_filter_dev")?)?;
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &serde_json::Map<String, serde_json::Value>) -> std::io::Result<()> {
+        use crate::binary::BinaryWrite;
+        use base64::Engine;
+        let key = obj.get("key").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        key.write_to(w)?;
+        let sk = obj.get("string_key").and_then(|v| v.as_str()).unwrap_or("");
+        (sk.len() as u32).write_to(w)?;
+        w.extend_from_slice(sk.as_bytes());
+        let blocked = obj.get("is_blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+        blocked.write_to(w)?;
+        if let Some(b64) = obj.get("_body_b64").and_then(|v| v.as_str()) {
+            let body = base64::engine::general_purpose::STANDARD.decode(b64)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            w.extend_from_slice(&body);
+        }
         Ok(())
     }
 }

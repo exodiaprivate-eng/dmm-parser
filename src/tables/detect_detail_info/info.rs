@@ -31,7 +31,7 @@ use crate::tables::detect_info::DetectSenseData;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-const DETAIL_LIST_LEN: usize = 0x3B; // 59 fixed entries per IDA sub_1415BE000
+const DETAIL_LIST_LEN: usize = 0x40; // 64 fixed entries per IDA sub_1415C6F80 (1.0.8)
 
 #[derive(Debug)]
 pub struct DetectDetailInfo<'a> {

@@ -239,7 +239,8 @@ pub fn parse_table_tracked(
         "mission_info" => tracked_p!(crate::tables::mission_info::MissionInfo),
         "multi_change_info" => tracked_p!(crate::tables::multi_change_info::MultiChangeInfo),
         "tribe_info" => tracked_p!(crate::tables::tribe_info::TribeInfo),
-        "field_info" => tracked_p!(crate::tables::field_info::FieldInfo),
+        // field_info: 1.0.8 format restructure, now blob mode — no tracked support
+        // "field_info" => tracked_p!(crate::tables::field_info::FieldInfo),
 
         // Tier 1.5 typed-blob tables. Use tracked_p_typed! because
         // their generated code is read_tracked_with_size, not the
@@ -247,7 +248,8 @@ pub fn parse_table_tracked(
         // opaque tail as a `_tail_blob` range.
         "character_info" => tracked_p_typed!(crate::tables::character_info::CharacterInfo),
         "character_change_info" => tracked_p_typed!(crate::tables::character_change_info::CharacterChangeInfo),
-        "inventory_info" => tracked_p_typed!(crate::tables::inventory_info::InventoryInfo),
+        // inventory_info: converted to blob mode — no tracked support
+        // "inventory_info" => tracked_p_typed!(crate::tables::inventory_info::InventoryInfo),
         "buff_info" => tracked_p_typed!(crate::tables::buff_info::BuffInfo),
         "condition_info" => tracked_p_typed!(crate::tables::condition_info::ConditionInfo),
         "drop_set_info" => tracked_p_typed!(crate::tables::drop_set_info::DropSetInfo),
@@ -361,7 +363,7 @@ pub fn is_tracked_table(table_name: &str) -> bool {
             | "field_info"
             | "character_info"
             | "character_change_info"
-            | "inventory_info"
+            // inventory_info: converted to blob mode — no tracked support
             | "buff_info"
             | "condition_info"
             | "drop_set_info"
