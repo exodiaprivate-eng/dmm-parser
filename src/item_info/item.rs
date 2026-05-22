@@ -83,11 +83,7 @@ py_binary_struct! {
         pub equip_passive_skill_list: CArray<PassiveSkillLevel>,
         pub use_immediately: u8,
         pub apply_max_stack_cap: u8,
-        pub extract_multi_change_info: MultiChangeKey,
-        // Restored 2026-05-06: empirical byte analysis of the user's 1.05.01
-        // iteminfo (5338778 bytes) shows 6 bytes between extract_multi_change_info
-        // and item_memo: u32=0 + u16=0xFFFF. Schema revert removed these on the
-        // assumption they were post-1.05.01-only, but they're present in 1.05.01.
+        // 1.0.8: _extractMultiChangeInfo removed
         pub extract_additional_drop_set_info: u32,
         pub minimum_extract_enchant_level: u16,
         pub item_memo: CString<'a>,
@@ -120,6 +116,8 @@ py_binary_struct! {
         // CrimsonDesert_Steam: ItemInfo의 _isHousingOnly is read between
         // _isDestoryWhenBroken and _quickSlotIndex.
         pub is_housing_only: u8,
+        // 1.0.8: new field between _isHousingOnly and _quickSlotIndex
+        pub is_extract_able_item: u8,
         pub quick_slot_index: u8,
         pub reserve_slot_target_data_list: CArray<ReserveSlotTargetData>,
         pub item_tier: u8,
@@ -149,8 +147,10 @@ py_binary_struct! {
         pub sharpness_data: ItemInfoSharpnessData,
         // 12-byte struct in wire (3 × u32), not single u32. See structs::MaxChargedUseableCount.
         pub max_charged_useable_count: MaxChargedUseableCount,
-        pub hackable_character_group_info_list: CArray<CharacterGroupKey>,
-        pub item_group_info_list: CArray<ItemGroupKey>,
+        // 1.0.8: wire u16 per element (IDA sub_1410F5E50 confirmed)
+        pub hackable_character_group_info_list: CArray<u16>,
+        // 1.0.8: wire u16 per element (was u32 ItemGroupKey in 1.05)
+        pub item_group_info_list: CArray<u16>,
         pub discard_offset_y: f32,
         // Restored 2026-05-06 per IDA decomp: _discardAttachTerrain between
         // _discardOffsetY and _hideFromInventoryOnPopItem.

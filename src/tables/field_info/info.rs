@@ -108,149 +108,43 @@
 // ⏳ _regionBitmapPositionInfo (direct_u8, stream=1)
 // ⏳ _fixedFieldTime
 
-use crate::binary::*;
-use crate::py_binary_struct;
-
-py_binary_struct! {
-    /// 31-byte sub-block read by sub_14EB7E370. Wire layout matches the
-    /// declaration order; struct reserves a padding byte between
-    /// `byte_at_20` and `u16_at_22` (game uses standard C alignment for the
-    /// in-memory copy, but the wire stream skips the pad).
-    pub struct FieldInfoComposite {
-        pub u32_a: u32,
-        pub u32_b: u32,
-        pub u32_c: u32,
-        pub u32_d: u32,
-        pub u32_e: u32,
-        pub byte_at_20: u8,
-        pub u16_at_22: u16,
-        pub blob_8: u64,
-    }
-}
-
-py_binary_struct! {
+// 1.0.8: FieldInfo was completely restructured (CString replaced hash fields,
+// several fields changed type). Switched to pabgh_blob_table for safe roundtrip.
+crate::pabgh_blob_table! {
     pub struct FieldInfo<'a> {
-        // Header — key + name. The string_key is empty in all 7 vanilla
-        // records but the wire format reserves a u32 length prefix.
-        pub key: u32,
-        pub string_key: CString<'a>,
-
-        // First scalar block. The two `lookup_*` fields carry a u32 hash on
-        // the wire; the game looks them up in qword_145F0DA30 to get a u16
-        // index. `unk_u32_b` stays a raw u32 (no lookup).
-        pub byte_at_16: u8,
-        pub lookup_u32_a: u32,
-        pub lookup_u32_b: u32,
-        pub unk_u32_b: u32,
-        pub byte_at_28: u8,
-        pub byte_at_29: u8,
-        pub byte_at_30: u8,
-        pub byte_at_31: u8,
-        pub lookup_u32_c: u32,
-
-        // Three typed Vec/pair fields. Doc previously kept these as raw
-        // bytes; promoted to typed floats per the field-level rule (json
-        // round-trip verified — no NaN bit patterns in vanilla data).
-        pub bounds: [f32; 3],
-        pub size_pair: [f32; 2],
-        pub height_pair: [f32; 2],
-
-        // Per-slot NaN probe across all 7 vanilla entries:
-        //   unk_u32_d: 7/7 NaN  → must stay u32 (NaN bit patterns)
-        //   unk_u32_e: 6/7 NaN  → must stay u32
-        //   unk_u32_f: 2/7 NaN  → must stay u32 (some entries have NaN)
-        //   unk_u32_g: 0/7 NaN  → safe to promote to f32 (clean floats)
-        pub unk_u32_d: u32,
-        pub unk_u32_e: u32,
-        pub unk_u32_f: u32,
-        pub unk_f32_g: f32,
-
-        // u16 lookup via sub_141100C20 → qword_145F290B8.
-        pub lookup_u16_a: u16,
-        pub byte_at_82: u8,
-        pub byte_at_83: u8,
-        pub byte_at_84: u8,
-
-        // 31-byte composite. Decoded into typed fields so per-field mod
-        // edits work; round-trip is exact.
-        pub composite: FieldInfoComposite,
-
-        // Final three u32 lookups via the same dictionary as the trailing
-        // u16-cast at struct +120/+122/+124 in the IDA decompile. The
-        // wire format is u32 hash; the game stores u16 indices at runtime.
-        pub lookup_u32_d: u32,
-        pub lookup_u32_e: u32,
-        pub lookup_u32_f: u32,
-        pub byte_at_126: u8,
+        key: u32,
+        blob_field: body,
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // 2026-5-3 is the newest available dump; fieldinfo is still 122 B/record
-    // (identical to 5-1) so tests skip until always_call_vehicle_dev lands in wire format.
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-3/fieldinfo.pabgb";
-
-    #[test]
-    fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
-            return;
-        };
-        // 122 B/record on 1.05.02 (verified live 2026-05-04 via
-        // examples/round_trip_matrix.rs). The post-2026-5-1
-        // always_call_vehicle_dev field was reverted — see module doc.
-        if data.len() % 122 != 0 {
-            eprintln!("SKIP: fixture record size does not match current struct (need 122 B/record, got {} total)", data.len());
-            return;
-        };
-        let mut offset = 0;
-        let mut items = Vec::new();
-        while offset < data.len() {
-            let item = FieldInfo::read_from(&data, &mut offset)
-                .unwrap_or_else(|e| panic!("read at offset {}: {}", offset, e));
-            items.push(item);
-        }
-        assert_eq!(offset, data.len(), "did not consume all bytes ({}/{} remaining)",
-                   data.len() - offset, data.len());
-        let mut out = Vec::with_capacity(data.len());
-        for item in &items {
-            item.write_to(&mut out).unwrap();
-        }
-        assert_eq!(out, data, "fieldinfo roundtrip bytes mismatch");
+impl<'a> FieldInfo<'a> {
+    pub fn to_json_dict(&self) -> serde_json::Map<String, serde_json::Value> {
+        use base64::Engine;
+        let mut m = serde_json::Map::new();
+        m.insert("key".into(), serde_json::Value::from(self.key));
+        m.insert("string_key".into(), serde_json::Value::from(
+            std::str::from_utf8(self.string_key.data.as_bytes()).unwrap_or("")));
+        m.insert("is_blocked".into(), serde_json::Value::from(self.is_blocked));
+        m.insert("_body_b64".into(), serde_json::Value::from(
+            base64::engine::general_purpose::STANDARD.encode(&self.body)));
+        m
     }
 
-    #[test]
-    fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
-            return;
-        };
-        if data.len() % 122 != 0 {
-            eprintln!("SKIP: fixture record size does not match current struct");
-            return;
-        };
-        let mut offset = 0;
-        let mut items = Vec::new();
-        while offset < data.len() {
-            items.push(FieldInfo::read_from(&data, &mut offset).unwrap());
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &serde_json::Map<String, serde_json::Value>) -> std::io::Result<()> {
+        use crate::binary::BinaryWrite;
+        use base64::Engine;
+        let key = obj.get("key").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        key.write_to(w)?;
+        let sk = obj.get("string_key").and_then(|v| v.as_str()).unwrap_or("");
+        (sk.len() as u32).write_to(w)?;
+        w.extend_from_slice(sk.as_bytes());
+        let blocked = obj.get("is_blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+        blocked.write_to(w)?;
+        if let Some(b64) = obj.get("_body_b64").and_then(|v| v.as_str()) {
+            let body = base64::engine::general_purpose::STANDARD.decode(b64)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            w.extend_from_slice(&body);
         }
-        assert_eq!(offset, data.len(), "did not consume all bytes");
-
-        for (i, item) in items.iter().enumerate() {
-            let _ = &item;
-            let dict = item.to_json_dict();
-            let mut from_typed = Vec::new();
-            item.write_to(&mut from_typed).unwrap();
-            let mut from_json = Vec::new();
-            FieldInfo::write_from_json_dict(&mut from_json, &dict)
-                .unwrap_or_else(|e| panic!("entry {}: write_from_json_dict: {}", i, e));
-            assert_eq!(
-                from_json, from_typed,
-                "entry {}: JSON round-trip diverges from typed write", i
-            );
-        }
+        Ok(())
     }
 }

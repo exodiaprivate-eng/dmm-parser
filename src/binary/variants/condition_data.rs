@@ -2233,6 +2233,8 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_GetMaxWantedLevel(ConditionData_GetMaxWantedLevelPayload),
     ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload),
     ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload),
+    ConditionData_Tag406,
+    ConditionData_Tag407(OneByteBodyPayload),
 }
 
 impl<'a> ConditionDataVariant<'a> {
@@ -2644,6 +2646,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(_) => 403,
             Self::ConditionData_CheckPlayerHouse(_) => 404,
             Self::ConditionData_CheckActivatedHousingRegion(_) => 405,
+            Self::ConditionData_Tag406 => 406,
+            Self::ConditionData_Tag407(_) => 407,
         }
     }
 
@@ -3058,6 +3062,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(_) => "ConditionData_GetMaxWantedLevel",
             Self::ConditionData_CheckPlayerHouse(_) => "ConditionData_CheckPlayerHouse",
             Self::ConditionData_CheckActivatedHousingRegion(_) => "ConditionData_CheckActivatedHousingRegion",
+            Self::ConditionData_Tag406 => "ConditionData_Tag406",
+            Self::ConditionData_Tag407(_) => "ConditionData_Tag407",
         }
     }
 
@@ -3473,6 +3479,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckPlayerHouse(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckActivatedHousingRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag406 => {}
+            Self::ConditionData_Tag407(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
         }
         Value::Object(m)
     }
@@ -3895,6 +3903,8 @@ impl<'a> ConditionDataVariant<'a> {
             403 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetMaxWantedLevel: missing body object"))?; ConditionData_GetMaxWantedLevelPayload::write_from_json_dict(w, body)?; }
             404 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPlayerHouse: missing body object"))?; ConditionData_CheckPlayerHousePayload::write_from_json_dict(w, body)?; }
             405 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActivatedHousingRegion: missing body object"))?; ConditionData_CheckActivatedHousingRegionPayload::write_from_json_dict(w, body)?; }
+            406 => {} // Tag406: bodyless
+            407 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag407: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataVariant: unknown disc {}", other))),
         }
@@ -4311,6 +4321,8 @@ impl<'a> ConditionDataVariant<'a> {
             403 => Self::ConditionData_GetMaxWantedLevel(ConditionData_GetMaxWantedLevelPayload::read_from(data, offset)?),
             404 => Self::ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload::read_from(data, offset)?),
             405 => Self::ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload::read_from(data, offset)?),
+            406 => Self::ConditionData_Tag406,
+            407 => Self::ConditionData_Tag407(OneByteBodyPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
         })
     }
@@ -4723,6 +4735,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(p) => p.write_to(w),
             Self::ConditionData_CheckPlayerHouse(p) => p.write_to(w),
             Self::ConditionData_CheckActivatedHousingRegion(p) => p.write_to(w),
+            Self::ConditionData_Tag406 => Ok(()),
+            Self::ConditionData_Tag407(p) => p.write_to(w),
         }
     }
 }

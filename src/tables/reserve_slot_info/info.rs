@@ -133,6 +133,8 @@ py_binary_struct! {
         pub target_item_group_list: CArray<u16>,
         pub send_gimmick_event_key_for_slot_data_changed: u32,
         pub is_self_player_only: u8,
+        // NEW 1.0.8: trailing u8 per IDA sub_1410ED260 field #19
+        pub unk_trailing_108: u8,
     }
 }
 
