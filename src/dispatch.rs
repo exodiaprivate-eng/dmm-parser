@@ -86,6 +86,8 @@ pub fn parse_table_to_json(
         }};
     }
 
+    let table_name = normalize_target_name(table_name).unwrap_or(table_name);
+
     Ok(match table_name {
         // ── pabgh-bounded tables ──────────────────────────────────────────
         "ai_dialog_string_info"          => p!(crate::tables::ai_dialog_string_info::AIDialogStringInfo),
@@ -227,6 +229,7 @@ pub fn parse_table_to_json(
         "vehicle_info"                   => s!(crate::tables::vehicle_info::VehicleInfo),
         "vibrate_pattern_info"           => s!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
         "wanted_info"                    => s!(crate::tables::wanted_info::WantedInfo),
+        "iteminfo"                       => s!(crate::item_info::ItemInfo),
 
         // ── file-format tables (non-pabgb) ────────────────────────────────
         // Parsers ported from Workbench fork. Each returns a 1-element
@@ -406,6 +409,7 @@ pub fn serialize_table_from_json(
         "vehicle_info"                   => d!(crate::tables::vehicle_info::VehicleInfo),
         "vibrate_pattern_info"           => d!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
         "wanted_info"                    => d!(crate::tables::wanted_info::WantedInfo),
+        "iteminfo"                       => d!(crate::item_info::ItemInfo),
 
         // ── file-format tables (non-pabgb) ────────────────────────────────
         "pappt" => crate::tables::pappt::serialize_pappt_from_json(json_items)?,
@@ -758,7 +762,7 @@ pub fn supported_tables() -> &'static [&'static str] {
         "terrain_region_navi_info", "tribe_info", "trigger_region_info",
         "ui_social_action_info", "uifilter_group_info", "uimap_texture_info",
         "valid_schedule_action_info", "vehicle_info", "vibrate_pattern_info",
-        "wanted_info",
+        "wanted_info", "iteminfo",
         // file-format tables (Phase 1: parsers ported, JSON layer pending)
         "paac", "paatt", "pamhc", "pappt",
     ]
