@@ -58,7 +58,7 @@
 //!       (_collectionItemList, sub_141103310 — element wire = u32
 //!       _itemInfo + 8 raw bytes = 12 bytes)
 //!
-//! `InventoryMoveData` (sub_1410E0460) embeds an `OptionalGameCondition`
+//! `InventoryMoveData` (sub_1410E0460) embeds an `OptionalGameConditionNoTail`
 //! (sub_141103B30 → sub_141CEA810). Stream-mode reading uses lane A's
 //! public `GameConditionNode::read_from`; the 0.2% Raw fallback in
 //! `GameCondition::read_from` is unreachable here because we don't
@@ -66,7 +66,7 @@
 //! anti-disassembly variant (tags 54/286), parsing would fail; the
 //! roundtrip test below would catch it.
 
-use crate::binary::optional_game_condition::OptionalGameCondition;
+use crate::binary::optional_game_condition::OptionalGameConditionNoTail;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
@@ -123,7 +123,7 @@ pub struct InventoryMoveData<'a> {
     pub move_all_key_guide_text: LocalizableString<'a>,
     pub modal_text: LocalizableString<'a>,
     pub item_move_data_list: CArray<InventoryItemMoveData>,
-    pub move_condition: OptionalGameCondition<'a>,
+    pub move_condition: OptionalGameConditionNoTail<'a>,
     pub condition_fail_text: LocalizableString<'a>,
 }
 
@@ -137,7 +137,7 @@ impl<'a> InventoryMoveData<'a> {
         let move_all_key_guide_text = LocalizableString::read_from(data, offset)?;
         let modal_text = LocalizableString::read_from(data, offset)?;
         let item_move_data_list = CArray::<InventoryItemMoveData>::read_from(data, offset)?;
-        let move_condition = OptionalGameCondition::read_from(data, offset)?;
+        let move_condition = OptionalGameConditionNoTail::read_from(data, offset)?;
         let condition_fail_text = LocalizableString::read_from(data, offset)?;
         Ok(Self {
             type_, from_inventory_info, to_inventory_info, convert_money_item_info,
@@ -198,7 +198,7 @@ impl<'a> WriteJsonValue for InventoryMoveData<'a> {
         <CArray<InventoryItemMoveData> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "item_move_data_list")?,
         )?;
-        OptionalGameCondition::write_from_json(w, json_get_field(obj, "move_condition")?)?;
+        OptionalGameConditionNoTail::write_from_json(w, json_get_field(obj, "move_condition")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_fail_text")?)?;
         Ok(())
     }

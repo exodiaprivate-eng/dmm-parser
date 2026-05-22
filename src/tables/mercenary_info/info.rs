@@ -87,10 +87,11 @@ py_binary_struct! {
         pub unspawn_on_focus_actor_changed: u8,   // _unspawnOnFocusActorChanged
         pub is_main_dischargeable: u8,            // _isMainDischargeable
         pub spawn_position_type: u8,              // _spawnPositionType
-        pub summon_owner_option: u8,              // _summonOwnerOption
-        pub parent_mercenary_group_info: u8,      // _parentMercenaryGroupInfo
-        pub shared_summon_count_tag: u32,         // _sharedSummonCountTag
-                                                  //   (constant 0xEAC5E173)
+        // 1.0.8: expanded from u8 to u32 (hash lookup)
+        pub summon_owner_option: u32,
+        // 1.0.8: expanded from u8 to u32 (hash lookup)
+        pub parent_mercenary_group_info: u32,
+        // 1.0.8: shared_summon_count_tag REMOVED (was u32)
         pub hired_skill_info_list: CArray<HiredSkillData>, // _hiredSkillInfoList
     }
 }

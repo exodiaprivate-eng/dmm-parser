@@ -26,220 +26,41 @@
 //! u32 + u32-hash + 16 raw + u32 + CString + 2× SceneObjectAA1B0Block
 //! (each = Vec3 + [u32;4] + Vec3) + 12 raw bytes. Mem stride 160.
 
-use crate::binary::*;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use crate::py_binary_struct;
-use serde_json::{Map, Value};
-use std::io::{self, Write};
-
-py_binary_struct! {
-    /// `sub_1410AA1B0` per-call. 40 wire bytes / 40 mem bytes.
-    /// Wire ORDER (mem-out-of-order in IDA): vec_a (12 bytes, written to
-    /// mem +28), block (16 bytes via sub_1410AA0D0, written to mem +12),
-    /// vec_b (12 bytes, written to mem +0).
-    pub struct SceneObjectAA1B0Block {
-        pub vec_a: [f32; 3],
-        pub block: [u32; 4],
-        pub vec_b: [f32; 3],
+crate::pabgh_blob_table! {
+    pub struct LevelGimmickSceneObjectInfo<'a> {
+        key: u32,
+        blob_field: body,
     }
-}
-
-py_binary_struct! {
-    /// `sub_1410EB270` per-element. 144 wire bytes (excluding two CStrings)
-    /// / 160 mem bytes.
-    pub struct LevelGimmickSceneObjectData<'a> {
-        pub raw_a: u32,            // sub_141106210 (u32 wire / u32 mem)
-        pub raw_b: u32,            // sub_141100740 (u32 wire / u16 mem)
-        pub raw_c: u32,            // sub_1410FF5C0 (u32 wire / u16 mem)
-        pub raw_d: u32,            // u32 raw → hash via 145F169C0
-        pub name: CString<'a>,
-        pub raw_e: u32,            // sub_141103530 (u32 wire / u32 mem)
-        pub raw_f: u32,            // read_u32_lookup_DA30 (u32 wire / u16 mem)
-        pub block_32: [u32; 4],    // 16 raw bytes
-        pub raw_g: u32,            // 4 raw bytes
-        pub texture_id: CString<'a>,
-        pub block_a: SceneObjectAA1B0Block,  // sub_1410AA1B0 #1
-        pub block_b: SceneObjectAA1B0Block,  // sub_1410AA1B0 #2
-        pub trail_a: u32,
-        pub trail_b: u32,
-        pub trail_c: u32,
-    }
-}
-
-#[derive(Debug)]
-pub struct LevelGimmickSceneObjectInfo<'a> {
-    pub key: u32,
-    pub string_key: CString<'a>,
-    pub is_blocked: u8,
-    pub level_name: CString<'a>,
-    pub data_list: CArray<LevelGimmickSceneObjectData<'a>>,
-    pub map_icon_texture_info: u32,
-    pub discover_near_fog: u8,
-    pub fog_map_icon_texture_info: u32,
-    pub fog_distance: u32,
-    pub over_abyss_icon_texture_info: u32,
-    pub over_abyss_fog_map_icon_texture_info: u32,
-    pub over_abyss_fog_distance: u32,
-    pub discover_distance: u32,
-    pub show_icon_condition_type: u8,
-    pub use_teleport: u8,
-    pub use_guide_effect: u8,
-    pub is_sub_inner_gimmick: u8,
-    pub check_game_level_load_state: u8,
-    pub unk_new_u8_a: u8,
-    pub unk_new_u8_b: u8,
-    pub completed_discover_map_icon_texture_info: u32,
-    pub over_abyss_completed_discover_map_icon_texture_info: u32,
-    pub guide_effect_socket_name: CString<'a>,
-    pub ore_vein_index: u32,
-    pub discover_type: u32,
-    pub ignore_same_gimmick_discover_distance: u32,
-    pub discover_gimmick_state_hash: u32,
 }
 
 impl<'a> LevelGimmickSceneObjectInfo<'a> {
-    pub fn read_with_size(
-        data: &'a [u8],
-        offset: &mut usize,
-        entry_size: usize,
-    ) -> io::Result<Self> {
-        let _ = entry_size; // typed reader is byte-perfect; size is informational
-
-        let key = u32::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let level_name = CString::read_from(data, offset)?;
-
-        let data_list = <CArray<LevelGimmickSceneObjectData>>::read_from(data, offset)?;
-
-        let map_icon_texture_info = u32::read_from(data, offset)?;
-        let discover_near_fog = u8::read_from(data, offset)?;
-        let fog_map_icon_texture_info = u32::read_from(data, offset)?;
-        let fog_distance = u32::read_from(data, offset)?;
-        let over_abyss_icon_texture_info = u32::read_from(data, offset)?;
-        let over_abyss_fog_map_icon_texture_info = u32::read_from(data, offset)?;
-        let over_abyss_fog_distance = u32::read_from(data, offset)?;
-        let discover_distance = u32::read_from(data, offset)?;
-        let show_icon_condition_type = u8::read_from(data, offset)?;
-        let use_teleport = u8::read_from(data, offset)?;
-        let use_guide_effect = u8::read_from(data, offset)?;
-        let is_sub_inner_gimmick = u8::read_from(data, offset)?;
-        let check_game_level_load_state = u8::read_from(data, offset)?;
-        let unk_new_u8_a = u8::read_from(data, offset)?;
-        let unk_new_u8_b = u8::read_from(data, offset)?;
-        let completed_discover_map_icon_texture_info = u32::read_from(data, offset)?;
-        let over_abyss_completed_discover_map_icon_texture_info = u32::read_from(data, offset)?;
-        let guide_effect_socket_name = CString::read_from(data, offset)?;
-        let ore_vein_index = u32::read_from(data, offset)?;
-        let discover_type = u32::read_from(data, offset)?;
-        let ignore_same_gimmick_discover_distance = u32::read_from(data, offset)?;
-        let discover_gimmick_state_hash = u32::read_from(data, offset)?;
-
-        Ok(Self {
-            key, string_key, is_blocked, level_name, data_list,
-            map_icon_texture_info, discover_near_fog, fog_map_icon_texture_info,
-            fog_distance, over_abyss_icon_texture_info, over_abyss_fog_map_icon_texture_info,
-            over_abyss_fog_distance, discover_distance,
-            show_icon_condition_type, use_teleport, use_guide_effect,
-            is_sub_inner_gimmick, check_game_level_load_state,
-            unk_new_u8_a, unk_new_u8_b,
-            completed_discover_map_icon_texture_info, over_abyss_completed_discover_map_icon_texture_info,
-            guide_effect_socket_name, ore_vein_index, discover_type,
-            ignore_same_gimmick_discover_distance, discover_gimmick_state_hash,
-        })
-    }
-
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
-        self.string_key.write_to(w)?;
-        self.is_blocked.write_to(w)?;
-        self.level_name.write_to(w)?;
-        self.data_list.write_to(w)?;
-        self.map_icon_texture_info.write_to(w)?;
-        self.discover_near_fog.write_to(w)?;
-        self.fog_map_icon_texture_info.write_to(w)?;
-        self.fog_distance.write_to(w)?;
-        self.over_abyss_icon_texture_info.write_to(w)?;
-        self.over_abyss_fog_map_icon_texture_info.write_to(w)?;
-        self.over_abyss_fog_distance.write_to(w)?;
-        self.discover_distance.write_to(w)?;
-        self.show_icon_condition_type.write_to(w)?;
-        self.use_teleport.write_to(w)?;
-        self.use_guide_effect.write_to(w)?;
-        self.is_sub_inner_gimmick.write_to(w)?;
-        self.check_game_level_load_state.write_to(w)?;
-        self.unk_new_u8_a.write_to(w)?;
-        self.unk_new_u8_b.write_to(w)?;
-        self.completed_discover_map_icon_texture_info.write_to(w)?;
-        self.over_abyss_completed_discover_map_icon_texture_info.write_to(w)?;
-        self.guide_effect_socket_name.write_to(w)?;
-        self.ore_vein_index.write_to(w)?;
-        self.discover_type.write_to(w)?;
-        self.ignore_same_gimmick_discover_distance.write_to(w)?;
-        self.discover_gimmick_state_hash.write_to(w)?;
-        Ok(())
-    }
-
-    pub fn to_json_dict(&self) -> Map<String, Value> {
-        let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
-        m.insert("string_key".to_string(), self.string_key.to_json_value());
-        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("level_name".to_string(), self.level_name.to_json_value());
-        m.insert("data_list".to_string(), self.data_list.to_json_value());
-        m.insert("map_icon_texture_info".to_string(), self.map_icon_texture_info.to_json_value());
-        m.insert("discover_near_fog".to_string(), self.discover_near_fog.to_json_value());
-        m.insert("fog_map_icon_texture_info".to_string(), self.fog_map_icon_texture_info.to_json_value());
-        m.insert("fog_distance".to_string(), self.fog_distance.to_json_value());
-        m.insert("over_abyss_icon_texture_info".to_string(), self.over_abyss_icon_texture_info.to_json_value());
-        m.insert("over_abyss_fog_map_icon_texture_info".to_string(), self.over_abyss_fog_map_icon_texture_info.to_json_value());
-        m.insert("over_abyss_fog_distance".to_string(), self.over_abyss_fog_distance.to_json_value());
-        m.insert("discover_distance".to_string(), self.discover_distance.to_json_value());
-        m.insert("show_icon_condition_type".to_string(), self.show_icon_condition_type.to_json_value());
-        m.insert("use_teleport".to_string(), self.use_teleport.to_json_value());
-        m.insert("use_guide_effect".to_string(), self.use_guide_effect.to_json_value());
-        m.insert("is_sub_inner_gimmick".to_string(), self.is_sub_inner_gimmick.to_json_value());
-        m.insert("check_game_level_load_state".to_string(), self.check_game_level_load_state.to_json_value());
-        m.insert("unk_new_u8_a".to_string(), self.unk_new_u8_a.to_json_value());
-        m.insert("unk_new_u8_b".to_string(), self.unk_new_u8_b.to_json_value());
-        m.insert("completed_discover_map_icon_texture_info".to_string(), self.completed_discover_map_icon_texture_info.to_json_value());
-        m.insert("over_abyss_completed_discover_map_icon_texture_info".to_string(), self.over_abyss_completed_discover_map_icon_texture_info.to_json_value());
-        m.insert("guide_effect_socket_name".to_string(), self.guide_effect_socket_name.to_json_value());
-        m.insert("ore_vein_index".to_string(), self.ore_vein_index.to_json_value());
-        m.insert("discover_type".to_string(), self.discover_type.to_json_value());
-        m.insert("ignore_same_gimmick_discover_distance".to_string(), self.ignore_same_gimmick_discover_distance.to_json_value());
-        m.insert("discover_gimmick_state_hash".to_string(), self.discover_gimmick_state_hash.to_json_value());
+    pub fn to_json_dict(&self) -> serde_json::Map<String, serde_json::Value> {
+        use base64::Engine;
+        let mut m = serde_json::Map::new();
+        m.insert("key".into(), serde_json::Value::from(self.key));
+        m.insert("string_key".into(), serde_json::Value::from(
+            std::str::from_utf8(self.string_key.data.as_bytes()).unwrap_or("")));
+        m.insert("is_blocked".into(), serde_json::Value::from(self.is_blocked));
+        m.insert("_body_b64".into(), serde_json::Value::from(
+            base64::engine::general_purpose::STANDARD.encode(&self.body)));
         m
     }
 
-    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "level_name")?)?;
-        <CArray<LevelGimmickSceneObjectData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "data_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "map_icon_texture_info")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_near_fog")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_map_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_distance")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_fog_map_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_fog_distance")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_distance")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "show_icon_condition_type")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_teleport")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_guide_effect")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_sub_inner_gimmick")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "check_game_level_load_state")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_u8_a")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_u8_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "completed_discover_map_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_completed_discover_map_icon_texture_info")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "guide_effect_socket_name")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ore_vein_index")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_type")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ignore_same_gimmick_discover_distance")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_gimmick_state_hash")?)?;
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &serde_json::Map<String, serde_json::Value>) -> std::io::Result<()> {
+        use crate::binary::BinaryWrite;
+        use base64::Engine;
+        let key = obj.get("key").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        key.write_to(w)?;
+        let sk = obj.get("string_key").and_then(|v| v.as_str()).unwrap_or("");
+        (sk.len() as u32).write_to(w)?;
+        w.extend_from_slice(sk.as_bytes());
+        let blocked = obj.get("is_blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+        blocked.write_to(w)?;
+        if let Some(b64) = obj.get("_body_b64").and_then(|v| v.as_str()) {
+            let body = base64::engine::general_purpose::STANDARD.decode(b64)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            w.extend_from_slice(&body);
+        }
         Ok(())
     }
 }

@@ -284,34 +284,16 @@ where
                 if out.len() < 3 {
                     eprintln!("BLOB_FALLBACK k=0x{:x} size={}: {}", k, e - s, _err);
                 }
-                // Typed parse failed for this entry — fall back to blob.
-                // Parse key + string_key + is_blocked + blob from raw bytes.
+                // Typed parse failed for this entry — fall back to raw blob.
+                // Store the entire entry bytes as _blob_b64 (key-width agnostic).
+                // Use the pabgh key `k` for the JSON key field.
                 let entry = &data[s..e];
-                let mut p = 0usize;
-                let key_val = if p + 4 <= entry.len() {
-                    let v = u32::from_le_bytes(entry[p..p+4].try_into().unwrap_or([0;4]));
-                    p += 4; v
-                } else { 0 };
-                let sk = if p + 4 <= entry.len() {
-                    let slen = u32::from_le_bytes(entry[p..p+4].try_into().unwrap_or([0;4])) as usize;
-                    p += 4;
-                    if p + slen <= entry.len() {
-                        let s = std::str::from_utf8(&entry[p..p+slen]).unwrap_or("").to_string();
-                        p += slen; s
-                    } else { String::new() }
-                } else { String::new() };
-                let ib = if p < entry.len() { let v = entry[p]; p += 1; v } else { 0 };
-                let blob = &entry[p..];
 
                 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
                 let mut dict = serde_json::Map::new();
-                dict.insert("key".into(), Value::Number(key_val.into()));
-                dict.insert("string_key".into(), Value::String(sk));
-                dict.insert("is_blocked".into(), Value::Number(ib.into()));
-                dict.insert("_blob_b64".into(), Value::String(B64.encode(blob)));
+                dict.insert("key".into(), Value::Number(k.into()));
+                dict.insert("_blob_b64".into(), Value::String(B64.encode(entry)));
                 dict.insert("_blob_fallback".into(), Value::Bool(true));
-                #[cfg(feature = "diagnostics")]
-                eprintln!("DIAG typed_blob_table k=0x{:x}: typed parse failed, using blob fallback ({} bytes)", k, blob.len());
                 out.push(Value::Object(dict));
             }
         }
@@ -350,13 +332,7 @@ where
 
 fn write_blob_fallback_entry(out: &mut Vec<u8>, obj: &serde_json::Map<String, Value>) -> io::Result<()> {
     use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
-    let key = obj.get("key").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-    out.extend_from_slice(&key.to_le_bytes());
-    let sk = obj.get("string_key").and_then(|v| v.as_str()).unwrap_or("");
-    out.extend_from_slice(&(sk.len() as u32).to_le_bytes());
-    out.extend_from_slice(sk.as_bytes());
-    let ib = obj.get("is_blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
-    out.push(ib);
+    // _blob_b64 contains the entire entry bytes (key-width agnostic).
     if let Some(blob_v) = obj.get("_blob_b64").and_then(|v| v.as_str()) {
         let blob = B64.decode(blob_v).map_err(|e| io::Error::new(
             io::ErrorKind::InvalidData, format!("blob fallback decode: {}", e)))?;

@@ -500,6 +500,8 @@ py_binary_struct! {
         pub is_bag_docking: u8,
         pub enable_collision: u8,
         pub disable_collision_with_other_gimmick: u8,
+        // 1.0.8: new u8 field in DockingChildData (IDA shows 14 u8 reads vs 13 in Rust)
+        pub unk_docking_108: u8,
         pub docking_slot_key: CString<'a>,
         pub inherit_summoner: u8,
         pub summon_tag_name_hash: [u32; 4],

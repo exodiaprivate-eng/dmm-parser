@@ -133,11 +133,7 @@ pub fn parse_table_to_json(
         "region_info"                    => p!(crate::tables::region_info::RegionInfo),
         "royal_supply_info"              => p!(crate::tables::royal_supply_info::RoyalSupplyInfo),
         "sequencer_spawn_info"           => p!(crate::tables::sequencer_spawn_info::SequencerSpawnInfo),
-        "skill_info"                     => {
-            let ph = pabgh.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
-                "table 'skill_info' requires a pabgh file"))?;
-            crate::tables::skill_info::parse_skill_to_json_with_pabgh(pabgb, ph)?
-        },
+        "skill_info"                     => p!(crate::tables::skill_info::SkillInfo),
         "spawning_pool_auto_spawn_info"  => p!(crate::tables::spawning_pool_auto_spawn_info::SpawningPoolAutoSpawnInfo),
         "special_mode_info"              => p!(crate::tables::special_mode_info::SpecialModeInfo),
         "stage_info"                     => p!(crate::tables::stage_info::StageInfo),
@@ -153,7 +149,7 @@ pub fn parse_table_to_json(
         },
 
         // ── sequential tables ─────────────────────────────────────────────
-        "action_point_info"              => s!(crate::tables::action_point_info::ActionPointInfo),
+        "action_point_info"              => p!(crate::tables::action_point_info::ActionPointInfo),
         "action_restriction_order_info"  => s!(crate::tables::action_restriction_order_info::ActionRestrictionOrderInfo),
         "aiaction_attribute_info"        => s!(crate::tables::aiaction_attribute_info::AIActionAttributeInfo),
         "aidialog_type_info"             => s!(crate::tables::aidialog_type_info::AIDialogTypeInfo),
@@ -180,7 +176,7 @@ pub fn parse_table_to_json(
         "faction_relation_group_info"    => s!(crate::tables::faction_relation_group_info::FactionRelationGroupInfo),
         "faction_waypoint_info"          => s!(crate::tables::faction_waypoint_info::FactionWaypointInfo),
         "fail_message_info"              => s!(crate::tables::fail_message_info::FailMessageInfo),
-        "field_info"                     => s!(crate::tables::field_info::FieldInfo),
+        "field_info"                     => p!(crate::tables::field_info::FieldInfo),
         "field_level_name_table_info"    => s!(crate::tables::field_level_name_table_info::FieldLevelNameTableInfo),
         "formation_info"                 => s!(crate::tables::formation_info::FormationInfo),
         "game_advice_group_info"         => s!(crate::tables::game_advice_group_info::GameAdviceGroupInfo),
@@ -317,9 +313,7 @@ pub fn serialize_table_from_json(
         "region_info"                    => d!(crate::tables::region_info::RegionInfo),
         "royal_supply_info"              => d!(crate::tables::royal_supply_info::RoyalSupplyInfo),
         "sequencer_spawn_info"           => d!(crate::tables::sequencer_spawn_info::SequencerSpawnInfo),
-        "skill_info"                     => {
-            crate::tables::skill_info::serialize_skill_from_json(json_items)?
-        },
+        "skill_info"                     => d!(crate::tables::skill_info::SkillInfo),
         "spawning_pool_auto_spawn_info"  => d!(crate::tables::spawning_pool_auto_spawn_info::SpawningPoolAutoSpawnInfo),
         "special_mode_info"              => d!(crate::tables::special_mode_info::SpecialModeInfo),
         "stage_info"                     => d!(crate::tables::stage_info::StageInfo),
@@ -589,24 +583,7 @@ fn serialize_table_from_json_tracked(
         "sub_level_info"                 => dt!(crate::tables::sub_level_info::SubLevelInfo),
         "terrain_region_auto_spawn_info" => dt!(crate::tables::terrain_region_auto_spawn_info::TerrainRegionAutoSpawnInfo),
 
-        // skill_info and equip_slot_info don't go through the generic
-        // typed-blob runtime — they have their own serializers. Wire the
-        // tracked path by hand here: write each record sequentially and
-        // capture (key, byte_offset) per record so the caller can rebuild
-        // pabgh from the new offsets.
-        "skill_info" => {
-            let mut out = Vec::with_capacity(items.len() * 1024);
-            let mut offsets = Vec::with_capacity(items.len());
-            for (i, item) in items.iter().enumerate() {
-                let key = item.get("key").and_then(|v| v.as_u64()).ok_or_else(|| io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("skill_info[{}]: missing 'key' field for pabgh rebuild", i)))? as u32;
-                offsets.push((key, out.len() as u32));
-                crate::tables::skill_info::info::write_skill_info_record(&mut out, item)
-                    .map_err(|e| io::Error::new(e.kind(), format!("skill_info[{}]: {}", i, e)))?;
-            }
-            (out, offsets)
-        }
+        "skill_info" => dt!(crate::tables::skill_info::SkillInfo),
         "equip_slot_info" => {
             let mut out = Vec::with_capacity(items.len() * 1024);
             let mut offsets = Vec::with_capacity(items.len());

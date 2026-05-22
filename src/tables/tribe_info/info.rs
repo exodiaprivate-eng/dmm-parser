@@ -128,19 +128,23 @@ py_binary_struct! {
         pub unk_33: u8,
         pub unk_34: u8,
         pub unk_35: u8,
-        pub unk_36: u8,
+        // 1.0.8: was u8, now u32
+        pub unk_36: u32,
         pub unk_40: u32,
         pub unk_44: u32,
-        pub unk_48: u32,
-        pub unk_56: CString<'a>,
+        // 1.0.8: was u32, now CString
+        pub unk_48: CString<'a>,
+        pub unk_56: u32,
+        pub unk_60: u32,
         pub unk_64: u32,
         pub unk_68: u32,
-        pub unk_72: u32,
+        // 1.0.8: was u32, now u8
+        pub unk_72: u8,
+        pub unk_73: u8,
         pub unk_76: u32,
-        pub unk_80: u8,
-        pub unk_81: u8,
-        pub unk_84: u32,
-        pub unk_88: u64,
+        // 1.0.8: was u32 unk_84 + u64 unk_88, now 16B (2x u64)
+        pub unk_80_lo: u64,
+        pub unk_80_hi: u64,
         pub ref_list: CArray<u32>,
     }
 }
