@@ -1,8 +1,32 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410E05E0` in CrimsonDesert.exe (Win build).
-//! Per-element reader for inventory_move_data_list: `sub_1410E0460`
-//! (160-byte composite). Inner readers fully decoded.
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410C20A0` — the InventoryInfo deserializer (found
+//! via xref to the "InventoryInfo" reflection class-name block at
+//! 0x144AF2DE0+). `a2` is `_WORD*`, so IDA's `a2+N` = byte offset 2N.
+//! All 18 top-level fields confirmed in order/width. Per-element reader
+//! for inventory_move_data_list is `sub_1410C1F20` (160-byte composite,
+//! 10 fields). (Previously-cited `sub_1410E05E0` / `sub_1410E0460` were
+//! stale — the former lands in an unrelated u32-key table reader in
+//! this build.)
+//!
+//! Element-reader type confirmations (the kind byte-roundtrip can't prove):
+//!   - pushable/excluded element (sub_1410E6560): u16 item_group
+//!     (sub_1410E2CA0 reads 2 wire bytes + hash remap) + u8 item_type.
+//!   - collection element (sub_1410E58C0): u32 item_info
+//!     (sub_1410E1B70: 4 wire bytes → u16 RAM) + 8 RAW wire bytes copied
+//!     opaquely (no float ops at read time). Rust models the 8 bytes as
+//!     `u64` — bit-preserving and correct for the wire; the "f32/f32"
+//!     reading is a usage-site guess the reader neither confirms nor
+//!     denies.
+//!   - key_guide_local_string_info (sub_1410E1600): 4 wire bytes → u16
+//!     RAM. Rust `u32` correct for wire.
+//!   - InventoryMoveData.from/to_inventory_info (sub_1410E64B0): 2 wire
+//!     bytes (u16) + hash remap. convert_money_item_info (sub_1410E1B70):
+//!     4 wire bytes (u32) → u16 RAM.
+//! As with StoreInfo, all ID-reference fields read a wider value off the
+//! wire than they keep in RAM; the Rust structs model the *wire* width,
+//! which is what read/write roundtrip and modding require.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1.  u16 key                                   (_key, pabgh format 2)
@@ -387,8 +411,8 @@ impl<'a> InventoryInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgh";
+    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\inventory.pabgb";
+    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\inventory.pabgh";
 
     #[test]
     fn roundtrip() {

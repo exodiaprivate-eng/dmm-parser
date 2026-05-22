@@ -565,6 +565,18 @@ impl<'a> ItemUseInfo<'a> {
         let entry_end = start + entry_size;
         let payload_size = entry_end - *offset;
         let variant = ItemUseDataVariant::read_with_size(data, offset, disc, payload_size)?;
+        // Reject incomplete decodes: if the variant didn't consume the whole
+        // payload (e.g. disc 14 PlaySequencer's SequencerStageChartDescPartial
+        // leaves an undecoded ConditionData tail), the unconsumed bytes would
+        // be silently DROPPED on write (data loss). Erroring here makes the
+        // dispatch fall back to a verbatim blob → byte-perfect round-trip.
+        if *offset != entry_end {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("ItemUseInfo: disc {} consumed {}/{} bytes (incomplete)",
+                    disc, *offset - start, entry_size),
+            ));
+        }
         Ok(ItemUseInfo { key, string_key, is_blocked, variant })
     }
 
@@ -585,6 +597,15 @@ impl<'a> ItemUseInfo<'a> {
         let variant = track_read_with(offset, path, ranges, "variant", "ItemUseDataVariant", |o| {
             ItemUseDataVariant::read_with_size(data, o, disc, payload_size)
         })?;
+        // See read_with_size: reject incomplete decodes so the dispatch blobs
+        // them (byte-perfect round-trip) instead of dropping the tail.
+        if *offset != entry_end {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("ItemUseInfo: disc {} consumed {}/{} bytes (incomplete)",
+                    disc, *offset - start, entry_size),
+            ));
+        }
         Ok(ItemUseInfo { key, string_key, is_blocked, variant })
     }
 

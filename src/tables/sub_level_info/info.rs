@@ -1,6 +1,22 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410FD200` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410DF7D0` — the SubLevelInfo deserializer (found
+//! via xref to the "SubLevelInfo" class-name block at 0x144B269F0+).
+//! All 23 fields confirmed in order. (Cited `sub_1410FD200` was stale.)
+//! Notable wire-type confirmations:
+//!   - field 18 `additional_buff_apply_mercenary_info`: reader
+//!     `sub_1410E2FD0` reads **1 wire byte** (u8) then hash-remaps to a
+//!     u16 RAM slot. Rust `u8` is correct — this is a genuine 1-byte ID
+//!     ref, NOT the usual u32; a naive "all refs are u32" assumption is
+//!     wrong here. (The exp composite at byte 32 is read by
+//!     `sub_141E21DC0`, 32 mem bytes → Rust raw [u8;28]+pad.)
+//!   - u32-wire ID refs confirmed via `sub_1410E1350` (alert_component_
+//!     name / _forVaryExp / exp_icon_path), `sub_1410E2920`
+//!     (reward_drop_set_info + additional_reward amount), `sub_1410E2D50`
+//!     (knowledge_info), `sub_1410E19E0` (condition_info), `sub_1410E1B70`
+//!     (money_info) — each reads 4 wire bytes → u16 RAM. Rust `u32`
+//!     models the wire, correct for roundtrip/modding.
 //!
 //! ─── v3.1 closure analysis (iter 72) ────────────────────────────────────
 //! Cross-check via `sub_1410C9FF0` (typeinfo→record-reader path per the

@@ -38,7 +38,8 @@
 
 ## 0. Authoring mods against canonical Pearl Abyss field names (v3.1 surface)
 
-**Last refreshed 2026-05-10 — added Session 28 + 1-min-loop findings.**
+**Last refreshed 2026-05-22 (Session 29) — realigned to game build 1.07;
+see §13.6 for the 1.07 mod-author status. v3.1 name surface below unchanged.**
 
 > **TL;DR for mod authors:** dmm-parser now ships a *canonical-name surface*
 > alongside the snake_case names you've been using. Pass `shape="v3.1"` to
@@ -450,6 +451,90 @@ catalogs.
   trailing newlines. Strip them.
 - Numeric overflow is not caught at parse time. Read the field's
   underlying type from the schema before writing huge values.
+
+### 2.1 Resolving "hash" fields to readable names (no more guesswork)
+
+Some table fields look like meaningless numbers — e.g. a skill's
+`icon_path` is `0x0010731c`, `learn_knowledge_info` is `40001`. These
+are **not opaque hashes**: they're *foreign keys* into another table.
+The game resolves them at load time via an internal registry, so the
+`.pabgb` stores only the key. That's why targeting them used to be
+guesswork — you were copying a raw number with no idea what it pointed at.
+
+dmm-parser can now annotate these with readable names. Parse the
+referenced tables, build a `{key: name}` index for each, and pass them
+as a `context` to `parse_table_resolved`:
+
+```python
+import dmm_parser
+
+# Load the tables that skill_info points at (you supply these .pabgb).
+knowledge = dmm_parser.parse_table("knowledge_info", know_pabgb, know_pabgh)
+strings   = dmm_parser.parse_table("string_info",    str_pabgb)   # sequential
+
+ctx = {
+    "knowledge_info": dmm_parser.build_key_name_index(knowledge),
+    "string_info":    dmm_parser.build_key_name_index(strings, "buffer"),  # icon/video
+}
+
+skills = dmm_parser.parse_table_resolved("skill_info", skill_pabgb, skill_pabgh, context=ctx)
+
+# Now you can SEE what each reference points at:
+s = skills[0]
+print(s["icon_path"], "->", s.get("icon_path_name"))            # 1078556 -> Skill_DualSwrodMastery
+print(s["video_path"], "->", s.get("video_path_name"))          # ... -> ui/media/Skill_EvadeShot.mp4
+print(s.get("learn_knowledge_info_name"))                       # Knowledge_...
+print(s.get("usable_character_info_list_names"))                # ["Char_A", "Char_B", None]
+```
+
+- Scalar references get a `<field>_name`; arrays get a `<field>_names`
+  parallel list (`None` for any element that didn't resolve, e.g. a key
+  from a newer game patch than your reference table).
+- **The companion names are read-only/advisory.** To *change* a
+  reference, edit the raw key as before — the `*_name` fields are ignored
+  on serialize, so your mod still round-trips byte-perfect. Use the name
+  to find the right key; write the key.
+- Only tables you put in `context` are resolved; omit one and that field
+  is simply left as a number.
+
+**skill_info reference map** (IDA-verified). The right-hand column is the
+`build_key_name_index` field to pass for that table:
+
+| Field | Points at | name field |
+|---|---|---|
+| `parent_skill` | another skill (`skill_info`) | `string_key` |
+| `learn_knowledge_info` | `knowledge_info` | `string_key` |
+| `need_upgrade_item_info` | `item_info` | `string_key` |
+| `faction_info` | `faction_info` | `string_key` |
+| `icon_path`, `video_path` | `string_info` | **`buffer`** |
+| `usable_character_info_list[]` | `character_info` | `string_key` |
+| `skill_group_key_list[]` | `skill_group_info` | `string_key` |
+| `reserve_slot_info_list[]` | `reserve_slot_info` | `string_key` |
+
+**Resource costs (stamina / spirit / fury).** A skill's resource cost lives
+in `use_resource_stat_list[]` — already field-level editable, no special
+decoding needed:
+
+```python
+ctx = {"status_info": dmm_parser.build_key_name_index(status_records)}
+skills = dmm_parser.parse_table_resolved("skill_info", pabgb, pabgh, context=ctx)
+
+for s in skills:
+    for cost in s.get("use_resource_stat_list", []):
+        # cost["lookup_b_name"] == "Stamina" / "Mp" (spirit) / "Fury"
+        # cost["d"] == amount (signed; negative = refund/gain; ~×10000 scale)
+        if cost.get("lookup_b_name") == "Stamina":
+            cost["d"] = 50000          # set this skill's stamina cost
+```
+
+`lookup_b` is the consumed resource (a `StatusInfo` key — `Stamina`/`Mp`/
+`Fury`), `d` is the amount, and `lookup_e`/`lookup_f` are the
+increase/decrease-rate modifier stats. To *change* a cost, edit `d` (the
+`_name` companions are advisory and ignored on serialize).
+
+Not every number is a foreign key: `usable_condition[]` holds signed
+condition/enum IDs (`0xfffffe23…`) that are left unresolved on purpose. See
+`docs/api.md` → "Cross-table reference resolution" for the full API.
 
 ---
 
@@ -1020,6 +1105,46 @@ is exposed as `dmm_parser.parse_<format>_bytes(data) -> dict`.
   inside `CrimsonDesert.exe`)
 - Partial-compression-with-size-differential format used by ~17 .pam
   and ~6 .pac files (also IDA RE blocker)
+
+### 13.6 1.07 status for mod authors (Session 29, 2026-05-22)
+
+dmm-parser is realigned to the **1.07** game build. What this means for your mods:
+
+- **The entire 123-table archive now byte-round-trips.** Parse a table to
+  JSON, change nothing, serialize it back → you get the original bytes,
+  every table. This is the safety guarantee your data mods rely on: if you
+  only touch the fields you mean to, nothing else shifts. (Always re-dump
+  your `.pabgb`/`.pabgh` fixtures from *your* game version — field layouts
+  drift between builds; see §13.4.)
+
+- **110 of 123 tables fully field-decode** — every field is a named,
+  editable JSON value. **6 tables** still keep part of their data as an
+  opaque tail blob (listed below); they still round-trip byte-perfect, so
+  you can edit their named fields freely — only the condition/expression
+  tail is a passthrough.
+
+- **`item_use_info` is now round-trip-safe but ships as opaque blobs on
+  1.07.** Previously it *looked* decoded but silently corrupted ~137 records
+  on save (dropping an undecoded tail). That's fixed: each record now carries
+  a verbatim `_blob_b64`. **You can read/write item_use safely again**, but
+  field-level editing of item-use effects waits on the ConditionData decoder
+  (below). If you need to change item-use behavior today, edit by replacing
+  the whole record's bytes, not individual fields.
+
+- **The 6 still-opaque tables** — `condition_info`, `interaction_info`,
+  `global_game_event_info`, `item_use_info`, `gimmick_info` (post-body),
+  `mini_game_data_info` — all share one cause: the **GameCondition /
+  ConditionData** expression-tree decoder hasn't been fully ported to 1.07
+  yet (1.07 added fields to some condition variants). Their *other* fields
+  decode and edit normally; only the condition/expression tail is a
+  passthrough blob. Closing this is a tracked work item
+  (`docs/STATUS.md` Session 29) — until then, conditions/triggers on those
+  tables are read/write-as-bytes, not field-editable.
+
+- **Cross-reference resolution** (readable names for hash IDs) is available
+  via `parse_table_resolved(...)` — see §"Resolving cross-table references"
+  above and `docs/api.md`. Advisory-only: the `_name` companions are ignored
+  on serialize, so they never affect round-trip.
 
 ## §14: Long-tail format vocabularies (iter 10-13 of T0 verification loop)
 

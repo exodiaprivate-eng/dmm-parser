@@ -1,32 +1,31 @@
-//! Tier 1 — fully typed (no _tail_b64).
+//! Tier 1 — fully typed (no _tail_b64). FULLY DECODED — no tail remains.
 //!
-//! Reader: `sub_1410ED0E0` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410CF190` — MissionInfo deserializer (via
+//! "MissionInfo" class block at 0x144B0B720+). (Cited `sub_1410ED0E0`
+//! stale. The "TAIL STARTS HERE / Steps 1-7 typed / 15 of 40" notes
+//! that USED to be here were stale too — the struct has since been
+//! fully decoded and matches the reader field-for-field.)
 //!
-//! Wire reads, in order (canonical names from Mac Korean error strings):
-//!   1. u32 key                          (_key)
-//!   2. CString string_key               (_stringKey)
-//!   3. u8 is_blocked                    (_isBlocked)
-//!   4. u32 parent_quest                 (_parentQuest, sub_141102CB0
-//!      → qword_145F0EF20 lookup)
-//!   5. CArray<u32> sub_mission_list     (_subMissionList, sub_1411049D0
-//!      → qword_145F0EF00)
-//!   6. CArray<MissionBranchData> branch_mission_list
-//!      (sub_1411068C0 → sub_1410F3380; per element: u32 lookup +
-//!      u32 lookup + 2× u32 raw + 3× u8 — 19 wire bytes / 20 mem)
-//!   7. CArray<MissionExecuteStage> execute_stage_list
-//!      (inline CArray of 16-byte items via sub_1410ED7D0; per element:
-//!      u32 lookup + u32 lookup + 2× u32 raw + 2× u8 — 18 wire bytes)
-//!   8. CArray<u32> start_player_list  (sub_1410FF890 → qword_145F0DA08)
-//!   9. CArray<u32> field_revive_list  (sub_1411069E0 → qword_145F1A890)
-//!  10. CArray<u32> give_up_field_revive_list (sub_1411069E0)
-//!      ← TAIL STARTS HERE
-//!  11. _triggerVolumeData (sub_141106AE0 — polymorphic Optional<88-byte
-//!      via sub_141D7FE40>; hard blocker without decoding sub_141D7FE40)
-//!  12. (body) _rewardList, _resultDataList, _rewardInventoryKey, _uiDesc,
-//!      … 25+ more wire reads.
-//!
-//! Steps 1-7 are typed. Body has many helpers; reopens cleanly when each
-//! is decoded.
+//! All 34 struct fields confirmed against the reader, in order:
+//!   a2+0   u32 key            a2+8   CString string_key
+//!   a2+16  u8 is_blocked      a2+20  u32 parent_quest (sub_1410E5260)
+//!   a2+24  CArray sub_mission_list      a2+40  CArray branch_mission_list
+//!   a2+56  CArray execute_stage_list (loop, 16B elems via sub_1410CF880)
+//!   a2+72  CArray start_player_list     a2+88  CArray field_revive_list
+//!   a2+104 CArray give_up_field_revive_list
+//!   a2+120 COptional trigger_volume_data (sub_1410E93E0 — formerly the
+//!          "hard blocker", now fully decoded)
+//!   a2+128 CArray reward_list           a2+144 CArray result_data_list
+//!   a2+160 u16 reward_inventory_key     a2+168 MissionUIDesc ui_desc
+//!   a2+248/280/312/344  LocalizableString label_a..d
+//!   a2+376 u32 result_data_2_lookup     a2+384 CArray result_data_list_2
+//!   a2+400 CArray mission_stage_list    a2+416 u32 category_info
+//!   a2+418 u16 raw_418   a2+420 u16 raw_420   a2+424 u32 raw_424
+//!   a2+428..440  flag_428..flag_440 (13× u8, consecutive 1-byte reads)
+//!   a2+444 u32 trailing_u32
+//! No discrepancy, no missing fields. ID-ref fields read wire-width →
+//! u16 RAM as elsewhere; Rust models the wire.
 
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -288,8 +287,8 @@ impl<'a> MissionInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/missioninfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/missioninfo.pabgh";
+    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\missioninfo.pabgb";
+    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\missioninfo.pabgh";
 
     #[test]
     fn roundtrip() {

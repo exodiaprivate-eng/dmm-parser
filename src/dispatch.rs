@@ -589,18 +589,36 @@ fn serialize_table_from_json_tracked(
         "sub_level_info"                 => dt!(crate::tables::sub_level_info::SubLevelInfo),
         "terrain_region_auto_spawn_info" => dt!(crate::tables::terrain_region_auto_spawn_info::TerrainRegionAutoSpawnInfo),
 
-        // skill_info and equip_slot_info have special-case serializers
-        // that the tracked path doesn't yet wrap. Fall back to the
-        // non-tracked form for now and hand-track offsets at the call
-        // site if these tables become a target.
-        "skill_info" | "equip_slot_info" => {
-            return Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                format!(
-                    "table '{}' uses a special-case serializer; tracked-offset path not yet wired",
-                    table_name
-                ),
-            ));
+        // skill_info and equip_slot_info don't go through the generic
+        // typed-blob runtime — they have their own serializers. Wire the
+        // tracked path by hand here: write each record sequentially and
+        // capture (key, byte_offset) per record so the caller can rebuild
+        // pabgh from the new offsets.
+        "skill_info" => {
+            let mut out = Vec::with_capacity(items.len() * 1024);
+            let mut offsets = Vec::with_capacity(items.len());
+            for (i, item) in items.iter().enumerate() {
+                let key = item.get("key").and_then(|v| v.as_u64()).ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("skill_info[{}]: missing 'key' field for pabgh rebuild", i)))? as u32;
+                offsets.push((key, out.len() as u32));
+                crate::tables::skill_info::info::write_skill_info_record(&mut out, item)
+                    .map_err(|e| io::Error::new(e.kind(), format!("skill_info[{}]: {}", i, e)))?;
+            }
+            (out, offsets)
+        }
+        "equip_slot_info" => {
+            let mut out = Vec::with_capacity(items.len() * 1024);
+            let mut offsets = Vec::with_capacity(items.len());
+            for (i, item) in items.iter().enumerate() {
+                let key = item.get("key").and_then(|v| v.as_u64()).ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("equip_slot_info[{}]: missing 'key' field for pabgh rebuild", i)))? as u32;
+                offsets.push((key, out.len() as u32));
+                crate::tables::equip_slot_info::info::write_equip_slot_info_record(&mut out, item)
+                    .map_err(|e| io::Error::new(e.kind(), format!("equip_slot_info[{}]: {}", i, e)))?;
+            }
+            (out, offsets)
         }
 
         _ => return Err(io::Error::new(io::ErrorKind::InvalidInput,

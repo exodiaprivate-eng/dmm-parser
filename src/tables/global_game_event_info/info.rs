@@ -75,9 +75,22 @@
 
 use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteData;
 use crate::binary::*;
+use crate::py_binary_struct;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
+
+py_binary_struct! {
+    /// One element of `execute_data_list` (reader `sub_1410F8F00`). Wire is
+    /// 13 bytes: three u32 lookups (`sub_1410E19E0`/`sub_1410E1600` each read
+    /// a u32 hash → resolved to a u16 at runtime) bracketing a u8 flag.
+    pub struct GlobalGameEventListEntry {
+        pub lookup_a: u32,
+        pub flag: u8,
+        pub lookup_b: u32,
+        pub lookup_c: u32,
+    }
+}
 
 #[derive(Debug)]
 pub struct GlobalGameEventInfo<'a> {
@@ -85,6 +98,12 @@ pub struct GlobalGameEventInfo<'a> {
     pub string_key: CString<'a>,
     pub is_blocked: u8,
     pub global_game_event_group_info: u16,
+    /// `_eventDesc` — 8 raw bytes read directly after group_info
+    /// (reader `sub_1410C74F0`, an 8-byte stream read).
+    pub event_desc: u64,
+    /// `sub_1410F8F00` list (was previously absorbed into the execute_data
+    /// blob, forcing the whole tail to Raw).
+    pub execute_data_list: CArray<GlobalGameEventListEntry>,
     /// Polymorphic execute_data wrapper. Decoded captures presence +
     /// sub_tag + typed body fields; Raw passes through verbatim. Either
     /// way, round-trip is byte-perfect.
@@ -104,6 +123,8 @@ impl<'a> GlobalGameEventInfo<'a> {
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let global_game_event_group_info = u16::read_from(data, offset)?;
+        let event_desc = u64::read_from(data, offset)?;
+        let execute_data_list = <CArray<GlobalGameEventListEntry>>::read_from(data, offset)?;
 
         // GlobalGameEventExecuteData::read_from expects `data` sized to
         // exactly the wrapper. Pass a sub-slice of just the tail bytes.
@@ -117,6 +138,8 @@ impl<'a> GlobalGameEventInfo<'a> {
             string_key,
             is_blocked,
             global_game_event_group_info,
+            event_desc,
+            execute_data_list,
             execute_data,
         })
     }
@@ -126,6 +149,8 @@ impl<'a> GlobalGameEventInfo<'a> {
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.global_game_event_group_info.write_to(w)?;
+        self.event_desc.write_to(w)?;
+        self.execute_data_list.write_to(w)?;
         self.execute_data.write_to(w)?;
         Ok(())
     }
@@ -146,6 +171,8 @@ impl<'a> GlobalGameEventInfo<'a> {
             "global_game_event_group_info".to_string(),
             self.global_game_event_group_info.to_json_value(),
         );
+        m.insert("event_desc".to_string(), self.event_desc.to_json_value());
+        m.insert("execute_data_list".to_string(), self.execute_data_list.to_json_value());
         m.insert("execute_data".to_string(), self.execute_data.to_json_value());
         m
     }
@@ -157,6 +184,11 @@ impl<'a> GlobalGameEventInfo<'a> {
         <u16 as WriteJsonValue>::write_from_json(
             w,
             json_get_field(obj, "global_game_event_group_info")?,
+        )?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "event_desc")?)?;
+        <CArray<GlobalGameEventListEntry> as WriteJsonValue>::write_from_json(
+            w,
+            json_get_field(obj, "execute_data_list")?,
         )?;
         GlobalGameEventExecuteData::write_from_json(w, json_get_field(obj, "execute_data")?)?;
         Ok(())

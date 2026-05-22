@@ -1,7 +1,19 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410E0100` in CrimsonDesert.exe (Win build).
-//! Inner `_targetDataList` reader: `sub_141103D50`.
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410C1BA0` — GamePlayTriggerInfo deserializer (via
+//! "GamePlayTriggerInfo" class block at 0x144AF37D0+). All 13 fields
+//! confirmed in order. (Cited `sub_1410E0100` stale.) Inner
+//! `_targetDataList` reader is `sub_1410E6300` (cited `sub_141103D50`
+//! stale): u32 count + per-elem {u8 tag + u32 hash} = 5 wire bytes,
+//! tag 0-3 dispatch to 4 hash helpers, tag ≥4 rejected — matches the
+//! TargetDataItem JSON narrowing below.
+//! Type confirmations: `position` = single 12-byte read ([u8;12] vec3,
+//! kept raw); `rotation_y` = 4-byte read (f32-as-u32, u32 bit-preserves
+//! the float); `player_condition_info` (sub_1410E19E0) & `ui_map_texture_
+//! info` are u32 wire → u16 RAM; `field_revive_info` is u32 wire → u32
+//! RAM (stored full-width DWORD, unlike the u16-remapped refs). All
+//! Rust field types correct for the wire.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u32 key                         (_key)

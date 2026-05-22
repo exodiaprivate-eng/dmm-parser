@@ -25,7 +25,7 @@ use std::io::{self, Write};
 
 py_binary_struct! {
     /// Inner of GimmickInteractionOverrideData field 4 (8-byte stride).
-    /// Wire = u32 hash (sub_1410A9D40 — wire CString) + u32 raw.
+    /// Wire = u32 hash (sub_14108B4D0, 4 wire — NOT a CString) + u32 raw.
     pub struct StringHashU32Pair<'a> {
         pub key: CString<'a>,
         pub raw: u32,
@@ -69,15 +69,17 @@ pub struct GimmickInteractionOverrideData<'a> {
 
 impl<'a> BinaryRead<'a> for GimmickInteractionOverrideData<'a> {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let tr = std::env::var("F1FLD").is_ok() && *offset >= 1436 && *offset <= 20000000;
+        macro_rules! f { ($nm:expr, $e:expr) => {{ let b=*offset; let r=$e; if tr { match &r { Ok(_)=>eprintln!("F1FLD {} {}..{}", $nm, b, *offset), Err(e)=>eprintln!("F1FLD {} @{} ERR {}", $nm, b, e) } } r? }} }
         Ok(Self {
-            lookup_a: u32::read_from(data, offset)?,
-            label: LocalizableString::read_from(data, offset)?,
-            raw_a: u32::read_from(data, offset)?,
-            hash_pair_list: CArray::<StringHashU32Pair>::read_from(data, offset)?,
-            override_field5_list: CArray::<InteractionOverrideField5Element>::read_from(data, offset)?,
-            cond_pair_list: BareConditionPairCArray::read_from(data, offset)?,
-            mob_list: CArray::<FactionAdjacencyMobItem>::read_from(data, offset)?,
-            list_a: CArray::<u32>::read_from(data, offset)?,
+            lookup_a: f!("lookup_a", u32::read_from(data, offset)),
+            label: f!("label", LocalizableString::read_from(data, offset)),
+            raw_a: f!("raw_a", u32::read_from(data, offset)),
+            hash_pair_list: f!("hash_pair", CArray::<StringHashU32Pair>::read_from(data, offset)),
+            override_field5_list: f!("field5", CArray::<InteractionOverrideField5Element>::read_from(data, offset)),
+            cond_pair_list: f!("cond_pair", BareConditionPairCArray::read_from(data, offset)),
+            mob_list: f!("mob_list", CArray::<FactionAdjacencyMobItem>::read_from(data, offset)),
+            list_a: f!("list_a", CArray::<u32>::read_from(data, offset)),
             lookup_b: u32::read_from(data, offset)?,
             lookup_c: u32::read_from(data, offset)?,
             flag_a: u8::read_from(data, offset)?,

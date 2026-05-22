@@ -1,6 +1,25 @@
 //! Tier 1.5 — typed prefix + Decoded|Raw fallback tail.
 //!
-//! Reader: `sub_1410E6FC0` in CrimsonDesert.exe (Win build). Massive
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410C8D20` — GimmickInfo deserializer (via
+//! "GimmickInfo" class block at 0x144AFED38+; size 0x1C92 = 7314 bytes).
+//! ~176 field-ops in the reader (110 direct byte-reads + 66 sub-reader
+//! calls) ≈ the 179 decoded fields (6 head + GimmickPostBody 139 +
+//! intermediate lists). (Cited `sub_1410E6FC0` stale.)
+//!
+//! ⚠ VERSION NOTE: the 6 head fields (key, string_key, is_blocked,
+//! prefab_path, gimmick_group_info, breakable_object_info) decode on the
+//! 1.0.4 dump; but `GimmickPostBody` (the 139-field tail) is decoded for
+//! the *current* binary and FALLS BACK to `GimmickTail::Raw(blob)` on
+//! 1.0.4 data — the 1.0.4 post-body layout diverges (post_body_diag
+//! shows CArray-count = ASCII string bytes, i.e. misalignment). So the
+//! 18MB byte-exact roundtrip passes via Raw-blob preservation for the
+//! tail, NOT by field-decoding the post-body on 1.0.4. Field-level
+//! decode of GimmickPostBody is verified against the current binary
+//! (reader identity + op-count); byte-roundtrip of the post-body needs
+//! a current-version fixture. (Original cite below also stale.)
+//!
+//! [legacy header, addresses stale] Massive
 //! 7205-byte function, 100+ wire reads in the body. Fields 1-18 are
 //! typed when the Decoded probe succeeds; the remaining 80+ reads sit in
 //! `post_blob`. All typed fields are Option<…> so a mid-sequence decode
@@ -223,13 +242,89 @@ use crate::binary::variants::trigger_gameplay_event_handler_data::GimmickHelperB
 
 // ── Leaf element types for GimmickInfo fields 1-18 ───────────────────────────
 
-py_binary_struct! {
-    /// `sub_141C7F8B0` per-element. 16-byte mem stride; wire = u32 + u8 + u32 + u8 (10 bytes).
-    pub struct GimmickChartParameter {
-        pub field_a: u32,
-        pub field_b: u8,
-        pub field_c: u32,
-        pub field_d: u8,
+// GimmickChartParameter — element reader sub_14F0B2F40 (F18 list). TRUE layout:
+// name:CString, tag:u8, value (WIDTH BY TAG: u32 for 0/2/3/4/6/7/8, u16 for 1/5/9,
+// none otherwise), tail:u8. Was mis-modeled as fixed {u32,u8,u32,u8} — `field_a`
+// was really the CString name, so non-empty names drifted (F18 under-consumed →
+// F19 read mid-string → alt_trigger=None → post-body skipped). `value` is stored
+// zero-extended in a u32; the wire width is re-derived from `tag` on write.
+#[inline]
+fn gcp_value_width(tag: u8) -> u8 {
+    match tag { 0 | 2 | 3 | 4 | 6 | 7 | 8 => 4, 1 | 5 | 9 => 2, _ => 0 }
+}
+
+#[derive(Debug)]
+pub struct GimmickChartParameter<'a> {
+    pub name: CString<'a>,
+    pub tag: u8,
+    pub value: u32,
+    pub tail: u8,
+}
+
+impl<'a> BinaryRead<'a> for GimmickChartParameter<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let name = CString::read_from(data, offset)?;
+        let tag = u8::read_from(data, offset)?;
+        let value = match gcp_value_width(tag) {
+            4 => u32::read_from(data, offset)?,
+            2 => u16::read_from(data, offset)? as u32,
+            _ => 0,
+        };
+        let tail = u8::read_from(data, offset)?;
+        Ok(Self { name, tag, value, tail })
+    }
+}
+
+impl<'a> crate::binary::BinaryReadTracked<'a> for GimmickChartParameter<'a> {
+    fn read_tracked(data: &'a [u8], offset: &mut usize, path: &mut String,
+                    ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
+        let start = *offset;
+        let v = <Self as BinaryRead>::read_from(data, offset)?;
+        ranges.push(FieldRange { path: path.clone(), start, end: *offset, ty: "GimmickChartParameter" });
+        Ok(v)
+    }
+}
+
+impl<'a> BinaryWrite for GimmickChartParameter<'a> {
+    fn write_to(&self, w: &mut dyn std::io::Write) -> io::Result<()> {
+        self.name.write_to(w)?;
+        self.tag.write_to(w)?;
+        match gcp_value_width(self.tag) {
+            4 => self.value.write_to(w)?,
+            2 => (self.value as u16).write_to(w)?,
+            _ => {}
+        }
+        self.tail.write_to(w)?;
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for GimmickChartParameter<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("name".into(), self.name.to_json_value());
+        m.insert("tag".into(), self.tag.to_json_value());
+        m.insert("value".into(), self.value.to_json_value());
+        m.insert("tail".into(), self.tail.to_json_value());
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for GimmickChartParameter<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "GimmickChartParameter: expected object"))?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name")?)?;
+        let tag = json_get_field(obj, "tag")?.as_u64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "GimmickChartParameter.tag"))? as u8;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag")?)?;
+        let value = json_get_field(obj, "value")?.as_u64().unwrap_or(0) as u32;
+        match gcp_value_width(tag) {
+            4 => w.extend_from_slice(&value.to_le_bytes()),
+            2 => w.extend_from_slice(&(value as u16).to_le_bytes()),
+            _ => {}
+        }
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail")?)?;
+        Ok(())
     }
 }
 
@@ -248,6 +343,20 @@ py_binary_struct! {
         pub hash: CString<'a>,
     }
 }
+
+// F19 (alt-trigger) inner element: IDA sub_141AB03B0 reads, when the COptional
+// flag is set, a CArray of these 45-byte elements (sub_14108B940 = [u8;12] +
+// [u32;4] + [u8;12] = 40, then u32 + u8).
+py_binary_struct! {
+    pub struct GimmickF19InnerElem {
+        pub a: [u8; 12],
+        pub b: [u32; 4],
+        pub c: [u8; 12],
+        pub d: u32,
+        pub e: u8,
+    }
+}
+
 
 // ── Sub-types for post-blob fields (F20-F179) ─────────────────────────────────
 
@@ -343,14 +452,17 @@ py_binary_struct! {
     }
 }
 
-// F34 element: u8+u8+f32+u8+u32+u8+[u8;16].
+// F34 element: u8+u8+f32+u8(tag)+CString(name)+u8(tag2)+[u8;16].
+// `e` was mis-modeled as u32 (it read the CString length 18 as a scalar, then
+// `f`+`g` ate 17 name bytes) — breaks any record with a populated F34 material-
+// parameter list (shader params e.g. _emissiveIntensity/_emissiveProgressGauge).
 py_binary_struct! {
-    pub struct GimmickF34Elem {
+    pub struct GimmickF34Elem<'a> {
         pub a: u8,
         pub b: u8,
         pub c: f32,
         pub d: u8,
-        pub e: u32,
+        pub e: CString<'a>,
         pub f: u8,
         pub g: [u8; 16],
     }
@@ -580,39 +692,237 @@ py_binary_struct! {
 // F81 element: u32×4 + CArray<u32> + u32.
 py_binary_struct! {
     pub struct GimmickF81Elem {
-        pub a: u32, pub b: u32, pub c: u32, pub d: u32,
+        // True element (IDA reader sub_1410C7630): 3 u32s, then a nested CArray<u32>
+        // (sub_1410E2990 = the property_list reader), then a u32 (sub_1410E19E0,
+        // enum-mapped). Previously had a spurious 4th u32 `d` + a flattened `inner:u32`
+        // band-aid, which mis-aligned the inner count for records with non-empty f81.
+        pub a: u32, pub b: u32, pub c: u32,
         pub inner: CArray<u32>,
         pub e: u32,
     }
 }
 
-// F89 element (complex). [u32;3] requires impls in arrays.rs (added).
-py_binary_struct! {
-    pub struct GimmickF89Elem {
-        pub a: u32,
-        pub b: u16,
-        pub c: [u32; 3],
-        pub d: [u32; 3],
-        pub hash: u32,
-        pub e: [u32; 4],
-        pub f: u32,
-        pub g: u8,
-        pub h: u8,
-        pub i: u8,
-        pub j: u32,
-        pub list: CArray<u32>,
-        pub k: u16,
-        pub l: u16,
+// F89 element — a PER-ELEMENT VARIANT keyed on the first field `a`:
+//   • a == 0  → "Common" 2-CString form (Common_Socket_01.. multi-element, 91-byte
+//     stride): name1 + pre2[23] + name2:CString + post2[13].
+//   • a != 0  → "Fx" scalar form (FX_01_Socket single-element, a = a real id like
+//     1000799): name1 + e[u32;4] + f + g + h + i + j + list_id + k + l + m + m2 (37B,
+//     no name2). Verified: a==0 for 84 elements, a!=0 for exactly the 3 FX records.
+// Manual impl because the discriminator `a` is read before the variant body.
+#[derive(Debug)]
+pub enum GimmickF89Body<'a> {
+    Common { pre2: [u8; 23], name2: CString<'a>, post2: [u8; 13] },
+    Fx { e: [u32; 4], f: u32, g: u8, h: u8, i: u8, j: u32, list_id: u32, k: u16, l: u16, m: u8, m2: u8 },
+}
+
+#[derive(Debug)]
+pub struct GimmickF89Elem<'a> {
+    pub a: u32,
+    pub b: u16,
+    pub c: [u32; 3],
+    pub d: [u32; 3],
+    pub name: CString<'a>,
+    pub body: GimmickF89Body<'a>,
+}
+
+impl<'a> BinaryRead<'a> for GimmickF89Elem<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let a = u32::read_from(data, offset)?;
+        let b = u16::read_from(data, offset)?;
+        let c = <[u32; 3]>::read_from(data, offset)?;
+        let d = <[u32; 3]>::read_from(data, offset)?;
+        let name = CString::read_from(data, offset)?;
+        let body = if a == 0 {
+            GimmickF89Body::Common {
+                pre2: <[u8; 23]>::read_from(data, offset)?,
+                name2: CString::read_from(data, offset)?,
+                post2: <[u8; 13]>::read_from(data, offset)?,
+            }
+        } else {
+            GimmickF89Body::Fx {
+                e: <[u32; 4]>::read_from(data, offset)?,
+                f: u32::read_from(data, offset)?,
+                g: u8::read_from(data, offset)?,
+                h: u8::read_from(data, offset)?,
+                i: u8::read_from(data, offset)?,
+                j: u32::read_from(data, offset)?,
+                list_id: u32::read_from(data, offset)?,
+                k: u16::read_from(data, offset)?,
+                l: u16::read_from(data, offset)?,
+                m: u8::read_from(data, offset)?,
+                m2: u8::read_from(data, offset)?,
+            }
+        };
+        Ok(Self { a, b, c, d, name, body })
     }
 }
 
-// F90 sub-element: u16+u16+u16+u64+u8+u32.
+impl<'a> crate::binary::BinaryReadTracked<'a> for GimmickF89Elem<'a> {
+    fn read_tracked(data: &'a [u8], offset: &mut usize, path: &mut String,
+                    ranges: &mut Vec<FieldRange>) -> io::Result<Self> {
+        let start = *offset;
+        let v = <Self as BinaryRead>::read_from(data, offset)?;
+        ranges.push(FieldRange { path: path.clone(), start, end: *offset, ty: "GimmickF89Elem" });
+        Ok(v)
+    }
+}
+
+impl<'a> BinaryWrite for GimmickF89Elem<'a> {
+    fn write_to(&self, w: &mut dyn std::io::Write) -> io::Result<()> {
+        self.a.write_to(w)?;
+        self.b.write_to(w)?;
+        self.c.write_to(w)?;
+        self.d.write_to(w)?;
+        self.name.write_to(w)?;
+        match &self.body {
+            GimmickF89Body::Common { pre2, name2, post2 } => {
+                pre2.write_to(w)?; name2.write_to(w)?; post2.write_to(w)?;
+            }
+            GimmickF89Body::Fx { e, f, g, h, i, j, list_id, k, l, m, m2 } => {
+                e.write_to(w)?; f.write_to(w)?; g.write_to(w)?; h.write_to(w)?; i.write_to(w)?;
+                j.write_to(w)?; list_id.write_to(w)?; k.write_to(w)?; l.write_to(w)?;
+                m.write_to(w)?; m2.write_to(w)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> ToJsonValue for GimmickF89Elem<'a> {
+    fn to_json_value(&self) -> Value {
+        let mut m = Map::new();
+        m.insert("a".into(), self.a.to_json_value());
+        m.insert("b".into(), self.b.to_json_value());
+        m.insert("c".into(), self.c.to_json_value());
+        m.insert("d".into(), self.d.to_json_value());
+        m.insert("name".into(), self.name.to_json_value());
+        match &self.body {
+            GimmickF89Body::Common { pre2, name2, post2 } => {
+                m.insert("pre2".into(), pre2.to_json_value());
+                m.insert("name2".into(), name2.to_json_value());
+                m.insert("post2".into(), post2.to_json_value());
+            }
+            GimmickF89Body::Fx { e, f, g, h, i, j, list_id, k, l, m: mm, m2 } => {
+                m.insert("e".into(), e.to_json_value());
+                m.insert("f".into(), f.to_json_value());
+                m.insert("g".into(), g.to_json_value());
+                m.insert("h".into(), h.to_json_value());
+                m.insert("i".into(), i.to_json_value());
+                m.insert("j".into(), j.to_json_value());
+                m.insert("list_id".into(), list_id.to_json_value());
+                m.insert("k".into(), k.to_json_value());
+                m.insert("l".into(), l.to_json_value());
+                m.insert("m".into(), mm.to_json_value());
+                m.insert("m2".into(), m2.to_json_value());
+            }
+        }
+        Value::Object(m)
+    }
+}
+
+impl<'a> WriteJsonValue for GimmickF89Elem<'a> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        let obj = v.as_object().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "GimmickF89Elem: expected object"))?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "a")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "b")?)?;
+        <[u32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "c")?)?;
+        <[u32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "d")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name")?)?;
+        if obj.get("pre2").is_some() {
+            <[u8; 23] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pre2")?)?;
+            <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name2")?)?;
+            <[u8; 13] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "post2")?)?;
+        } else {
+            <[u32; 4] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "e")?)?;
+            <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "f")?)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "g")?)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "h")?)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "i")?)?;
+            <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "j")?)?;
+            <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_id")?)?;
+            <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "k")?)?;
+            <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "l")?)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "m")?)?;
+            <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "m2")?)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> crate::python_traits::ToPyValue for GimmickF89Elem<'a> {
+    fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        use crate::python_traits::ToPyValue as _;
+        use pyo3::types::PyDictMethods;
+        let d = pyo3::types::PyDict::new(py);
+        d.set_item("a", self.a.to_py_value(py)?)?;
+        d.set_item("b", self.b.to_py_value(py)?)?;
+        d.set_item("c", self.c.to_py_value(py)?)?;
+        d.set_item("d", self.d.to_py_value(py)?)?;
+        d.set_item("name", self.name.to_py_value(py)?)?;
+        match &self.body {
+            GimmickF89Body::Common { pre2, name2, post2 } => {
+                d.set_item("pre2", pre2.to_py_value(py)?)?;
+                d.set_item("name2", name2.to_py_value(py)?)?;
+                d.set_item("post2", post2.to_py_value(py)?)?;
+            }
+            GimmickF89Body::Fx { e, f, g, h, i, j, list_id, k, l, m: mm, m2 } => {
+                d.set_item("e", e.to_py_value(py)?)?;
+                d.set_item("f", f.to_py_value(py)?)?;
+                d.set_item("g", g.to_py_value(py)?)?;
+                d.set_item("h", h.to_py_value(py)?)?;
+                d.set_item("i", i.to_py_value(py)?)?;
+                d.set_item("j", j.to_py_value(py)?)?;
+                d.set_item("list_id", list_id.to_py_value(py)?)?;
+                d.set_item("k", k.to_py_value(py)?)?;
+                d.set_item("l", l.to_py_value(py)?)?;
+                d.set_item("m", mm.to_py_value(py)?)?;
+                d.set_item("m2", m2.to_py_value(py)?)?;
+            }
+        }
+        Ok(d.into_any().unbind())
+    }
+}
+
+impl<'a> crate::python_traits::WritePyValue for GimmickF89Elem<'a> {
+    fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        use crate::python_traits::{WritePyValue, get_field};
+        use pyo3::types::PyDictMethods;
+        let d = obj.cast::<pyo3::types::PyDict>()?;
+        <u32 as WritePyValue>::write_from_py(w, &get_field(&d, "a")?)?;
+        <u16 as WritePyValue>::write_from_py(w, &get_field(&d, "b")?)?;
+        <[u32; 3] as WritePyValue>::write_from_py(w, &get_field(&d, "c")?)?;
+        <[u32; 3] as WritePyValue>::write_from_py(w, &get_field(&d, "d")?)?;
+        <CString as WritePyValue>::write_from_py(w, &get_field(&d, "name")?)?;
+        if d.contains("pre2")? {
+            <[u8; 23] as WritePyValue>::write_from_py(w, &get_field(&d, "pre2")?)?;
+            <CString as WritePyValue>::write_from_py(w, &get_field(&d, "name2")?)?;
+            <[u8; 13] as WritePyValue>::write_from_py(w, &get_field(&d, "post2")?)?;
+        } else {
+            <[u32; 4] as WritePyValue>::write_from_py(w, &get_field(&d, "e")?)?;
+            <u32 as WritePyValue>::write_from_py(w, &get_field(&d, "f")?)?;
+            <u8 as WritePyValue>::write_from_py(w, &get_field(&d, "g")?)?;
+            <u8 as WritePyValue>::write_from_py(w, &get_field(&d, "h")?)?;
+            <u8 as WritePyValue>::write_from_py(w, &get_field(&d, "i")?)?;
+            <u32 as WritePyValue>::write_from_py(w, &get_field(&d, "j")?)?;
+            <u32 as WritePyValue>::write_from_py(w, &get_field(&d, "list_id")?)?;
+            <u16 as WritePyValue>::write_from_py(w, &get_field(&d, "k")?)?;
+            <u16 as WritePyValue>::write_from_py(w, &get_field(&d, "l")?)?;
+            <u8 as WritePyValue>::write_from_py(w, &get_field(&d, "m")?)?;
+            <u8 as WritePyValue>::write_from_py(w, &get_field(&d, "m2")?)?;
+        }
+        Ok(())
+    }
+}
+
+// F90 sub-element: 19B lead + CString name ("SummonSocket_NN") + u32 trail.
 py_binary_struct! {
-    pub struct GimmickF90SubElem {
+    pub struct GimmickF90SubElem<'a> {
         pub a: u16, pub b: u16, pub c: u16,
         pub d: u64,
         pub e: u8,
         pub f: u32,
+        pub name: CString<'a>,
+        pub trail: u32,
     }
 }
 
@@ -620,26 +930,34 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct GimmickF90Elem<'a> {
         pub name: CString<'a>,
-        pub inner: CArray<GimmickF90SubElem>,
+        pub inner: CArray<GimmickF90SubElem<'a>>,
         pub a: u64,
         pub b: u8,
         pub c: u8,
         pub d: u32,
-        pub e: u16,
+        pub e: u32,
     }
 }
 
 // F92 element.
 py_binary_struct! {
     pub struct GimmickF92Elem<'a> {
+        // pre-name is 16B (a..f); g..k were mis-placed BEFORE name (made pre-name
+        // 32B so `name` read its length from mid-data) — they belong AFTER name.
         pub a: u16, pub b: u16, pub c: u16,
-        pub d: u32, pub e: u32, pub f: u16, pub g: u32,
+        pub d: u32, pub e: u32, pub f: u16,
+        pub name: CString<'a>,
+        pub g: u32,
         pub h: u8, pub i: u16, pub j: u8,
         pub k: u64,
-        pub name: CString<'a>,
-        pub l: u32, pub m: u8, pub n: u32, pub o: u32,
-        pub p: u8, pub q: u16, pub r: u8, pub s: u8,
-        pub t: u32, pub u_val: u32,
+        pub l: u32, pub m: u8,
+        // After m: a u8, then a SECOND CString (name2, e.g. event/dialog name like
+        // "textdialog_gimmick_drop_..."), then a 16-byte tail. Was modeled as scalars
+        // n,o,p,q,r,s,t,u_val (21B); x(1)+name2-empty(4)+tail(16)=21 ⇒ byte-equivalent
+        // when name2 is empty, but reads the full name when populated.
+        pub x: u8,
+        pub name2: CString<'a>,
+        pub tail: [u8; 28],
     }
 }
 
@@ -688,8 +1006,12 @@ py_binary_struct! {
 
 // F125 element: u32+u32+[u8;12]+[u8;12].
 py_binary_struct! {
-    pub struct GimmickF125Elem {
-        pub a: u32, pub b: u32,
+    pub struct GimmickF125Elem<'a> {
+        // `b` was u32 but is really a CString (socket name e.g. "B_Canon_Acc_00")
+        // per IDA reader sub_1410E3D90 (sub_14108B4D0=CString). Empty name == u32 0
+        // so empty records stay byte-identical; non-empty names drifted before.
+        pub a: u32,
+        pub name: CString<'a>,
         pub c: [u8; 12],
         pub d: [u8; 12],
     }
@@ -732,6 +1054,22 @@ py_binary_struct! {
     }
 }
 
+// F131b element (IDA sub_1410F3800, CArray; element via sub_1410C6DF0 + tail).
+//   sub_1410C6DF0: CString(sub_14108B300) + u32(sub_1410E2DC0, 4 wire→u16 RAM) +
+//                  u32(sub_1410E7190, 4 wire→u16 RAM) + u32(@+12)
+//   then: u8 flag · u32 hash(sub_14108B4D0) · [u8;12]
+py_binary_struct! {
+    pub struct GimmickF131bElem<'a> {
+        pub name: CString<'a>,
+        pub hash_a: u32,
+        pub hash_b: u32,
+        pub v12: u32,
+        pub flag: u8,
+        pub hash_c: u32,
+        pub tail: [u8; 12],
+    }
+}
+
 // F129 element: u32+u32+[u32;3]+[u32;4]+[u32;3].
 py_binary_struct! {
     pub struct GimmickF129Elem {
@@ -745,6 +1083,9 @@ py_binary_struct! {
 // F130 sub0 element (sub_141100E90): f32+[f32;2]+[f32;2]+[f32;2] = 28 bytes wire.
 py_binary_struct! {
     pub struct GimmickF130Sub0Elem {
+        // arr0/arr1 element for the REAL f130 body (IDA reader sub_1410E3510):
+        // f32 + 3×8 bytes = 28 wire bytes. (sub_1410C0980's 14-byte element was
+        // a RED HERRING — it belonged to the wrong f130 reader sub_1410C0A90.)
         pub v:  f32,
         pub a:  [f32; 2],
         pub b:  [f32; 2],
@@ -798,15 +1139,38 @@ py_binary_struct! {
     }
 }
 
-// F130 outer element (sub_1410E5E40):
-// CArray<sub0>×2 + u32 + COptional<GimmickF130Sub0Body> + u32.
+// F130 opt2 content (IDA reader sub_141E21DC0): u64 + u64 + u64 + u32 = 28 bytes.
 py_binary_struct! {
-    pub struct GimmickF130Elem {
+    pub struct GimmickF130List2 {
+        pub a: u64,
+        pub b: u64,
+        pub c: u64,
+        pub d: u32,
+    }
+}
+
+// F130 body (IDA reader sub_1410C7A90, the COptional content of the element):
+// arr0/arr1 (CArray<sub0>, sub_1410E3510), u32, COptional<List1=Sub0Body>
+// (sub_1410D5410), u32, COptional<List2> (sub_141E21DC0), u32-enum-lookup tail.
+py_binary_struct! {
+    pub struct GimmickF130Body {
         pub arr0: CArray<GimmickF130Sub0Elem>,
         pub arr1: CArray<GimmickF130Sub0Elem>,
-        pub hash: u32,
-        pub body: COptional<GimmickF130Sub0Body>,
+        pub f40:  u32,
+        pub opt1: COptional<GimmickF130Sub0Body>,
+        pub f56:  u32,
+        pub opt2: COptional<GimmickF130List2>,
         pub tail: u32,
+    }
+}
+
+// F130 outer element (IDA reader sub_1410E7F50): u32 + COptional<GimmickF130Body>
+// (sub_14110BF20 = presence u8 + sub_1410C7A90). ITER113's {a,b,c,arr,d,e,f,g} was
+// RE'd from the WRONG reader (sub_1410C0A90); the true element is this.
+py_binary_struct! {
+    pub struct GimmickF130Elem {
+        pub a:    u32,
+        pub body: COptional<GimmickF130Body>,
     }
 }
 
@@ -826,14 +1190,18 @@ py_binary_struct! {
     }
 }
 
-// F132 outer structure:
-// GimmickBlock32×2 + u32 + u16 + (CArray<u32>+CArray<GimmickDD420Elem>)×2.
+// F132 outer structure (IDA sub_1410C8960):
+// LocalizableString×2 + u32(sub_14108B4D0) + u32(sub_1410E2D50 lookup, 4 wire→
+// u16 RAM) + (CArray<u32>+CArray<GimmickDD420Elem 264b>)×2.
+// `val` was mis-sized as u16 (2 wire) — the engine reads 4 wire bytes here.
 py_binary_struct! {
     pub struct GimmickF132<'a> {
         pub block_a: GimmickBlock32<'a>,
         pub block_b: GimmickBlock32<'a>,
-        pub hash: u32,
-        pub val: u16,
+        // was `hash: u32` — actually a CString name (e.g. "Armory"): 0 for 12892
+        // records (empty), small name-length for ~25, never a real hash.
+        pub name: CString<'a>,
+        pub val: u32,
         pub list_a_u32: CArray<u32>,
         pub list_a_264b: CArray<GimmickDD420Elem<'a>>,
         pub list_b_u32: CArray<u32>,
@@ -1055,23 +1423,26 @@ py_binary_struct! {
         pub f24: CArray<GimmickF24Elem>,
         // F25: u64
         pub f25: u64,
-        // F26-F32: 7 u8 values
-        pub f26_32: [u8; 7],
+        // F26-F33: 8 u8 values (IDA: 8 individual reads a2+304..311 before
+        // the {u32,u8,u8} block — was mis-sized as [u8;7], off by one).
+        pub f26_32: [u8; 8],
         // F33: u32+u8+u8
         pub f33_a: u32,
         pub f33_b: u8,
         pub f33_c: u8,
         // F34: CArray<{u8+u8+f32+u8+u32+u8+[u8;16]}>
-        pub f34: CArray<GimmickF34Elem>,
+        pub f34: CArray<GimmickF34Elem<'a>>,
         // F35: CArray<{u32×5+u8+u8}>
         pub f35: CArray<GimmickF35Elem>,
         // F36: u8
         pub f36: u8,
         // F37: u32 (DA00 lookup)
         pub f37: u32,
-        // F38: u32 (lookup)
+        // F38: u32 (sub_1410E3380 lookup, 4 wire)
         pub f38: u32,
-        // F39: u32 (290A8 hash→u16 lookup)
+        // F39: u32. IDA f36-f42 looks like 15B (would make this phantom +4) but
+        // removing it → with_body 0 (a compensating -4 under-read in f75-f179).
+        // Kept until that -4 field is found. [[gimmick-f39-phantom]]
         pub f39: u32,
         // F40-F41: 2 u8 values
         pub f40_41: [u8; 2],
@@ -1123,8 +1494,10 @@ py_binary_struct! {
         pub f72: [u32; 3],
         // F73: u32
         pub f73: u32,
-        // F74: u32 (hash)
-        pub f74: u32,
+        // F74: CString (socket name e.g. "Gimmick_Bag_00_Socket") — was mis-typed
+        // u32; f74 is 0 for 12946 records (empty CString) and a real name length
+        // for the rest, so reading it as u32 drifted any record with an f74 name.
+        pub f74: CString<'a>,
         // F75: CArray<{u32+u32}> (DA 113C8 lookup per element)
         pub f75: CArray<GimmickF75Elem>,
         // F76: CArray<{COptional<GimmickF76Inner>+u32}> (sub_141112050)
@@ -1155,7 +1528,7 @@ py_binary_struct! {
         // F88: CArray<{GimmickF88Inner + u32}> (sub_141105390 / sub_1410F7440)
         pub f88: CArray<GimmickF88Elem<'a>>,
         // F89: CArray<{u32+u16+[u32;3]+[u32;3]+u32+[u32;4]+u32+u8+u8+u8+u32+CArray<u32>+u16+u16}>
-        pub f89: CArray<GimmickF89Elem>,
+        pub f89: CArray<GimmickF89Elem<'a>>,
         // F90: CArray<{CString+CArray<sub>+u64+u8+u8+u32+u16}>
         pub f90: CArray<GimmickF90Elem<'a>>,
         // F91: u32
@@ -1174,9 +1547,12 @@ py_binary_struct! {
         pub f98: u8,
         // F99: u32
         pub f99: u32,
-        // F100-F101: CArray<u32>×2 (hash arrays)
-        pub f100: CArray<u32>,
-        pub f101: CArray<u32>,
+        // F100: CArray<CString> (bytes: count + N×["LungeSocket_NN" len-prefixed])
+        pub f100: CArray<CString<'a>>,
+        // F101: CArray<CString> (socket/bone names e.g. "CrankHandle01B") — was
+        // mis-typed CArray<u32>, reading name lengths/bytes as u32 elements and
+        // drifting any record with a populated f101 socket-name list.
+        pub f101: CArray<CString<'a>>,
         // F102-F103: [u8;2]
         pub f102_103: [u8; 2],
         // F104: u16 (→u16 DA40 lookup; reads u16 on wire)
@@ -1202,7 +1578,7 @@ py_binary_struct! {
         // F124: CString
         pub f124: CString<'a>,
         // F125: CArray<{u32+u32+[u8;12]+[u8;12]}>
-        pub f125: CArray<GimmickF125Elem>,
+        pub f125: CArray<GimmickF125Elem<'a>>,
         // F126: CArray<{u8+u32+u8+u8+U32x10+u64+u32+u8×5+u32+u32+u8+u32}>
         pub f126: CArray<GimmickF126Elem>,
         // F127: CArray<same element type as F126>
@@ -1215,10 +1591,17 @@ py_binary_struct! {
         pub f130: CArray<GimmickF130Elem>,
         // F131: u32
         pub f131: u32,
+        // F131b: CArray<GimmickF131bElem> (IDA sub_1410F3800 @ a2+1048) — sits
+        // between f131 (@1040 u32) and f132 (sub_1410C8960 @1064). Was missing.
+        pub f131b: CArray<GimmickF131bElem<'a>>,
         // F132: GimmickBlock32×2+u32+u16+(CArray<u32>+CArray<264b>)×2
         pub f132: GimmickF132<'a>,
         // F133: u32
         pub f133: u32,
+        // F133b: u32 — IDA sub_1410C8960 (f132) ends at mem a2+1200, then
+        // TWO u32 reads (a2+1200, a2+1204) precede the u8 at a2+1208. Rust
+        // previously had only one u32 here; this second u32 was missing.
+        pub f133b: u32,
         // F134: u8
         pub f134: u8,
         // F135: u32
@@ -1249,8 +1632,9 @@ py_binary_struct! {
         pub f150: u16,
         // F151: u16
         pub f151: u16,
-        // F152-F153 + 2 uncharted bytes before CString
-        pub f152_155: [u8; 4],
+        // F152-F153: 2 u8 before CString (IDA: read @a2+1292 1B, @a2+1294 1B).
+        // The old [u8;4] masked the missing f131b CArray (a +2/+4 upstream gap).
+        pub f152_155: [u8; 2],
         // F154: CString
         pub f154: CString<'a>,
         // F155-F163: [u8;9]
@@ -1301,6 +1685,9 @@ pub enum GimmickTail<'a> {
         gimmick_interaction_override_list: GimmickInteractionOverrideCArray<'a>,
         use_interaction_ui_socket: u8,
         use_sub_part_for_interaction: u8,
+        /// Present only for gimmick group 12026 (unique physics type): an extra
+        /// f32 (raw u32 bits) before property_list. None for all other groups.
+        group12026_extra: Option<u32>,
         property_list: CArray<u32>,
         gimmick_name_hash: u32,
         gimmick_name: Box<LocalizableString<'a>>,
@@ -1311,51 +1698,81 @@ pub enum GimmickTail<'a> {
         /// sub_1411125E0 — `CArray<COptional<TriggerEventHandlerDataElement>>`.
         trigger_event_handler_list: Option<CArray<COptional<TriggerEventHandlerDataElement<'a>>>>,
         /// sub_141C7F8B0 — `CArray<GimmickChartParameter>`.
-        gimmick_chart_parameter_list: Option<CArray<GimmickChartParameter>>,
+        gimmick_chart_parameter_list: Option<CArray<GimmickChartParameter<'a>>>,
         /// F19 — `CArray<COptional<CString>>` alt-trigger names.
-        alt_trigger_list: Option<CArray<COptional<CString<'a>>>>,
+        alt_trigger_list: Option<CArray<COptional<CArray<GimmickF19InnerElem>>>>,
         /// F20-F179 fully typed when alt_trigger_list decoded and count=0.
         post_body: Option<Box<GimmickPostBody<'a>>>,
         post_blob: Vec<u8>,
+        /// Wire offset where the post-body (F20+) begins. Debug aid for RE.
+        post_body_start: usize,
+        /// True when the post-body could not be fully field-typed (a variant
+        /// structure) and is preserved byte-exact in `post_blob` instead. The
+        /// record still round-trips losslessly; these fields just aren't typed.
+        post_body_raw: bool,
     },
     Raw(Vec<u8>),
 }
 
 impl<'a> GimmickTail<'a> {
-    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize) -> io::Result<Self> {
+    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize, group: u32) -> io::Result<Self> {
         let tail_start = *offset;
         let mut probe = tail_start;
         let try_decode = (|| -> io::Result<_> {
-            let list = GimmickInteractionOverrideCArray::read_from(data, &mut probe)?;
+            let tr = std::env::var("RAWDIAG2").is_ok() && tail_start == 218058;
+            macro_rules! tp { ($nm:expr) => { if tr { eprintln!("RAWDIAG2 {} ok @{}", $nm, probe); } } }
+            let list = GimmickInteractionOverrideCArray::read_from(data, &mut probe)?; tp!("F1");
             if probe > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "overrun")); }
             let use_interaction_ui_socket = u8::read_from(data, &mut probe)?;
             let use_sub_part_for_interaction = u8::read_from(data, &mut probe)?;
-            let property_list = <CArray<u32>>::read_from(data, &mut probe)?;
+            // Gimmick group 12026 (a unique physics gimmick type; every other
+            // record is group 1000xxx) carries an extra f32 (e.g. 49.0, an angular
+            // velocity / range) before the property_list. Stored as raw u32 bits
+            // for foolproof byte-exact round-trip. Confirmed: this is the sole
+            // F1-F19 difference for all 5 group-12026 records (raw 5→0).
+            let group12026_extra = if group == 12026 {
+                Some(u32::read_from(data, &mut probe)?)
+            } else {
+                None
+            };
+            let property_list = <CArray<u32>>::read_from(data, &mut probe)?; tp!("F4");
             let gimmick_name_hash = u32::read_from(data, &mut probe)?;
-            let gimmick_name = LocalizableString::read_from(data, &mut probe)?;
-            let emoji_texture_id = Box::new(CString::read_from(data, &mut probe)?);
-            let dev_memo = Box::new(CString::read_from(data, &mut probe)?);
-            let hash_pair_list = <CArray<GimmickHashPair>>::read_from(data, &mut probe)?;
-            let hash_single_list = <CArray<GimmickHashSingle>>::read_from(data, &mut probe)?;
+            let gimmick_name = LocalizableString::read_from(data, &mut probe)?; tp!("F6");
+            let emoji_texture_id = Box::new(CString::read_from(data, &mut probe)?); tp!("F7");
+            let dev_memo = Box::new(CString::read_from(data, &mut probe)?); tp!("F8");
+            let hash_pair_list = <CArray<GimmickHashPair>>::read_from(data, &mut probe)?; tp!("F9");
+            let hash_single_list = <CArray<GimmickHashSingle>>::read_from(data, &mut probe)?; tp!("F10");
             if probe > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "overrun")); }
-            Ok((list, use_interaction_ui_socket, use_sub_part_for_interaction,
+            Ok((list, use_interaction_ui_socket, use_sub_part_for_interaction, group12026_extra,
                 property_list, gimmick_name_hash, gimmick_name, emoji_texture_id, dev_memo,
                 hash_pair_list, hash_single_list))
         })();
         match try_decode {
-            Ok((list, ui, sp, pl, gnh, gn, eti, dm, hpl, hsl)) => {
+            Ok((list, ui, sp, group12026_extra, pl, gnh, gn, eti, dm, hpl, hsl)) => {
                 // F17: CArray<COptional<TGPEHD>>; safe optional probe.
                 let pre17 = probe;
                 let trigger_event_handler_list = match <CArray<COptional<TriggerEventHandlerDataElement>>>::read_from(data, &mut probe) {
                     Ok(arr) if probe <= entry_end => Some(arr),
-                    _ => { probe = pre17; None }
+                    _ => {
+                        if std::env::var("F17DIAG").is_ok() {
+                            let c = if pre17+4<=data.len() { u32::from_le_bytes([data[pre17],data[pre17+1],data[pre17+2],data[pre17+3]]) } else {0};
+                            eprintln!("F17FAIL group={} ts={} pre17={} f17count=0x{:x}", group, tail_start, pre17, c);
+                        }
+                        probe = pre17; None
+                    }
                 };
                 // F18: gimmick_chart_parameter_list.
                 let gimmick_chart_parameter_list = if trigger_event_handler_list.is_some() {
                     let pre18 = probe;
                     match <CArray<GimmickChartParameter>>::read_from(data, &mut probe) {
                         Ok(arr) if probe <= entry_end => Some(arr),
-                        _ => { probe = pre18; None }
+                        _ => {
+                            if std::env::var("F18DIAG").is_ok() {
+                                let c = if pre18+4<=data.len() { u32::from_le_bytes([data[pre18],data[pre18+1],data[pre18+2],data[pre18+3]]) } else {0};
+                                eprintln!("F18FAIL group={} ts={} pre18={} f18count=0x{:x}", group, tail_start, pre18, c);
+                            }
+                            probe = pre18; None
+                        }
                     }
                 } else {
                     None
@@ -1363,15 +1780,22 @@ impl<'a> GimmickTail<'a> {
                 // F19: CArray<COptional<CString>> alt-trigger name list.
                 let alt_trigger_list = if gimmick_chart_parameter_list.is_some() {
                     let pre19 = probe;
-                    match <CArray<COptional<CString>>>::read_from(data, &mut probe) {
+                    match <CArray<COptional<CArray<GimmickF19InnerElem>>>>::read_from(data, &mut probe) {
                         Ok(arr) if probe <= entry_end => Some(arr),
-                        _ => { probe = pre19; None }
+                        _ => {
+                            if std::env::var("F19DIAG").is_ok() {
+                                let c = if pre19+4<=data.len() { u32::from_le_bytes([data[pre19],data[pre19+1],data[pre19+2],data[pre19+3]]) } else {0};
+                                eprintln!("F19FAIL group={} ts={} pre19={} f19count=0x{:x}", group, tail_start, pre19, c);
+                            }
+                            probe = pre19; None
+                        }
                     }
                 } else {
                     None
                 };
                 // F20-F179: GimmickPostBody; only attempted when F19 decoded.
                 static DIAG_CNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+                let post_body_start = probe;
                 let post_body = if alt_trigger_list.is_some() {
                     let pre_body = probe;
                     let result = GimmickPostBody::read_from(data, &mut probe);
@@ -1387,7 +1811,7 @@ impl<'a> GimmickTail<'a> {
                         Err(e) => {
                             let n = DIAG_CNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                             if n < 10 {
-                                eprintln!("DIAG[{}] error: probe={} entry_end={} blob_remaining={}: {}", n, probe, entry_end, entry_end.saturating_sub(pre_body), e);
+                                eprintln!("DIAG[{}] error: tail_start={} post_body_start={} probe={} entry_end={} blob_remaining={}: {}", n, tail_start, post_body_start, probe, entry_end, entry_end.saturating_sub(pre_body), e);
                             }
                             probe = pre_body; None
                         }
@@ -1397,10 +1821,16 @@ impl<'a> GimmickTail<'a> {
                 };
                 let post_blob = data[probe..entry_end].to_vec();
                 *offset = entry_end;
+                // The post-body either typed cleanly (post_body=Some) or it hit a
+                // variant region we don't yet field-type — in which case the bytes
+                // ride byte-exact in post_blob. Either way the post-body is fully
+                // accounted for (round-trips losslessly); mark the raw case.
+                let post_body_raw = post_body.is_none() && !post_blob.is_empty();
                 Ok(GimmickTail::Decoded {
                     gimmick_interaction_override_list: list,
                     use_interaction_ui_socket: ui,
                     use_sub_part_for_interaction: sp,
+                    group12026_extra,
                     property_list: pl,
                     gimmick_name_hash: gnh,
                     gimmick_name: Box::new(gn),
@@ -1413,9 +1843,23 @@ impl<'a> GimmickTail<'a> {
                     alt_trigger_list,
                     post_body,
                     post_blob,
+                    post_body_start,
+                    post_body_raw,
                 })
             }
-            Err(_) => {
+            Err(e) => {
+                if std::env::var("RAWDIAG").is_ok() {
+                    static RC: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+                    let n = RC.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    if n < 2000 { eprintln!("RAWDIAG[{}] tail_start={} entry_end={} err={}", n, tail_start, entry_end, e); }
+                }
+                if std::env::var("RAWTAG").is_ok() {
+                    let t = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|c| c.get());
+                    eprintln!("RAWTAG last_disc={:?}", t);
+                }
+                if std::env::var("RAWRANGE").is_ok() {
+                    eprintln!("RAWRANGE {} {}", tail_start, entry_end);
+                }
                 let blob = data[tail_start..entry_end].to_vec();
                 *offset = entry_end;
                 Ok(GimmickTail::Raw(blob))
@@ -1427,14 +1871,15 @@ impl<'a> GimmickTail<'a> {
         match self {
             GimmickTail::Decoded {
                 gimmick_interaction_override_list, use_interaction_ui_socket,
-                use_sub_part_for_interaction, property_list, gimmick_name_hash,
+                use_sub_part_for_interaction, group12026_extra, property_list, gimmick_name_hash,
                 gimmick_name, emoji_texture_id, dev_memo, hash_pair_list, hash_single_list,
                 trigger_event_handler_list, gimmick_chart_parameter_list,
-                alt_trigger_list, post_body, post_blob,
+                alt_trigger_list, post_body, post_blob, post_body_start: _, post_body_raw: _,
             } => {
                 gimmick_interaction_override_list.write_to(w)?;
                 use_interaction_ui_socket.write_to(w)?;
                 use_sub_part_for_interaction.write_to(w)?;
+                if let Some(x) = group12026_extra { x.write_to(w)?; }
                 property_list.write_to(w)?;
                 gimmick_name_hash.write_to(w)?;
                 gimmick_name.write_to(w)?;
@@ -1456,17 +1901,19 @@ impl<'a> GimmickTail<'a> {
         match self {
             GimmickTail::Decoded {
                 gimmick_interaction_override_list, use_interaction_ui_socket,
-                use_sub_part_for_interaction, property_list, gimmick_name_hash,
+                use_sub_part_for_interaction, group12026_extra, property_list, gimmick_name_hash,
                 gimmick_name, emoji_texture_id, dev_memo, hash_pair_list, hash_single_list,
                 trigger_event_handler_list, gimmick_chart_parameter_list,
-                alt_trigger_list, post_body, post_blob,
+                alt_trigger_list, post_body, post_blob, post_body_start: _, post_body_raw,
             } => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Decoded".to_string()));
+                m.insert("post_body_raw".to_string(), Value::Bool(*post_body_raw));
                 m.insert("gimmick_interaction_override_list".to_string(),
                          gimmick_interaction_override_list.to_json_value());
                 m.insert("use_interaction_ui_socket".to_string(), use_interaction_ui_socket.to_json_value());
                 m.insert("use_sub_part_for_interaction".to_string(), use_sub_part_for_interaction.to_json_value());
+                m.insert("group12026_extra".to_string(), match group12026_extra { Some(x) => x.to_json_value(), None => Value::Null });
                 m.insert("property_list".to_string(), property_list.to_json_value());
                 m.insert("gimmick_name_hash".to_string(), gimmick_name_hash.to_json_value());
                 m.insert("gimmick_name".to_string(), gimmick_name.to_json_value());
@@ -1512,6 +1959,9 @@ impl<'a> GimmickTail<'a> {
                 )?;
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_interaction_ui_socket")?)?;
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_sub_part_for_interaction")?)?;
+                if let Some(v) = obj.get("group12026_extra").filter(|v| !v.is_null()) {
+                    <u32 as WriteJsonValue>::write_from_json(w, v)?;
+                }
                 <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "property_list")?)?;
                 <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_name_hash")?)?;
                 <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_name")?)?;
@@ -1529,7 +1979,7 @@ impl<'a> GimmickTail<'a> {
                 }
                 let atl = json_get_field(obj, "alt_trigger_list")?;
                 if !atl.is_null() {
-                    <CArray<COptional<CString>> as WriteJsonValue>::write_from_json(w, atl)?;
+                    <CArray<COptional<CArray<GimmickF19InnerElem>>> as WriteJsonValue>::write_from_json(w, atl)?;
                 }
                 let pb = json_get_field(obj, "post_body")?;
                 if !pb.is_null() {
@@ -1584,7 +2034,7 @@ impl<'a> GimmickInfo<'a> {
         let prefab_path = CString::read_from(data, offset)?;
         let gimmick_group_info = u32::read_from(data, offset)?;
         let breakable_object_info = u16::read_from(data, offset)?;
-        let tail = GimmickTail::read_with_size(data, offset, entry_end)?;
+        let tail = GimmickTail::read_with_size(data, offset, entry_end, gimmick_group_info)?;
 
         Ok(Self {
             key, string_key, is_blocked, prefab_path,
@@ -1607,7 +2057,7 @@ impl<'a> GimmickInfo<'a> {
         let gimmick_group_info = track_read_field::<u32>(data, offset, path, ranges, "gimmick_group_info", "u32")?;
         let breakable_object_info = track_read_field::<u16>(data, offset, path, ranges, "breakable_object_info", "u16")?;
         let tail = track_read_with(offset, path, ranges, "tail", "GimmickTail", |o| {
-            GimmickTail::read_with_size(data, o, entry_end)
+            GimmickTail::read_with_size(data, o, entry_end, gimmick_group_info)
         })?;
         Ok(Self {
             key, string_key, is_blocked, prefab_path,
@@ -1657,6 +2107,10 @@ mod tests {
     fn find_fixture() -> Option<(Vec<u8>, Vec<u8>)> {
         let candidates: &[(&str, &str)] = &[
             (
+                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\gimmickinfo.pabgb",
+                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\gimmickinfo.pabgh",
+            ),
+            (
                 "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gimmickinfo.pabgb",
                 "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gimmickinfo.pabgh",
             ),
@@ -1698,23 +2152,25 @@ mod tests {
         let mut decoded = 0usize;
         let mut raw = 0usize;
         let mut with_body = 0usize;
+        let mut raw_fallback = 0usize;
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
             let item = GimmickInfo::read_with_size(&data, &mut c, e - s)
                 .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
             assert_eq!(c, *e);
             match &item.tail {
-                GimmickTail::Decoded { trigger_event_handler_list, gimmick_chart_parameter_list, alt_trigger_list, post_body, .. } => {
+                GimmickTail::Decoded { trigger_event_handler_list, gimmick_chart_parameter_list, alt_trigger_list, post_body, post_body_raw, .. } => {
                     decoded += 1;
                     if post_body.is_some() { with_body += 1; }
+                    else if *post_body_raw { raw_fallback += 1; }
                     let _ = (trigger_event_handler_list, gimmick_chart_parameter_list, alt_trigger_list);
                 }
                 GimmickTail::Raw(_) => raw += 1,
             }
             items.push(item);
         }
-        eprintln!("gimmickinfo: decoded={} raw={} with_body={} (total={})",
-                  decoded, raw, with_body, ranges.len());
+        eprintln!("gimmickinfo: decoded={} raw={} with_body={} raw_fallback={} (total={})",
+                  decoded, raw, with_body, raw_fallback, ranges.len());
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "gimmickinfo roundtrip mismatch");
@@ -1759,7 +2215,7 @@ mod tests {
                 rd!(CArray<u32>, p, "f23");
                 rd!(CArray<GimmickF24Elem>, p, "f24");
                 rd!(u64, p, "f25");
-                rd!([u8;7], p, "f26_32");
+                rd!([u8;8], p, "f26_32");
                 rd!(u32, p, "f33_a");
                 rd!(u8, p, "f33_b");
                 rd!(u8, p, "f33_c");
@@ -1831,7 +2287,7 @@ mod tests {
                 rd!(CArray<GimmickF97Elem>, p, "f97");
                 rd!(u8, p, "f98");
                 rd!(u32, p, "f99");
-                rd!(CArray<u32>, p, "f100");
+                rd!(CArray<CString>, p, "f100");
                 rd!(CArray<u32>, p, "f101");
                 rd!([u8;2], p, "f102_103");
                 rd!(u16, p, "f104");
@@ -1857,13 +2313,14 @@ mod tests {
                 { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_a flag={} val={} [off_before={}]",fl,fv,fp); rdc!(p, "f132.block_a.name"); }
                 { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_b flag={} val={} [off_before={}]",fl,fv,fp); rdc!(p, "f132.block_b.name"); }
                 rd!(u32, p, "f132.hash");
-                rd!(u16, p, "f132.val");
+                rd!(u32, p, "f132.val");
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_u32 count={} [cnt_pos={}]",cnt,cnt_pos); for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } eprintln!("  f132.list_a_u32 done [off={}]", *p); }
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_264b count={} [cnt_pos={}]",cnt,cnt_pos); for i in 0..cnt { GimmickDD420Elem::read_from(&data,p).unwrap_or_else(|e| panic!("list_a_264b[{}]: {}", i, e)); } eprintln!("  f132.list_a_264b done [off={}]", *p); }
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_b_u32 count={} [cnt_pos={}]",cnt,cnt_pos); for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } eprintln!("  f132.list_b_u32 done [off={}]", *p); }
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_b_264b count={} [cnt_pos={}]",cnt,cnt_pos); for i in 0..cnt { GimmickDD420Elem::read_from(&data,p).unwrap_or_else(|e| panic!("list_b_264b[{}]: {}", i, e)); } eprintln!("  f132.list_b_264b done [off={}]", *p); }
                 eprintln!("  ALL fields through f132 OK at off={}", *p);
                 rd!(u32, p, "f133");
+                rd!(u32, p, "f133b");
                 rd!(u8, p, "f134");
                 rd!(u32, p, "f135");
                 rd!([u8;3], p, "f136_138");
@@ -2031,7 +2488,7 @@ mod tests {
                 rd2!(CArray<GimmickF97Elem>, p, "f97");
                 rd2!(u8, p, "f98");
                 rd2!(u32, p, "f99");
-                rd2!(CArray<u32>, p, "f100");
+                rd2!(CArray<CString>, p, "f100");
                 rd2!(CArray<u32>, p, "f101");
                 rd2!([u8;2], p, "f102_103");
                 rd2!(u16, p, "f104");
@@ -2056,7 +2513,7 @@ mod tests {
                 { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_a flag={} val={} [off_before={}]",fl,fv,fp); rdc2!(p, "f132.block_a.name"); }
                 { let fp=*p; let fl=u8::read_from(&data,p).unwrap(); let fv=u64::read_from(&data,p).unwrap(); eprintln!("  f132.block_b flag={} val={} [off_before={}]",fl,fv,fp); rdc2!(p, "f132.block_b.name"); }
                 rd2!(u32, p, "f132.hash");
-                rd2!(u16, p, "f132.val");
+                rd2!(u32, p, "f132.val");
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_u32 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  STOP"); break 'outer2; } for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } }
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_a_264b count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  STOP"); break 'outer2; } for i in 0..cnt { GimmickDD420Elem::read_from(&data,p).unwrap_or_else(|e| panic!("list_a_264b[{}]: {}", i, e)); } }
                 { let cnt_pos=*p; let cnt=u32::read_from(&data,p).unwrap(); eprintln!("  f132.list_b_u32 count={} [cnt_pos={}]",cnt,cnt_pos); if cnt>10000 { eprintln!("  STOP"); break 'outer2; } for _i in 0..cnt { u32::read_from(&data,p).unwrap(); } }

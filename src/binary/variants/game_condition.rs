@@ -205,7 +205,14 @@ pub enum GameConditionNode<'a> {
 
 impl<'a> GameConditionNode<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let _ct_off = *offset;
         let case_tag = u8::read_from(data, offset)?;
+        if std::env::var("CONDTRACE").is_ok() && _ct_off >= 218058 && _ct_off <= 220856 {
+            eprintln!("CONDTRACE node case_tag={} @{}", case_tag, _ct_off);
+        }
+        if std::env::var("ALLCASE").is_ok() {
+            eprintln!("CASE {} {}", case_tag, _ct_off);
+        }
         match case_tag {
             0 => {
                 let left = Box::new(Self::read_from(data, offset)?);

@@ -288,6 +288,27 @@ fn try_read_trailer(data: &[u8], start: usize, end: usize) -> Option<usize> {
     Some(cursor - start)
 }
 
+/// Resolve the `_questDialogFilterDataList` blob size. The list is
+/// self-delimiting (count-prefixed), so decode it ONCE (O(R)) to find its
+/// natural end and accept it if the trailing fields then fit exactly to
+/// `entry_end`; otherwise fall back to the trailer-only probe (→ Raw).
+///
+/// Replaces an earlier O(R²) approach that re-decoded the list at every
+/// probe offset — pathological on the largest filter blobs (e.g. a ~68 KB
+/// entry → billions of ops, effectively hanging the parse).
+fn quest_filter_blob_size(data: &[u8], post_pre: usize, entry_end: usize) -> io::Result<usize> {
+    let mut p_nat = post_pre;
+    if <CArray<QuestDialogFilterData>>::read_from(data, &mut p_nat).is_ok()
+        && p_nat <= entry_end
+        && try_read_trailer(data, p_nat, entry_end).map(|c| p_nat + c == entry_end).unwrap_or(false)
+    {
+        return Ok(p_nat - post_pre);
+    }
+    find_variant_boundary(data, post_pre, entry_end, 0, |probe| {
+        try_read_trailer(data, probe, entry_end)
+    })
+}
+
 impl<'a> QuestInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
@@ -330,9 +351,7 @@ impl<'a> QuestInfo<'a> {
         // _questDialogFilterDataList blob until the trailing 6 fields parse
         // cleanly all the way to entry_end.
         let post_pre = *offset;
-        let blob_size = find_variant_boundary(data, post_pre, entry_end, 0, |probe| {
-            try_read_trailer(data, probe, entry_end)
-        })?;
+        let blob_size = quest_filter_blob_size(data, post_pre, entry_end)?;
         let region_end = post_pre + blob_size;
         let quest_dialog_filter_data_list =
             QuestDialogFilterDataList::read_with_size(data, offset, region_end)?;
@@ -424,9 +443,7 @@ impl<'a> QuestInfo<'a> {
 
         let quest_dialog_filter_data_list = track_read_with(offset, path, ranges, "quest_dialog_filter_data_list", "QuestDialogFilterDataList", |o| {
             let post_pre = *o;
-            let blob_size = find_variant_boundary(data, post_pre, entry_end, 0, |probe| {
-                try_read_trailer(data, probe, entry_end)
-            })?;
+            let blob_size = quest_filter_blob_size(data, post_pre, entry_end)?;
             let region_end = post_pre + blob_size;
             QuestDialogFilterDataList::read_with_size(data, o, region_end)
         })?;

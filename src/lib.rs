@@ -12,6 +12,7 @@ pub mod json_shape_table_registry;
 pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;
+pub mod resolve;
 pub mod save;
 pub mod tables;
 pub mod tracked;

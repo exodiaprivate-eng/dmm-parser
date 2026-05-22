@@ -700,6 +700,105 @@ Serialize and write directly to a file.
 dmm_parser.write_table_to_file("vehicle_info", items, "vehicle_info.pabgb")
 ```
 
+### Cross-table reference resolution (hash → readable name)
+
+Many table fields hold a `u32` that is really a **foreign key** into another
+table — the game maps it through a runtime registry (`wire u32 → registry →
+index`). On the wire, and in the parsed JSON, you see the raw key (a "hash"),
+which is why targeting these fields used to be guesswork. The two functions
+below annotate the parsed records with readable companion names, so you can
+author against names instead of raw keys. They are **opt-in and round-trip
+safe**: the raw key stays authoritative and the companion fields are ignored
+on serialize.
+
+#### `build_key_name_index(items: list[dict], name_field: str = "string_key") -> dict[int, str]`
+
+Build a `{key: name}` index from a referenced table's own parsed records.
+Pulls each record's `"key"` and `name_field`. Most tables expose the readable
+name as `string_key`; `string_info` (icon/video paths) exposes it as `buffer`.
+Records with a zero key or missing name are skipped.
+
+#### `parse_table_resolved(table_name, pabgb, pabgh=None, shape=None, context=None) -> list[dict]`
+
+Like `parse_table`, but if `context` is supplied it annotates known reference
+fields. `context` maps a referenced table's canonical name to its
+`{key: name}` index (build one with `build_key_name_index`). Scalar reference
+fields gain a `<field>_name` string; array reference fields gain a
+`<field>_names` parallel array (`None` per unresolved element).
+
+```python
+import dmm_parser
+
+# Parse the tables skill_info references (you load these .pabgb yourself).
+knowledge = dmm_parser.parse_table("knowledge_info", know_pabgb, know_pabgh)
+strings   = dmm_parser.parse_table("string_info",    str_pabgb)   # sequential, no pabgh
+
+ctx = {
+    "knowledge_info": dmm_parser.build_key_name_index(knowledge),
+    "string_info":    dmm_parser.build_key_name_index(strings, "buffer"),  # icon/video paths
+}
+
+skills = dmm_parser.parse_table_resolved("skill_info", skill_pabgb, skill_pabgh, context=ctx)
+# skills[0] now also has, when resolvable:
+#   "icon_path_name": "Skill_DualSwrodMastery"
+#   "video_path_name": "ui/media/Skill_EvadeShot.mp4"
+#   "learn_knowledge_info_name": "Knowledge_..."
+#   "usable_character_info_list_names": ["Char_A", "Char_B", None]
+```
+
+**`skill_info` reference fields** (IDA-verified `sub_1410DAE40` lookup readers):
+
+| Field | Resolves against | `build_key_name_index` field |
+|---|---|---|
+| `parent_skill` | `skill_info` (self) | `string_key` |
+| `learn_knowledge_info` | `knowledge_info` | `string_key` |
+| `need_upgrade_item_info` | `item_info` | `string_key` |
+| `faction_info` | `faction_info` | `string_key` |
+| `icon_path`, `video_path` | `string_info` | **`buffer`** |
+| `usable_character_info_list[]` | `character_info` | `string_key` |
+| `skill_group_key_list[]` | `skill_group_info` | `string_key` |
+| `reserve_slot_info_list[]` | `reserve_slot_info` | `string_key` |
+
+**Nested (list-element) references** — resolved inside each element, gaining
+a `<field>_name` companion on the element object:
+
+| Nested field | Resolves against | `build_key_name_index` field |
+|---|---|---|
+| `use_resource_stat_list[].lookup_b` (resource: Stamina/Mp/Fury) | `status_info` | `string_key` |
+| `use_resource_stat_list[].lookup_e` / `.lookup_f` (rate modifiers) | `status_info` | `string_key` |
+| `use_driver_resource_stat_list[].lookup_b/e/f` | `status_info` | `string_key` |
+| `use_resource_item_list[].lookup` | `item_info` | `string_key` |
+
+So a skill's stamina cost surfaces as
+`use_resource_stat_list[0] = { lookup_b, lookup_b_name: "Stamina", d, … }`
+when a `status_info` index is in `context`.
+
+**8 tables are wired** (each mapping validated on live data via
+`examples/resolve_validate`; see `src/resolve.rs` to add more):
+
+| Table | Key resolved references |
+|---|---|
+| `skill_info` | parent_skill, learn_knowledge_info, icon_path/video_path→string_info, usable_character_info_list, skill_group_key_list, reserve_slot_info_list, + nested `use_resource_stat_list[].lookup_b/e/f`→status_info (Stamina/Mp/Fury) |
+| `knowledge_info` | skill_info, learn_apply_skill_info, faction_info, faction_node_info, item_info, ui_texture_name→string_info, character_info_list, gimmick_info_list, knowledge_group_list, stage_info_list |
+| `npc_info` | store_info, coupon_item_info→item_info, nested dye_color_group_key→dye_color_group_info |
+| `store_info` | exchange_item_info_for_buy / exchange_item_info_list_for_sell → item_info |
+| `character_info` | vehicle_info |
+| `mission_info` | sub_mission_list→self, start_player_list→character_info |
+| `quest_info` | faction_info, quest_group_info, start/game_start mission&stage, mission_list, stage_list, executor_quest_list→self, start_player_list, stage_icon/text/image_path→string_info |
+| `buff_info` | elemental_status_info→status_info |
+
+Build each target's index with `build_key_name_index` (use `"buffer"` for
+`string_info`; `item_info` keys come from `parse_iteminfo_to_json`).
+
+Only tables present in `context` are resolved; everything else is left as-is.
+Companion fields use the default (snake_case) field names, so resolution runs
+on the default `shape`. Fields that are not foreign keys are intentionally not
+resolved — e.g. `skill_info.usable_condition[]` holds signed condition/enum
+IDs (`0xfffffe23…`), and `ResourceStat.lookup_*` are runtime-dictionary
+lookups, neither of which is a record key.
+
+Raises `ValueError` if a `context` entry is not a `{int: str}` dict.
+
 ### Supported tables
 
 **pabgh-bounded** (pabgh file required for parsing):

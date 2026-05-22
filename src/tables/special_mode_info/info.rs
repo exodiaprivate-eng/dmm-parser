@@ -61,6 +61,10 @@ py_binary_struct! {
         pub raw_c: u32,
         pub raw_d: u32,
         pub raw_e: u32,
+        // 1.07 added a u32 here (IDA sub_1410D7ED0: five 4-byte reads at
+        // mem +20/+24/+28/+32/+36 before the u64 at +40). Its absence
+        // shifted every later field by 4 bytes → CArray count misread.
+        pub raw_e2: u32,
         pub raw_f: u64,
         pub raw_g: u64,
         pub lookup_c: u32,

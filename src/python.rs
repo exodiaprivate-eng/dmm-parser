@@ -1080,6 +1080,88 @@ pub fn parse_table(
     Ok(list.into_any().unbind())
 }
 
+/// Build a `{key: name}` index from a parsed table's records.
+///
+/// Pulls each record's `"key"` and `name_field` (default `"string_key"`).
+/// Use the result as a value in the `context` dict passed to
+/// [`parse_table_resolved`]. Records with a zero key or missing name are
+/// skipped.
+#[pyfunction]
+#[pyo3(signature = (items, name_field="string_key"))]
+pub fn build_key_name_index(
+    py: Python<'_>,
+    items: &Bound<'_, PyList>,
+    name_field: &str,
+) -> PyResult<Py<PyAny>> {
+    let json_items: Vec<serde_json::Value> = items.iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let map = crate::resolve::extract_key_name_index(&json_items, name_field);
+    let out = PyDict::new(py);
+    for (k, v) in map {
+        out.set_item(k, v)?;
+    }
+    Ok(out.into_any().unbind())
+}
+
+/// Parse a table and annotate cross-table reference fields with readable
+/// names, using a caller-supplied resolution `context`.
+///
+/// `context` maps a referenced table's canonical name (e.g.
+/// `"knowledge_info"`) to its `{key: name}` index (build one with
+/// [`build_key_name_index`]). Scalar reference fields gain a
+/// `<field>_name` string; array reference fields gain a `<field>_names`
+/// parallel array (`None` per unresolved element). The raw hash stays
+/// authoritative — companion fields are advisory and ignored on
+/// serialize, so this never affects round-trip.
+#[pyfunction]
+#[pyo3(signature = (table_name, pabgb, pabgh=None, shape=None, context=None))]
+pub fn parse_table_resolved(
+    py: Python<'_>,
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+    shape: Option<&str>,
+    context: Option<&Bound<'_, PyDict>>,
+) -> PyResult<Py<PyAny>> {
+    let shape_enum = crate::json_shape::JsonShape::from_str(shape.unwrap_or(""))
+        .map_err(PyValueError::new_err)?;
+    let mut values = crate::dispatch::parse_table_to_json_shaped(
+        table_name, pabgb, pabgh, shape_enum,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    if let Some(ctx) = context {
+        let mut idx: crate::resolve::NameIndex = std::collections::HashMap::new();
+        for (k, v) in ctx.iter() {
+            let tname: String = k.extract()?;
+            let inner = v.cast::<PyDict>().map_err(|_| PyValueError::new_err(
+                format!("context['{}'] must be a dict of {{int: str}}", tname)))?;
+            let mut m = std::collections::HashMap::new();
+            for (kk, vv) in inner.iter() {
+                let key: u64 = kk.extract().map_err(|_| PyValueError::new_err(
+                    format!("context['{}'] key must be int", tname)))?;
+                if key > u32::MAX as u64 { continue; }
+                let name: String = vv.extract().map_err(|_| PyValueError::new_err(
+                    format!("context['{}'] value must be str", tname)))?;
+                m.insert(key as u32, name);
+            }
+            idx.insert(tname, m);
+        }
+        crate::resolve::annotate(
+            crate::dispatch::normalize_target_name(table_name).unwrap_or(table_name),
+            &mut values,
+            &idx,
+        );
+    }
+
+    let list = PyList::empty(py);
+    for v in values {
+        list.append(json_to_py(py, &v)?)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
 #[pyfunction]
 #[pyo3(signature = (table_name, items, shape=None))]
 pub fn serialize_table(
@@ -1872,6 +1954,8 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_buffinfo, m)?)?;
     m.add_function(wrap_pyfunction!(write_buffinfo_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_table, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_table_resolved, m)?)?;
+    m.add_function(wrap_pyfunction!(build_key_name_index, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_table, m)?)?;
     m.add_function(wrap_pyfunction!(write_table_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(apply_intents, m)?)?;
