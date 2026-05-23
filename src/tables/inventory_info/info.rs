@@ -411,8 +411,8 @@ impl<'a> InventoryInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\inventory.pabgb";
-    const PABGH: &str = r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\inventory.pabgh";
+    const PABGB: &str = r"C:\Users\justi\Desktop\DMM\backups\inventory_pabgb_clean.bin";
+    const PABGH: &str = r"C:\Users\justi\Desktop\DMM\backups\inventory_pabgh_clean.bin";
 
     #[test]
     fn roundtrip() {
@@ -452,6 +452,130 @@ mod tests {
                 "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
             );
         }
+    }
+
+    // Diagnostic: read entry k=0x2 field-by-field to identify which field fails on 1.0.8.
+    // Remove after the bug is understood.
+    #[test]
+    fn diag_entry_k2() {
+        use crate::binary::BinaryRead;
+        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let Some((_, start, end)) = ranges.get(1) else { eprintln!("SKIP: <2 entries"); return; };
+        let entry = &data[*start..*end];
+        eprintln!("entry k=0x2 size={}", end - start);
+        let mut c = 0usize;
+        macro_rules! read_field {
+            ($name:expr, $ty:ty) => {{
+                let pre = c;
+                let v = <$ty>::read_from(entry, &mut c);
+                eprintln!("  {} [{:5}..{:5}]: {:?}", $name, pre, c, v.as_ref().map(|_| "ok").unwrap_or("ERR"));
+                v
+            }};
+        }
+        let _ = read_field!("key", u16);
+        let _ = read_field!("string_key", CString);
+        let _ = read_field!("is_blocked", u8);
+        let r_push = <CArray<InventoryPushableData>>::read_from(entry, &mut c);
+        eprintln!("  pushable_item_type_list [{:5}..{:5}]: {:?}", c - c, c, r_push.as_ref().map(|v| v.items.len()).map_err(|e| e.to_string()));
+        if r_push.is_err() { return; }
+        let pre = c; let r_excl = <CArray<InventoryPushableData>>::read_from(entry, &mut c);
+        eprintln!("  excluded_item_type_list [{:5}..{:5}]: {:?}", pre, c, r_excl.as_ref().map(|v| v.items.len()).map_err(|e| e.to_string()));
+        if r_excl.is_err() { return; }
+        // Tail dump — working backward from known suffix fields confirms default_slot_count
+        // is at entry[2827], so inventory_move_data_list occupies [34..2827] = 2793 bytes.
+        // Dump around 1619 to check if move_data[1] starts there (13→14 byte sub-item hypothesis)
+        // and around 1510 to see what we misread as move_condition.
+        for (label, off) in [("@1505", 1505usize), ("@1615", 1615)] {
+            let end = (off + 64).min(entry.len());
+            eprintln!("  hex {} :", label);
+            for (ci, chunk) in entry[off..end].chunks(16).enumerate() {
+                let abs = off + ci * 16;
+                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02X}", b)).collect();
+                let asc: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
+                eprintln!("    {:5}: {:<48} |{}|", abs, hex.join(" "), asc);
+            }
+        }
+        eprintln!("  --- reading inventory_move_data_list ---");
+        let pre = c;
+        let count_res = u32::read_from(entry, &mut c);
+        let count = match count_res { Ok(n) => n, Err(e) => { eprintln!("  COUNT ERR: {}", e); return; } };
+        eprintln!("  move_data count={} at [{}]", count, pre);
+        for mi in 0..count as usize {
+            let mstart = c;
+            eprintln!("  -- move_data[{}] at offset {} --", mi, mstart);
+            macro_rules! mfield {
+                ($name:expr, $ty:ty) => {{
+                    let pre = c;
+                    let v = <$ty>::read_from(entry, &mut c);
+                    match &v {
+                        Ok(_) => eprintln!("    {} [{:5}..{:5}] ok", $name, pre, c),
+                        Err(e) => {
+                            eprintln!("    {} [{:5}..{:5}] ERR: {}", $name, pre, c, e);
+                            let dstart = pre.saturating_sub(4);
+                            let dend = (pre + 48).min(entry.len());
+                            eprintln!("    hex context @{}:", dstart);
+                            for (ci, chunk) in entry[dstart..dend].chunks(16).enumerate() {
+                                let abs = dstart + ci * 16;
+                                let hx: Vec<String> = chunk.iter().map(|b| format!("{:02X}", b)).collect();
+                                let asc: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
+                                eprintln!("      {:5}: {:<48} |{}|", abs, hx.join(" "), asc);
+                            }
+                            return;
+                        }
+                    }
+                    v.unwrap()
+                }};
+            }
+            let _ = mfield!("type_", u8);
+            let _ = mfield!("from_inventory_info", u16);
+            let _ = mfield!("to_inventory_info", u16);
+            let _ = mfield!("convert_money_item_info", u32);
+            let _ = mfield!("key_guide_text", LocalizableString);
+            let _ = mfield!("move_all_key_guide_text", LocalizableString);
+            let _ = mfield!("modal_text", LocalizableString);
+            let pre2 = c;
+            let items_res = <CArray<InventoryItemMoveData>>::read_from(entry, &mut c);
+            match &items_res {
+                Ok(v) => eprintln!("    item_move_data_list [{:5}..{:5}] ok count={}", pre2, c, v.items.len()),
+                Err(e) => { eprintln!("    item_move_data_list [{:5}..{:5}] ERR: {}", pre2, c, e); return; }
+            }
+            // move_condition: presence byte + optional GameConditionNode
+            let pre3 = c;
+            let presence = match u8::read_from(entry, &mut c) {
+                Ok(v) => v, Err(e) => { eprintln!("    move_condition presence ERR: {}", e); return; }
+            };
+            eprintln!("    move_condition presence={} at [{}]", presence, pre3);
+            if presence != 0 {
+                use crate::binary::variants::game_condition::GameConditionNode;
+                let pre4 = c;
+                let res = GameConditionNode::read_from(entry, &mut c);
+                match res {
+                    Ok(_) => eprintln!("    GameConditionNode [{:5}..{:5}] ok", pre4, c),
+                    Err(e) => { eprintln!("    GameConditionNode [{:5}..{:5}] ERR: {}", pre4, c, e); return; }
+                }
+            }
+            // condition_fail_text — 10th (final) field of InventoryMoveData
+            let pre_cft = c;
+            let cft_res = LocalizableString::read_from(entry, &mut c);
+            match &cft_res {
+                Ok(_) => eprintln!("    condition_fail_text [{:5}..{:5}] ok  (move_data[{}] end)", pre_cft, c, mi),
+                Err(e) => { eprintln!("    condition_fail_text [{:5}..{:5}] ERR: {}", pre_cft, c, e); return; }
+            }
+        }
+        eprintln!("  --- all {} move_data elements consumed, cursor={} ---", count, c);
+        // Dump hex at the cursor after the move_data list so we can see the tail fields
+        let tail_off = c;
+        let dump_end = (tail_off + 80).min(entry.len());
+        eprintln!("  hex dump @cursor {} +80:", tail_off);
+        for (ci, chunk) in entry[tail_off..dump_end].chunks(16).enumerate() {
+            let abs = tail_off + ci * 16;
+            let hex: Vec<String> = chunk.iter().map(|b| format!("{:02X}", b)).collect();
+            let asc: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
+            eprintln!("    {:5}: {:<48} |{}|", abs, hex.join(" "), asc);
+        }
+        eprintln!("  consumed={} entry_size={}", c, end - start);
     }
 
     #[test]

@@ -322,10 +322,18 @@ macro_rules! py_binary_struct {
                 w: &mut Vec<u8>,
                 d: &::serde_json::Map<String, ::serde_json::Value>,
             ) -> ::std::io::Result<()> {
-                use $crate::json_traits::{WriteJsonValue, get_field};
-                $(<$ty as WriteJsonValue>::write_from_json(w, get_field(d, stringify!($field))?)
-                    .map_err(|e| ::std::io::Error::new(e.kind(),
-                        format!("{}.{}: {}", stringify!($name), stringify!($field), e)))?;)*
+                // get_field_or_null returns Value::Null for absent keys rather
+                // than erroring. This keeps old V3 mods working when a game
+                // patch adds new struct fields (e.g. DockingChildData::unk_docking_108):
+                // the missing field serializes as 0 via the primitive null-default
+                // path instead of aborting the whole iteminfo overlay.
+                use $crate::json_traits::{WriteJsonValue, get_field_or_null};
+                $({
+                    let _dmm_fval = get_field_or_null(d, stringify!($field));
+                    <$ty as WriteJsonValue>::write_from_json(w, &_dmm_fval)
+                        .map_err(|e| ::std::io::Error::new(e.kind(),
+                            format!("{}.{}: {}", stringify!($name), stringify!($field), e)))?;
+                })*
                 Ok(())
             }
         }
