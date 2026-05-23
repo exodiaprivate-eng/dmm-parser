@@ -577,6 +577,16 @@ py_binary_struct! {
     }
 }
 
+// 1.0.8: new CArray element between flag_e and the flag block.
+// Replaces the old raw_e(u16) + CharacterFourFlags + post_override_list.
+// 8 wire bytes per element: u32 + u32.
+py_binary_struct! {
+    pub struct CharacterNewListEntry {
+        pub key: u32,
+        pub value: u32,
+    }
+}
+
 // sub_1410D6F70 — 128-byte per-element of sub_141117EC0.
 // Wire: u32 + u64 + u64 + 4× u32 (loop) + u32 + 5 nested CArrays.
 py_binary_struct! {
@@ -729,10 +739,12 @@ pabgh_typed_blob_table! {
         pub label_a: LocalizableString<'a>,
         pub lookup_36: u32,
         pub flag_e: u8,
-        pub raw_e: u16,
-        pub four_flags: CharacterFourFlags,
-        pub post_override_list: CArray<u64>,
-        pub flag_block: [u8; 43],
+        pub flag_post_e_a: u8,
+        pub flag_post_e_b: u8,
+        pub new_list_108: CArray<CharacterNewListEntry>,
+        pub four_flags_pre: [u8; 4],
+        pub alive_skill_info_list: CArray<u64>,
+        pub flag_block: [u8; 44],
         pub raw_f: u32,
         pub lookup_77: u32,
         pub lookup_78: u32,
@@ -785,62 +797,8 @@ pabgh_typed_blob_table! {
         pub flag_128: u8,
         pub short_pair_list: CArray<CharacterShortPair>,
         pub raw_130: u32,
-        pub chart_entry_list: CArray<CharacterChartEntry<'a>>,
-        pub five_tuple_list: CArray<CharacterFiveTuple>,
-        pub gimmick_interaction_override_list: GimmickInteractionOverrideCArray<'a>,
-        pub flag_after_gimmick: u8,                       // a2 + 752
-        pub raw_after_gimmick: u32,                       // a2 + 756
-        pub field_136_list: CArray<CharacterField136Entry>, // sub_1411181F0 a2+760
-        pub raw_after_136: u32,                           // a2 + 776
-        pub field_137_list: CArray<CharacterField137Entry>, // sub_141101380 a2+784
-        pub field_138_list: CArray<u32>,                  // sub_1410FFF10 a2+800
-        pub raw_140a: u64,                                // a2 + 816
-        pub raw_140b: u64,                                // a2 + 824
-        pub raw_140c: u32,                                // a2 + 832
-        pub flag_140a: u8,                                // a2 + 836
-        pub flag_140b: u8,                                // a2 + 837
-        pub field_141_list: CArray<CharacterField141Entry>, // sub_141118000 a2+840
-        pub raw_142: u32,                                 // a2 + 856
-        pub flag_143: u8,                                 // a2 + 860
-        pub field_144_list: CArray<CharacterField144Entry>, // sub_1411014B0 a2+864
-        pub field_146_list: CArray<u32>,                  // sub_141101610 a2+880 (qword_145F0EF38)
-        pub inline_147: CharacterInline147,               // sub_1410D7370 inline at a2+896
-        pub raw_148: u32,                                 // a2 + 912
-        pub lookup_149: u16,                              // inline u16 → qword_145F15960 hash, a2+916
-        pub field_150_list: CArray<CharacterField150Entry<'a>>, // sub_141101710 a2+920
-        pub raw_151: u32,                                 // a2 + 936
-        pub raw_152: u32,                                 // a2 + 940
-        pub raw_153: u32,                                 // a2 + 944
-        pub raw_154: u32,                                 // a2 + 948
-        pub lookup_155: u16,                              // sub_1411018B0 a2+952
-        pub lookup_156: u32,                              // sub_141100740 a2+954 (u32 wire / u16 mem)
-        pub flag_157: u8,                                 // a2 + 956
-        pub raw_158: u32,                                 // a2 + 960
-        pub flag_159: u8,                                 // a2 + 964
-        pub unk_new_u32_b: u32,                           // new in 2026-5-1; between flag_159 and raw_160
-        pub raw_160: u32,                                 // a2 + 968
-        pub lookup_161: u32,                              // sub_141100740 a2+972
-        pub lookup_162: u32,                              // sub_141100370 a2+974
-        pub field_163_list: CArray<u32>,                  // sub_141101960 a2+976 (raw u32 elements)
-        pub raw_164: u32,                                 // a2 + 992
-        pub raw_165: u64,                                 // a2 + 1000
-        pub raw_165a: u32,                                // a2 + 1008 (3-iter raw u32 loop)
-        pub raw_165b: u32,                                // a2 + 1012
-        pub raw_165c: u32,                                // a2 + 1016
-        pub lookup_166: u32,                              // sub_141101A40 a2+1020 (u32 wire / u16 mem)
-        pub unk_new_u64_b: u64,                           // new in 2026-5-1; between lookup_166 and raw_167
-        pub raw_167: u32,                                 // a2 + 1024
-        pub flag_168: u8,                                 // a2 + 1028
-        pub field_169a: CharacterField169Entry,           // 5-iter loop, a2+1032
-        pub field_169b: CharacterField169Entry,
-        pub field_169c: CharacterField169Entry,
-        pub field_169d: CharacterField169Entry,
-        pub field_169e: CharacterField169Entry,
-        pub lookup_170: u32,                              // inline u32 → qword_145F14D90 hash, a2+1112
-        pub field_171_list: CArray<CharacterField171Entry>, // sub_141117EC0 a2+1120
-        pub field_172_list: CArray<u32>,                    // sub_141101AB0 a2+1136
-        pub field_173_list: CArray<u32>,                    // sub_141101AB0 a2+1152
-        pub field_174_list: CArray<CharacterField174Entry>, // sub_141101B80 a2+1168
+        // 1.0.8: CharacterChartEntry and subsequent sub-structs changed.
+        // Remaining fields kept as tail blob until sub-reader RE is complete.
     }
     tail: tail_blob;
 }
@@ -850,7 +808,13 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
+    #[cfg(target_os = "windows")]
+    const PABGB_PATH: &str = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\characterinfo.pabgb";
+    #[cfg(target_os = "windows")]
+    const PABGH_PATH: &str = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\characterinfo.pabgh";
+    #[cfg(not(target_os = "windows"))]
     const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/characterinfo.pabgb";
+    #[cfg(not(target_os = "windows"))]
     const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/characterinfo.pabgh";
 
     #[test]
@@ -886,11 +850,8 @@ mod tests {
             let item = CharacterInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
             assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
             let dict = item.to_json_dict();
-            // CharacterInfo's typed prefix consumes every byte of every
-            // vanilla entry, so the macro-generated `_tail_b64` field
-            // must never leak into the JSON dict (Tier 1 invariant).
-            assert!(!dict.contains_key("_tail_b64"),
-                "entry {} key=0x{:x}: _tail_b64 leaked — typed reader is missing fields", i, key);
+            // 1.0.8: tail blob expected — sub-structs after short_pair_list
+            // changed and are not yet fully typed.
             let mut from_typed = Vec::new();
             item.write_to(&mut from_typed).unwrap();
             let mut from_json = Vec::new();
