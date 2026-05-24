@@ -5,13 +5,11 @@
 mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/levelinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/levelinfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("levelinfo.pabgb") }
+#[test]
     fn dump_records() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         eprintln!("{} records", ranges.len());
         for (i, (k, s, e)) in ranges.iter().take(3).enumerate() {

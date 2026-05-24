@@ -189,13 +189,12 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"C:\Users\justi\Desktop\DMM\backups\spawningpoolautospawninfo_pabgb_clean.bin";
-    const PABGH_PATH: &str = r"C:\Users\justi\Desktop\DMM\backups\spawningpoolautospawninfo_pabgh_clean.bin";
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("spawningpoolautospawninfo.pabgb") }
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: {}", PABGB_PATH); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: {}", PABGH_PATH); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
         let ranges = entry_ranges(&entries, data.len());
 
         let mut items = Vec::with_capacity(ranges.len());
@@ -216,12 +215,12 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());

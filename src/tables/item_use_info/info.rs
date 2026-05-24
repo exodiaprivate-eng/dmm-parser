@@ -648,10 +648,8 @@ impl<'a> ItemUseInfo<'a> {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgh";
-
-    fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("itemuseinfo.pabgb") }
+fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
         let count = u32::from_le_bytes(pabgh[..4].try_into().unwrap()) as usize;
         let mut entries = Vec::with_capacity(count);
         for i in 0..count {
@@ -666,12 +664,12 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Ok(pabgh) = std::fs::read(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
 
@@ -712,12 +710,12 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Ok(pabgh) = std::fs::read(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
 

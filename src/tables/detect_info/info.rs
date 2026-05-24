@@ -63,12 +63,11 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/detectinfo.pabgb";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("detectinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;
@@ -86,8 +85,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;

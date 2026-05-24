@@ -159,19 +159,15 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/frameeventattrgroupinfo.pabgb";
-    const PABGH_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/frameeventattrgroupinfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("frameeventattrgroupinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing/unparseable pabgh fixture {}", PABGH_PATH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());
@@ -200,12 +196,12 @@ mod tests {
     #[test]
     fn json_roundtrip() {
         use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());

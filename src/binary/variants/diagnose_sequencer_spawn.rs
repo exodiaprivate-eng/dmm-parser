@@ -12,10 +12,8 @@ mod tests {
     use crate::binary::variants::buff_data::GameConditionOptional;
     use crate::binary::*;
 
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/sequencerspawninfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/sequencerspawninfo.pabgh";
-
-    /// Minimal chart_desc walker: parse fields one at a time and report
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("sequencerspawninfo.pabgb") }
+/// Minimal chart_desc walker: parse fields one at a time and report
     /// offsets. Stops on first error.
     fn walk_chart_desc(data: &[u8], offset: &mut usize, label: &str) -> std::io::Result<()> {
         let _name = CString::read_from(data, offset)?;
@@ -80,8 +78,8 @@ mod tests {
 
     #[test]
     fn bisect_entry_0() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let target_idx = 0;
         let (k, s, e) = ranges[target_idx];
