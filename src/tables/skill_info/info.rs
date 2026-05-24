@@ -259,6 +259,10 @@ pub struct SkillInfo<'a> {
     pub buff_sustain_flag: u32,
     pub dev_skill_name: CString<'a>,
     pub dev_skill_desc: CString<'a>,
+    /// Present only in newer-format entries (remaining > 4 after dev_skill_desc).
+    /// Two additional dev CStrings precede the actual video_path in those entries.
+    pub dev_extra_a: Option<CString<'a>>,
+    pub dev_extra_b: Option<CString<'a>>,
     pub video_path: u32,
 }
 
@@ -302,6 +306,29 @@ impl<'a> SkillInfo<'a> {
         let buff_sustain_flag = u32::read_from(data, offset)?;
         let dev_skill_name = CString::read_from(data, offset)?;
         let dev_skill_desc = CString::read_from(data, offset)?;
+
+        // Newer-format entries have 2 extra dev CStrings before the video_path u32.
+        // Detect by checking remaining bytes: old format has exactly 4 left (the u32),
+        // new format has 4 + 2*(4+cstring_len) left.
+        let consumed_so_far = *offset - start;
+        if consumed_so_far > entry_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "SkillInfo key={}: over-consumed {} bytes for entry of {} bytes (before tail check)",
+                    key, consumed_so_far, entry_size
+                ),
+            ));
+        }
+        let remaining = entry_size - consumed_so_far;
+        let (dev_extra_a, dev_extra_b) = if remaining == 4 {
+            (None, None)
+        } else {
+            let a = CString::read_from(data, offset)?;
+            let b = CString::read_from(data, offset)?;
+            (Some(a), Some(b))
+        };
+
         let video_path = u32::read_from(data, offset)?;
 
         let consumed = *offset - start;
@@ -324,7 +351,8 @@ impl<'a> SkillInfo<'a> {
             allow_skill_with_low_resource, is_use_child_pattern_description_buff_data,
             damage_type, ui_type,
             reserve_slot_info_list, max_level, skill_group_key_list,
-            buff_sustain_flag, dev_skill_name, dev_skill_desc, video_path,
+            buff_sustain_flag, dev_skill_name, dev_skill_desc,
+            dev_extra_a, dev_extra_b, video_path,
         })
     }
 
@@ -362,6 +390,12 @@ impl<'a> SkillInfo<'a> {
         self.buff_sustain_flag.write_to(w)?;
         self.dev_skill_name.write_to(w)?;
         self.dev_skill_desc.write_to(w)?;
+        if let Some(a) = &self.dev_extra_a {
+            a.write_to(w)?;
+        }
+        if let Some(b) = &self.dev_extra_b {
+            b.write_to(w)?;
+        }
         self.video_path.write_to(w)?;
         Ok(())
     }
@@ -481,6 +515,8 @@ impl<'a> ToJsonValue for SkillInfo<'a> {
             "buff_sustain_flag": self.buff_sustain_flag,
             "dev_skill_name": self.dev_skill_name.data,
             "dev_skill_desc": self.dev_skill_desc.data,
+            "dev_extra_a": self.dev_extra_a.as_ref().map(|s| s.data).unwrap_or(""),
+            "dev_extra_b": self.dev_extra_b.as_ref().map(|s| s.data).unwrap_or(""),
             "video_path": self.video_path,
         })
     }
@@ -525,6 +561,17 @@ impl<'a> WriteJsonValue for SkillInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_sustain_flag")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_name")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_desc")?)?;
+        // dev_extra_a / dev_extra_b are present only in newer-format entries.
+        // In JSON they are serialized as "" for old-format entries; write them
+        // only when non-empty (i.e. the entry uses the new format).
+        let extra_a = json_get_field(obj, "dev_extra_a")
+            .ok()
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if !extra_a.is_empty() {
+            <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_extra_a")?)?;
+            <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_extra_b")?)?;
+        }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "video_path")?)?;
         Ok(())
     }
@@ -552,20 +599,37 @@ pub fn parse_skill_to_json(data: &[u8]) -> io::Result<Vec<Value>> {
 
 /// Variant of `parse_skill_to_json` that uses the pabgh sister file to
 /// verify each entry's byte boundaries. Useful for mod-time validation.
+///
+/// Entries that fail to parse (new game-version format not yet decoded) are
+/// stored as opaque passthrough objects `{"_opaque":true,"_raw_hex":"..."}`.
+/// The v3 overlay skips opaque entries (they have no `string_key`/`key`
+/// fields to match on) and `serialize_skill_from_json` writes them back
+/// verbatim — so the overall table round-trips byte-perfectly even when a
+/// handful of entries use a format the parser doesn't understand yet.
 pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<Vec<Value>> {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets_from_bytes};
     let entries = load_pabgh_offsets_from_bytes(pabgh).ok_or_else(|| io::Error::new(
         io::ErrorKind::InvalidData, "pabgh parse failed"))?;
     let ranges = entry_ranges(&entries, data.len());
     let mut items = Vec::with_capacity(ranges.len());
-    for (_k, s, e) in ranges {
+    for (k, s, e) in ranges {
         let mut c = s;
-        let item = SkillInfo::read_with_size(data, &mut c, e - s)?;
-        if c != e {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("SkillInfo entry under/over-consumed: {}/{}", c - s, e - s)));
+        let parsed_ok = match SkillInfo::read_with_size(data, &mut c, e - s) {
+            Ok(item) if c == e => { items.push(item.to_json_value()); true }
+            _ => false,
+        };
+        if !parsed_ok {
+            // Opaque fallback: store raw bytes verbatim so the table still
+            // round-trips and the v3 overlay can patch all other entries.
+            let raw_hex: String = data[s..e].iter()
+                .map(|b| format!("{:02x}", b))
+                .collect();
+            items.push(json!({
+                "_opaque": true,
+                "_key": k,
+                "_raw_hex": raw_hex,
+            }));
         }
-        items.push(item.to_json_value());
     }
     Ok(items)
 }
@@ -573,7 +637,21 @@ pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<V
 /// Append a single record's bytes to `out`. Used by the tracked-offset
 /// apply path in `dispatch.rs` so it can record each record's start
 /// offset for pabgh rebuild.
+///
+/// Handles opaque passthrough entries produced by `parse_skill_to_json_with_pabgh`
+/// when an entry couldn't be decoded — writes the raw bytes verbatim.
 pub fn write_skill_info_record(out: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+    if v.get("_opaque").and_then(|f| f.as_bool()).unwrap_or(false) {
+        let hex = v.get("_raw_hex").and_then(|f| f.as_str()).unwrap_or("");
+        let bytes = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i+2], 16)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("opaque skill entry: bad hex: {}", e))))
+            .collect::<io::Result<Vec<u8>>>()?;
+        out.extend_from_slice(&bytes);
+        return Ok(());
+    }
     SkillInfo::write_from_json(out, v)
 }
 
@@ -582,7 +660,7 @@ pub fn write_skill_info_record(out: &mut Vec<u8>, v: &Value) -> io::Result<()> {
 pub fn serialize_skill_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
     let mut out = Vec::with_capacity(items.len() * 512);
     for (i, v) in items.iter().enumerate() {
-        SkillInfo::write_from_json(&mut out, v).map_err(|e| io::Error::new(
+        write_skill_info_record(&mut out, v).map_err(|e| io::Error::new(
             e.kind(), format!("skill[{}]: {}", i, e)))?;
     }
     Ok(out)

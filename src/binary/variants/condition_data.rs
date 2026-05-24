@@ -2234,7 +2234,9 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload),
     ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload),
     ConditionData_Tag406,
-    ConditionData_Tag407(OneByteBodyPayload),
+    /// Tag 407: body = u32 + u16 (6 bytes). No option_block (1.0.8 verified
+    /// by inventory.pabgb entry k=0x2 move_data[6].move_condition).
+    ConditionData_Tag407(U32U16BodyPayload),
 }
 
 impl<'a> ConditionDataVariant<'a> {
@@ -3904,7 +3906,7 @@ impl<'a> ConditionDataVariant<'a> {
             404 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPlayerHouse: missing body object"))?; ConditionData_CheckPlayerHousePayload::write_from_json_dict(w, body)?; }
             405 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActivatedHousingRegion: missing body object"))?; ConditionData_CheckActivatedHousingRegionPayload::write_from_json_dict(w, body)?; }
             406 => {} // Tag406: bodyless
-            407 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag407: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            407 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag407: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataVariant: unknown disc {}", other))),
         }
@@ -4322,7 +4324,7 @@ impl<'a> ConditionDataVariant<'a> {
             404 => Self::ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload::read_from(data, offset)?),
             405 => Self::ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload::read_from(data, offset)?),
             406 => Self::ConditionData_Tag406,
-            407 => Self::ConditionData_Tag407(OneByteBodyPayload::read_from(data, offset)?),
+            407 => Self::ConditionData_Tag407(U32U16BodyPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
         })
     }
@@ -4893,7 +4895,13 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // others were promoted to body+option_block recipes during the
         // 2026-04-30 verification cycle (see docs/STATUS.md
         // "Stream-mode GameCondition" section). Tag 26 alone remains.
-        26
+        26 |
+        // Class D — payload-size change in 1.0.8 leaves no room for
+        // option_block. Verified empirically via inventory.pabgb entry
+        // k=0x2 move_data[6].move_condition: tag=407 body is now 6 bytes
+        // (U32U16BodyPayload) so the byte that was option_present is
+        // consumed as part of the payload (b field = 0x0100 = 256).
+        407
     )
 }
 

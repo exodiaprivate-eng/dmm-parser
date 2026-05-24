@@ -1,10 +1,16 @@
 //! Tier 1 — fully typed parser for `TerrainRegionAutoSpawnInfo.pabgb`.
 //!
-//! Per IDA sub_1410FA5B0: 24 fields. `_spawnList` is
+//! Per IDA sub_1410FA5B0: 24 fields (old binary). New binary adds `spawn_mode_type` (u8) after
+//! `stage_category`, giving 25 fields. `_spawnList` is
 //! `CArray<AutoSpawnEntry>` via sub_1411092E0 + sub_1410FA2A0 (shared with
 //! SpawningPoolAutoSpawnInfo). Per-element wire layout reverse-engineered
 //! and lives in `crate::binary::variants::auto_spawn_entry`. Despite the original
 //! "polymorphic" docstring, sub_1410FA2A0 is fixed-shape.
+//!
+//! **spawn_list inter-element separator**: `CArray<AutoSpawnEntry>` encodes a single
+//! 0xff byte between consecutive elements (N elements → N-1 separators). Entries with
+//! one ASE carry no separator; entries with N≥2 ASEs carry one 0xff byte after each
+//! non-final element. Handled explicitly in `read_with_size`/`write_to`/`write_from_json_dict`.
 
 use crate::binary::*;
 use crate::binary::variants::auto_spawn_entry::AutoSpawnEntry;
@@ -30,7 +36,8 @@ pub struct TerrainRegionAutoSpawnInfo<'a> {
     pub is_only_summon_data: u8,
     pub is_only_check_data: u8,
     pub stage_category: u8,
-    pub tag_list: CArray<CString<'a>>,
+    pub spawn_mode_type: u8,
+    pub tag_list: CArray<CBytes<'a>>,
     pub is_default_activated: u8,
     pub all_terrain_region: u8,
     pub bitmap_position_info: u32,
@@ -59,14 +66,36 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         let spawn_region_tag_list = CArray::<u32>::read_from(data, offset)?;
         let not_spawn_region_tag_list = CArray::<u32>::read_from(data, offset)?;
 
-        let spawn_list = <CArray<AutoSpawnEntry>>::read_from(data, offset)?;
+        // spawn_list: CArray<AutoSpawnEntry> with N-1 inter-element separator bytes
+        // between consecutive elements (value 0xff).  For N elements, N-1 separator
+        // bytes are inserted between them.  Entries with a single ASE have no
+        // separator; entries with two or more ASEs each contribute one separator byte.
+        let spawn_list = {
+            let count = u32::read_from(data, offset)? as usize;
+            let remaining = data.len().saturating_sub(*offset);
+            if count > remaining {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
+                    format!("CArray count {} exceeds remaining bytes {} at offset {}",
+                        count, remaining, *offset)));
+            }
+            let mut items = Vec::with_capacity(count.min(1 << 20));
+            for i in 0..count {
+                items.push(AutoSpawnEntry::read_from(data, offset)?);
+                if i + 1 < count {
+                    // skip the inter-element separator byte
+                    u8::read_from(data, offset)?;
+                }
+            }
+            CArray { items }
+        };
 
         let voxel_type = u32::read_from(data, offset)?;
         let road_group_type = u8::read_from(data, offset)?;
         let is_only_summon_data = u8::read_from(data, offset)?;
         let is_only_check_data = u8::read_from(data, offset)?;
         let stage_category = u8::read_from(data, offset)?;
-        let tag_list = CArray::<CString>::read_from(data, offset)?;
+        let spawn_mode_type = u8::read_from(data, offset)?;
+        let tag_list = CArray::<CBytes>::read_from(data, offset)?;
         let is_default_activated = u8::read_from(data, offset)?;
         let all_terrain_region = u8::read_from(data, offset)?;
         let bitmap_position_info = u32::read_from(data, offset)?;
@@ -81,7 +110,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
             region_info_list, not_spawn_region_info_list,
             spawn_region_tag_list, not_spawn_region_tag_list,
             spawn_list, voxel_type, road_group_type,
-            is_only_summon_data, is_only_check_data, stage_category,
+            is_only_summon_data, is_only_check_data, stage_category, spawn_mode_type,
             tag_list, is_default_activated, all_terrain_region,
             bitmap_position_info, bitmap_color_list_for_spawn,
             spawn_at_height_field_landscape, fish_summon_time_frequency_type,
@@ -100,12 +129,20 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         self.not_spawn_region_info_list.write_to(w)?;
         self.spawn_region_tag_list.write_to(w)?;
         self.not_spawn_region_tag_list.write_to(w)?;
-        self.spawn_list.write_to(w)?;
+        // spawn_list: write count then elements with N-1 separator bytes (0xff) between them
+        (self.spawn_list.items.len() as u32).write_to(w)?;
+        for (i, entry) in self.spawn_list.items.iter().enumerate() {
+            entry.write_to(w)?;
+            if i + 1 < self.spawn_list.items.len() {
+                w.write_all(&[0xff])?;
+            }
+        }
         self.voxel_type.write_to(w)?;
         self.road_group_type.write_to(w)?;
         self.is_only_summon_data.write_to(w)?;
         self.is_only_check_data.write_to(w)?;
         self.stage_category.write_to(w)?;
+        self.spawn_mode_type.write_to(w)?;
         self.tag_list.write_to(w)?;
         self.is_default_activated.write_to(w)?;
         self.all_terrain_region.write_to(w)?;
@@ -135,6 +172,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         m.insert("is_only_summon_data".to_string(), self.is_only_summon_data.to_json_value());
         m.insert("is_only_check_data".to_string(), self.is_only_check_data.to_json_value());
         m.insert("stage_category".to_string(), self.stage_category.to_json_value());
+        m.insert("spawn_mode_type".to_string(), self.spawn_mode_type.to_json_value());
         m.insert("tag_list".to_string(), self.tag_list.to_json_value());
         m.insert("is_default_activated".to_string(), self.is_default_activated.to_json_value());
         m.insert("all_terrain_region".to_string(), self.all_terrain_region.to_json_value());
@@ -157,13 +195,26 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_info_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_region_tag_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_tag_list")?)?;
-        <CArray<AutoSpawnEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_list")?)?;
+        // spawn_list: custom write — N-1 inter-element separator bytes (0xff) between elements
+        {
+            let v = json_get_field(obj, "spawn_list")?;
+            let arr = v.as_array().ok_or_else(|| std::io::Error::new(
+                std::io::ErrorKind::InvalidData, "spawn_list is not a JSON array"))?;
+            w.extend_from_slice(&(arr.len() as u32).to_le_bytes());
+            for (i, item) in arr.iter().enumerate() {
+                <AutoSpawnEntry as WriteJsonValue>::write_from_json(w, item)?;
+                if i + 1 < arr.len() {
+                    w.push(0xff);
+                }
+            }
+        }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "voxel_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "road_group_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_only_summon_data")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_only_check_data")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_category")?)?;
-        <CArray<CString> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_mode_type")?)?;
+        <CArray<CBytes> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_default_activated")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "all_terrain_region")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bitmap_position_info")?)?;

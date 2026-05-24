@@ -1097,9 +1097,10 @@ mod tests {
     #[test]
     fn sequential_table_returns_no_pabgh() {
         // Use a tiny synthetic body for a sequential table. action_point_info
-        // is the smallest entry shape; an empty body parses to an empty list.
+        // was switched to pabgh_blob_table in 1.0.8; use action_restriction_order_info
+        // instead — it is a fully-typed sequential table.
         let (new_body, new_pabgh, outcomes) =
-            apply_intents_to_table_body("action_point_info", &[], None, &[])
+            apply_intents_to_table_body("action_restriction_order_info", &[], None, &[])
                 .expect("apply");
         assert!(new_body.is_empty());
         assert!(new_pabgh.is_none());
