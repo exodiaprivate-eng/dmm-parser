@@ -5008,34 +5008,20 @@ impl<'a> ConditionDataOptionData<'a> {
 ///      LAST_ATTEMPTED_TAG diagnostic pointed at these — risk: may
 ///      mask real failures elsewhere in the chain.
 fn variant_skips_option_block(tag: u16) -> bool {
+    // Disc numbers updated for 1.0.8 (mapped by variant name).
     matches!(tag,
-        // Class A — vtable[19] = 0x1402D3A80 (literal no-op). Win-IDA
-        // verified this session by reading `<vtable>+0x98`:
-        //   tag   2: ConditionData_CheckNone           @ 0x144cdd680
-        //   tag  81: ConditionData_QuestGaugePercent   @ 0x144ce3038
-        //   tag 126: ConditionData_SpecialModeKey      @ 0x144ce1420
-        //   tag 256: ConditionData_Macro               @ 0x144ce2f88
-        //   tag 272: ConditionData_GameEventParam      @ 0x144ce4cb0
-        //   tag 300: vftable @ off_144CD3778
-        2 | 81 | 126 | 222 | 257 | 262 | 273 | 301 |
-        // Class A (continuing) — same source, vtable[19] = no-op:
-        //   tag 221: ConditionData_CheckAttackImpulseLevel  @ 0x144ce5268
-        //   tag 261: ConditionData_CheckDamageElementalType @ 0x144ce4080
-        307 | 402 |
-        // Class B — vtable[19] = thunk into anti-disassembly runtime
-        // (sub_14F0D2550 / sub_14F24B730). Byte-math verified: vanilla
-        // `case(1)+tag(2)+body+footer(3)` matches with zero option_block.
-        79 | 196 | 127 | 201 |
-        // Class C — empirical add via LAST_ATTEMPTED_TAG diagnostic on
-        // interaction_info. vtable[19] = `0x1413B89E0` (thunk in
-        // sub_14139AE80, non-decompilable). Verified Win-IDA this
-        // session that this is NOT class A — its slot 19 is shared
-        // with many tags that genuinely DO read option_block (e.g. tag 0
-        // GetLevel has the same thunk and reads option_block normally).
-        // Originally 6 entries (26 | 99 | 135 | 174 | 360 | 370); the
-        // others were promoted to body+option_block recipes during the
-        // 2026-04-30 verification cycle (see docs/STATUS.md
-        // "Stream-mode GameCondition" section). Tag 26 alone remains.
+        // Class A — vtable[19] = no-op
+        //   CheckNone(2), QuestGaugePercent(83), SpecialModeKey(128),
+        //   CheckAttackImpulseLevel(224), Macro(259),
+        //   CheckDamageElementalType(264), GameEventParam(275),
+        //   CheckAttackName(303), CheckCompleteLevelGimmick(309),
+        //   GetDifficultyOption(406)
+        2 | 83 | 128 | 224 | 259 | 264 | 275 | 303 | 309 | 406 |
+        // Class B — vtable[19] = thunk, byte-math verified
+        //   StartQuest(81), CheckHaveMercenary(198),
+        //   CheckSpecialMode(127), CheckBurnable(203)
+        81 | 198 | 127 | 203 |
+        // Class C — empirical (CheckHasImportantItem)
         26
     )
 }
