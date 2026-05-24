@@ -11,6 +11,8 @@
 //! Each pabgb table file gets its own submodule.
 
 pub mod game_version_data_info;
+pub mod npc_activity_group_info;
+pub mod npc_activity_info;
 pub mod breakable_object_info;
 pub mod wanted_info;
 pub mod aidialog_type_info;

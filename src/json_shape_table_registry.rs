@@ -88,6 +88,8 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("material_relation_info", crate::tables::material_relation_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mercenary_group_info", crate::tables::mercenary_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mercenary_info", crate::tables::mercenary_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("npc_activity_group_info", crate::tables::npc_activity_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("npc_activity_info", crate::tables::npc_activity_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mini_game_data_info", crate::tables::mini_game_data_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mission_info", crate::tables::mission_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("multi_change_info", crate::tables::multi_change_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
