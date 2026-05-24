@@ -435,8 +435,7 @@ fn gameeventparam_body_size(sub_tag: u8) -> Option<usize> {
         0x19 | 0x1A | 0x2D | 0x35 | 0x36 | 0x37 | 0x38 |
         0x1C | 0x2B | 0x2C | 0x2F |
         0x32 | 0x33 | 0x39 | 0x3A | 0x3B | 0x42 | 0x44 | 0x46 |
-        0x49 | 0x50 | 0x5C | 0x60 | 0x66 | 0x67 | 0x69 | 0x6E |
-        0x6F => 4,
+        0x49 | 0x50 | 0x5C | 0x60 | 0x66 | 0x67 | 0x69 | 0x6E => 4,
 
         // u16 reads
         0x01 | 0x4C | 0x4E | 0x03 |
@@ -453,7 +452,8 @@ fn gameeventparam_body_size(sub_tag: u8) -> Option<usize> {
         0x04 | 0x15 | 0x20 |
         0x30 | 0x31 | 0x3C | 0x3D | 0x3E | 0x43 | 0x45 | 0x47 |
         0x51 | 0x57 | 0x58 | 0x59 | 0x5D | 0x5E | 0x61 | 0x62 | 0x63 | 0x6D |
-        0x52 | 0x54 | 0x55 | 0x56 | 0x5A | 0x5B | 0x5F | 0x6A => 1,
+        0x52 | 0x54 | 0x55 | 0x56 | 0x5A | 0x5B | 0x5F | 0x6A |
+        0x6F => 1,
 
         // No extra bytes (LABEL_106)
         0x07 | 0x08 | 0x09 | 0x0A | 0x0B | 0x16 | 0x1E | 0x4A => 0,
@@ -617,7 +617,7 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct ConditionData_DockingGimmickStatePayload {
-        pub field_at_24: u32,
+        pub field_at_24: u64,
     }
 }
 
@@ -1796,6 +1796,7 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct ConditionData_CheckInventoryMaxSlotCountPayload {
+        pub value: u16,
     }
 }
 
@@ -1825,16 +1826,20 @@ py_binary_struct! {
     }
 }
 py_binary_struct! {
-    /// disc 72: CompleteQuestTime. Same payload as CompleteQuest (u32).
+    /// disc 72: CompleteQuestTime. Wire: u32 key + u64 time + u8 flag.
     pub struct ConditionData_CompleteQuestTimePayload {
-        pub field_at_24: u32,
+        pub key: u32,
+        pub time_value: u64,
+        pub flag: u8,
     }
 }
 
 py_binary_struct! {
-    /// disc 74: CompleteMissionTime. Same payload as CompleteMission (u32).
+    /// disc 74: CompleteMissionTime. Wire: u32 key + u64 time + u8 flag.
     pub struct ConditionData_CompleteMissionTimePayload {
-        pub field_at_24: u32,
+        pub key: u32,
+        pub time_value: u64,
+        pub flag: u8,
     }
 }
 
@@ -1994,7 +1999,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_GetFriendly(ConditionData_GetFriendlyPayload),
     ConditionData_CheckFriendlyLevel(ConditionData_CheckFriendlyLevelPayload),
     ConditionData_GetFactionfriendly(ConditionData_GetFactionfriendlyPayload),
-    ConditionData_IsFriendlyItem,
+    ConditionData_IsFriendlyItem(OneByteBodyPayload),
     ConditionData_IsVaryableFriendly,
     ConditionData_IsPetLooting,
     ConditionData_CheckWaterVoxel,
@@ -2129,7 +2134,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckPositionOwnerFaction(ConditionData_CheckPositionOwnerFactionPayload),
     ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload),
     ConditionData_CheckGimmickItemSocket,
-    ConditionData_CheckGimmickGroupKey(TwoU32BodyPayload),
+    ConditionData_CheckGimmickGroupKey(OneU32BodyPayload),
     ConditionData_IsInSpecialModeStage(OneU32BodyPayload),
     ConditionData_IsSpawnedOnPlatform,
     ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload),
@@ -2249,15 +2254,15 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload),
     ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload),
     ConditionData_CheckGlobalGameEvent,
-    ConditionData_CheckOperationIng(OneByteBodyPayload),
+    ConditionData_CheckOperationIng(TwoU32BodyPayload),
     ConditionData_CompleteQuestTime(ConditionData_CompleteQuestTimePayload),
     ConditionData_CompleteMissionTime(ConditionData_CompleteMissionTimePayload),
     ConditionData_CheckMainMercenarySummonedByInfo,
     ConditionData_CheckFireMercenary,
     ConditionData_CheckExchangeMercenary,
-    ConditionData_CheckMercenaryKey(OneByteBodyPayload),
+    ConditionData_CheckMercenaryKey(ConditionData_CheckInventoryMaxSlotCountPayload),
     ConditionData_GetCurrentOperationDay,
-    ConditionData_GetCurrentOperationProgress,
+    ConditionData_GetCurrentOperationProgress(ConditionData_CompleteQuestTimePayload),
     ConditionData_CheckGlobalGameEventGroupPlaying,
     ConditionData_ActionFrameTag,
     ConditionData_CheckHaveMainMercenary,
@@ -2267,7 +2272,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsTargetFriendlyWithOperator,
     ConditionData_IsEnterToFieldLoadingComplete,
     ConditionData_IsGuestSpawn,
-    ConditionData_IsMercenaryHiredCountExceeded,
+    ConditionData_IsMercenaryHiredCountExceeded(OneByteBodyPayload),
     ConditionData_CheckContentsPhaseEnabled,
 }
 
@@ -2426,7 +2431,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFriendly(_) => 150,
             Self::ConditionData_CheckFriendlyLevel(_) => 151,
             Self::ConditionData_GetFactionfriendly(_) => 152,
-            Self::ConditionData_IsFriendlyItem => 153,
+            Self::ConditionData_IsFriendlyItem(_) => 153,
             Self::ConditionData_IsVaryableFriendly => 154,
             Self::ConditionData_IsPetLooting => 155,
             Self::ConditionData_CheckWaterVoxel => 156,
@@ -2689,7 +2694,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckExchangeMercenary => 353,
             Self::ConditionData_CheckMercenaryKey(_) => 363,
             Self::ConditionData_GetCurrentOperationDay => 412,
-            Self::ConditionData_GetCurrentOperationProgress => 413,
+            Self::ConditionData_GetCurrentOperationProgress(_) => 413,
             Self::ConditionData_CheckGlobalGameEventGroupPlaying => 414,
             Self::ConditionData_ActionFrameTag => 415,
             Self::ConditionData_CheckHaveMainMercenary => 416,
@@ -2699,7 +2704,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsTargetFriendlyWithOperator => 420,
             Self::ConditionData_IsEnterToFieldLoadingComplete => 421,
             Self::ConditionData_IsGuestSpawn => 422,
-            Self::ConditionData_IsMercenaryHiredCountExceeded => 423,
+            Self::ConditionData_IsMercenaryHiredCountExceeded(_) => 423,
             Self::ConditionData_CheckContentsPhaseEnabled => 424,
 }
     }
@@ -2861,7 +2866,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFriendly(_) => "ConditionData_GetFriendly",
             Self::ConditionData_CheckFriendlyLevel(_) => "ConditionData_CheckFriendlyLevel",
             Self::ConditionData_GetFactionfriendly(_) => "ConditionData_GetFactionfriendly",
-            Self::ConditionData_IsFriendlyItem => "ConditionData_IsFriendlyItem",
+            Self::ConditionData_IsFriendlyItem(_) => "ConditionData_IsFriendlyItem",
             Self::ConditionData_IsVaryableFriendly => "ConditionData_IsVaryableFriendly",
             Self::ConditionData_IsPetLooting => "ConditionData_IsPetLooting",
             Self::ConditionData_CheckWaterVoxel => "ConditionData_CheckWaterVoxel",
@@ -3124,7 +3129,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckExchangeMercenary => "ConditionData_CheckExchangeMercenary",
             Self::ConditionData_CheckMercenaryKey(_) => "ConditionData_CheckMercenaryKey",
             Self::ConditionData_GetCurrentOperationDay => "ConditionData_GetCurrentOperationDay",
-            Self::ConditionData_GetCurrentOperationProgress => "ConditionData_GetCurrentOperationProgress",
+            Self::ConditionData_GetCurrentOperationProgress(_) => "ConditionData_GetCurrentOperationProgress",
             Self::ConditionData_CheckGlobalGameEventGroupPlaying => "ConditionData_CheckGlobalGameEventGroupPlaying",
             Self::ConditionData_ActionFrameTag => "ConditionData_ActionFrameTag",
             Self::ConditionData_CheckHaveMainMercenary => "ConditionData_CheckHaveMainMercenary",
@@ -3134,7 +3139,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsTargetFriendlyWithOperator => "ConditionData_IsTargetFriendlyWithOperator",
             Self::ConditionData_IsEnterToFieldLoadingComplete => "ConditionData_IsEnterToFieldLoadingComplete",
             Self::ConditionData_IsGuestSpawn => "ConditionData_IsGuestSpawn",
-            Self::ConditionData_IsMercenaryHiredCountExceeded => "ConditionData_IsMercenaryHiredCountExceeded",
+            Self::ConditionData_IsMercenaryHiredCountExceeded(_) => "ConditionData_IsMercenaryHiredCountExceeded",
             Self::ConditionData_CheckContentsPhaseEnabled => "ConditionData_CheckContentsPhaseEnabled",
 }
     }
@@ -3297,7 +3302,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFriendly(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckFriendlyLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_GetFactionfriendly(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_IsFriendlyItem => {}
+            Self::ConditionData_IsFriendlyItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsVaryableFriendly => {}
             Self::ConditionData_IsPetLooting => {}
             Self::ConditionData_CheckWaterVoxel => {}
@@ -3560,7 +3565,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckExchangeMercenary => {}
             Self::ConditionData_CheckMercenaryKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_GetCurrentOperationDay => {}
-            Self::ConditionData_GetCurrentOperationProgress => {}
+            Self::ConditionData_GetCurrentOperationProgress(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGlobalGameEventGroupPlaying => {}
             Self::ConditionData_ActionFrameTag => {}
             Self::ConditionData_CheckHaveMainMercenary => {}
@@ -3570,7 +3575,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsTargetFriendlyWithOperator => {}
             Self::ConditionData_IsEnterToFieldLoadingComplete => {}
             Self::ConditionData_IsGuestSpawn => {}
-            Self::ConditionData_IsMercenaryHiredCountExceeded => {}
+            Self::ConditionData_IsMercenaryHiredCountExceeded(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckContentsPhaseEnabled => {}
 }
         Value::Object(m)
@@ -3739,7 +3744,7 @@ impl<'a> ConditionDataVariant<'a> {
             150 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFriendly: missing body object"))?; ConditionData_GetFriendlyPayload::write_from_json_dict(w, body)?; }
             151 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFriendlyLevel: missing body object"))?; ConditionData_CheckFriendlyLevelPayload::write_from_json_dict(w, body)?; }
             152 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetFactionfriendly: missing body object"))?; ConditionData_GetFactionfriendlyPayload::write_from_json_dict(w, body)?; }
-            153 => {}
+            153 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsFriendlyItem: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             154 => {}
             155 => {}
             156 => {}
@@ -3874,7 +3879,7 @@ impl<'a> ConditionDataVariant<'a> {
             286 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPositionOwnerFaction: missing body object"))?; ConditionData_CheckPositionOwnerFactionPayload::write_from_json_dict(w, body)?; }
             287 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCharacterItemSocket: missing body object"))?; ConditionData_CheckCharacterItemSocketPayload::write_from_json_dict(w, body)?; }
             288 => {}
-            289 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickGroupKey: missing body object"))?; TwoU32BodyPayload::write_from_json_dict(w, body)?; }
+            289 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickGroupKey: missing body object"))?; OneU32BodyPayload::write_from_json_dict(w, body)?; }
             290 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInSpecialModeStage: missing body object"))?; OneU32BodyPayload::write_from_json_dict(w, body)?; }
             291 => {}
             292 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetInventoryWeightLevel: missing body object"))?; ConditionData_GetInventoryWeightLevelPayload::write_from_json_dict(w, body)?; }
@@ -3993,15 +3998,15 @@ impl<'a> ConditionDataVariant<'a> {
             408 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPlayerHouse: missing body object"))?; ConditionData_CheckPlayerHousePayload::write_from_json_dict(w, body)?; }
             409 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActivatedHousingRegion: missing body object"))?; ConditionData_CheckActivatedHousingRegionPayload::write_from_json_dict(w, body)?; }
             410 => {} // Tag406: bodyless
-            411 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckOperationIng: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            411 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckOperationIng: missing body object"))?; TwoU32BodyPayload::write_from_json_dict(w, body)?; }
             72 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CompleteQuestTime: missing body object"))?; ConditionData_CompleteQuestTimePayload::write_from_json_dict(w, body)?; }
             74 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CompleteMissionTime: missing body object"))?; ConditionData_CompleteMissionTimePayload::write_from_json_dict(w, body)?; }
             195 => {}
             352 => {}
             353 => {}
-            363 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMercenaryKey: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
+            363 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckMercenaryKey: missing body object"))?; ConditionData_CheckInventoryMaxSlotCountPayload::write_from_json_dict(w, body)?; }
             412 => {}
-            413 => {}
+            413 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetCurrentOperationProgress: missing body object"))?; ConditionData_CompleteQuestTimePayload::write_from_json_dict(w, body)?; }
             414 => {}
             415 => {}
             416 => {}
@@ -4011,7 +4016,7 @@ impl<'a> ConditionDataVariant<'a> {
             420 => {}
             421 => {}
             422 => {}
-            423 => {}
+            423 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsMercenaryHiredCountExceeded: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             424 => {}
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataVariant: unknown disc {}", other))),
@@ -4174,7 +4179,7 @@ impl<'a> ConditionDataVariant<'a> {
             150 => Self::ConditionData_GetFriendly(ConditionData_GetFriendlyPayload::read_from(data, offset)?),
             151 => Self::ConditionData_CheckFriendlyLevel(ConditionData_CheckFriendlyLevelPayload::read_from(data, offset)?),
             152 => Self::ConditionData_GetFactionfriendly(ConditionData_GetFactionfriendlyPayload::read_from(data, offset)?),
-            153 => Self::ConditionData_IsFriendlyItem,
+            153 => Self::ConditionData_IsFriendlyItem(OneByteBodyPayload::read_from(data, offset)?),
             154 => Self::ConditionData_IsVaryableFriendly,
             155 => Self::ConditionData_IsPetLooting,
             156 => Self::ConditionData_CheckWaterVoxel,
@@ -4309,7 +4314,7 @@ impl<'a> ConditionDataVariant<'a> {
             286 => Self::ConditionData_CheckPositionOwnerFaction(ConditionData_CheckPositionOwnerFactionPayload::read_from(data, offset)?),
             287 => Self::ConditionData_CheckCharacterItemSocket(ConditionData_CheckCharacterItemSocketPayload::read_from(data, offset)?),
             288 => Self::ConditionData_CheckGimmickItemSocket,
-            289 => Self::ConditionData_CheckGimmickGroupKey(TwoU32BodyPayload::read_from(data, offset)?),
+            289 => Self::ConditionData_CheckGimmickGroupKey(OneU32BodyPayload::read_from(data, offset)?),
             290 => Self::ConditionData_IsInSpecialModeStage(OneU32BodyPayload::read_from(data, offset)?),
             291 => Self::ConditionData_IsSpawnedOnPlatform,
             292 => Self::ConditionData_GetInventoryWeightLevel(ConditionData_GetInventoryWeightLevelPayload::read_from(data, offset)?),
@@ -4428,15 +4433,15 @@ impl<'a> ConditionDataVariant<'a> {
             408 => Self::ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload::read_from(data, offset)?),
             409 => Self::ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload::read_from(data, offset)?),
             410 => Self::ConditionData_CheckGlobalGameEvent,
-            411 => Self::ConditionData_CheckOperationIng(OneByteBodyPayload::read_from(data, offset)?),
+            411 => Self::ConditionData_CheckOperationIng(TwoU32BodyPayload::read_from(data, offset)?),
             72 => Self::ConditionData_CompleteQuestTime(ConditionData_CompleteQuestTimePayload::read_from(data, offset)?),
             74 => Self::ConditionData_CompleteMissionTime(ConditionData_CompleteMissionTimePayload::read_from(data, offset)?),
             195 => Self::ConditionData_CheckMainMercenarySummonedByInfo,
             352 => Self::ConditionData_CheckFireMercenary,
             353 => Self::ConditionData_CheckExchangeMercenary,
-            363 => Self::ConditionData_CheckMercenaryKey(OneByteBodyPayload::read_from(data, offset)?),
+            363 => Self::ConditionData_CheckMercenaryKey(ConditionData_CheckInventoryMaxSlotCountPayload::read_from(data, offset)?),
             412 => Self::ConditionData_GetCurrentOperationDay,
-            413 => Self::ConditionData_GetCurrentOperationProgress,
+            413 => Self::ConditionData_GetCurrentOperationProgress(ConditionData_CompleteQuestTimePayload::read_from(data, offset)?),
             414 => Self::ConditionData_CheckGlobalGameEventGroupPlaying,
             415 => Self::ConditionData_ActionFrameTag,
             416 => Self::ConditionData_CheckHaveMainMercenary,
@@ -4446,7 +4451,7 @@ impl<'a> ConditionDataVariant<'a> {
             420 => Self::ConditionData_IsTargetFriendlyWithOperator,
             421 => Self::ConditionData_IsEnterToFieldLoadingComplete,
             422 => Self::ConditionData_IsGuestSpawn,
-            423 => Self::ConditionData_IsMercenaryHiredCountExceeded,
+            423 => Self::ConditionData_IsMercenaryHiredCountExceeded(OneByteBodyPayload::read_from(data, offset)?),
             424 => Self::ConditionData_CheckContentsPhaseEnabled,
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
         })
@@ -4606,7 +4611,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetFriendly(p) => p.write_to(w),
             Self::ConditionData_CheckFriendlyLevel(p) => p.write_to(w),
             Self::ConditionData_GetFactionfriendly(p) => p.write_to(w),
-            Self::ConditionData_IsFriendlyItem => Ok(()),
+            Self::ConditionData_IsFriendlyItem(p) => p.write_to(w),
             Self::ConditionData_IsVaryableFriendly => Ok(()),
             Self::ConditionData_IsPetLooting => Ok(()),
             Self::ConditionData_CheckWaterVoxel => Ok(()),
@@ -4869,7 +4874,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckExchangeMercenary => Ok(()),
             Self::ConditionData_CheckMercenaryKey(p) => p.write_to(w),
             Self::ConditionData_GetCurrentOperationDay => Ok(()),
-            Self::ConditionData_GetCurrentOperationProgress => Ok(()),
+            Self::ConditionData_GetCurrentOperationProgress(p) => p.write_to(w),
             Self::ConditionData_CheckGlobalGameEventGroupPlaying => Ok(()),
             Self::ConditionData_ActionFrameTag => Ok(()),
             Self::ConditionData_CheckHaveMainMercenary => Ok(()),
@@ -4879,7 +4884,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsTargetFriendlyWithOperator => Ok(()),
             Self::ConditionData_IsEnterToFieldLoadingComplete => Ok(()),
             Self::ConditionData_IsGuestSpawn => Ok(()),
-            Self::ConditionData_IsMercenaryHiredCountExceeded => Ok(()),
+            Self::ConditionData_IsMercenaryHiredCountExceeded(p) => p.write_to(w),
             Self::ConditionData_CheckContentsPhaseEnabled => Ok(()),
 }
     }
@@ -5019,10 +5024,12 @@ fn variant_skips_option_block(tag: u16) -> bool {
         //   GetDifficultyOption(406)
         2 | 83 | 128 | 224 | 259 | 264 | 275 | 303 | 309 | 406 |
         // Class B — vtable[19] = thunk, byte-math verified
-        //   StartQuest(81), CheckHaveMercenary(198),
-        //   CheckSpecialMode(127), CheckBurnable(203)
-        81 | 198 | 127 | 203 |
-        // Class C — empirical (CheckHasImportantItem)
+        //   StartQuest(81), StartMission(82), CheckSpecialMode(127),
+        //   CheckHaveMercenary(198), CheckBurnable(203),
+        //   CheckCurrentGlobalGameEvent(377)
+        81 | 82 | 127 | 198 | 203 |
+        // Class C — empirical
+        //   CheckHasImportantItem(26)
         26
     )
 }
