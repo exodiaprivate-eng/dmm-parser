@@ -10,6 +10,7 @@
 //! Auto-generated table modules.
 //! Each pabgb table file gets its own submodule.
 
+pub mod game_version_data_info;
 pub mod breakable_object_info;
 pub mod wanted_info;
 pub mod aidialog_type_info;
