@@ -215,7 +215,7 @@ impl WriteJsonValue for MaxChargedUseableCount {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("MaxChargedUseableCount: number {} out of u32 range", n)));
             }
-            return MaxChargedUseableCount { a: n as u32, b: 0, c: 0 }.write_to(w);
+            return MaxChargedUseableCount { a: n as u32, b: n as u32, c: n as u32 }.write_to(w);
         }
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData,
@@ -245,7 +245,7 @@ impl ToPyValue for MaxChargedUseableCount {
 impl WritePyValue for MaxChargedUseableCount {
     fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
         if let Ok(n) = obj.extract::<u32>() {
-            MaxChargedUseableCount { a: n, b: 0, c: 0 }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            MaxChargedUseableCount { a: n, b: n, c: n }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))?;
             return Ok(());
         }
         let d = obj.cast::<PyDict>()?;

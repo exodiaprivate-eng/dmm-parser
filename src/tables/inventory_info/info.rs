@@ -110,14 +110,20 @@ py_binary_struct! {
     }
 }
 
-/// 160-byte InventoryMoveData composite per IDA sub_1410E0460.
+/// InventoryMoveData composite per IDA sub_1410E0460.
 /// 10 fields matching canonical Mac names (`InventoryMoveData` in
 /// docs/449_TABLE_CATALOG.md).
 ///
-/// When `move_condition` is present (presence byte ≠ 0), the game reads
-/// 5 additional bytes after the `GameConditionNode` before continuing to
-/// `condition_fail_text`. Verified at [2422..2427) = `[00,00,00,00,01]`
-/// for the Character entry (k=2). Stored as `move_condition_tail: Some([u8;5])`.
+/// `move_condition` is an `OptionalGameConditionNoTail` — the
+/// `GameConditionNode` is self-delimiting (tag dispatch, all leaf variants
+/// include their own payload). There is no separate tail after the node;
+/// `condition_fail_text` immediately follows.
+///
+/// Earlier revisions of this struct had a `move_condition_tail: Option<[u8;5]>`
+/// field. That was a misidentification: bytes [2422..2427) in the Character
+/// entry (k=2) are the last 5 bytes of the `GameConditionNode` payload, not a
+/// separate field. Inserting an extra 5-byte read caused "not enough data"
+/// when the real `condition_fail_text` was read from the wrong offset.
 #[derive(Debug)]
 pub struct InventoryMoveData<'a> {
     pub type_: u8,
@@ -129,8 +135,6 @@ pub struct InventoryMoveData<'a> {
     pub modal_text: LocalizableString<'a>,
     pub item_move_data_list: CArray<InventoryItemMoveData>,
     pub move_condition: OptionalGameConditionNoTail<'a>,
-    /// 5 tail bytes present iff `move_condition.inner.is_some()`.
-    pub move_condition_tail: Option<[u8; 5]>,
     pub condition_fail_text: LocalizableString<'a>,
 }
 
@@ -145,21 +149,11 @@ impl<'a> InventoryMoveData<'a> {
         let modal_text = LocalizableString::read_from(data, offset)?;
         let item_move_data_list = CArray::<InventoryItemMoveData>::read_from(data, offset)?;
         let move_condition = OptionalGameConditionNoTail::read_from(data, offset)?;
-        let move_condition_tail = if move_condition.inner.is_some() {
-            check_remaining(data, *offset, 5)?;
-            let mut tail = [0u8; 5];
-            for b in tail.iter_mut() {
-                *b = u8::read_from(data, offset)?;
-            }
-            Some(tail)
-        } else {
-            None
-        };
         let condition_fail_text = LocalizableString::read_from(data, offset)?;
         Ok(Self {
             type_, from_inventory_info, to_inventory_info, convert_money_item_info,
             key_guide_text, move_all_key_guide_text, modal_text,
-            item_move_data_list, move_condition, move_condition_tail, condition_fail_text,
+            item_move_data_list, move_condition, condition_fail_text,
         })
     }
 
@@ -173,9 +167,6 @@ impl<'a> InventoryMoveData<'a> {
         self.modal_text.write_to(w)?;
         self.item_move_data_list.write_to(w)?;
         self.move_condition.write_to(w)?;
-        if let Some(tail) = &self.move_condition_tail {
-            w.write_all(tail)?;
-        }
         self.condition_fail_text.write_to(w)?;
         Ok(())
     }
@@ -191,10 +182,6 @@ impl<'a> InventoryMoveData<'a> {
         m.insert("modal_text".to_string(), self.modal_text.to_json_value());
         m.insert("item_move_data_list".to_string(), self.item_move_data_list.to_json_value());
         m.insert("move_condition".to_string(), self.move_condition.to_json_value());
-        m.insert("move_condition_tail".to_string(), match &self.move_condition_tail {
-            Some(tail) => Value::Array(tail.iter().map(|b| Value::Number((*b).into())).collect()),
-            None => Value::Null,
-        });
         m.insert("condition_fail_text".to_string(), self.condition_fail_text.to_json_value());
         m
     }
@@ -223,23 +210,6 @@ impl<'a> WriteJsonValue for InventoryMoveData<'a> {
             w, json_get_field(obj, "item_move_data_list")?,
         )?;
         OptionalGameConditionNoTail::write_from_json(w, json_get_field(obj, "move_condition")?)?;
-        // 5-byte tail present iff move_condition was present (non-null array in JSON).
-        match json_get_field(obj, "move_condition_tail")? {
-            Value::Array(arr) => {
-                if arr.len() != 5 {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData,
-                        format!("move_condition_tail: expected 5 bytes, got {}", arr.len())));
-                }
-                for v in arr {
-                    let b = v.as_u64().ok_or_else(|| io::Error::new(
-                        io::ErrorKind::InvalidData, "move_condition_tail: element not u64"))? as u8;
-                    w.push(b);
-                }
-            }
-            Value::Null => {}
-            _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "move_condition_tail: expected array or null")),
-        }
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_fail_text")?)?;
         Ok(())
     }
