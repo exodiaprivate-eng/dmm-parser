@@ -12,11 +12,7 @@ use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
 use std::collections::BTreeMap;
 
-const PABGB_PATH: &str =
-    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/buffinfo.pabgb";
-const PABGH_PATH: &str =
-    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/buffinfo.pabgh";
-
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("buffinfo.pabgb") }
 /// Tail layout (post buff_data_list) per sub_1410D6510:
 ///   u32 min_level (4) + u32 max_level (4) + CString sequencer_file_name +
 ///   u8 + u32 + u32 + u32 + u8 + u8
@@ -45,11 +41,11 @@ fn is_valid_post_tail(data: &[u8], probe: usize, entry_end: usize) -> bool {
 
 #[test]
 fn validate_buffdata_manifest() {
-    let Ok(data) = std::fs::read(PABGB_PATH) else {
+    let Ok(data) = std::fs::read(pabgb_path()) else {
         eprintln!("SKIP: missing fixture");
         return;
     };
-    let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+    let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
         eprintln!("SKIP: missing pabgh");
         return;
     };

@@ -200,16 +200,14 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteDataBody;
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/globalgameevent.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/globalgameevent.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("globalgameevent.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else {
+        let Ok(data) = std::fs::read(pabgb_path()) else {
             eprintln!("SKIP");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
             eprintln!("SKIP");
             return;
         };
@@ -235,11 +233,11 @@ mod tests {
     /// recipe to handle the common case cleanly.
     #[test]
     fn execute_data_kinds() {
-        let Ok(data) = std::fs::read(PABGB) else {
+        let Ok(data) = std::fs::read(pabgb_path()) else {
             eprintln!("SKIP");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
             eprintln!("SKIP");
             return;
         };
@@ -273,11 +271,11 @@ mod tests {
     /// reflection metadata).
     #[test]
     fn price_ordering_invariant() {
-        let Ok(data) = std::fs::read(PABGB) else {
+        let Ok(data) = std::fs::read(pabgb_path()) else {
             eprintln!("SKIP");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
             eprintln!("SKIP");
             return;
         };
@@ -308,11 +306,11 @@ mod tests {
     /// `to_json_dict`/`write_from_json_dict` and the binary path.
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else {
+        let Ok(data) = std::fs::read(pabgb_path()) else {
             eprintln!("SKIP");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
             eprintln!("SKIP");
             return;
         };

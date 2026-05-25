@@ -201,19 +201,15 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgb";
-    const PABGH_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("conditioninfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing/unparseable pabgh fixture {}", PABGH_PATH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());
@@ -266,8 +262,8 @@ mod tests {
     #[ignore]
     fn diag_raw_entries() {
         use std::collections::BTreeMap;
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
         let mut count = 0usize;
@@ -364,11 +360,11 @@ mod tests {
     /// tree-navigable GameCondition JSON shape preserves bytes.
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
+        let Ok(data) = std::fs::read(pabgb_path()) else {
             eprintln!("SKIP: missing pabgb fixture");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
             eprintln!("SKIP: missing pabgh fixture");
             return;
         };

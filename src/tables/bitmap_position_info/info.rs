@@ -262,13 +262,11 @@ impl<'a> BitmapPositionInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/bitmapposition.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/bitmapposition.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("bitmapposition.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -285,8 +283,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
@@ -310,8 +308,8 @@ mod tests {
     /// promotion could silently regress to the old shape.
     #[test]
     fn fields_addressable() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let Some((_, s, _)) = ranges.first() else { eprintln!("SKIP: no entries"); return; };
         let mut c = *s;

@@ -62,6 +62,7 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("game_level_info", crate::tables::game_level_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("game_play_trigger_info", crate::tables::game_play_trigger_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("game_play_variable_info", crate::tables::game_play_variable_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("game_version_data_info", crate::tables::game_version_data_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("gimmick_event_table_info", crate::tables::gimmick_event_table_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("gimmick_gate_connection_info", crate::tables::gimmick_gate_connection_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("gimmick_gate_info", crate::tables::gimmick_gate_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),

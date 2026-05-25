@@ -110,9 +110,20 @@ py_binary_struct! {
     }
 }
 
-/// 160-byte InventoryMoveData composite per IDA sub_1410E0460.
+/// InventoryMoveData composite per IDA sub_1410E0460.
 /// 10 fields matching canonical Mac names (`InventoryMoveData` in
 /// docs/449_TABLE_CATALOG.md).
+///
+/// `move_condition` is an `OptionalGameConditionNoTail` — the
+/// `GameConditionNode` is self-delimiting (tag dispatch, all leaf variants
+/// include their own payload). There is no separate tail after the node;
+/// `condition_fail_text` immediately follows.
+///
+/// Earlier revisions of this struct had a `move_condition_tail: Option<[u8;5]>`
+/// field. That was a misidentification: bytes [2422..2427) in the Character
+/// entry (k=2) are the last 5 bytes of the `GameConditionNode` payload, not a
+/// separate field. Inserting an extra 5-byte read caused "not enough data"
+/// when the real `condition_fail_text` was read from the wrong offset.
 #[derive(Debug)]
 pub struct InventoryMoveData<'a> {
     pub type_: u8,
@@ -411,13 +422,13 @@ impl<'a> InventoryInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"C:\Users\justi\Desktop\DMM\backups\inventory_pabgb_clean.bin";
-    const PABGH: &str = r"C:\Users\justi\Desktop\DMM\backups\inventory_pabgh_clean.bin";
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("inventoryinfo.pabgb") }
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -434,8 +445,9 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
@@ -454,134 +466,194 @@ mod tests {
         }
     }
 
-    // Diagnostic: read entry k=0x2 field-by-field to identify which field fails on 1.0.8.
-    // Remove after the bug is understood.
+    fn read_u8_at(data: &[u8], offset: &mut usize) -> u8 {
+        let v = data[*offset];
+        *offset += 1;
+        v
+    }
+    fn read_u16_at(data: &[u8], offset: &mut usize) -> u16 {
+        let v = u16::from_le_bytes(data[*offset..*offset+2].try_into().unwrap());
+        *offset += 2;
+        v
+    }
+    fn read_u32_at(data: &[u8], offset: &mut usize) -> u32 {
+        let v = u32::from_le_bytes(data[*offset..*offset+4].try_into().unwrap());
+        *offset += 4;
+        v
+    }
+    fn read_u64_at(data: &[u8], offset: &mut usize) -> u64 {
+        let v = u64::from_le_bytes(data[*offset..*offset+8].try_into().unwrap());
+        *offset += 8;
+        v
+    }
+    fn read_cstring_len(data: &[u8], offset: &mut usize) -> u32 {
+        // reads len and skips content, returns len
+        if *offset + 4 > data.len() {
+            eprintln!("  read_cstring_len: TRUNCATED at {}", *offset);
+            return 0;
+        }
+        let len = read_u32_at(data, offset);
+        let advance = (len as usize).min(data.len() - *offset);
+        if advance < len as usize {
+            eprintln!("  read_cstring_len: len={} but only {} bytes remain — clamping", len, data.len() - *offset);
+        }
+        *offset += advance;
+        len
+    }
+    fn read_localizable_string(data: &[u8], offset: &mut usize, label: &str) {
+        let start = *offset;
+        if *offset + 13 > data.len() {
+            eprintln!("  {} at {}: TRUNCATED (only {} remain)", label, start, data.len() - *offset);
+            return;
+        }
+        let cat = read_u8_at(data, offset);
+        let idx = read_u64_at(data, offset);
+        // peek clen before consuming
+        let clen = u32::from_le_bytes(data[*offset..*offset+4].try_into().unwrap());
+        *offset += 4;
+        let content_end = (*offset + clen as usize).min(data.len());
+        let valid_utf8 = std::str::from_utf8(&data[*offset..content_end]).is_ok();
+        if *offset + clen as usize > data.len() {
+            eprintln!("  {} at {}: cat={} idx={} clen={} UTF8={} OVERFLOW (only {} remain)",
+                      label, start, cat, idx, clen, valid_utf8, data.len() - *offset);
+        } else {
+            eprintln!("  {} at {}: cat={} idx={} clen={} UTF8={} end={}",
+                      label, start, cat, idx, clen, valid_utf8, *offset + clen as usize);
+            *offset += clen as usize;
+        }
+    }
+
     #[test]
-    fn diag_entry_k2() {
-        use crate::binary::BinaryRead;
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+    fn diag_character_entry() {
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
-        let Some((_, start, end)) = ranges.get(1) else { eprintln!("SKIP: <2 entries"); return; };
-        let entry = &data[*start..*end];
-        eprintln!("entry k=0x2 size={}", end - start);
-        let mut c = 0usize;
-        macro_rules! read_field {
-            ($name:expr, $ty:ty) => {{
-                let pre = c;
-                let v = <$ty>::read_from(entry, &mut c);
-                eprintln!("  {} [{:5}..{:5}]: {:?}", $name, pre, c, v.as_ref().map(|_| "ok").unwrap_or("ERR"));
-                v
-            }};
-        }
-        let _ = read_field!("key", u16);
-        let _ = read_field!("string_key", CString);
-        let _ = read_field!("is_blocked", u8);
-        let r_push = <CArray<InventoryPushableData>>::read_from(entry, &mut c);
-        eprintln!("  pushable_item_type_list [{:5}..{:5}]: {:?}", c - c, c, r_push.as_ref().map(|v| v.items.len()).map_err(|e| e.to_string()));
-        if r_push.is_err() { return; }
-        let pre = c; let r_excl = <CArray<InventoryPushableData>>::read_from(entry, &mut c);
-        eprintln!("  excluded_item_type_list [{:5}..{:5}]: {:?}", pre, c, r_excl.as_ref().map(|v| v.items.len()).map_err(|e| e.to_string()));
-        if r_excl.is_err() { return; }
-        // Tail dump — working backward from known suffix fields confirms default_slot_count
-        // is at entry[2827], so inventory_move_data_list occupies [34..2827] = 2793 bytes.
-        // Dump around 1619 to check if move_data[1] starts there (13→14 byte sub-item hypothesis)
-        // and around 1510 to see what we misread as move_condition.
-        for (label, off) in [("@1505", 1505usize), ("@1615", 1615)] {
-            let end = (off + 64).min(entry.len());
-            eprintln!("  hex {} :", label);
-            for (ci, chunk) in entry[off..end].chunks(16).enumerate() {
-                let abs = off + ci * 16;
-                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02X}", b)).collect();
-                let asc: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
-                eprintln!("    {:5}: {:<48} |{}|", abs, hex.join(" "), asc);
-            }
-        }
-        eprintln!("  --- reading inventory_move_data_list ---");
-        let pre = c;
-        let count_res = u32::read_from(entry, &mut c);
-        let count = match count_res { Ok(n) => n, Err(e) => { eprintln!("  COUNT ERR: {}", e); return; } };
-        eprintln!("  move_data count={} at [{}]", count, pre);
-        for mi in 0..count as usize {
-            let mstart = c;
-            eprintln!("  -- move_data[{}] at offset {} --", mi, mstart);
-            macro_rules! mfield {
-                ($name:expr, $ty:ty) => {{
-                    let pre = c;
-                    let v = <$ty>::read_from(entry, &mut c);
-                    match &v {
-                        Ok(_) => eprintln!("    {} [{:5}..{:5}] ok", $name, pre, c),
-                        Err(e) => {
-                            eprintln!("    {} [{:5}..{:5}] ERR: {}", $name, pre, c, e);
-                            let dstart = pre.saturating_sub(4);
-                            let dend = (pre + 48).min(entry.len());
-                            eprintln!("    hex context @{}:", dstart);
-                            for (ci, chunk) in entry[dstart..dend].chunks(16).enumerate() {
-                                let abs = dstart + ci * 16;
-                                let hx: Vec<String> = chunk.iter().map(|b| format!("{:02X}", b)).collect();
-                                let asc: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
-                                eprintln!("      {:5}: {:<48} |{}|", abs, hx.join(" "), asc);
+        let Some(&(_, s, e)) = ranges.iter().find(|(k,_,_)| *k == 2) else {
+            panic!("Character entry (k=2) not found");
+        };
+        eprintln!("Character: s={} e={} size={}", s, e, e - s);
+
+        // ── Manual header walk ───────────────────────────────────────────────
+        let mut c = s;
+        let key        = read_u16_at(&data, &mut c);
+        let sk_len     = read_cstring_len(&data, &mut c);
+        let is_blocked = read_u8_at(&data, &mut c);
+        let push_count = read_u32_at(&data, &mut c);
+        c += push_count as usize * 3;      // InventoryPushableData = u16 + u8 = 3 bytes
+        let excl_count = read_u32_at(&data, &mut c);
+        c += excl_count as usize * 3;
+        eprintln!("header: key={} sk_len={} is_blocked={} push={} excl={} → cursor={}",
+                  key, sk_len, is_blocked, push_count, excl_count, c);
+
+        // ── inventory_move_data_list ─────────────────────────────────────────
+        let move_count = read_u32_at(&data, &mut c);
+        eprintln!("inventory_move_data_list count={} cursor={}", move_count, c);
+
+        for i in 0..move_count as usize {
+            let elem_start = c;
+            let saved_c = c;
+            match InventoryMoveData::read_from(&data, &mut c) {
+                Ok(elem) => {
+                    let cft_len = elem.condition_fail_text.default.length;
+                    let kgt_len = elem.key_guide_text.default.length;
+                    let mak_len = elem.move_all_key_guide_text.default.length;
+                    let mod_len = elem.modal_text.default.length;
+                    let imd_ct  = elem.item_move_data_list.items.len();
+                    let cond_p  = elem.move_condition.inner.is_some();
+                    eprintln!("[{}] OK  start={} end={} size={}  type_={} from_={} to_={} conv={}",
+                              i, elem_start, c, c - elem_start,
+                              elem.type_, elem.from_inventory_info, elem.to_inventory_info,
+                              elem.convert_money_item_info);
+                    eprintln!("     kgt_len={} mak_len={} mod_len={} imd_ct={} cond={} cft_len={}",
+                              kgt_len, mak_len, mod_len, imd_ct, cond_p, cft_len);
+                }
+                Err(er) => {
+                    eprintln!("[{}] FAIL start={} cursor_at_fail={} err={}", i, elem_start, c, er);
+                    // ── Per-field manual trace ───────────────────────────────
+                    let mut mc = saved_c;
+                    let type_  = read_u8_at(&data, &mut mc);
+                    let from_  = read_u16_at(&data, &mut mc);
+                    let to_    = read_u16_at(&data, &mut mc);
+                    let conv   = read_u32_at(&data, &mut mc);
+                    eprintln!("  type_={} from_={} to_={} conv={} mc={}", type_, from_, to_, conv, mc);
+                    read_localizable_string(&data, &mut mc, "key_guide_text");
+                    read_localizable_string(&data, &mut mc, "move_all_key_guide_text");
+                    read_localizable_string(&data, &mut mc, "modal_text");
+                    if mc + 4 <= data.len() {
+                        let imd_count = read_u32_at(&data, &mut mc);
+                        let imd_advance = (imd_count as usize * 13).min(data.len() - mc);
+                        mc += imd_advance;
+                        eprintln!("  item_move_data_list count={} mc={}", imd_count, mc);
+                    }
+                    if mc < data.len() {
+                        let presence = read_u8_at(&data, &mut mc);
+                        eprintln!("  move_condition presence={} mc={}", presence, mc);
+                        if presence != 0 {
+                            let mut cond_c = mc;
+                            match crate::binary::variants::game_condition::GameConditionNode::read_from(&data, &mut cond_c) {
+                                Ok(_) => {
+                                    eprintln!("  GameConditionNode OK  start={} end={} size={}", mc, cond_c, cond_c - mc);
+                                    mc = cond_c;
+                                }
+                                Err(er2) => {
+                                    eprintln!("  GameConditionNode FAIL at={}: {}", cond_c, er2);
+                                    let lo = mc;
+                                    let hi = (cond_c + 16).min(data.len());
+                                    eprintln!("  bytes[{}..{}]: {:02x?}", lo, hi, &data[lo..hi]);
+                                    break;
+                                }
                             }
-                            return;
                         }
                     }
-                    v.unwrap()
-                }};
-            }
-            let _ = mfield!("type_", u8);
-            let _ = mfield!("from_inventory_info", u16);
-            let _ = mfield!("to_inventory_info", u16);
-            let _ = mfield!("convert_money_item_info", u32);
-            let _ = mfield!("key_guide_text", LocalizableString);
-            let _ = mfield!("move_all_key_guide_text", LocalizableString);
-            let _ = mfield!("modal_text", LocalizableString);
-            let pre2 = c;
-            let items_res = <CArray<InventoryItemMoveData>>::read_from(entry, &mut c);
-            match &items_res {
-                Ok(v) => eprintln!("    item_move_data_list [{:5}..{:5}] ok count={}", pre2, c, v.items.len()),
-                Err(e) => { eprintln!("    item_move_data_list [{:5}..{:5}] ERR: {}", pre2, c, e); return; }
-            }
-            // move_condition: presence byte + optional GameConditionNode
-            let pre3 = c;
-            let presence = match u8::read_from(entry, &mut c) {
-                Ok(v) => v, Err(e) => { eprintln!("    move_condition presence ERR: {}", e); return; }
-            };
-            eprintln!("    move_condition presence={} at [{}]", presence, pre3);
-            if presence != 0 {
-                use crate::binary::variants::game_condition::GameConditionNode;
-                let pre4 = c;
-                let res = GameConditionNode::read_from(entry, &mut c);
-                match res {
-                    Ok(_) => eprintln!("    GameConditionNode [{:5}..{:5}] ok", pre4, c),
-                    Err(e) => { eprintln!("    GameConditionNode [{:5}..{:5}] ERR: {}", pre4, c, e); return; }
+                    read_localizable_string(&data, &mut mc, "condition_fail_text");
+                    eprintln!("  mc after condition_fail_text={} (expected end={})", mc, e);
+                    break;
                 }
             }
-            // condition_fail_text — 10th (final) field of InventoryMoveData
-            let pre_cft = c;
-            let cft_res = LocalizableString::read_from(entry, &mut c);
-            match &cft_res {
-                Ok(_) => eprintln!("    condition_fail_text [{:5}..{:5}] ok  (move_data[{}] end)", pre_cft, c, mi),
-                Err(e) => { eprintln!("    condition_fail_text [{:5}..{:5}] ERR: {}", pre_cft, c, e); return; }
+        }
+
+        // ── Raw hex dump of key areas ────────────────────────────────────────
+        // Element 6 starts at 2345. Its condition node should be near 2418.
+        // Dump the 60 bytes around cft (condition_fail_text) to verify structure.
+        {
+            let lo = 2410usize;
+            let hi = (lo + 80).min(data.len());
+            eprintln!("--- hex[{}..{}]:", lo, hi);
+            for (i, chunk) in data[lo..hi].chunks(16).enumerate() {
+                let addr = lo + i * 16;
+                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02x}", b)).collect();
+                let ascii: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
+                eprintln!("  {:04x}: {}  {}", addr, hex.join(" "), ascii);
             }
         }
-        eprintln!("  --- all {} move_data elements consumed, cursor={} ---", count, c);
-        // Dump hex at the cursor after the move_data list so we can see the tail fields
-        let tail_off = c;
-        let dump_end = (tail_off + 80).min(entry.len());
-        eprintln!("  hex dump @cursor {} +80:", tail_off);
-        for (ci, chunk) in entry[tail_off..dump_end].chunks(16).enumerate() {
-            let abs = tail_off + ci * 16;
-            let hex: Vec<String> = chunk.iter().map(|b| format!("{:02X}", b)).collect();
-            let asc: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
-            eprintln!("    {:5}: {:<48} |{}|", abs, hex.join(" "), asc);
+        // Dump last 128 bytes of the Character entry (for post-list analysis)
+        {
+            let lo = e.saturating_sub(128);
+            let hi = e.min(data.len());
+            eprintln!("--- hex[{}..{}] (end of entry):", lo, hi);
+            for (i, chunk) in data[lo..hi].chunks(16).enumerate() {
+                let addr = lo + i * 16;
+                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02x}", b)).collect();
+                let ascii: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
+                eprintln!("  {:04x}: {}  {}", addr, hex.join(" "), ascii);
+            }
         }
-        eprintln!("  consumed={} entry_size={}", c, end - start);
+
+        // ── Also try the full typed parse so we have a reference error line ──
+        eprintln!("---");
+        let mut c2 = s;
+        match InventoryInfo::read_from(&data, &mut c2) {
+            Ok(_)  => eprintln!("read_from: OK consumed={} expected={}", c2 - s, e - s),
+            Err(er) => eprintln!("read_from: ERR {} (cursor={})", er, c2),
+        }
     }
 
     #[test]
     fn fields_addressable() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let Some((_, s, _)) = ranges.first() else { eprintln!("SKIP: no entries"); return; };
         let mut c = *s;
