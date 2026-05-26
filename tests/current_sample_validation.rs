@@ -11,11 +11,16 @@ use dmm_parser::binary::pamt::{Compression, CryptoType, PackMeta};
 use dmm_parser::binary::papgt::PackGroupTreeMeta;
 use dmm_parser::binary::paz;
 
-const EXPECTED_FILES: [&str; 7] = [
+const EXPECTED_FILES: [&str; 12] = [
+    "0000/0.pamt",
+    "0009/0.pamt",
     "0013/0.pamt",
     "0013/0.paz",
+    "0015/0.pamt",
     "0016/0.pamt",
     "0016/0.paz",
+    "0032/0.pamt",
+    "0032/0.paz",
     "meta/0.papgt",
     "meta/0.pathc",
     "meta/0.paver",
@@ -265,8 +270,9 @@ fn parse_current_meta_papgt() {
         .iter()
         .map(|entry| entry.group_name.as_str())
         .collect::<BTreeSet<_>>();
-    assert!(groups.contains("0013"), "PAPGT should contain group 0013");
-    assert!(groups.contains("0016"), "PAPGT should contain group 0016");
+    for group in ["0000", "0009", "0013", "0015", "0016", "0032"] {
+        assert!(groups.contains(group), "PAPGT should contain group {}", group);
+    }
 
     println!("PAPGT entries: {}", papgt.entries.len());
 }
@@ -347,6 +353,64 @@ fn extract_0013_entries_smoke() {
 }
 
 #[test]
+fn parse_0032_pamt_with_papgt_checksum() {
+    let Some(root) = sample_root() else {
+        return;
+    };
+
+    let pamt = read_pamt(&root, "0032");
+    assert_expected_chunks_exist(&root, "0032", &pamt);
+    assert!(!pamt.chunks.is_empty(), "0032 should contain chunks");
+    assert!(!pamt.directories.is_empty(), "0032 should contain directories");
+    assert!(file_count(&pamt) > 0, "0032 should contain files");
+
+    println!(
+        "0032: chunks={}, directories={}, files={}, raw_files={}",
+        pamt.chunks.len(),
+        pamt.directories.len(),
+        file_count(&pamt),
+        pamt.raw_files.len()
+    );
+}
+
+#[test]
+fn extract_0032_entries_smoke() {
+    let Some(root) = sample_root() else {
+        return;
+    };
+
+    let pamt = read_pamt(&root, "0032");
+    extract_group_entries(&root, "0032", &pamt);
+}
+
+#[test]
+fn parse_large_metadata_pamts_with_papgt_checksum() {
+    let Some(root) = sample_root() else {
+        return;
+    };
+
+    for group in ["0000", "0009", "0015"] {
+        let pamt = read_pamt(&root, group);
+        assert!(!pamt.chunks.is_empty(), "{} should contain chunks", group);
+        assert!(
+            !pamt.directories.is_empty(),
+            "{} should contain directories",
+            group
+        );
+        assert!(file_count(&pamt) > 0, "{} should contain files", group);
+
+        println!(
+            "{} metadata: chunks={}, directories={}, files={}, raw_files={}",
+            group,
+            pamt.chunks.len(),
+            pamt.directories.len(),
+            file_count(&pamt),
+            pamt.raw_files.len()
+        );
+    }
+}
+
+#[test]
 fn compare_0013_0016_pamt_layouts() {
     let Some(root) = sample_root() else {
         return;
@@ -388,18 +452,21 @@ fn compare_0013_0016_pamt_layouts() {
 }
 
 #[test]
-fn survey_unsupported_flags_0013_0016() {
+fn survey_unsupported_flags_second_wave_groups() {
     let Some(root) = sample_root() else {
         return;
     };
 
-    let pamt_0013 = read_pamt(&root, "0013");
-    let pamt_0016 = read_pamt(&root, "0016");
-    let mut gaps = flag_validation_gaps("0013", &pamt_0013);
-    gaps.extend(flag_validation_gaps("0016", &pamt_0016));
+    let mut gaps = Vec::new();
+    for group in ["0013", "0016", "0032", "0000", "0009", "0015"] {
+        let pamt = read_pamt(&root, group);
+        gaps.extend(flag_validation_gaps(group, &pamt));
+    }
 
     if gaps.is_empty() {
-        println!("No unsupported compression/encryption flags observed in 0013/0016 samples");
+        println!(
+            "No unsupported compression/encryption flags observed in 0013/0016/0032/0000/0009/0015 samples"
+        );
     } else {
         println!("Unsupported flag observations:\n{}", gaps.join("\n"));
     }
