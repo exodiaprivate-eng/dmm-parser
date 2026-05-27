@@ -639,6 +639,11 @@ pub fn normalize_target_name(input: &str) -> Option<&'static str> {
         return Some("iteminfo");
     }
 
+    // Skillinfo is named Skill in v1.0.8
+    if matches!(stripped, "skill") {
+        return Some("skill_info");
+    }
+
     // Paloc has multiple legitimate aliases.
     if matches!(stripped, "paloc" | "localizationstring") {
         return Some("paloc");
