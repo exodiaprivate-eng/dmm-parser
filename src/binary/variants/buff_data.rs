@@ -1213,7 +1213,7 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct AddPercentInGameContentsBuffDataPayload {
         pub f00: u8,
-        pub f01: u64,
+        pub f01: u32,
     }
 }
 
