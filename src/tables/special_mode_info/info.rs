@@ -177,6 +177,7 @@ py_binary_struct! {
         pub change_minimap_scale: u8,
         pub is_minimap_zoom_out: u8,
         pub is_allow_dialog: u8,
+        pub use_world_lighting: u8,
         pub option_slots: SpecialModeOptionSlots<'a>,
         pub detect_mode_area_data: DetectModeAreaData<'a>,
         pub player_action_limit_desc: PlayerActionLimitDesc,

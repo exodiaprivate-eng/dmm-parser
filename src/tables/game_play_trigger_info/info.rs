@@ -189,7 +189,11 @@ pub struct GamePlayTriggerInfo<'a> {
     pub position: [f32; 3],
     pub rotation_y: f32,
     pub world_map_color_r: u8,
+    pub condition_info_list: CArray<u32>,
     pub field_revive_info: u32,
+    pub flag_a: u8,
+    pub region_info: u32,
+    pub flag_b: u32,
     pub target_data_list: CArray<TargetDataItem>,
 }
 
@@ -221,12 +225,17 @@ impl<'a> GamePlayTriggerInfo<'a> {
         let position = <[f32; 3]>::read_from(data, offset)?;
         let rotation_y = f32::read_from(data, offset)?;
         let world_map_color_r = u8::read_from(data, offset)?;
+        let condition_info_list = CArray::<u32>::read_from(data, offset)?;
         let field_revive_info = u32::read_from(data, offset)?;
+        let flag_a = u8::read_from(data, offset)?;
+        let region_info = u32::read_from(data, offset)?;
+        let flag_b = u32::read_from(data, offset)?;
         let target_data_list = CArray::<TargetDataItem>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, trigger_type, is_enable, safe_zone_type,
             player_condition_info, ui_map_texture_info, position, rotation_y,
-            world_map_color_r, field_revive_info, target_data_list,
+            world_map_color_r, condition_info_list, field_revive_info, flag_a,
+            region_info, flag_b, target_data_list,
         })
     }
 
@@ -242,7 +251,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         self.position.write_to(w)?;
         self.rotation_y.write_to(w)?;
         self.world_map_color_r.write_to(w)?;
+        self.condition_info_list.write_to(w)?;
         self.field_revive_info.write_to(w)?;
+        self.flag_a.write_to(w)?;
+        self.region_info.write_to(w)?;
+        self.flag_b.write_to(w)?;
         self.target_data_list.write_to(w)?;
         Ok(())
     }
@@ -260,7 +273,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         m.insert("position".to_string(), self.position.to_json_value());
         m.insert("rotation_y".to_string(), self.rotation_y.to_json_value());
         m.insert("world_map_color_r".to_string(), self.world_map_color_r.to_json_value());
+        m.insert("condition_info_list".to_string(), self.condition_info_list.to_json_value());
         m.insert("field_revive_info".to_string(), self.field_revive_info.to_json_value());
+        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
+        m.insert("region_info".to_string(), self.region_info.to_json_value());
+        m.insert("flag_b".to_string(), self.flag_b.to_json_value());
         m.insert("target_data_list".to_string(), self.target_data_list.to_json_value());
         m
     }
@@ -277,7 +294,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
         <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "world_map_color_r")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_info_list")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_revive_info")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "region_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
         <CArray<TargetDataItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_data_list")?)?;
         Ok(())
     }

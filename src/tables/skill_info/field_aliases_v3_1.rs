@@ -44,5 +44,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("buff_sustain_flag", "_buffSustainFlag"),
     ("dev_skill_name", "_devSkillName"),
     ("dev_skill_desc", "_devSkillDesc"),
+    ("dev_extra_a", "_devExtraA"),
+    ("dev_extra_b", "_devExtraB"),
     ("video_path", "_videoPath"),
 ];

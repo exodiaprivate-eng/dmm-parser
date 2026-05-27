@@ -447,6 +447,8 @@ pabgh_typed_blob_table! {
         pub final_list_u32: CArray<u32>,
         pub final_list_u16: CArray<u16>,
         pub final_lookup: u32,
+        pub extra_u32_a: u32,
+        pub extra_u32_b: u32,
     }
     tail: tail_blob;
 }
