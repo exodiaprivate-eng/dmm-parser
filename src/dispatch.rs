@@ -273,6 +273,8 @@ pub fn serialize_table_from_json(
         };
     }
 
+    let table_name = normalize_target_name(table_name).unwrap_or(table_name);
+
     Ok(match table_name {
         // ── pabgh-bounded tables ──────────────────────────────────────────
         "ai_dialog_string_info"          => d!(crate::tables::ai_dialog_string_info::AIDialogStringInfo),
