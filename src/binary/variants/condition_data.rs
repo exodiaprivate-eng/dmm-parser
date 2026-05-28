@@ -1808,9 +1808,13 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Tag 407: body = u32 + u16 (6 bytes total). No option_block
+    /// (1.0.8 verified by inventory.pabgb entry k=0x2
+    /// move_data[6].move_condition — GameConditionNode consumes
+    /// case(1)+disc(2)+body(6) = 9 bytes; condition_fail_text follows).
     pub struct ConditionData_GetMaxWantedLevelPayload {
-        pub field_at_24: u8,
-        pub field_at_25: u8,
+        pub field_at_24: u32,
+        pub field_at_25: u16,
     }
 }
 
@@ -5022,7 +5026,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         //   CheckDamageElementalType(264), GameEventParam(275),
         //   CheckAttackName(303), CheckCompleteLevelGimmick(309),
         //   GetDifficultyOption(406)
-        2 | 83 | 128 | 224 | 259 | 264 | 275 | 303 | 309 | 406 |
+        2 | 83 | 128 | 224 | 259 | 264 | 275 | 303 | 309 | 406 | 407 |
         // Class B — vtable[19] = thunk, byte-math verified
         //   StartQuest(81), StartMission(82), CheckSpecialMode(127),
         //   CheckHaveMercenary(198), CheckBurnable(203),
