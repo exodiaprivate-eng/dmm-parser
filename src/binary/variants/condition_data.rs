@@ -2237,6 +2237,10 @@ pub enum ConditionDataVariant<'a> {
     /// Tag 407: body = u32 + u16 (6 bytes). No option_block (1.0.8 verified
     /// by inventory.pabgb entry k=0x2 move_data[6].move_condition).
     ConditionData_Tag407(U32U16BodyPayload),
+    /// Tag 408: body = u32 + u16 (6 bytes). No option_block (empirically
+    /// verified via inventory.pabgb k=0x2 Character entry; body bytes
+    /// 00 00 00 00 00 01 → u32=0, u16=256; same Class D shape as tag 407).
+    ConditionData_Tag408(U32U16BodyPayload),
 }
 
 impl<'a> ConditionDataVariant<'a> {
@@ -2650,6 +2654,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActivatedHousingRegion(_) => 405,
             Self::ConditionData_Tag406 => 406,
             Self::ConditionData_Tag407(_) => 407,
+            Self::ConditionData_Tag408(_) => 408,
         }
     }
 
@@ -3066,6 +3071,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActivatedHousingRegion(_) => "ConditionData_CheckActivatedHousingRegion",
             Self::ConditionData_Tag406 => "ConditionData_Tag406",
             Self::ConditionData_Tag407(_) => "ConditionData_Tag407",
+            Self::ConditionData_Tag408(_) => "ConditionData_Tag408",
         }
     }
 
@@ -3483,6 +3489,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActivatedHousingRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag406 => {}
             Self::ConditionData_Tag407(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag408(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
         }
         Value::Object(m)
     }
@@ -3907,6 +3914,7 @@ impl<'a> ConditionDataVariant<'a> {
             405 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActivatedHousingRegion: missing body object"))?; ConditionData_CheckActivatedHousingRegionPayload::write_from_json_dict(w, body)?; }
             406 => {} // Tag406: bodyless
             407 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag407: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            408 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag408: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataVariant: unknown disc {}", other))),
         }
@@ -4325,6 +4333,7 @@ impl<'a> ConditionDataVariant<'a> {
             405 => Self::ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload::read_from(data, offset)?),
             406 => Self::ConditionData_Tag406,
             407 => Self::ConditionData_Tag407(U32U16BodyPayload::read_from(data, offset)?),
+            408 => Self::ConditionData_Tag408(U32U16BodyPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
         })
     }
@@ -4739,6 +4748,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActivatedHousingRegion(p) => p.write_to(w),
             Self::ConditionData_Tag406 => Ok(()),
             Self::ConditionData_Tag407(p) => p.write_to(w),
+            Self::ConditionData_Tag408(p) => p.write_to(w),
         }
     }
 }
@@ -4901,7 +4911,9 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // k=0x2 move_data[6].move_condition: tag=407 body is now 6 bytes
         // (U32U16BodyPayload) so the byte that was option_present is
         // consumed as part of the payload (b field = 0x0100 = 256).
-        407
+        // Tag 408 shares the same Class D shape (U32U16BodyPayload,
+        // body=00 00 00 00 00 01, b=256) verified via same Character entry.
+        407 | 408
     )
 }
 
