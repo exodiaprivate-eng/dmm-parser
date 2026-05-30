@@ -245,6 +245,56 @@ impl PackGroupBuilder {
         Ok(())
     }
 
+    /// Add a file with explicit per-file compression AND crypto overrides.
+    /// Use when the group-level crypto doesn't apply to all files — e.g.
+    /// CSS/HTML/thtml in dmmloose need ChaCha20 encryption even though the
+    /// rest of the group is unencrypted.
+    pub fn add_file_with_options(
+        &mut self,
+        dir_path: &str,
+        file_name: &str,
+        data: &[u8],
+        compression: Compression,
+        crypto: CryptoType,
+    ) -> io::Result<()> {
+        let full_path = if dir_path.is_empty() {
+            file_name.to_string()
+        } else {
+            format!("{}/{}", dir_path, file_name)
+        };
+
+        let (processed, flags) = process_file(
+            data,
+            compression,
+            crypto,
+            &self.encrypt_info,
+            &full_path,
+        )?;
+
+        let compressed_size = processed.len() as u64;
+
+        if !self.current_chunk_data.is_empty()
+            && self.current_chunk_data.len() as u64 + compressed_size > self.max_chunk_size
+        {
+            self.flush_current_chunk()?;
+        }
+
+        let chunk_offset = self.current_chunk_data.len() as u32;
+        self.current_chunk_data.extend_from_slice(&processed);
+
+        self.file_metas.push(FileMeta {
+            dir_path: dir_path.to_string(),
+            file_name: file_name.to_string(),
+            chunk_id: self.current_chunk_id as u16,
+            chunk_offset,
+            compressed_size: compressed_size as u32,
+            uncompressed_size: data.len() as u32,
+            flags,
+        });
+
+        Ok(())
+    }
+
     /// Add a file from disk with an explicit compression override.
     /// Convenience wrapper around `add_file_with_compression`.
     pub fn add_file_from_path_with_compression(
