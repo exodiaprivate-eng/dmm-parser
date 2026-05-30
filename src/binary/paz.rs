@@ -19,7 +19,7 @@ use crate::crypto::chacha20;
 
 pub fn compress(data: &[u8], compression: Compression) -> io::Result<Vec<u8>> {
     match compression {
-        Compression::None => Ok(data.to_vec()),
+        Compression::None | Compression::Partial => Ok(data.to_vec()),
         Compression::Lz4 => Ok(lz4_flex::block::compress(data)),
         Compression::Zlib => {
             let mut encoder = flate2::write::ZlibEncoder::new(
