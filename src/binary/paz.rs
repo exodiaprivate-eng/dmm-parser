@@ -172,6 +172,7 @@ impl PackGroupBuilder {
 
         let chunk_offset = self.current_chunk_data.len() as u32;
         self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk(); // JMM: every file must start at 16-byte boundary
 
         self.file_metas.push(FileMeta {
             dir_path: dir_path.to_string(),
@@ -231,6 +232,7 @@ impl PackGroupBuilder {
 
         let chunk_offset = self.current_chunk_data.len() as u32;
         self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk(); // JMM: every file must start at 16-byte boundary
 
         self.file_metas.push(FileMeta {
             dir_path: dir_path.to_string(),
@@ -281,6 +283,7 @@ impl PackGroupBuilder {
 
         let chunk_offset = self.current_chunk_data.len() as u32;
         self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk(); // JMM: every file must start at 16-byte boundary
 
         self.file_metas.push(FileMeta {
             dir_path: dir_path.to_string(),
@@ -306,6 +309,20 @@ impl PackGroupBuilder {
     ) -> io::Result<()> {
         let data = std::fs::read(file_path)?;
         self.add_file_with_compression(dir_path, file_name, &data, compression)
+    }
+
+    /// Append zero padding so the current write position is aligned to
+    /// PAZ_ALIGNMENT bytes. JMM confirmed: game requires every file entry to
+    /// start at a 16-byte boundary ("PAZ alignment is 16 bytes. Every file
+    /// entry in overlay PAZ must start at 16-byte boundary." — TECHNICAL_REFERENCE).
+    const PAZ_ALIGNMENT: usize = 16;
+
+    fn align_chunk(&mut self) {
+        let rem = self.current_chunk_data.len() % Self::PAZ_ALIGNMENT;
+        if rem != 0 {
+            let pad = Self::PAZ_ALIGNMENT - rem;
+            self.current_chunk_data.resize(self.current_chunk_data.len() + pad, 0);
+        }
     }
 
     /// Flush the current in-progress chunk to disk.
