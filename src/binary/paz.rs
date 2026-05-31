@@ -298,6 +298,48 @@ impl PackGroupBuilder {
         Ok(())
     }
 
+    /// Store pre-processed (already compressed) bytes verbatim, recording
+    /// explicit `compressed_size` and `uncompressed_size` in the PAMT entry.
+    ///
+    /// Use this when the caller has already applied inner-LZ4 to (e.g.) the
+    /// DDS top-mip data so that `data.len() != uncompressed_size`.  The raw
+    /// bytes are copied into the PAZ chunk without any further transformation.
+    ///
+    /// `flags` must be set by the caller; the conventional value for a
+    /// Partial/DDS entry with inner-LZ4 is `0x0001`.
+    pub fn add_pre_compressed_file(
+        &mut self,
+        dir_path: &str,
+        file_name: &str,
+        data: &[u8],          // pre-processed bytes to write into the PAZ
+        flags: u8,            // raw PAMT flags byte
+        uncompressed_size: u32, // original (uncompressed) file size
+    ) -> io::Result<()> {
+        let compressed_size = data.len() as u64;
+
+        if !self.current_chunk_data.is_empty()
+            && self.current_chunk_data.len() as u64 + compressed_size > self.max_chunk_size
+        {
+            self.flush_current_chunk()?;
+        }
+
+        let chunk_offset = self.current_chunk_data.len() as u32;
+        self.current_chunk_data.extend_from_slice(data);
+        self.align_chunk();
+
+        self.file_metas.push(FileMeta {
+            dir_path: dir_path.to_string(),
+            file_name: file_name.to_string(),
+            chunk_id: self.current_chunk_id as u16,
+            chunk_offset,
+            compressed_size: compressed_size as u32,
+            uncompressed_size,
+            flags,
+        });
+
+        Ok(())
+    }
+
     /// Add a file from disk with an explicit compression override.
     /// Convenience wrapper around `add_file_with_compression`.
     pub fn add_file_from_path_with_compression(
