@@ -1799,9 +1799,22 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 1.09 drift fix: body is u32 + u16 (6 bytes), NOT u32 + u8 (5 bytes).
+    // Verified empirically via inventory.pabgb entry k=0x2 move_data[6].
+    // move_condition: case 3 (ConditionData) tag 402 (GetDifficultyOption),
+    // body bytes = 00 00 00 00 00 01 → field_at_16=0, field_at_20=0x0100=256.
+    // This is the same Class D payload-growth pattern already applied to
+    // tags 407/408 (U32U16BodyPayload). The trailing byte that earlier
+    // versions read as a separate option_present flag is now part of a u16
+    // body field, so 402 stays in variant_skips_option_block() (no extra
+    // option byte) and the field width simply widened u8 -> u16. Before this
+    // fix the Character entry under-read by 1 byte, mis-aligned
+    // condition_fail_text, over-ran the entry, and fell back to an opaque
+    // blob — which silently dropped V3 field edits (e.g. I Like Space's
+    // default_slot_count/max_slot_count never landed).
     pub struct ConditionData_GetDifficultyOptionPayload {
         pub field_at_16: u32,
-        pub field_at_20: u8,
+        pub field_at_20: u16,
     }
 }
 
