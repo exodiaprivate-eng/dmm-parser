@@ -1177,6 +1177,7 @@ pub fn parse_table(
 ) -> PyResult<Py<PyAny>> {
     let shape_enum = crate::json_shape::JsonShape::from_str(shape.unwrap_or(""))
         .map_err(PyValueError::new_err)?;
+    let table_name = crate::dispatch::normalize_target_name(table_name).unwrap_or(table_name);
     let values = crate::dispatch::parse_table_to_json_shaped(table_name, pabgb, pabgh, shape_enum)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);

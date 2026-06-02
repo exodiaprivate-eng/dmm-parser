@@ -365,6 +365,7 @@ pub fn serialize_table_from_json(
         "game_advice_group_info"         => d!(crate::tables::game_advice_group_info::GameAdviceGroupInfo),
         "game_advice_info"               => d!(crate::tables::game_advice_info::GameAdviceInfo),
         "game_play_variable_info"        => d!(crate::tables::game_play_variable_info::GamePlayVariableInfo),
+        "game_version_data_info"         => d!(crate::tables::game_version_data_info::GameVersionDataInfo),
         "gimmick_event_table_info"       => d!(crate::tables::gimmick_event_table_info::GimmickEventTableInfo),
         "gimmick_gate_connection_info"   => d!(crate::tables::gimmick_gate_connection_info::GimmickGateConnectionInfo),
         "gimmick_gate_info"              => d!(crate::tables::gimmick_gate_info::GimmickGateInfo),
@@ -381,6 +382,8 @@ pub fn serialize_table_from_json(
         "material_relation_info"         => d!(crate::tables::material_relation_info::MaterialRelationInfo),
         "mercenary_group_info"           => d!(crate::tables::mercenary_group_info::MercenaryGroupInfo),
         "mercenary_info"                 => d!(crate::tables::mercenary_info::MercenaryInfo),
+        "npc_activity_group_info"        => d!(crate::tables::npc_activity_group_info::NpcActivityGroupInfo),
+        "npc_activity_info"              => d!(crate::tables::npc_activity_info::NpcActivityInfo),
         "part_prefab_dye_slot_info"      => d!(crate::tables::part_prefab_dye_slot_info::PartPrefabDyeSlotInfo),
         "part_prefab_dye_texture_pallete_info" => d!(crate::tables::part_prefab_dye_texture_pallete_info::PartPrefabDyeTexturePalleteInfo),
         "pattern_description_info"       => d!(crate::tables::pattern_description_info::PatternDescriptionInfo),
@@ -644,6 +647,16 @@ pub fn normalize_target_name(input: &str) -> Option<&'static str> {
     // Skillinfo is named Skill in v1.0.8
     if matches!(stripped, "skill") {
         return Some("skill_info");
+    }
+
+    // FactionNodeInfo is named factionnode in v1.0.8
+    if matches!(stripped, "factionnode") {
+        return Some("faction_node_info");
+    }
+
+    // FactionGroupInfo is named factiongroup in v1.0.8
+    if matches!(stripped, "factiongroup") {
+        return Some("faction_group_info");
     }
 
     // Paloc has multiple legitimate aliases.
