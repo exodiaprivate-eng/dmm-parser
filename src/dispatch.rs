@@ -649,6 +649,16 @@ pub fn normalize_target_name(input: &str) -> Option<&'static str> {
         return Some("skill_info");
     }
 
+    // FactionNodeInfo is named factionnode in v1.0.8
+    if matches!(stripped, "factionnode") {
+        return Some("faction_node_info");
+    }
+
+    // FactionGroupInfo is named factiongroup in v1.0.8
+    if matches!(stripped, "factiongroup") {
+        return Some("faction_group_info");
+    }
+
     // Paloc has multiple legitimate aliases.
     if matches!(stripped, "paloc" | "localizationstring") {
         return Some("paloc");
