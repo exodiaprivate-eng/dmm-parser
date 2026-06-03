@@ -19,7 +19,7 @@ use crate::crypto::chacha20;
 
 pub fn compress(data: &[u8], compression: Compression) -> io::Result<Vec<u8>> {
     match compression {
-        Compression::None => Ok(data.to_vec()),
+        Compression::None | Compression::Partial => Ok(data.to_vec()),
         Compression::Lz4 => Ok(lz4_flex::block::compress(data)),
         Compression::Zlib => {
             let mut encoder = flate2::write::ZlibEncoder::new(
@@ -172,6 +172,7 @@ impl PackGroupBuilder {
 
         let chunk_offset = self.current_chunk_data.len() as u32;
         self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk();
 
         self.file_metas.push(FileMeta {
             dir_path: dir_path.to_string(),
@@ -231,6 +232,7 @@ impl PackGroupBuilder {
 
         let chunk_offset = self.current_chunk_data.len() as u32;
         self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk();
 
         self.file_metas.push(FileMeta {
             dir_path: dir_path.to_string(),
@@ -239,6 +241,95 @@ impl PackGroupBuilder {
             chunk_offset,
             compressed_size: compressed_size as u32,
             uncompressed_size: data.len() as u32,
+            flags,
+        });
+
+        Ok(())
+    }
+
+    /// Add a file with explicit per-file compression and crypto overrides.
+    ///
+    /// Use this when a file's PAMT flags differ from the group default, such
+    /// as DMM loose UI assets that need LZ4 plus ChaCha20 while neighboring
+    /// files remain unencrypted.
+    pub fn add_file_with_options(
+        &mut self,
+        dir_path: &str,
+        file_name: &str,
+        data: &[u8],
+        compression: Compression,
+        crypto: CryptoType,
+    ) -> io::Result<()> {
+        let full_path = if dir_path.is_empty() {
+            file_name.to_string()
+        } else {
+            format!("{}/{}", dir_path, file_name)
+        };
+
+        let (processed, flags) = process_file(
+            data,
+            compression,
+            crypto,
+            &self.encrypt_info,
+            &full_path,
+        )?;
+
+        let compressed_size = processed.len() as u64;
+
+        if !self.current_chunk_data.is_empty()
+            && self.current_chunk_data.len() as u64 + compressed_size > self.max_chunk_size
+        {
+            self.flush_current_chunk()?;
+        }
+
+        let chunk_offset = self.current_chunk_data.len() as u32;
+        self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk();
+
+        self.file_metas.push(FileMeta {
+            dir_path: dir_path.to_string(),
+            file_name: file_name.to_string(),
+            chunk_id: self.current_chunk_id as u16,
+            chunk_offset,
+            compressed_size: compressed_size as u32,
+            uncompressed_size: data.len() as u32,
+            flags,
+        });
+
+        Ok(())
+    }
+
+    /// Store pre-processed bytes verbatim with explicit PAMT sizes and flags.
+    ///
+    /// This is for callers that already built the on-disk payload, such as DDS
+    /// inner-LZ4 data where the PAZ entry must not be transformed again.
+    pub fn add_pre_compressed_file(
+        &mut self,
+        dir_path: &str,
+        file_name: &str,
+        data: &[u8],
+        flags: u8,
+        uncompressed_size: u32,
+    ) -> io::Result<()> {
+        let compressed_size = data.len() as u64;
+
+        if !self.current_chunk_data.is_empty()
+            && self.current_chunk_data.len() as u64 + compressed_size > self.max_chunk_size
+        {
+            self.flush_current_chunk()?;
+        }
+
+        let chunk_offset = self.current_chunk_data.len() as u32;
+        self.current_chunk_data.extend_from_slice(data);
+        self.align_chunk();
+
+        self.file_metas.push(FileMeta {
+            dir_path: dir_path.to_string(),
+            file_name: file_name.to_string(),
+            chunk_id: self.current_chunk_id as u16,
+            chunk_offset,
+            compressed_size: compressed_size as u32,
+            uncompressed_size,
             flags,
         });
 
@@ -256,6 +347,16 @@ impl PackGroupBuilder {
     ) -> io::Result<()> {
         let data = std::fs::read(file_path)?;
         self.add_file_with_compression(dir_path, file_name, &data, compression)
+    }
+
+    const PAZ_ALIGNMENT: usize = 16;
+
+    fn align_chunk(&mut self) {
+        let rem = self.current_chunk_data.len() % Self::PAZ_ALIGNMENT;
+        if rem != 0 {
+            let pad = Self::PAZ_ALIGNMENT - rem;
+            self.current_chunk_data.resize(self.current_chunk_data.len() + pad, 0);
+        }
     }
 
     /// Flush the current in-progress chunk to disk.
@@ -491,6 +592,13 @@ mod tests {
     }
 
     #[test]
+    fn test_compress_partial_passthrough() {
+        let data = b"partial entries keep raw bytes";
+        let compressed = compress(data, Compression::Partial).unwrap();
+        assert_eq!(compressed, data);
+    }
+
+    #[test]
     fn test_compress_decompress_lz4() {
         let data = b"hello world hello world hello world";
         let compressed = compress(data, Compression::Lz4).unwrap();
@@ -641,5 +749,62 @@ mod tests {
         assert_eq!(file.file.uncompressed_size, 1000);
         assert!(file.file.compressed_size < 1000); // should actually compress
         assert_eq!(file.file.compression, Compression::Lz4);
+    }
+
+    #[test]
+    fn test_pack_group_builder_with_options_sets_flags() {
+        let dir = make_tempdir();
+        let mut builder = PackGroupBuilder::new(
+            dir.path(),
+            Compression::None,
+            CryptoType::None,
+            [2, 14, 97],
+            1_000_000,
+        );
+
+        builder
+            .add_file_with_options(
+                "ui",
+                "style.css",
+                b"body { color: #fff; }",
+                Compression::Lz4,
+                CryptoType::ChaCha20,
+            )
+            .unwrap();
+
+        let pamt_bytes = builder.finish().unwrap();
+        let pamt = PackMeta::parse(&pamt_bytes, None).unwrap();
+        let file = &pamt.directories[0].files[0].file;
+
+        assert_eq!(file.flags, 0x32);
+        assert_eq!(file.compression, Compression::Lz4);
+        assert_eq!(file.crypto, CryptoType::ChaCha20);
+    }
+
+    #[test]
+    fn test_pack_group_builder_pre_compressed_file_records_explicit_sizes() {
+        let dir = make_tempdir();
+        let mut builder = PackGroupBuilder::new(
+            dir.path(),
+            Compression::None,
+            CryptoType::None,
+            [0, 0, 0],
+            1_000_000,
+        );
+
+        let payload = b"pre-built";
+        builder
+            .add_pre_compressed_file("textures", "icon.dds", payload, 0x01, 128)
+            .unwrap();
+        builder.add_file("textures", "next.bin", b"next").unwrap();
+
+        let pamt_bytes = builder.finish().unwrap();
+        let pamt = PackMeta::parse(&pamt_bytes, None).unwrap();
+        let files = &pamt.directories[0].files;
+
+        assert_eq!(files[0].file.flags, 0x01);
+        assert_eq!(files[0].file.compressed_size, payload.len() as u32);
+        assert_eq!(files[0].file.uncompressed_size, 128);
+        assert_eq!(files[1].file.chunk_offset, 16);
     }
 }
