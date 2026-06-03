@@ -189,6 +189,10 @@ impl<'a> BuffDataBase<'a> {
 }
 
 py_binary_struct! {
+    /// DamageBuffData payload. Total = 117 bytes (3×28 + 8 + 1 + 8 + 4 + 4×1 + 4 + 2).
+    /// f0c_new was incorrectly added (shifted all DamageBuffData parses by 1 byte);
+    /// removed after empirical verification against 1.09 binary (key=1000030, 20 entries,
+    /// total body = 9×245 + 11×246 = 4911 bytes — only consistent with 117-byte payload).
     pub struct DamageBuffDataPayload {
         pub f00: u8,
         pub f01: BuffDataValueBlock,
@@ -203,7 +207,6 @@ py_binary_struct! {
         pub f0a: u8,
         pub f0b: u8,
         pub f0c: u32,
-        pub f0c_new: u8,
         pub f0d: u8,
         pub f0e: u8,
     }
@@ -1211,9 +1214,15 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// AddPercentInGameContentsBuffData payload. Total = 17 bytes (1 + 4×4).
+    /// f02/f03/f04 were missing; empirically found from key=1000190 (10 entries,
+    /// total body = 1480 bytes → 148 bytes/entry = 5(ll+af) + 126(base,ap=23) + 17(payload)).
     pub struct AddPercentInGameContentsBuffDataPayload {
         pub f00: u8,
         pub f01: u32,
+        pub f02: u32,
+        pub f03: u32,
+        pub f04: u32,
     }
 }
 
