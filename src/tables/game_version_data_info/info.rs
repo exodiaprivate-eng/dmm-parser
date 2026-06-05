@@ -7,8 +7,11 @@
 //!   CString string_key                    (_stringKey)
 //!   u8   is_blocked                       (_isBlocked)
 //!   CArray<RestoreItemData>               (_restoreItemDataByGameVersion)
-//!     per element: u32 item_key + u64 raw + u32 target_key
+//!     per element (1.10): u32 item_key + u64 raw + u8 (NEW) + u32 target_key
 //!   u32  version_flag                     (last field, name unknown)
+//!
+//! 1.10 change: RestoreItemData grew 16→17 bytes (a u8 inserted between
+//! raw_data and target_key). Verified against live 1.10 pabgb.
 
 use crate::binary::*;
 use crate::py_binary_struct;
@@ -17,6 +20,8 @@ py_binary_struct! {
     pub struct RestoreItemData {
         pub item_key: u32,
         pub raw_data: u64,
+        // 1.10: u8 inserted here. Element grew 16→17 bytes; observed 0x00.
+        pub unknown_flag_110: u8,
         pub target_key: u32,
     }
 }

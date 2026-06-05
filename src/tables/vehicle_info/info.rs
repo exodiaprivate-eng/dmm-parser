@@ -104,6 +104,10 @@ py_binary_struct! {
         pub send_damage_to: u8,
         pub character_switchable: u8,
         pub max_allowable_height: u32,
+        // 1.10: one new u32 added to the fixed tail (position length-equivalent
+        // within the fixed-width tail). Verified via wire-walker: reconciles
+        // all 34 records (byte-exact roundtrip).
+        pub trailing_u32_110: u32,
     }
 }
 

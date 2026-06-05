@@ -68,7 +68,12 @@ py_binary_struct! {
         pub item_use_info_list: CArray<ItemUseKey>,
         pub item_icon_list: CArray<ItemIconData>,
         pub map_icon_path: StringInfoKey,
-        pub money_icon_path: StringInfoKey,
+        // 1.10: _moneyIconPath (StringInfoKey, u32) removed from ItemInfo.
+        // The wire region between item_icon_list and item_desc shrank by 4
+        // bytes (18→14): map_icon_path, use_map_icon_alert, item_type,
+        // material_key, material_match_info. Verified byte-identically across
+        // all 6325 records in the 2026-6-4 (1.10) iteminfo fixture
+        // (use_map_icon_alert stays {0,1}, item_type stays a small enum).
         pub use_map_icon_alert: u8,
         pub item_type: u8,
         pub material_key: u32,

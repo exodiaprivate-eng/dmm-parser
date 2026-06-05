@@ -51,15 +51,10 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
-// Hand-corrected: parent_mercenary_group_info reads as u8 (file) but is stored
-// as u16 (looked-up via dictionary). hired_skill_info_list element is
-// {u32 lookup_key + u32 value} per IDA sub_141100A00.
-py_binary_struct! {
-    pub struct HiredSkillData {
-        pub skill_lookup_key: u32,
-        pub level: u32,
-    }
-}
+// NOTE: 1.10 removed hired_skill_info_list from MercenaryInfo, so the former
+// HiredSkillData element struct ({u32 skill_lookup_key + u32 level}, IDA
+// sub_141100A00) is no longer used and was removed. If a future version
+// re-adds the list, restore it here.
 
 // ─── 2026-05-29 IDA re-decode against current Win exe ────────────────────
 // Decompiled reader: sub_1410E14A0 (CrimsonDesert.exe 1.07+).
@@ -114,12 +109,16 @@ py_binary_struct! {
         pub is_main_dischargeable: u8,           // _isMainDischargeable
         pub spawn_position_type: u8,             // _spawnPositionType
         pub summon_owner_option: u8,             // _summonOwnerOption (was u32, now u8 in-block)
-        // Three helper reads after the u8 block
         pub parent_mercenary_group_info: u8,     // _parentMercenaryGroupInfo (sub_1410FD230: 1B)
-        pub shared_summon_count_tag: u32,        // _sharedSummonCountTag (sub_1410F5B30: 4B; re-added)
-        pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo (sub_1410F75A0: 4B; new)
-        pub hired_skill_info_list: CArray<HiredSkillData>, // _hiredSkillInfoList
-        pub set_new_mercenary_is_main: u8,       // _setNewMercenaryIsMain (trailing byte; new)
+        // 1.10: tail RESTRUCTURED. shared_summon_count_tag (u32),
+        // hired_skill_info_list (CArray), and set_new_mercenary_is_main (u8)
+        // are GONE; the post-block tail is now u8 + u32 + u32 (fixed).
+        // The trailing u8 mirrors the record key in vanilla; the first u32 is
+        // a name-hash (0xEAC5E173 sentinel when empty); the second u32 is a
+        // key reference. Verified via wire-walker: all 18 records byte-exact.
+        pub tail_u8_110: u8,
+        pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo (name-hash)
+        pub tail_u32_110: u32,
     }
 }
 
