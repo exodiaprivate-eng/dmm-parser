@@ -38,3 +38,6 @@ Thumbs.db
 .vscode/
 .idea/
 fixtures_1_06/
+
+# Debug symbols — never track (regenerated every build)
+*.pdb

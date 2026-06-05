@@ -63,7 +63,7 @@
 // ✅ _parserType (direct_u8, stream=1)
 
 use crate::binary::variant::find_cstring_u8_trailer;
-use crate::binary::variants::game_condition::{GameCondition, GameConditionNode};
+use crate::binary::variants::game_condition::GameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
@@ -96,35 +96,14 @@ impl<'a> ConditionInfo<'a> {
         let is_blocked = u8::read_from(data, offset)?;
 
         let post_pre = *offset;
-        // Try direct stream read first: parse tree + 3 tail bytes from
-        // the data stream without pre-computing the region boundary.
-        // This avoids the find_cstring_u8_trailer heuristic which fails
-        // on ~24 edge-case entries.
-        let game_condition = {
-            let mut probe = post_pre;
-            let direct = (|| -> io::Result<GameCondition<'a>> {
-                let tree = GameConditionNode::read_from(data, &mut probe)?;
-                let tail_a = u8::read_from(data, &mut probe)?;
-                let tail_b = u8::read_from(data, &mut probe)?;
-                let tail_c = u8::read_from(data, &mut probe)?;
-                Ok(GameCondition::Decoded { tree, tail_a, tail_b, tail_c })
-            })();
-            match direct {
-                Ok(gc) => {
-                    *offset = probe;
-                    gc
-                }
-                Err(_) => {
-                    // Fall back to heuristic region detection + Raw capture
-                    let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
-                    let wrapper_bytes = &data[post_pre..post_pre + variant_size];
-                    let mut wrapper_cur = 0usize;
-                    let gc = GameCondition::read_from(wrapper_bytes, &mut wrapper_cur)?;
-                    *offset = post_pre + variant_size;
-                    gc
-                }
-            }
-        };
+        let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
+        // GameCondition::read_from assumes `data` is sized to exactly the
+        // wrapper. Pass a sub-slice of just the variant bytes so the
+        // Decoded|Raw fallback can detect under-consume correctly.
+        let wrapper_bytes = &data[post_pre..post_pre + variant_size];
+        let mut wrapper_cur = 0usize;
+        let game_condition = GameCondition::read_from(wrapper_bytes, &mut wrapper_cur)?;
+        *offset = post_pre + variant_size;
 
         let original_string = CString::read_from(data, offset)?;
         let parser_type = u8::read_from(data, offset)?;
@@ -155,25 +134,12 @@ impl<'a> ConditionInfo<'a> {
 
         let game_condition = track_read_with(offset, path, ranges, "game_condition", "GameCondition", |o| {
             let post_pre = *o;
-            let mut probe = post_pre;
-            let direct = (|| -> io::Result<GameCondition<'a>> {
-                let tree = GameConditionNode::read_from(data, &mut probe)?;
-                let tail_a = u8::read_from(data, &mut probe)?;
-                let tail_b = u8::read_from(data, &mut probe)?;
-                let tail_c = u8::read_from(data, &mut probe)?;
-                Ok(GameCondition::Decoded { tree, tail_a, tail_b, tail_c })
-            })();
-            match direct {
-                Ok(gc) => { *o = probe; Ok(gc) }
-                Err(_) => {
-                    let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
-                    let wrapper_bytes = &data[post_pre..post_pre + variant_size];
-                    let mut wrapper_cur = 0usize;
-                    let gc = GameCondition::read_from(wrapper_bytes, &mut wrapper_cur)?;
-                    *o = post_pre + variant_size;
-                    Ok(gc)
-                }
-            }
+            let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
+            let wrapper_bytes = &data[post_pre..post_pre + variant_size];
+            let mut wrapper_cur = 0usize;
+            let gc = GameCondition::read_from(wrapper_bytes, &mut wrapper_cur)?;
+            *o = post_pre + variant_size;
+            Ok(gc)
         })?;
 
         let original_string = track_read_field::<CString<'a>>(data, offset, path, ranges, "original_string", "CString")?;

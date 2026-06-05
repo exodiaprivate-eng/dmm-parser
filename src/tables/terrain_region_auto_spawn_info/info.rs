@@ -31,6 +31,12 @@ pub struct TerrainRegionAutoSpawnInfo<'a> {
     pub spawn_region_tag_list: CArray<u32>,
     pub not_spawn_region_tag_list: CArray<u32>,
     pub spawn_list: CArray<AutoSpawnEntry>,
+    /// Inter-element bytes between consecutive `spawn_list` elements (N-1 for N
+    /// elements). Previously assumed to always be `0xff` and hardcoded on write,
+    /// but real game data uses `0x00` for some entries — hardcoding `0xff`
+    /// flipped those bytes and broke byte round-trip (and shipped a corrupted
+    /// overlay for affected regions). We now preserve the actual bytes verbatim.
+    pub spawn_list_separators: Vec<u8>,
     pub voxel_type: u32,
     pub road_group_type: u8,
     pub is_only_summon_data: u8,
@@ -70,7 +76,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         // between consecutive elements (value 0xff).  For N elements, N-1 separator
         // bytes are inserted between them.  Entries with a single ASE have no
         // separator; entries with two or more ASEs each contribute one separator byte.
-        let spawn_list = {
+        let (spawn_list, spawn_list_separators) = {
             let count = u32::read_from(data, offset)? as usize;
             let remaining = data.len().saturating_sub(*offset);
             if count > remaining {
@@ -79,14 +85,15 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
                         count, remaining, *offset)));
             }
             let mut items = Vec::with_capacity(count.min(1 << 20));
+            let mut separators: Vec<u8> = Vec::with_capacity(count.saturating_sub(1));
             for i in 0..count {
                 items.push(AutoSpawnEntry::read_from(data, offset)?);
                 if i + 1 < count {
-                    // skip the inter-element separator byte
-                    u8::read_from(data, offset)?;
+                    // preserve the inter-element separator byte (0x00 or 0xff)
+                    separators.push(u8::read_from(data, offset)?);
                 }
             }
-            CArray { items }
+            (CArray { items }, separators)
         };
 
         let voxel_type = u32::read_from(data, offset)?;
@@ -109,7 +116,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
             auto_spawn_spline_name, auto_spawn_spline_except_name,
             region_info_list, not_spawn_region_info_list,
             spawn_region_tag_list, not_spawn_region_tag_list,
-            spawn_list, voxel_type, road_group_type,
+            spawn_list, spawn_list_separators, voxel_type, road_group_type,
             is_only_summon_data, is_only_check_data, stage_category, spawn_mode_type,
             tag_list, is_default_activated, all_terrain_region,
             bitmap_position_info, bitmap_color_list_for_spawn,
@@ -129,12 +136,15 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         self.not_spawn_region_info_list.write_to(w)?;
         self.spawn_region_tag_list.write_to(w)?;
         self.not_spawn_region_tag_list.write_to(w)?;
-        // spawn_list: write count then elements with N-1 separator bytes (0xff) between them
+        // spawn_list: write count then elements with the PRESERVED N-1 separator
+        // bytes between them. Fall back to 0xff only if a separator is missing
+        // (e.g. spawn_list was grown by a mod beyond the captured separator count).
         (self.spawn_list.items.len() as u32).write_to(w)?;
         for (i, entry) in self.spawn_list.items.iter().enumerate() {
             entry.write_to(w)?;
             if i + 1 < self.spawn_list.items.len() {
-                w.write_all(&[0xff])?;
+                let sep = self.spawn_list_separators.get(i).copied().unwrap_or(0xff);
+                w.write_all(&[sep])?;
             }
         }
         self.voxel_type.write_to(w)?;
@@ -167,6 +177,8 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         m.insert("spawn_region_tag_list".to_string(), self.spawn_region_tag_list.to_json_value());
         m.insert("not_spawn_region_tag_list".to_string(), self.not_spawn_region_tag_list.to_json_value());
         m.insert("spawn_list".to_string(), self.spawn_list.to_json_value());
+        m.insert("spawn_list_separators".to_string(),
+            Value::Array(self.spawn_list_separators.iter().map(|b| Value::from(*b)).collect()));
         m.insert("voxel_type".to_string(), self.voxel_type.to_json_value());
         m.insert("road_group_type".to_string(), self.road_group_type.to_json_value());
         m.insert("is_only_summon_data".to_string(), self.is_only_summon_data.to_json_value());
@@ -201,10 +213,18 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
             let arr = v.as_array().ok_or_else(|| std::io::Error::new(
                 std::io::ErrorKind::InvalidData, "spawn_list is not a JSON array"))?;
             w.extend_from_slice(&(arr.len() as u32).to_le_bytes());
+            // Preserved separators (optional for backward-compat with JSON that
+            // predates this field; default 0xff if absent or short).
+            let seps = obj.get("spawn_list_separators").and_then(|v| v.as_array());
             for (i, item) in arr.iter().enumerate() {
                 <AutoSpawnEntry as WriteJsonValue>::write_from_json(w, item)?;
                 if i + 1 < arr.len() {
-                    w.push(0xff);
+                    let sep = seps
+                        .and_then(|s| s.get(i))
+                        .and_then(|v| v.as_u64())
+                        .map(|n| n as u8)
+                        .unwrap_or(0xff);
+                    w.push(sep);
                 }
             }
         }
