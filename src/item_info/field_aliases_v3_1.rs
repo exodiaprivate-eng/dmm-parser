@@ -26,7 +26,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("item_use_info_list", "_itemUseInfoList"),
     ("item_icon_list", "_itemIconList"),
     ("map_icon_path", "_mapIconPath"),
-    ("money_icon_path", "_moneyIconPath"),
+    // 1.10: _moneyIconPath removed from ItemInfo wire layout.
     ("use_map_icon_alert", "_useMapIconAlert"),
     ("item_type", "_itemType"),
     ("material_key", "_materialKey"),

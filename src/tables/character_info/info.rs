@@ -724,6 +724,13 @@ pabgh_typed_blob_table! {
         pub lookup_23: u32,
         pub lookup_24: u32,
         pub lookup_25: u32,
+        // 1.10: new u32 lookup field inserted here (wire +213, right after the
+        // skeleton-area lookups). Reader_4B name-hash — empties read as the
+        // 0xEAC5E173 hash sentinel, populated values mirror neighbouring
+        // lookups (e.g. rec2 = lookup_22's hash). Maps to canonical
+        // _skeletonVariationName. Confirmed by byte-diff vs 1.09 reference:
+        // exactly 4 bytes (73 e1 c5 ea) added at this boundary.
+        pub skeleton_variation_name: u32,
         pub raw_a: u32,
         pub lookup_27: u32,
         pub lookup_28: u32,
