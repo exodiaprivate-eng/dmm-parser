@@ -724,4 +724,32 @@ mod tests {
                 "e{} k=0x{:x}: JSON roundtrip diverges from typed write", i, k);
         }
     }
+
+    #[test]
+    fn verify_stamina_keys_typed() {
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else { eprintln!("SKIP"); return; };
+        let items = parse_skill_to_json_with_pabgh(&data, &pabgh).unwrap();
+        let opaque = items.iter().filter(|v| v.get("_opaque").and_then(|f| f.as_bool()).unwrap_or(false)).count();
+        eprintln!("total entries={} opaque(blob-fallback)={}", items.len(), opaque);
+        let stamina_keys: [u64; 51] = [10059,10060,10062,10065,10067,10103,10105,10111,10118,10156,10166,10167,10168,10211,10213,10253,10256,10257,10258,10259,10260,10270,10273,10274,10278,10279,10283,10284,10302,10303,10304,10305,10306,10310,10311,10312,10313,10314,10320,10335,10378,12031,13003,13017,15004,15033,15035,15051,15052,15206,0];
+        let mut still_opaque = Vec::new();
+        for v in &items {
+            if v.get("_opaque").and_then(|f| f.as_bool()).unwrap_or(false) {
+                if let Some(k) = v.get("_key").and_then(|x| x.as_u64()) {
+                    if stamina_keys.contains(&k) { still_opaque.push(k); }
+                }
+            }
+        }
+        eprintln!("stamina keys STILL opaque: {:?}", still_opaque);
+        assert!(still_opaque.is_empty(), "some stamina keys still fail typed parse");
+
+        // The DMM mount path (parse_..._with_pabgh + serialize) must roundtrip the
+        // whole table byte-exact, with the 7 remaining disc-10 (SummonBuffData)
+        // entries preserved verbatim via opaque passthrough. This is the guarantee
+        // that lets the Infinite Stamina overlay edit every targeted skill safely.
+        let rebuilt = serialize_skill_from_json(&items).unwrap();
+        assert_eq!(rebuilt, data, "skill table opaque-path roundtrip not byte-exact");
+        assert!(opaque <= 7, "more opaque entries than the known SummonBuffData gap: {}", opaque);
+    }
 }
