@@ -418,37 +418,15 @@ pabgh_typed_blob_table! {
         pub child_faction_info_list: CArray<u32>,
         pub node_line_main_faction_info_list: CArray<u32>,
         pub world_position: [f32; 3],
+        pub operation_spawn_radius: f32,
         pub node_radius: f32,
         pub apply_skill_data_list: CArray<ApplySkillData>,
         pub resource_item_list: CArray<ResourceItemData>,
         pub revival_stage_info_list: CArray<u32>,
         pub way_point_data_list_deprecated: CArray<WayPointDeprData>,
-        pub faction_schedule_list: CArray<FactionSchedule<'a>>,
-        pub unknown_a: u8,
-        pub key_str_after: CString<'a>,
-        pub unknown_b: u8,
-        pub lookup_after: u32,
-        pub unknown_c: u8,
-        pub unknown_d: u8,
-        pub adjacency_list: CArray<FactionAdjacencyEntry<'a>>,
-        pub big_composite_slots: FactionNodeBigCompositeSlots<'a>,
-        pub flag_after_slots: u8,
-        pub de690_data: FactionNodeDE690,
-        pub raw_after_de690: u32,
-        // FIELD ORDER FIX (IDA sub_1410C01B0): religion_max_block_day is a
-        // plain read4 @mem+444 that comes BEFORE the two final lists; the
-        // struct previously placed it after final_lookup. With empty lists
-        // (1148 records) every value is 0 so the mis-order round-tripped;
-        // records with a populated final_list_u32 (10) read its count from
-        // religion's slot → garbage over-read. Order per IDA:
-        // raw_after_de690 (lookup@440), religion (read4@444),
-        // final_list_u32 (@448), final_list_u16 (@464), final_lookup (lookup@480).
-        pub religion_max_block_day: u32,
-        pub final_list_u32: CArray<u32>,
-        pub final_list_u16: CArray<u16>,
-        pub final_lookup: u32,
-        pub extra_u32_a: u32,
-        pub extra_u32_b: u32,
+        // TYPED-PREFIX TRUNCATION: FactionSchedule element struct (30 wire
+        // fields) not yet RE'd. 703/1141 entries have populated schedules.
+        // Fields 1-17 above typed for all entries. Rest in tail_blob.
     }
     tail: tail_blob;
 }
