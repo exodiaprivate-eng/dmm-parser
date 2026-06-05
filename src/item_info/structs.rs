@@ -449,6 +449,11 @@ py_binary_struct! {
         pub ui_component: CString<'a>,
         pub minimum: u32,
         pub icon_path: StringInfoKey,
+        // 1.10: new u32 (name-hash) inserted between icon_path and item_name.
+        // Only money items (MoneyTypeDefine.unit_data_list_map) carry UnitData,
+        // so this is what broke Money_Copper etc. while regular items parsed.
+        // Verified against live 1.10 iteminfo (Copper/Silver units reconcile).
+        pub unk_hash_110: u32,
         pub item_name: LocalizableString<'a>,
         pub item_desc: LocalizableString<'a>,
     }

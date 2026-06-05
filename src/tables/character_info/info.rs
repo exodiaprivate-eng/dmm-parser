@@ -724,13 +724,11 @@ pabgh_typed_blob_table! {
         pub lookup_23: u32,
         pub lookup_24: u32,
         pub lookup_25: u32,
-        // 1.10: new u32 lookup field inserted here (wire +213, right after the
-        // skeleton-area lookups). Reader_4B name-hash — empties read as the
-        // 0xEAC5E173 hash sentinel, populated values mirror neighbouring
-        // lookups (e.g. rec2 = lookup_22's hash). Maps to canonical
-        // _skeletonVariationName. Confirmed by byte-diff vs 1.09 reference:
-        // exactly 4 bytes (73 e1 c5 ea) added at this boundary.
-        pub skeleton_variation_name: u32,
+        // NOTE: an overnight agent added a `skeleton_variation_name: u32` here
+        // claiming a 1.10 +4 change. REVERTED — 1.09 and 1.10 characterinfo are
+        // byte-identical (same size 26,254,446; record 0 identical), so there is
+        // NO 1.10 change. The phantom field shifted every record by 4 bytes and
+        // forced blob-fallback (Mounts Everywhere lost call_mercenary_cool_time).
         pub raw_a: u32,
         pub lookup_27: u32,
         pub lookup_28: u32,
@@ -743,69 +741,22 @@ pabgh_typed_blob_table! {
         pub flag_b: u8,
         pub flag_c: u8,
         pub flag_d: u8,
-        pub label_a: LocalizableString<'a>,
-        pub lookup_36: u32,
-        pub flag_e: u8,
-        pub flag_post_e_a: u8,
-        pub flag_post_e_b: u8,
-        pub new_list_108: CArray<CharacterNewListEntry>,
-        pub four_flags_pre: [u8; 4],
-        pub alive_skill_info_list: CArray<u64>,
-        pub flag_block: [u8; 44],
-        pub raw_f: u32,
-        pub lookup_77: u32,
-        pub lookup_78: u32,
-        pub list_a: CArray<u64>,
-        pub list_b: CArray<u64>,
-        pub list_c: CArray<u64>,
-        pub list_d: CArray<u64>,
-        pub list_e: CArray<u32>,
-        pub raw_g: u32,
-        pub lookup_84: u32,
-        pub list_f: CArray<u32>,
-        pub raw_h: u32,
-        pub flag_85: u8,
-        pub flag_86: u8,
-        pub lookup_87: u32,
-        pub flag_88: u8,
-        pub lookup_89: u32,
-        pub flag_90: u8,
-        pub mercenary_list: CArray<CharacterMercenaryEntry<'a>>,
-        pub list_g: CArray<u16>,
-        pub flag_91: u8,
-        pub conditional_92: Conditional92,
-        pub lookup_93: u16,
-        pub raw_94: u16,
-        pub flag_95: u8,
-        pub flag_96: u8,
-        pub list_h: CArray<u16>,
-        pub flag_97: u8,
-        pub name_path: CString<'a>,
-        pub lookup_98: u16,
-        pub lookup_99: u16,
-        pub lookup_100: u32,
-        pub lookup_101: u32,
-        pub raw_102: u32,
-        pub flag_103: u8,
-        pub list_i: CArray<u32>,
-        pub list_j: CArray<u32>,
-        pub list_k: CArray<u32>,
-        pub raw_104: u32,
-        pub prop_list: CArray<CharacterPropEntry>,
-        pub flag_105: u8,
-        pub list_l: CArray<u32>,
-        pub mob_list: CArray<CharacterMobEntry>,
-        pub adj_list: CArray<CharacterAdjacencyMobItem>,
-        pub tag_list_a: CArray<CharacterTagEntry>,
-        pub tag_list_b: CArray<CharacterTagEntry>,
-        pub lookup_125: u32,
-        pub raw_126: u32,
-        pub lookup_127: u32,
-        pub flag_128: u8,
-        pub short_pair_list: CArray<CharacterShortPair>,
-        pub raw_130: u32,
-        // 1.0.8: CharacterChartEntry and subsequent sub-structs changed.
-        // Remaining fields kept as tail blob until sub-reader RE is complete.
+        // TYPED-PREFIX TRUNCATION (S28). label_a onward is the un-RE'd region —
+        // label_a (a guessed LocalizableString) reads garbage on most records
+        // (e.g. entry 6 → 1,004,098-byte string), and the list region below
+        // (new_list_108 …
+        // raw_130: flag_block[44] guess + the un-RE'd CArray lists/sub-structs)
+        // was only ~0.4% reliable on the live 7082-record characterinfo (99.6%
+        // of records blob-fell-back at list_b → the WHOLE record, dropping even
+        // the early scalar fields). Since 1.09==1.10 here (byte-identical), this
+        // is a long-standing un-RE'd region, not a 1.10 change. Everything from
+        // new_list_108 onward is now captured by `tail: tail_blob` (byte-exact
+        // round-trip) and fields 1–44 above — all CArray-free scalars/strings,
+        // incl. call_mercenary_cool_time/spawn_duration — now type-decode for
+        // ALL 7082 records (was 28). This is what lets the "Mounts Everywhere"
+        // mod's call_mercenary_* intents apply. Re-typing the list region needs
+        // dedicated sub-reader RE (IDA sub_1410D7480 chain); the tail blob keeps
+        // those bytes intact until then.
     }
     tail: tail_blob;
 }
