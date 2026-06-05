@@ -224,6 +224,7 @@ pub struct QuestInfo<'a> {
     pub faction_info: u32,
     pub faction_state_data: FactionStateData,
     pub branch_data: BranchData,
+    pub global_game_event_info: u16,
     pub start_player_list: CArray<u32>,
     pub branch_data_list: CArray<BranchData>,
     pub executor_quest_list: CArray<u32>,
@@ -329,6 +330,7 @@ impl<'a> QuestInfo<'a> {
         let faction_info = u32::read_from(data, offset)?;
         let faction_state_data = FactionStateData::read_from(data, offset)?;
         let branch_data = BranchData::read_from(data, offset)?;
+        let global_game_event_info = u16::read_from(data, offset)?;
         let start_player_list = CArray::<u32>::read_from(data, offset)?;
         let branch_data_list = CArray::<BranchData>::read_from(data, offset)?;
         let executor_quest_list = CArray::<u32>::read_from(data, offset)?;
@@ -375,6 +377,7 @@ impl<'a> QuestInfo<'a> {
             faction_info,
             faction_state_data,
             branch_data,
+            global_game_event_info,
             start_player_list,
             branch_data_list,
             executor_quest_list,
@@ -423,6 +426,7 @@ impl<'a> QuestInfo<'a> {
         let faction_info = track_read_field::<u32>(data, offset, path, ranges, "faction_info", "u32")?;
         let faction_state_data = track_read_field::<FactionStateData>(data, offset, path, ranges, "faction_state_data", "FactionStateData")?;
         let branch_data = track_read_field::<BranchData>(data, offset, path, ranges, "branch_data", "BranchData")?;
+        let global_game_event_info = track_read_field::<u16>(data, offset, path, ranges, "global_game_event_info", "u16")?;
         let start_player_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "start_player_list", "CArray<u32>")?;
         let branch_data_list = track_read_field::<CArray<BranchData>>(data, offset, path, ranges, "branch_data_list", "CArray<BranchData>")?;
         let executor_quest_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "executor_quest_list", "CArray<u32>")?;
@@ -458,7 +462,7 @@ impl<'a> QuestInfo<'a> {
         Ok(Self {
             key, string_key, is_blocked, quest_type, quest_category,
             name, desc, quest_group_info, faction_info, faction_state_data,
-            branch_data, start_player_list, branch_data_list,
+            branch_data, global_game_event_info, start_player_list, branch_data_list,
             executor_quest_list, gauge_list, mission_list, stage_list,
             start_mission, start_stage, stage_icon_path, stage_text_icon_path,
             stage_image_path, playable_mission_count, playable_stage_count,
@@ -481,6 +485,7 @@ impl<'a> QuestInfo<'a> {
         self.faction_info.write_to(w)?;
         self.faction_state_data.write_to(w)?;
         self.branch_data.write_to(w)?;
+        self.global_game_event_info.write_to(w)?;
         self.start_player_list.write_to(w)?;
         self.branch_data_list.write_to(w)?;
         self.executor_quest_list.write_to(w)?;
@@ -526,6 +531,7 @@ impl<'a> QuestInfo<'a> {
         m.insert("faction_info".to_string(), self.faction_info.to_json_value());
         m.insert("faction_state_data".to_string(), self.faction_state_data.to_json_value());
         m.insert("branch_data".to_string(), self.branch_data.to_json_value());
+        m.insert("global_game_event_info".to_string(), self.global_game_event_info.to_json_value());
         m.insert("start_player_list".to_string(), self.start_player_list.to_json_value());
         m.insert("branch_data_list".to_string(), self.branch_data_list.to_json_value());
         m.insert("executor_quest_list".to_string(), self.executor_quest_list.to_json_value());
@@ -568,6 +574,7 @@ impl<'a> QuestInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info")?)?;
         <FactionStateData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_state_data")?)?;
         <BranchData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "global_game_event_info")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_player_list")?)?;
         <CArray<BranchData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "executor_quest_list")?)?;
