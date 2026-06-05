@@ -1,4 +1,11 @@
-//! Tier 1 — fully typed (no _tail_b64).
+//! Tier 2 — typed prefix (fields 1–17) + raw `tail_blob` (fields 18+).
+//!
+//! 1.10 layout: `_operationSpawnRadius` (f32) was added between
+//! `_worldPosition` and `_nodeRadius`. Fields 1–17 are typed and
+//! JSON-addressable; `_factionScheduleInfoList` onward stays in `tail_blob`
+//! because the FactionSchedule element decoder still over-consumes on the
+//! 359 records with populated schedule/adjacency lists. See the struct
+//! definition's truncation note for the full rationale.
 //!
 //! Reader: `sub_1410DE7A0` in CrimsonDesert.exe (Win build).
 //!
@@ -418,36 +425,28 @@ pabgh_typed_blob_table! {
         pub child_faction_info_list: CArray<u32>,
         pub node_line_main_faction_info_list: CArray<u32>,
         pub world_position: [f32; 3],
+        // 1.10 FIX (NattKh): _operationSpawnRadius is a plain f32 that sits
+        // BETWEEN _worldPosition (field 12) and _nodeRadius (field 13). It was
+        // absent from every prior layout, so the whole tail shifted by 4 bytes
+        // and the table fell to 100% blob-fallback (first record over-reads:
+        // "not enough data"). Inserting it realigns the prefix.
+        pub operation_spawn_radius: f32,
         pub node_radius: f32,
         pub apply_skill_data_list: CArray<ApplySkillData>,
         pub resource_item_list: CArray<ResourceItemData>,
         pub revival_stage_info_list: CArray<u32>,
         pub way_point_data_list_deprecated: CArray<WayPointDeprData>,
-        pub faction_schedule_list: CArray<FactionSchedule<'a>>,
-        pub unknown_a: u8,
-        pub key_str_after: CString<'a>,
-        pub unknown_b: u8,
-        pub lookup_after: u32,
-        pub unknown_c: u8,
-        pub unknown_d: u8,
-        pub adjacency_list: CArray<FactionAdjacencyEntry<'a>>,
-        pub big_composite_slots: FactionNodeBigCompositeSlots<'a>,
-        pub flag_after_slots: u8,
-        pub de690_data: FactionNodeDE690,
-        pub raw_after_de690: u32,
-        // FIELD ORDER FIX (IDA sub_1410C01B0): religion_max_block_day is a
-        // plain read4 @mem+444 that comes BEFORE the two final lists; the
-        // struct previously placed it after final_lookup. With empty lists
-        // (1148 records) every value is 0 so the mis-order round-tripped;
-        // records with a populated final_list_u32 (10) read its count from
-        // religion's slot → garbage over-read. Order per IDA:
-        // raw_after_de690 (lookup@440), religion (read4@444),
-        // final_list_u32 (@448), final_list_u16 (@464), final_lookup (lookup@480).
-        pub religion_max_block_day: u32,
-        pub final_list_u32: CArray<u32>,
-        pub final_list_u16: CArray<u16>,
-        pub final_lookup: u32,
     }
+    // TYPED-PREFIX TRUNCATION (NattKh): fields 1–17 (_key … _wayPointDataList_
+    // deprecated) are typed & JSON-addressable; everything from
+    // _factionScheduleInfoList (field 18) onward is captured raw in tail_blob.
+    // The FactionSchedule (31-wire-field) element decoder is still incorrect —
+    // the 359 records with populated schedule/adjacency lists over-consume —
+    // so typing it would corrupt those records → in-game CTD. Blobbing the tail
+    // guarantees byte-exact roundtrip on ALL 1141 records while keeping the
+    // editable prefix exposed. The FactionSchedule/FactionAdjacency*/
+    // FactionNodeBigComposite* structs below remain as documented RE for a
+    // future dedicated typing pass.
     tail: tail_blob;
 }
 
