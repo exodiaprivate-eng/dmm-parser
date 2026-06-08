@@ -21,6 +21,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("ui_grid_size_y", "_uiGridSizeY"),
     ("ui_texture_icon_path", "_uiTextureIconPath"),
     ("ui_page_name", "_uiPageName"),
+    ("filter_type_data_list", "_filterTypeDataList"),
     ("skill_node_list", "_skillNodeList"),
     ("stat_node_list", "_statNodeList"),
     ("first_focus_skill_info", "_firstFocusSkillInfo"),

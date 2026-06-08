@@ -108,6 +108,10 @@ pub struct NpcInfo<'a> {
     pub exchange_button_text: LocalizableString<'a>,
     pub shop_name: LocalizableString<'a>,
     pub interaction_name: LocalizableString<'a>,
+    /// NEW 1.10: `_contributionSubLevelInfo` (Mac sub_1018F889C @a2+68, reader
+    /// sub_1007805D0 — 4-byte wire SubLevelInfo key). Inserted between
+    /// `_interactionName` and `_dyeColorGroupDataList`.
+    pub contribution_sub_level_info: u32,
     pub dye_color_group_data_list: CArray<DyeColorGroupData>,
     pub dye_texture_set_data_list: CArray<DyeTextureSetData>,
 }
@@ -142,12 +146,14 @@ impl<'a> NpcInfo<'a> {
         let exchange_button_text = LocalizableString::read_from(data, offset)?;
         let shop_name = LocalizableString::read_from(data, offset)?;
         let interaction_name = LocalizableString::read_from(data, offset)?;
+        let contribution_sub_level_info = u32::read_from(data, offset)?;
         let dye_color_group_data_list = CArray::<DyeColorGroupData>::read_from(data, offset)?;
         let dye_texture_set_data_list = CArray::<DyeTextureSetData>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, icon_path, store_info, coupon_item_info,
             npc_greet_friendly, npc_function_type_flag, shop_scenekey,
             exchange_group_key, exchange_button_text, shop_name, interaction_name,
+            contribution_sub_level_info,
             dye_color_group_data_list, dye_texture_set_data_list,
         })
     }
@@ -166,6 +172,7 @@ impl<'a> NpcInfo<'a> {
         self.exchange_button_text.write_to(w)?;
         self.shop_name.write_to(w)?;
         self.interaction_name.write_to(w)?;
+        self.contribution_sub_level_info.write_to(w)?;
         self.dye_color_group_data_list.write_to(w)?;
         self.dye_texture_set_data_list.write_to(w)?;
         Ok(())
@@ -186,6 +193,7 @@ impl<'a> NpcInfo<'a> {
         m.insert("exchange_button_text".to_string(), self.exchange_button_text.to_json_value());
         m.insert("shop_name".to_string(), self.shop_name.to_json_value());
         m.insert("interaction_name".to_string(), self.interaction_name.to_json_value());
+        m.insert("contribution_sub_level_info".to_string(), self.contribution_sub_level_info.to_json_value());
         m.insert("dye_color_group_data_list".to_string(), self.dye_color_group_data_list.to_json_value());
         m.insert("dye_texture_set_data_list".to_string(), self.dye_texture_set_data_list.to_json_value());
         m
@@ -205,6 +213,7 @@ impl<'a> NpcInfo<'a> {
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_button_text")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shop_name")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contribution_sub_level_info")?)?;
         <CArray<DyeColorGroupData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_color_group_data_list")?)?;
         <CArray<DyeTextureSetData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_texture_set_data_list")?)?;
         Ok(())

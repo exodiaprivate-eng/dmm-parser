@@ -24,6 +24,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("exchange_button_text", "_exchangeButtonText"),
     ("shop_name", "_shopName"),
     ("interaction_name", "_interactionName"),
+    ("contribution_sub_level_info", "_contributionSubLevelInfo"),
     ("dye_color_group_data_list", "_dyeColorGroupDataList"),
     ("dye_texture_set_data_list", "_dyeTextureSetDataList"),
 ];

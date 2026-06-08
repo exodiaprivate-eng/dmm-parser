@@ -149,6 +149,23 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Element of `_filterTypeDataList` in SkillTreeInfo — NEW in 1.10.
+    ///
+    /// Mac reader sub_10191942C (`SkillTreeFilterTypeData`). 4 wire fields:
+    ///   1. _skillTreeFilterTypeHashKey  (u32, sub_1006E4348)
+    ///   2. _uiLocalStringInfo           (LocalStringInfoKey — u32 wire, resolved u16)
+    ///   3. _iconPath                    (StringInfoKey — u32 wire, resolved u16)
+    ///   4. _className                   (CString, sub_1006E46BC = u32 len + bytes)
+    /// 12 bytes in-memory; variable on wire (class_name length).
+    pub struct SkillTreeFilterTypeData<'a> {
+        pub skill_tree_filter_type_hash_key: u32,
+        pub ui_local_string_info: u32,
+        pub icon_path: u32,
+        pub class_name: CString<'a>,
+    }
+}
+
+py_binary_struct! {
     pub struct SkillTreeInfo<'a> {
         // Prefix (10 fields)
         pub key: u32,
@@ -161,6 +178,13 @@ py_binary_struct! {
         pub ui_grid_size_y: u32,
         pub ui_texture_icon_path: u32,
         pub ui_page_name: LocalizableString<'a>,
+        // NEW 1.10: _filterTypeDataList (Mac sub_101919D48 reads it @a2+36 via
+        // sub_10194BF70, between _uiPageName and _skillNodeList). The current
+        // struct was missing it entirely, which shifted the node lists and made
+        // the StatNode CArray count read garbage → "not enough data". Element
+        // reader sub_10191942C. (This is the real "1.10 format change" — the
+        // StatNode/SkillNode element layouts are unchanged.)
+        pub filter_type_data_list: CArray<SkillTreeFilterTypeData<'a>>,
         // Body (6 fields)
         pub skill_node_list: CArray<SkillTreeSkillNode>,
         pub stat_node_list: CArray<SkillTreeStatNode<'a>>,

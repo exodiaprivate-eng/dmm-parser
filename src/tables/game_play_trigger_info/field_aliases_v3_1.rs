@@ -22,5 +22,10 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("position", "_position"),
     ("rotation_y", "_rotationY"),
     ("world_map_color_r", "_worldMapColorR"),
+    ("playable_character_list", "_playableChracterList"),
+    ("field_revive_info", "_fieldReviveInfo"),
+    ("contents_phase_type", "_contentsPhaseType"),
+    ("skill_info", "_skillInfo"),
+    ("skill_level", "_skillLevel"),
     ("target_data_list", "_targetDataList"),
 ];

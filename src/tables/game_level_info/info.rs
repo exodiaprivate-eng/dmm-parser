@@ -54,6 +54,10 @@ py_binary_struct! {
         pub lookup_b: u32,
         pub lookup_c: u32,
         pub list: CArray<u32>,
+        // NEW 1.10: second list (Mac element reader sub_101C905DC @a2+24, reader
+        // sub_101C92CFC — CArray of u32-resolved keys). Inserted between `list`
+        // and `flag`; missing it drifted the level_data_list element by 4B/elem.
+        pub list2: CArray<u32>,
         pub flag: u8,
     }
 }
