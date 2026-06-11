@@ -369,7 +369,18 @@ impl PackGroupBuilder {
 
     /// Flush the current in-progress chunk to disk.
     fn flush_current_chunk(&mut self) -> io::Result<()> {
-        if self.current_chunk_data.is_empty() {
+        // Flush when there are bytes OR when file ENTRIES were recorded for this
+        // chunk that produced no bytes — i.e. a group of all-zero-byte files (the
+        // legitimate Wwise "mute" pattern: empty .bnk/.wem at the hashed event IDs
+        // a mod wants to silence). Without the entry check an all-empty chunk is
+        // never written, `finished_chunks` stays empty, and `finish()` wrongly
+        // errors "no files were added" — silently dropping every (intentionally
+        // empty) file in the group.
+        let has_pending_entries = self
+            .file_metas
+            .iter()
+            .any(|m| m.chunk_id == self.current_chunk_id as u16);
+        if self.current_chunk_data.is_empty() && !has_pending_entries {
             return Ok(());
         }
 
@@ -566,17 +577,49 @@ pub fn extract_file(
     // (`50 41 52 20 ...` = PAR magic + .pam version). So we return
     // the decrypted bytes directly. `compression` is already None.
     if file.file.is_partial {
-        // Sanity: the on-disk size must match the expected uncompressed size
-        // for the no-op decompress to be safe.
-        if file.file.compressed_size != file.file.uncompressed_size {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("is_partial=true but compressed_size {} != uncompressed_size {} \
-                    (suggests the flag's meaning is different from 'raw passthrough')",
-                    file.file.compressed_size, file.file.uncompressed_size),
-            ));
+        // The `is_partial` (compression-nibble == 1) flag has TWO real meanings,
+        // depending on the asset:
+        //   • compressed_size == uncompressed_size → stored RAW (raw passthrough).
+        //     Verified iter-9 against `03_sphere.pam` (PAR magic read literally).
+        //   • compressed_size != uncompressed_size → INNER-LZ4 DDS. This is how the
+        //     engine stores `is_partial` UI atlases / streaming textures
+        //     (cd_icon_common_01, cd_itemslot_00, char streaming slots): the 128- or
+        //     148-byte DDS header is stored RAW, and the mip body that follows is a
+        //     single LZ4 block (uncompressed length = uncompressed_size - header).
+        //     This branch previously ERRORED on that case, so those files could not
+        //     be extracted at all — the gap that blocked format comparison.
+        if file.file.compressed_size == file.file.uncompressed_size {
+            return Ok(decrypted);
         }
-        return Ok(decrypted);
+        let total = file.file.uncompressed_size as usize;
+        let looks_dds = decrypted.len() >= 128 && &decrypted[..4] == b"DDS ";
+        if looks_dds {
+            let hdr_sz = if decrypted.len() >= 88 && &decrypted[84..88] == b"DX10" {
+                148
+            } else {
+                128
+            };
+            if hdr_sz < total && decrypted.len() > hdr_sz {
+                let body_uncomp = total - hdr_sz;
+                match lz4_flex::block::decompress(&decrypted[hdr_sz..], body_uncomp) {
+                    Ok(body) => {
+                        let mut out = Vec::with_capacity(total);
+                        out.extend_from_slice(&decrypted[..hdr_sz]);
+                        out.extend_from_slice(&body);
+                        return Ok(out);
+                    }
+                    // Multi-mip / per-mip layout we don't model: return the raw
+                    // bytes so callers can still read the DDS header (dims, format,
+                    // mip count) for inspection rather than failing outright.
+                    Err(_) => return Ok(decrypted),
+                }
+            }
+        }
+        // Non-DDS `is_partial` with comp != decomp: best-effort whole-buffer LZ4,
+        // falling back to raw bytes rather than erroring.
+        return Ok(
+            decompress(&decrypted, Compression::Lz4, total).unwrap_or(decrypted)
+        );
     }
     decompress(&decrypted, file.file.compression, file.file.uncompressed_size as usize)
 }
