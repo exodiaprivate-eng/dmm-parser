@@ -60,9 +60,11 @@
 //! it via the "Hand-corrected" header marker on line 1.
 
 use crate::binary::*;
+#[allow(unused_imports)]
 use crate::binary::variants::sequencer_stage_chart_desc::SequencerStageChartDescPartial;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
@@ -75,6 +77,10 @@ py_binary_struct! {
         pub key_lookup: u32,
         pub flag: u8,
         pub label: LocalizableString<'a>,
+        // 1.11 (wirewalk-verified): a trailing u32 after the label. Base-only
+        // variants (disc 9/18/19/20/21) round-trip to residual==0 only with
+        // this present; without it the base CArray under-consumes by 4·count.
+        pub tail_lookup: u32,
     }
 }
 
@@ -87,7 +93,6 @@ py_binary_struct! {
         pub group_lookup_a: u32,
         pub group_lookup_b: u32,
         pub flag_e: u8,
-        pub unk_new_flag: u8,
         pub flag_f: u8,
         pub group_id: u32,
         pub elements: CArray<BaseUseDataElem<'a>>,
@@ -548,7 +553,19 @@ pub struct ItemUseInfo<'a> {
     pub key: u32,
     pub string_key: CString<'a>,
     pub is_blocked: u8,
-    pub variant: ItemUseDataVariant<'a>,
+    /// ItemUseData polymorphic discriminator (0..=22).
+    pub disc: u8,
+    /// Fully-typed shared base (sub_141E44520): flags + group lookups +
+    /// CArray<BaseUseDataElem>. Field-addressable for V3 modding.
+    pub base: BaseUseData<'a>,
+    /// Per-variant payload AFTER the base, carried opaque (entry-bounded).
+    /// 1.11's variant layouts drifted heavily from the v1.0.4.x doc map and
+    /// several are deep/nested (disc 14/15) or variable, so rather than risk a
+    /// wrong typed decode (which silently drops bytes), the variant extra rides
+    /// verbatim → every record round-trips byte-exact while the moddable base
+    /// stays typed. Per-disc residual map (to promote these to typed fields
+    /// later): dmm_probes/PARSER_RE_FINDINGS_1.11.md.
+    pub variant_tail: &'a [u8],
 }
 
 impl<'a> ItemUseInfo<'a> {
@@ -562,22 +579,18 @@ impl<'a> ItemUseInfo<'a> {
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let disc = u8::read_from(data, offset)?;
+        let base = BaseUseData::read_from(data, offset)?;
         let entry_end = start + entry_size;
-        let payload_size = entry_end - *offset;
-        let variant = ItemUseDataVariant::read_with_size(data, offset, disc, payload_size)?;
-        // Reject incomplete decodes: if the variant didn't consume the whole
-        // payload (e.g. disc 14 PlaySequencer's SequencerStageChartDescPartial
-        // leaves an undecoded ConditionData tail), the unconsumed bytes would
-        // be silently DROPPED on write (data loss). Erroring here makes the
-        // dispatch fall back to a verbatim blob → byte-perfect round-trip.
-        if *offset != entry_end {
+        if *offset > entry_end || entry_end > data.len() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("ItemUseInfo: disc {} consumed {}/{} bytes (incomplete)",
+                format!("ItemUseInfo: disc {} base over-read ({}/{} bytes)",
                     disc, *offset - start, entry_size),
             ));
         }
-        Ok(ItemUseInfo { key, string_key, is_blocked, variant })
+        let variant_tail = &data[*offset..entry_end];
+        *offset = entry_end;
+        Ok(ItemUseInfo { key, string_key, is_blocked, disc, base, variant_tail })
     }
 
     pub fn read_tracked_with_size(
@@ -592,29 +605,29 @@ impl<'a> ItemUseInfo<'a> {
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
         let disc = track_read_field::<u8>(data, offset, path, ranges, "disc", "u8")?;
-        let entry_end = start + entry_size;
-        let payload_size = entry_end - *offset;
-        let variant = track_read_with(offset, path, ranges, "variant", "ItemUseDataVariant", |o| {
-            ItemUseDataVariant::read_with_size(data, o, disc, payload_size)
+        let base = track_read_with(offset, path, ranges, "base", "BaseUseData", |o| {
+            BaseUseData::read_from(data, o)
         })?;
-        // See read_with_size: reject incomplete decodes so the dispatch blobs
-        // them (byte-perfect round-trip) instead of dropping the tail.
-        if *offset != entry_end {
+        let entry_end = start + entry_size;
+        if *offset > entry_end || entry_end > data.len() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("ItemUseInfo: disc {} consumed {}/{} bytes (incomplete)",
+                format!("ItemUseInfo: disc {} base over-read ({}/{} bytes)",
                     disc, *offset - start, entry_size),
             ));
         }
-        Ok(ItemUseInfo { key, string_key, is_blocked, variant })
+        let variant_tail = &data[*offset..entry_end];
+        *offset = entry_end;
+        Ok(ItemUseInfo { key, string_key, is_blocked, disc, base, variant_tail })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.key.write_to(w)?;
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        self.variant.discriminator().write_to(w)?;
-        self.variant.write_to(w)
+        self.disc.write_to(w)?;
+        self.base.write_to(w)?;
+        w.write_all(self.variant_tail)
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
@@ -622,7 +635,9 @@ impl<'a> ItemUseInfo<'a> {
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("variant".to_string(), Value::Object(self.variant.to_json_dict()));
+        m.insert("discriminator".to_string(), Value::from(self.disc));
+        m.insert("base".to_string(), Value::Object(self.base.to_json_dict()));
+        m.insert("_variant_tail_b64".to_string(), Value::String(B64.encode(self.variant_tail)));
         m
     }
 
@@ -630,16 +645,20 @@ impl<'a> ItemUseInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        let variant_obj = json_get_field(obj, "variant")?
-            .as_object()
+        let disc = json_get_field(obj, "discriminator")?.as_u64()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
-                "ItemUseInfo.variant: expected object"))?;
-        // Discriminator byte goes between is_blocked and the variant body
-        // (matches the wire shape that read_with_size pulls back).
-        let mut variant_buf = Vec::new();
-        let disc = ItemUseDataVariant::write_from_json_dict(&mut variant_buf, variant_obj)?;
+                "ItemUseInfo.discriminator: expected number"))? as u8;
         w.push(disc);
-        w.extend_from_slice(&variant_buf);
+        let base_obj = json_get_field(obj, "base")?.as_object()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ItemUseInfo.base: expected object"))?;
+        BaseUseData::write_from_json_dict(w, base_obj)?;
+        let b64 = json_get_field(obj, "_variant_tail_b64")?.as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                "ItemUseInfo._variant_tail_b64: expected string"))?;
+        let bytes = B64.decode(b64).map_err(|e| io::Error::new(
+            io::ErrorKind::InvalidData, format!("ItemUseInfo variant_tail b64: {}", e)))?;
+        w.extend_from_slice(&bytes);
         Ok(())
     }
 }
@@ -695,7 +714,7 @@ fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
                 cursor,
                 off + entry_size,
                 "entry {} (disc {}) under/over-consumed: read {} bytes, expected {}",
-                i, item.variant.discriminator(), cursor - off, entry_size
+                i, item.disc, cursor - off, entry_size
             );
             items.push(item);
         }
@@ -733,12 +752,12 @@ fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
             ItemUseInfo::write_from_json_dict(&mut from_json, &dict)
                 .unwrap_or_else(|e| panic!(
                     "entry {} key=0x{:x} disc={}: write_from_json_dict: {}",
-                    i, entries[i].0, item.variant.discriminator(), e
+                    i, entries[i].0, item.disc, e
                 ));
             assert_eq!(
                 from_json, from_typed,
                 "entry {} key=0x{:x} disc={}: JSON round-trip diverges from typed write",
-                i, entries[i].0, item.variant.discriminator()
+                i, entries[i].0, item.disc
             );
         }
     }
