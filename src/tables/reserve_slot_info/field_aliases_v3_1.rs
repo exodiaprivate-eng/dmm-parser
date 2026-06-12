@@ -23,10 +23,13 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("reserve_slot_type", "_reserveSlotType"),
     ("using_type", "_usingType"),
     ("enable_tribe_list", "_enableTribeList"),
-    ("enable_vehicle_list", "_enableVehicleList"),
+    // 1.10: _enableVehicleList removed; _enableReserveSlotList + _reserveSlotTargetList added.
     ("enable_mercenary_list", "_enableMercenaryList"),
     ("enable_special_name_hash_list", "_enableSpecialNameHashList"),
-    ("target_item_group_list", "_targetItemGroupList"),
+    ("enable_reserve_slot_list", "_enableReserveSlotList"),
+    ("target_item_group_list", "_enableItemGroupList"),
+    ("reserve_slot_target_list", "_reserveSlotTargetList"),
     ("send_gimmick_event_key_for_slot_data_changed", "_sendGimmickEventKeyForSlotDataChanged"),
     ("is_self_player_only", "_isSelfPlayerOnly"),
+    ("restore_on_retry", "_restoreOnRetry"),
 ];

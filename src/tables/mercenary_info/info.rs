@@ -117,8 +117,27 @@ py_binary_struct! {
         // a name-hash (0xEAC5E173 sentinel when empty); the second u32 is a
         // key reference. Verified via wire-walker: all 18 records byte-exact.
         pub tail_u8_110: u8,
+        // 1.11: one new u8 inserted between tail_u8_110 and the name-hash (small
+        // enum/flag, 0x40/0x41 observed), and _hiredSkillInfoList re-added as the
+        // trailing CArray (16-byte elements; was removed in 1.10). Verified via
+        // wire-walker against 1.11 pabgh boundaries: all 18 records byte-exact
+        // (empty list in 17 records, 8 entries in the "Pet" record).
+        pub tail_u8b_111: u8,
         pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo (name-hash)
         pub tail_u32_110: u32,
+        pub hired_skill_info_list: CArray<HiredSkillData>,  // _hiredSkillInfoList (1.11 re-add)
+    }
+}
+
+py_binary_struct! {
+    /// 1.11 _hiredSkillInfoList element (16 wire bytes). Field 2 is the skill
+    /// lookup key, field 3 the level; the two zero u32s are unknown padding /
+    /// reserved (always 0 in vanilla). Kept as u32 for bit-exact roundtrip.
+    pub struct HiredSkillData {
+        pub unk0: u32,
+        pub skill_lookup_key: u32,
+        pub level: u32,
+        pub unk1: u32,
     }
 }
 

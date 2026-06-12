@@ -147,6 +147,9 @@ fn apply_single(
                     key
                 )));
             };
+            if let Some(reason) = blob_fallback_skip("set", &records[idx], entry.as_deref(), *key, field) {
+                return Ok(Some(reason));
+            }
             set_value_at_path(&mut records[idx], field, new.clone())?;
             Ok(None)
         }
@@ -158,6 +161,9 @@ fn apply_single(
                     key
                 )));
             };
+            if let Some(reason) = blob_fallback_skip("array_append", &records[idx], entry.as_deref(), *key, field) {
+                return Ok(Some(reason));
+            }
             array_append_at_path(&mut records[idx], field, value.clone())?;
             Ok(None)
         }
@@ -194,6 +200,43 @@ fn apply_single(
             Ok(None)
         }
     }
+}
+
+/// Guard against the silent-drop failure mode: when a typed table entry's
+/// typed parse fails, the runtime falls back to an opaque `_blob_b64` blob
+/// (marked `_blob_fallback: true`). Serialization writes that blob verbatim,
+/// so ANY typed-field edit on it is a no-op — yet `set_value_at_path` would
+/// happily insert a phantom JSON key and report success. That is exactly how
+/// I Like Space's `default_slot_count` / `max_slot_count` edits silently
+/// vanished on the live 1.09 inventory table before the GameCondition tag-402
+/// parser drift was repaired.
+///
+/// Returns `Some(reason)` when the edit must be reported as `Skipped`: the
+/// target is a blob-fallback entry and the field is anything other than a
+/// whole-blob replacement (`_blob_b64`). This surfaces parser drift in the
+/// mount log instead of pretending the edit landed.
+fn blob_fallback_skip(
+    op: &str,
+    record: &Value,
+    entry: Option<&str>,
+    key: Option<i64>,
+    field: &str,
+) -> Option<String> {
+    let is_fallback = record
+        .get("_blob_fallback")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if is_fallback && field != "_blob_b64" {
+        return Some(format!(
+            "{}: entry '{}' / key {:?} fell to blob-fallback (typed parse failed — \
+             parser likely out of date for this game build); field '{}' edit NOT applied",
+            op,
+            entry.unwrap_or(""),
+            key,
+            field
+        ));
+    }
+    None
 }
 
 /// Apply each `Patch` to `record`. Defaults to `set` per
@@ -483,6 +526,37 @@ mod tests {
         assert!(matches!(outcomes[0].status, ApplyStatus::Skipped(_)));
         // Records unchanged.
         assert_eq!(records[0]["cooltime"], 30);
+    }
+
+    #[test]
+    fn set_on_blob_fallback_entry_is_skipped_not_silently_dropped() {
+        // Regression: a typed table entry whose typed parse failed becomes a
+        // `_blob_fallback` blob. A field `set` on it serializes to a no-op
+        // (the raw blob is written verbatim), but the old code reported it as
+        // Applied — exactly how I Like Space's slot-count edits vanished on
+        // the live 1.09 inventory table. The guard must report Skipped.
+        let mut records = vec![json!({
+            "key": 2,
+            "_blob_b64": "AAAA",
+            "_blob_fallback": true,
+        })];
+        let intent = Intent {
+            entry: None,
+            key: Some(2),
+            field: Some("default_slot_count".into()),
+            new: Some(json!(700)),
+            ..Default::default()
+        };
+        let outcomes = apply_resolved_intents(&mut records, &[intent]).unwrap();
+        match &outcomes[0].status {
+            ApplyStatus::Skipped(reason) => assert!(
+                reason.contains("blob-fallback"),
+                "skip reason should mention blob-fallback, got: {reason}"
+            ),
+            ApplyStatus::Applied => panic!("blob-fallback field edit must NOT report Applied"),
+        }
+        // The phantom field must NOT have been inserted.
+        assert!(records[0].get("default_slot_count").is_none());
     }
 
     #[test]

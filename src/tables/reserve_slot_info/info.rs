@@ -47,6 +47,18 @@
 //!
 //! VERIFIED 2026-05-12 against live 1.06 fixture: 27 entries, 3383
 //! bytes, byte-identical roundtrip.
+//!
+//! ─── 2026-06-05 — 1.10 update (Mac parser sub_10190E7B0) ──────────────────
+//! The list section changed in 1.10 (net +4 bytes per record):
+//!   - `_enableVehicleList` REMOVED (no vehicle reader in sub_10190E7B0).
+//!   - `_enableReserveSlotList` ADDED after `_enableSpecialNameHashList`
+//!     (Mac reader sub_101942F58 @a2+120 — u32-count, ReserveSlotKey u32 wire).
+//!   - `_reserveSlotTargetList` ADDED after `_enableItemGroupList`
+//!     (same reader sub_101942F58 @a2+152).
+//!   - trailing `unk_trailing_108` is really `_restoreOnRetry` (@a2+173, u8).
+//! All six lists are empty (count=0) in vanilla 1.10, so the change is +4
+//! bytes/record (one extra empty CArray). Byte-exact roundtrip vs the 1.10
+//! fixture confirms the layout.
 
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -111,30 +123,33 @@ py_binary_struct! {
         pub memo: CString<'a>,
         pub reserve_slot_type: u8,
         pub using_type: u8,
-        // FIX 2026-05-12: was CArray<u32>, but Mac reader sub_1018BB0A4
-        // shows wire u16 per element (same shape as enable_vehicle_list).
-        // The old u32 read drifted 2 bytes per tribe — the root cause of
-        // the "1.06 first record OK, later records fail" symptom.
+        // FIX 2026-05-12: wire u16 per element (Mac reader sub_101942960 @a2+72).
         pub enable_tribe_list: CArray<u16>,
-        pub enable_vehicle_list: CArray<u16>,
-        // NEW 2026-05-12: restored field that dmm-parser was always
-        // missing. Mac canonical position #14 at mem offset 104,
-        // reader sub_10117EDF4 (wire u8 per element — mercenary index).
+        // 1.10 REMOVED _enableVehicleList: the 1.10 Mac parser sub_10190E7B0 has
+        // NO vehicle reader between tribe (@a2+72) and mercenary (@a2+88). Present
+        // in 1.06 (old reader sub_10104DC90) but dropped in 1.10.
+        // Mac reader sub_1011DCCCC @a2+88 (wire u8 — mercenary index).
         pub enable_mercenary_list: CArray<u8>,
-        // RESTORED 2026-05-12: NattKh CGM v1.1.9 release notes claimed
-        // 1.06 removed this field, but live 1.06 .pabgb fixture
-        // roundtrip says otherwise — entries are 4 bytes short without
-        // it (exactly one empty CArray). Mac canonical position #15 at
-        // mem offset 120, reader sub_1018BB2FC. Per element layout is
-        // ReserveSlotPairB { lookup_a: u32, lookup_b: u32 } — 8 bytes.
-        // For all 27 entries in 1.06 vanilla the list is empty (count=0),
-        // so 4 bytes of CArray header per entry.
+        // Mac reader sub_101942BB8 @a2+104. Element ReserveSlotPairB {u32,u32} = 8B.
+        // Empty (count=0) for all vanilla entries.
         pub enable_special_name_hash_list: CArray<ReserveSlotPairB>,
+        // NEW 1.10: _enableReserveSlotList. Mac reader sub_101942F58 @a2+120:
+        // u32 count, then each element a ReserveSlotKey (u32 wire, resolved to a
+        // u16 index in memory). Empty for all vanilla entries.
+        pub enable_reserve_slot_list: CArray<u32>,
+        // _enableItemGroupList. Mac reader sub_1010AA830 @a2+136 (wire u16).
         pub target_item_group_list: CArray<u16>,
+        // NEW 1.10: _reserveSlotTargetList. Same reader as _enableReserveSlotList
+        // (sub_101942F58 @a2+152) — u32-wire ReserveSlotKey elements. Empty in vanilla.
+        pub reserve_slot_target_list: CArray<u32>,
+        // _sendGimmickEventKeyForSlotDataChanged. Mac reader sub_1010AEEC4 @a2+168 (u32).
         pub send_gimmick_event_key_for_slot_data_changed: u32,
+        // _isSelfPlayerOnly. Mac @a2+172 (u8).
         pub is_self_player_only: u8,
-        // NEW 1.0.8: trailing u8 per IDA sub_1410ED260 field #19
-        pub unk_trailing_108: u8,
+        // _restoreOnRetry (1.10). Mac sub_10190E7B0 @a2+173 (u8). Was previously
+        // mislabeled `unk_trailing_108` — the Korean error string at 0x10190eaa0
+        // names it _restoreOnRetry (a Re-Blockade / retry feature flag).
+        pub restore_on_retry: u8,
     }
 }
 

@@ -189,11 +189,17 @@ pub struct GamePlayTriggerInfo<'a> {
     pub position: [f32; 3],
     pub rotation_y: f32,
     pub world_map_color_r: u8,
-    pub condition_info_list: CArray<u32>,
+    /// NEW 1.10: `_playableChracterList` (Mac sub_10192405C @a2+48, reader
+    /// sub_1010A998C — CArray of CharacterKey, u32 wire). Inserted before
+    /// `_fieldReviveInfo`.
+    pub playable_character_list: CArray<u32>,
     pub field_revive_info: u32,
-    pub flag_a: u8,
-    pub region_info: u32,
-    pub flag_b: u32,
+    /// NEW 1.10: `_contentsPhaseType` (@a2+68, u8 via vtable width 1).
+    pub contents_phase_type: u8,
+    /// NEW 1.10: `_skillInfo` (@a2+70, reader sub_1007807C0 — SkillKey u32 wire).
+    pub skill_info: u32,
+    /// NEW 1.10: `_skillLevel` (@a2+72, reader sub_1006E4328 — u32, width 4).
+    pub skill_level: u32,
     pub target_data_list: CArray<TargetDataItem>,
 }
 
@@ -225,17 +231,17 @@ impl<'a> GamePlayTriggerInfo<'a> {
         let position = <[f32; 3]>::read_from(data, offset)?;
         let rotation_y = f32::read_from(data, offset)?;
         let world_map_color_r = u8::read_from(data, offset)?;
-        let condition_info_list = CArray::<u32>::read_from(data, offset)?;
+        let playable_character_list = CArray::<u32>::read_from(data, offset)?;
         let field_revive_info = u32::read_from(data, offset)?;
-        let flag_a = u8::read_from(data, offset)?;
-        let region_info = u32::read_from(data, offset)?;
-        let flag_b = u32::read_from(data, offset)?;
+        let contents_phase_type = u8::read_from(data, offset)?;
+        let skill_info = u32::read_from(data, offset)?;
+        let skill_level = u32::read_from(data, offset)?;
         let target_data_list = CArray::<TargetDataItem>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, trigger_type, is_enable, safe_zone_type,
             player_condition_info, ui_map_texture_info, position, rotation_y,
-            world_map_color_r, condition_info_list, field_revive_info, flag_a,
-            region_info, flag_b, target_data_list,
+            world_map_color_r, playable_character_list, field_revive_info,
+            contents_phase_type, skill_info, skill_level, target_data_list,
         })
     }
 
@@ -251,11 +257,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         self.position.write_to(w)?;
         self.rotation_y.write_to(w)?;
         self.world_map_color_r.write_to(w)?;
-        self.condition_info_list.write_to(w)?;
+        self.playable_character_list.write_to(w)?;
         self.field_revive_info.write_to(w)?;
-        self.flag_a.write_to(w)?;
-        self.region_info.write_to(w)?;
-        self.flag_b.write_to(w)?;
+        self.contents_phase_type.write_to(w)?;
+        self.skill_info.write_to(w)?;
+        self.skill_level.write_to(w)?;
         self.target_data_list.write_to(w)?;
         Ok(())
     }
@@ -273,11 +279,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         m.insert("position".to_string(), self.position.to_json_value());
         m.insert("rotation_y".to_string(), self.rotation_y.to_json_value());
         m.insert("world_map_color_r".to_string(), self.world_map_color_r.to_json_value());
-        m.insert("condition_info_list".to_string(), self.condition_info_list.to_json_value());
+        m.insert("playable_character_list".to_string(), self.playable_character_list.to_json_value());
         m.insert("field_revive_info".to_string(), self.field_revive_info.to_json_value());
-        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
-        m.insert("region_info".to_string(), self.region_info.to_json_value());
-        m.insert("flag_b".to_string(), self.flag_b.to_json_value());
+        m.insert("contents_phase_type".to_string(), self.contents_phase_type.to_json_value());
+        m.insert("skill_info".to_string(), self.skill_info.to_json_value());
+        m.insert("skill_level".to_string(), self.skill_level.to_json_value());
         m.insert("target_data_list".to_string(), self.target_data_list.to_json_value());
         m
     }
@@ -294,11 +300,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
         <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "world_map_color_r")?)?;
-        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_info_list")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_character_list")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_revive_info")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "region_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contents_phase_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_level")?)?;
         <CArray<TargetDataItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_data_list")?)?;
         Ok(())
     }
@@ -309,7 +315,8 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("gameplaytrigger.pabgb") }
-#[test]
+
+    #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
         let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };

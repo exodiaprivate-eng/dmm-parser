@@ -14,6 +14,38 @@ it unblocks.
 
 ---
 
+## 2026-06-05 — DamageBuffData 1-byte fix (unblocks skill_info field intents)
+
+**Symptom:** the Infinite Stamina mod's `use_resource_stat_list[0].d = 0`
+intents were silently skipped for 56 skills at mount
+(`[V3_OVERLAY] skill.pabgb → 330 applied, 56 unresolved`). Those skills
+fell to blob-fallback because skill_info typed-parse failed on them.
+
+**Root cause:** `DamageBuffDataPayload` (BuffData disc 0) was 116 bytes;
+the real wire payload is **117**. A prior edit removed a trailing byte
+(`f0c_new`) despite its own note saying the data was *"only consistent
+with a 117-byte payload."* Every skill entry whose buff is DamageBuffData
+(178 entries on 1.10) drifted by 1 byte after the buff and failed typed
+parse → no field-level edit possible. Re-verified empirically: for all 31
+single-buff disc-0 skill entries, `skill_group_key` (== the skill key)
+lands at `buff_end + exactly 1`. Fix: restored the trailing `f0f: u8` in
+`src/binary/variants/buff_data.rs`.
+
+**Result:** skill_info typed-parse failures 212 → 7; all 56 stamina skills
+now typed and editable. Also cleared **buff_info** (shares the same
+DamageBuffData decoder). Validated byte-exact against the 1.10 vanilla
+fixture (`tables::skill_info::info::tests::verify_stamina_keys_typed`).
+
+**Remaining skill_info gap (7 entries, NOT stamina):** keys 41355, 41357,
+41358, 65009, 65010, 75019, 91251 use **SummonBuffData (disc 10)**, whose
+variant under-reads by a consistent **7 bytes** in *skill* context (the
+`*_outer_*` trailing fields differ from buff_info's). SummonBuffData is
+shared across tables, so this needs an IDA-anchored fix rather than a
+blind append; these 7 safely blob-fallback (opaque passthrough, byte-exact
+roundtrip) in the meantime. Tracked as a separate follow-up.
+
+---
+
 ## D1. Tracked variants of hand-rolled Tier 1.5 tables — ✅ COMPLETE
 
 **Status:** all 16 tables shipped 2026-05-11 (commit `fef7d85`).

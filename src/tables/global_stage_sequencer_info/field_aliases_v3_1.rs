@@ -25,4 +25,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("player_behavior_space_check_offset_y", "_playerBehaviorSpaceCheckOffsetY"),
     ("player_behavior_play_condition", "_playerBehaviorPlayCondition"),
     ("sequencer_desc_list", "_sequencerDescList"),
+    ("contents_phase_type", "_contentsPhaseType"),
 ];

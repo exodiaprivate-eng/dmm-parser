@@ -73,7 +73,7 @@
 
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field, get_field_or_null};
 use serde_json::{json, Value};
 use std::io::{self, Write};
 
@@ -445,7 +445,7 @@ impl WriteJsonValue for ResourceStat {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "c")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "d")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_e")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_f")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, &get_field_or_null(obj, "lookup_f"))?;
         Ok(())
     }
 }

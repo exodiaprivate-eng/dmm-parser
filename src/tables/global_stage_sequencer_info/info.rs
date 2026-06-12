@@ -208,7 +208,9 @@ pub struct GlobalStageSequencerInfo<'a> {
     pub player_behavior_space_check_offset_y: u32,
     pub player_behavior_play_condition: u32,
     pub sequencer_desc_list: CArray<SequencerStageChartDescPartial<'a>>,
-    pub use_fast_travel: u8,
+    /// NEW 1.10: `_contentsPhaseType` (Mac sub_10191B7D0 @a2+96, u8 — read via
+    /// vtable[2] with width 1). Trailing enum byte added after the desc list.
+    pub contents_phase_type: u8,
 }
 
 impl<'a> GlobalStageSequencerInfo<'a> {
@@ -234,7 +236,7 @@ impl<'a> GlobalStageSequencerInfo<'a> {
         let player_behavior_space_check_offset_y = u32::read_from(data, offset)?;
         let player_behavior_play_condition = u32::read_from(data, offset)?;
         let sequencer_desc_list = CArray::<SequencerStageChartDescPartial>::read_from(data, offset)?;
-        let use_fast_travel = u8::read_from(data, offset)?;
+        let contents_phase_type = u8::read_from(data, offset)?;
 
         if *offset != entry_end {
             return Err(io::Error::new(
@@ -251,8 +253,7 @@ impl<'a> GlobalStageSequencerInfo<'a> {
             loading_target, behavior_optional, use_reserve, ignore_player_state,
             player_behavior_space_radius, player_behavior_floor_check_distance,
             player_behavior_space_check_offset_y, player_behavior_play_condition,
-            sequencer_desc_list,
-            use_fast_travel,
+            sequencer_desc_list, contents_phase_type,
         })
     }
 
@@ -271,7 +272,7 @@ impl<'a> GlobalStageSequencerInfo<'a> {
         self.player_behavior_space_check_offset_y.write_to(w)?;
         self.player_behavior_play_condition.write_to(w)?;
         self.sequencer_desc_list.write_to(w)?;
-        self.use_fast_travel.write_to(w)?;
+        self.contents_phase_type.write_to(w)?;
         Ok(())
     }
 
@@ -291,7 +292,7 @@ impl<'a> GlobalStageSequencerInfo<'a> {
         m.insert("player_behavior_space_check_offset_y".to_string(), self.player_behavior_space_check_offset_y.to_json_value());
         m.insert("player_behavior_play_condition".to_string(), self.player_behavior_play_condition.to_json_value());
         m.insert("sequencer_desc_list".to_string(), self.sequencer_desc_list.to_json_value());
-        m.insert("use_fast_travel".to_string(), self.use_fast_travel.to_json_value());
+        m.insert("contents_phase_type".to_string(), self.contents_phase_type.to_json_value());
         m
     }
 
@@ -312,7 +313,7 @@ impl<'a> GlobalStageSequencerInfo<'a> {
         <CArray<SequencerStageChartDescPartial> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "sequencer_desc_list")?,
         )?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_fast_travel")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contents_phase_type")?)?;
         Ok(())
     }
 }
