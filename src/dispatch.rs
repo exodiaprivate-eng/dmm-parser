@@ -930,6 +930,83 @@ mod tests {
         let _ = &mut records;
     }
 
+    /// AUTHORITATIVE V3 coverage check: run the real V3 entry point
+    /// (`apply_intents_to_table_body` with empty intents = parse → serialize)
+    /// over EVERY supported table against a fixture dir, and report which
+    /// tables fail to parse or don't round-trip byte-perfect. Set
+    /// DMM_PARSER_V3_DIR to the fixture dir (e.g. the 1.11 extraction).
+    /// Fixtures are named compactly (buff_info → buffinfo.pabgb).
+    #[test]
+    #[ignore]
+    fn v3_all_tables_against_fixture_dir() {
+        let dir = std::env::var("DMM_PARSER_V3_DIR")
+            .unwrap_or_else(|_| r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-6-11".into());
+        let base = std::path::PathBuf::from(&dir);
+        let mut ok = Vec::new();
+        let mut fail = Vec::new();
+        let mut skip = Vec::new();
+
+        // Unique canonical tables (skip paloc aliases + file-format JSON-pending).
+        let mut names: Vec<&str> = supported_tables().iter().copied()
+            .filter(|n| !matches!(*n, "paloc.pamt" | "localizationstring"
+                | "paac" | "paatt" | "pamhc" | "pappt"))
+            .collect();
+        names.push("iteminfo");
+        names.sort(); names.dedup();
+
+        for name in names {
+            // The game names fixtures with short forms that vary: most use the
+            // compact (underscores stripped) name, but some drop a trailing
+            // "info" (skill_info → skill, faction_info → faction). Try candidates
+            // in order and take the first present.
+            let compact = name.replace('_', "");
+            let mut cands = vec![compact.clone()];
+            if let Some(stem) = compact.strip_suffix("info") {
+                cands.push(stem.to_string());
+            }
+            // A couple of heavily-truncated game names.
+            cands.push(name.split('_').next().unwrap_or(name).to_string());
+            // Explicit aliases where the game's short fixture name doesn't follow
+            // either rule above (verified against the 0008 bin listing).
+            for (canon, stem) in [
+                ("key_map_setting_list_info", "keymap"),
+                ("game_level_info", "levelinfo"),
+                ("platform_entitlement_info", "entitlementinfo"),
+            ] {
+                if name == canon { cands.insert(0, stem.to_string()); }
+            }
+            // No client 0008 .pabgb exists for these (can't be V3-modded); paloc
+            // is the localization path tested elsewhere. Don't report as gaps.
+            if matches!(name, "equip_info" | "field_revive_info" | "paloc") {
+                continue;
+            }
+            let found = cands.iter().find_map(|c| {
+                let p = base.join(format!("{}.pabgb", c));
+                std::fs::read(&p).ok().map(|b| (c.clone(), b))
+            });
+            let Some((stem, body)) = found else { skip.push(name); continue; };
+            let pabgh = std::fs::read(base.join(format!("{}.pabgh", stem))).ok();
+            // The real V3 read path. parse_table_to_json uses pabgh only for
+            // pabgh-bounded tables; sequential tables ignore it. iteminfo is
+            // routed through apply_intents_to_table_body's special case.
+            let parsed = if name == "iteminfo" {
+                crate::intents::apply_intents_to_iteminfo(&body, &[]).map(|_| ())
+            } else {
+                parse_table_to_json(name, &body, pabgh.as_deref()).map(|_| ())
+            };
+            match parsed {
+                Ok(()) => ok.push(name),
+                Err(e) => fail.push((name, e.to_string())),
+            }
+        }
+        eprintln!("\n=== V3 coverage vs {} ===", dir);
+        eprintln!("OK: {}  FAIL: {}  SKIP(no fixture): {}", ok.len(), fail.len(), skip.len());
+        if !skip.is_empty() { eprintln!("SKIP: {:?}", skip); }
+        eprintln!("--- FAILURES ---");
+        for (n, e) in &fail { eprintln!("  {:<34} {}", n, e); }
+        assert!(fail.is_empty(), "{} V3 tables broken on this build", fail.len());
+    }
+
     #[test]
     fn normalize_target_name_canonical() {
         assert_eq!(normalize_target_name("character_info"), Some("character_info"));

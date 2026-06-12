@@ -97,7 +97,10 @@ py_binary_struct! {
         pub vehicle_spawn_upper_action: u32,
         pub escape_road_group_type: u8,
         pub cargo_seat_index_list: CArray<u8>,
-        pub call_vehicle_voxel_type: u32,
+        // 1.11: _callVehicleVoxelType widened from a single u32 to a CArray<u32>
+        // (count + N×u32). Verified via wire-walker: count=1 in most records,
+        // count=2 in the 0x424F record; all 34 reconcile.
+        pub call_vehicle_voxel_type_list: CArray<u32>,
         pub show_count_on_ui: u8,
         pub ui_map_texture_info: u32,
         pub rider_detect_info: u16,
@@ -108,6 +111,12 @@ py_binary_struct! {
         // within the fixed-width tail). Verified via wire-walker: reconciles
         // all 34 records (byte-exact roundtrip).
         pub trailing_u32_110: u32,
+        // 1.11: one new 4-byte field appended to the fixed tail (a float —
+        // 0x7f7fffff = FLT_MAX default, or real values e.g. 0x44a8c000 = 1350.0);
+        // kept as u32 for bit-exact roundtrip. The other +4 bytes of the 1.11
+        // growth came from call_vehicle_voxel_type widening to a CArray (above).
+        // Verified via wire-walker: all 34 records byte-exact.
+        pub trailing_u32_111: u32,
     }
 }
 

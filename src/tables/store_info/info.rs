@@ -495,6 +495,11 @@ pub struct StoreStockData {
     pub flag_a: u8,
     pub flag_b: u8,
     pub flag_c: u8,
+    // 1.11: new _isRestoreItem u8 between _isStockBuyable (flag_c) and
+    // _dropInfoData (value). IDA: StoreStockData reader sub_10190AD14 reads it at
+    // a2+47 via the EEC u8 reader. Missing it shifted the value's disc byte →
+    // effect_list count blew up at offset 185.
+    pub is_restore_item: u8,
     pub value: OptionalStoreStockDataValue,
     pub lookup_b: u32,                                    // sub_1410F61C0 wire u32
     pub lookup_c: u32,                                    // sub_1410F61C0 wire u32  [1.0.8]
@@ -513,6 +518,7 @@ impl StoreStockData {
         let flag_a = u8::read_from(data, offset)?;
         let flag_b = u8::read_from(data, offset)?;
         let flag_c = u8::read_from(data, offset)?;
+        let is_restore_item = u8::read_from(data, offset)?;
         let value = OptionalStoreStockDataValue::read_from(data, offset)?;
         let lookup_b = u32::read_from(data, offset)?;
         let lookup_c = u32::read_from(data, offset)?;
@@ -520,7 +526,7 @@ impl StoreStockData {
         let effect_list = CArray::<StoreStockEffectEntry>::read_from(data, offset)?;
         Ok(Self {
             lookup_a, raw_a, raw_b, raw_c, raw_d, raw_e,
-            flag_a, flag_b, flag_c, value, lookup_b, lookup_c, sub_data, effect_list,
+            flag_a, flag_b, flag_c, is_restore_item, value, lookup_b, lookup_c, sub_data, effect_list,
         })
     }
 
@@ -534,6 +540,7 @@ impl StoreStockData {
         self.flag_a.write_to(w)?;
         self.flag_b.write_to(w)?;
         self.flag_c.write_to(w)?;
+        self.is_restore_item.write_to(w)?;
         self.value.write_to(w)?;
         self.lookup_b.write_to(w)?;
         self.lookup_c.write_to(w)?;
@@ -552,6 +559,7 @@ impl StoreStockData {
         m.insert("flag_a".to_string(), self.flag_a.to_json_value());
         m.insert("flag_b".to_string(), self.flag_b.to_json_value());
         m.insert("flag_c".to_string(), self.flag_c.to_json_value());
+        m.insert("is_restore_item".to_string(), self.is_restore_item.to_json_value());
         m.insert("value".to_string(), self.value.to_json_value());
         m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
         m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
@@ -572,6 +580,7 @@ impl StoreStockData {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_restore_item")?)?;
         OptionalStoreStockDataValue::write_from_json(w, json_get_field(obj, "value")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
@@ -592,6 +601,10 @@ pub struct StoreInfo<'a> {
     pub store_type: u8,
     pub price_increase_percent_list: CArray<u64>,
     pub sellable_character_condition_logic: u8,
+    // 1.11: new u8 read right after _sellableCharacterConditionLogic, before
+    // _resetHour (StoreInfo reader sub_10190B0A0 @ byte 73). Shifts the whole
+    // stock_data_list region — without it the value disc misreads.
+    pub pre_reset_extra_111: u8,
     pub reset_hour: u32,
     pub reset_day: u32,
     pub buyable_stock_count: u32,
@@ -637,6 +650,7 @@ impl<'a> StoreInfo<'a> {
         let store_type = track_read_field::<u8>(data, offset, path, ranges, "store_type", "u8")?;
         let price_increase_percent_list = track_read_field::<CArray<u64>>(data, offset, path, ranges, "price_increase_percent_list", "CArray<u64>")?;
         let sellable_character_condition_logic = track_read_field::<u8>(data, offset, path, ranges, "sellable_character_condition_logic", "u8")?;
+        let pre_reset_extra_111 = track_read_field::<u8>(data, offset, path, ranges, "pre_reset_extra_111", "u8")?;
         let reset_hour = track_read_field::<u32>(data, offset, path, ranges, "reset_hour", "u32")?;
         let reset_day = track_read_field::<u32>(data, offset, path, ranges, "reset_day", "u32")?;
         let buyable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "buyable_stock_count", "u32")?;
@@ -665,7 +679,7 @@ impl<'a> StoreInfo<'a> {
             key, string_key, is_blocked,
             exchange_item_info_for_buy, exchange_item_info_list_for_sell,
             sell_percents, store_type, price_increase_percent_list,
-            sellable_character_condition_logic, reset_hour, reset_day,
+            sellable_character_condition_logic, pre_reset_extra_111, reset_hour, reset_day,
             buyable_stock_count, sellable_stock_count, sellable_type,
             stock_data_list, sale_item_type_list, not_sale_item_type_list,
             custom_mesh_obb_max_length,
@@ -683,6 +697,7 @@ impl<'a> StoreInfo<'a> {
         let store_type = u8::read_from(data, offset)?;
         let price_increase_percent_list = CArray::<u64>::read_from(data, offset)?;
         let sellable_character_condition_logic = u8::read_from(data, offset)?;
+        let pre_reset_extra_111 = u8::read_from(data, offset)?;
         let reset_hour = u32::read_from(data, offset)?;
         let reset_day = u32::read_from(data, offset)?;
         let buyable_stock_count = u32::read_from(data, offset)?;
@@ -703,7 +718,7 @@ impl<'a> StoreInfo<'a> {
             key, string_key, is_blocked,
             exchange_item_info_for_buy, exchange_item_info_list_for_sell,
             sell_percents, store_type, price_increase_percent_list,
-            sellable_character_condition_logic, reset_hour, reset_day,
+            sellable_character_condition_logic, pre_reset_extra_111, reset_hour, reset_day,
             buyable_stock_count, sellable_stock_count, sellable_type,
             stock_data_list, sale_item_type_list, not_sale_item_type_list,
             custom_mesh_obb_max_length,
@@ -721,6 +736,7 @@ impl<'a> StoreInfo<'a> {
         self.store_type.write_to(w)?;
         self.price_increase_percent_list.write_to(w)?;
         self.sellable_character_condition_logic.write_to(w)?;  // u8 in 1.0.8 (was u32 in 1.0.7)
+        self.pre_reset_extra_111.write_to(w)?;
         self.reset_hour.write_to(w)?;
         self.reset_day.write_to(w)?;
         self.buyable_stock_count.write_to(w)?;
@@ -747,6 +763,7 @@ impl<'a> StoreInfo<'a> {
         m.insert("store_type".to_string(), self.store_type.to_json_value());
         m.insert("price_increase_percent_list".to_string(), self.price_increase_percent_list.to_json_value());
         m.insert("sellable_character_condition_logic".to_string(), self.sellable_character_condition_logic.to_json_value());
+        m.insert("pre_reset_extra_111".to_string(), self.pre_reset_extra_111.to_json_value());
         m.insert("reset_hour".to_string(), self.reset_hour.to_json_value());
         m.insert("reset_day".to_string(), self.reset_day.to_json_value());
         m.insert("buyable_stock_count".to_string(), self.buyable_stock_count.to_json_value());
@@ -773,6 +790,7 @@ impl<'a> StoreInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_type")?)?;
         <CArray<u64> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "price_increase_percent_list")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_character_condition_logic")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pre_reset_extra_111")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_hour")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_day")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buyable_stock_count")?)?;
