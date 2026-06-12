@@ -717,6 +717,17 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Tag 131 ConditionData_IsInRegionType. Was modeled as pure-
+    /// discriminator, but never exercised by any validated table until
+    /// 1.11's sequencerspawninfo. Data-driven wirewalk (entry 0 k=0x3e9,
+    /// track_change_list[0].cond) shows a `CArray<u16>` body — same shape
+    /// as the sibling tag 128 ConditionData_IsInRegion (region-key list).
+    pub struct ConditionData_IsInRegionTypePayload {
+        pub field_at_24: CArray<u16>,
+    }
+}
+
+py_binary_struct! {
     pub struct ConditionData_CheckTargetablePayload {
         pub field_at_24: u32,
     }
@@ -1971,7 +1982,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsInRegion(ConditionData_IsInRegionPayload),
     ConditionData_IsInTown,
     ConditionData_IsAboveRoad(ConditionData_IsAboveRoadPayload),
-    ConditionData_IsInRegionType,
+    ConditionData_IsInRegionType(ConditionData_IsInRegionTypePayload),
     ConditionData_IsInSafeZone,
     ConditionData_CheckTargetable(ConditionData_CheckTargetablePayload),
     ConditionData_CheckRetreat,
@@ -2393,7 +2404,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInRegion(_) => 128,
             Self::ConditionData_IsInTown => 129,
             Self::ConditionData_IsAboveRoad(_) => 130,
-            Self::ConditionData_IsInRegionType => 131,
+            Self::ConditionData_IsInRegionType(_) => 131,
             Self::ConditionData_IsInSafeZone => 132,
             Self::ConditionData_CheckTargetable(_) => 133,
             Self::ConditionData_CheckRetreat => 134,
@@ -2812,7 +2823,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInRegion(_) => "ConditionData_IsInRegion",
             Self::ConditionData_IsInTown => "ConditionData_IsInTown",
             Self::ConditionData_IsAboveRoad(_) => "ConditionData_IsAboveRoad",
-            Self::ConditionData_IsInRegionType => "ConditionData_IsInRegionType",
+            Self::ConditionData_IsInRegionType(_) => "ConditionData_IsInRegionType",
             Self::ConditionData_IsInSafeZone => "ConditionData_IsInSafeZone",
             Self::ConditionData_CheckTargetable(_) => "ConditionData_CheckTargetable",
             Self::ConditionData_CheckRetreat => "ConditionData_CheckRetreat",
@@ -3232,7 +3243,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsInTown => {}
             Self::ConditionData_IsAboveRoad(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_IsInRegionType => {}
+            Self::ConditionData_IsInRegionType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsInSafeZone => {}
             Self::ConditionData_CheckTargetable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckRetreat => {}
@@ -3659,7 +3670,7 @@ impl<'a> ConditionDataVariant<'a> {
             128 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInRegion: missing body object"))?; ConditionData_IsInRegionPayload::write_from_json_dict(w, body)?; }
             129 => {}
             130 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsAboveRoad: missing body object"))?; ConditionData_IsAboveRoadPayload::write_from_json_dict(w, body)?; }
-            131 => {}
+            131 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInRegionType: missing body object"))?; ConditionData_IsInRegionTypePayload::write_from_json_dict(w, body)?; }
             132 => {}
             133 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTargetable: missing body object"))?; ConditionData_CheckTargetablePayload::write_from_json_dict(w, body)?; }
             134 => {}
@@ -4080,7 +4091,7 @@ impl<'a> ConditionDataVariant<'a> {
             128 => Self::ConditionData_IsInRegion(ConditionData_IsInRegionPayload::read_from(data, offset)?),
             129 => Self::ConditionData_IsInTown,
             130 => Self::ConditionData_IsAboveRoad(ConditionData_IsAboveRoadPayload::read_from(data, offset)?),
-            131 => Self::ConditionData_IsInRegionType,
+            131 => Self::ConditionData_IsInRegionType(ConditionData_IsInRegionTypePayload::read_from(data, offset)?),
             132 => Self::ConditionData_IsInSafeZone,
             133 => Self::ConditionData_CheckTargetable(ConditionData_CheckTargetablePayload::read_from(data, offset)?),
             134 => Self::ConditionData_CheckRetreat,
@@ -4497,7 +4508,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsInRegion(p) => p.write_to(w),
             Self::ConditionData_IsInTown => Ok(()),
             Self::ConditionData_IsAboveRoad(p) => p.write_to(w),
-            Self::ConditionData_IsInRegionType => Ok(()),
+            Self::ConditionData_IsInRegionType(p) => p.write_to(w),
             Self::ConditionData_IsInSafeZone => Ok(()),
             Self::ConditionData_CheckTargetable(p) => p.write_to(w),
             Self::ConditionData_CheckRetreat => Ok(()),
