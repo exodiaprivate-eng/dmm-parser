@@ -350,6 +350,13 @@ py_binary_struct! {
         pub u8_outer_376: u8,
         pub u32_outer_380: u32,
         pub u32_outer_384: u32,
+        // 1.11: the outer reader (sub_1419DD000) gained a 7-byte trailing
+        // block after u32_384. Confirmed via data-driven wirewalk on skill.pabgb
+        // (Skill_Summon_* records under-read by exactly 7 zero-padded bytes;
+        // the true buff end is where SkillInfo.skill_group_key begins).
+        pub u8_outer_388: u8,
+        pub u16_outer_389: u16,
+        pub u32_outer_392: u32,
     }
 }
 
