@@ -72,6 +72,33 @@ skill_info is the closest to done (244 records parse before the first failure;
 it's a specific variant shape). quest_info/knowledge_info/mission_info are the
 deepest (large polymorphic families — FilterCondition / GameCondition).
 
+## ★ STRATEGIC CONCLUSION (after fixing item_use_info)
+item_use_info was tractable because it has a clean **typed-base + trailing-
+variant** boundary → typed base + opaque entry-bounded tail = byte-exact, done.
+The other 6 are NOT like that: each embeds a deep SHARED polymorphic family
+**mid-record** (followed by more typed fields), so an opaque tail at record-end
+does NOT apply. The real blocker is the shared family decoders drifting in 1.11:
+  - `SequencerStageChartDescPartial`  → sequencer_spawn_info (+ item_use disc 14)
+  - `SequencerStageSpawnData` → `OptionalGameCondition`/`GameCondition` (≈405 variants)
+       → mini_game_data_info (+ stage/field_revive/global_stage_sequencer)
+  - `FilterCondition` family → quest_info
+  - `GameCondition`/`ConditionData` → knowledge_info / mission_info / skill_info
+These families use a Decoded|Raw fallback; the roundtrip test fails because the
+Decoded path mis-sizes a variant in 1.11 (the drift is almost certainly small —
+a few variants gained/lost a field, exactly like the simple-table 1.11 fixes:
++u8 / u32→CArray). **Highest leverage: fix the family decoder, not per-table.**
+A family fix likely clears multiple tables at once. Method: build a family-level
+wirewalk (decode each variant arm; find the disc/offset where the byte boundary
+drifts vs 1.11 data), then adjust that variant's body reader. This is focused
+multi-session RE, NOT a safe single unattended pass — attempting blind edits to
+405-variant families risks shipping subtly-wrong decoders, so it was left for a
+dedicated session with this map in hand.
+
+## RESULT THIS SESSION
+- item_use_info: FIXED, byte-exact (commit on branch parser-blob-RE-1.11).
+- Full suite 626→628 pass, 15→13 fail (the 13 = the 6 deep-family tables).
+- Tooling added: dmm_probes/ida.py, dmm_probes/walk_itemuse.py (clone per table).
+
 ## Method recap (NattKh, adapted for the stripped 1.11 IDB)
 1. `cargo test --lib tables::X::info::tests::roundtrip` → first-failure record/offset.
 2. Clone `walk_itemuse.py` for table X: decode header + fields, dump residual-by-
