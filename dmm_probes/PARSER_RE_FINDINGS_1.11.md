@@ -95,9 +95,67 @@ multi-session RE, NOT a safe single unattended pass — attempting blind edits t
 dedicated session with this map in hand.
 
 ## RESULT THIS SESSION
-- item_use_info: FIXED, byte-exact (commit on branch parser-blob-RE-1.11).
-- Full suite 626→628 pass, 15→13 fail (the 13 = the 6 deep-family tables).
-- Tooling added: dmm_probes/ida.py, dmm_probes/walk_itemuse.py (clone per table).
+- item_use_info: FIXED, byte-exact (commit ab1c3b5).
+- skill_info: FIXED, byte-exact (commit 800c658). SummonBuffData (BuffData
+  tag 10) under-read by exactly 7 trailing bytes in 1.11 — the outer reader
+  (sub_1419DD000) gained a 7-byte block after u32_outer_384. Added
+  u8_outer_388 + u16_outer_389 + u32_outer_392 to SummonBuffDataPayload.
+  Method: BUFF_DIAG instrumentation localized tag 10; data-driven wirewalk
+  (dmm_probes/walk_skill{,2,3}.py) proved the true buff end is exactly where
+  SkillInfo.skill_group_key (=own key) begins, +7 vs the old model.
+- sequencer_spawn_info: FIXED, byte+JSON exact (commit de84423). **Shared
+  GameCondition-family fix**: ConditionData tag 131 (ConditionData_IsInRegion-
+  Type) was modeled as a pure-discriminator but was NEVER exercised by any
+  validated table until 1.11's sequencerspawninfo. It actually carries a
+  `CArray<u16>` body (same shape as sibling tag 128 IsInRegion). Added
+  ConditionData_IsInRegionTypePayload and wired all 7 dispatch sites
+  (enum/disc/name/to_json/write_to/read_from/write_from_json). NOTE: the
+  write_from_json arm is easy to forget — leaving `131 => {}` there passes
+  byte-roundtrip but fails JSON-roundtrip (and regresses condition_info json).
+- Full suite 626→632 pass, 9 fail (was 15). Method that worked on the family
+  drift: the built-in ALLCASE=1 / ALLDISC=1 env tracers in game_condition.rs
+  + condition_data.rs print every GameCondition case_tag / ConditionData disc
+  as it's read — run on a failing table's roundtrip, the LAST disc printed
+  before the panic is the culprit variant.
+- Tooling: dmm_probes/ida.py, walk_itemuse.py, walk_skill{,2,3}.py.
+
+## REMAINING 4 (knowledge / mini_game / mission / quest) — table-specific drifts
+Confirmed via ALLCASE/ALLDISC: **none of these 4 fail inside the shared
+GameCondition tree** — each fails in the table's OWN typed fields (a CArray
+count misreads early and propagates). So each needs its own per-table
+wirewalk (no shared-family shortcut).
+
+### mini_game_data_info — TWO distinct drifts, partially cracked
+1. `MiniGameParticipantData` is +2 bytes in 1.11: an added u16 between
+   `value_dword` and `spawn_keys` (CArray<u32>). VALIDATED on the big records
+   (e1 k=0x4240, e2 k=0x4246 pass with the +2). This fix is real — re-apply it.
+2. BUT the small "stub" mini-game records (e3 Fishing/e4 Rodeo/e9-e17, sizes
+   68-86, all with script/phase/ui = sentinel 0xeac5e173 "unresolved" hashes)
+   have a SECOND, VARIABLE header drift: player_data_list count reads garbage
+   (0x10000 / 0x1000000), and the misalignment amount differs per record
+   (−2 for some, −3 for others) → tied to string length / per-record
+   conditional. A single fixed-layout model can't satisfy both the big and
+   stub records. NEEDS: decode several stub records' headers byte-by-byte to
+   find the conditional/format field that shortens them (candidate: a
+   presence-gated field after one of the sentinel hashes, or a record-format
+   byte). The +2 participant fix was REVERTED to keep the tree clean until the
+   stub-record layout is understood (committing it alone leaves the test red).
+   Probe: a full-header Python mirror across all 24 entries is in this
+   session's transcript (reports which entries align).
+
+### mission_info  (info.rs:301) e0 k=0xf4282 "not enough data"
+Own typed fields. MissionInfo is a big py_binary_struct with nested family
+CArrays (MissionBranchData, MissionExecuteStage, MissionResultData,
+MissionResultData2, MissionStageData) — one over-reads at e0. Needs a header
+wirewalk; the macro-generated reader can't take inline prints, so either
+convert to let-bindings temporarily or mirror in Python.
+
+### quest_info  (info.rs:622) e0 k=0xf44de bogus count @1046147 (very deep)
+Own fields + FilterCondition family. Deepest offset → a count misreads early
+and the cursor runs far past the record.
+
+### knowledge_info  (info.rs:314) e0 k=0xf43e8 bogus count 909521969 @2176
+Own fields (fails before reaching any GameCondition tree — ALLDISC silent).
 
 ## Method recap (NattKh, adapted for the stripped 1.11 IDB)
 1. `cargo test --lib tables::X::info::tests::roundtrip` → first-failure record/offset.
