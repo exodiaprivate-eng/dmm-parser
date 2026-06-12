@@ -143,12 +143,22 @@ wirewalk (no shared-family shortcut).
    Probe: a full-header Python mirror across all 24 entries is in this
    session's transcript (reports which entries align).
 
-### mission_info  (info.rs:301) e0 k=0xf4282 "not enough data"
-Own typed fields. MissionInfo is a big py_binary_struct with nested family
-CArrays (MissionBranchData, MissionExecuteStage, MissionResultData,
-MissionResultData2, MissionStageData) — one over-reads at e0. Needs a header
-wirewalk; the macro-generated reader can't take inline prints, so either
-convert to let-bindings temporarily or mirror in Python.
+### mission_info  — TWO+ drifts, partially cracked (probe: walk_mission.py)
+MissionInfo has NO embedded GameCondition — all nested structs are simple
+(MissionBranchData 19B, MissionExecuteStage 18B, MissionResultData 35+4n,
+TriggerVolumeData, MissionUIDesc, 4×LocalizableString, MissionResultData2,
+MissionStageData). Fully wirewalk-able in Python (walk_mission.py mirrors it).
+1. **MissionUIDesc is +4 bytes in 1.11** (a trailing u32 after `trailing:u16`).
+   VALIDATED: with the +4, e0-e38 pass (the label[0] LocalizableString — cat u8
+   + idx u64 + cstr len 19 — only aligns at ui_desc_end+4). Re-apply this.
+2. BUT a SECOND drift hits ~4677/6817 records (clustered ranges e39, e695-711,
+   e763-810, …) — all fail at `ui_desc.list_a` count = garbage, i.e. a field
+   BEFORE ui_desc is mis-sized for a whole CATEGORY of missions (likely
+   MissionResultData or result_data_list elements gained a field in 1.11;
+   e0-e38 had empty/small result_data so didn't surface it). NEEDS: wirewalk a
+   failing record (e.g. e39 k=0xf4292) through result_data_list element-by-
+   element to find the per-element +N. The ui_desc +4 was REVERTED to keep the
+   tree clean (committing it alone leaves the test red since 4677 still fail).
 
 ### quest_info  (info.rs:622) e0 k=0xf44de bogus count @1046147 (very deep)
 Own fields + FilterCondition family. Deepest offset → a count misreads early
