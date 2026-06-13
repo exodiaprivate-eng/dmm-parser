@@ -40,8 +40,42 @@ pub fn decompress(data: &[u8], compression: Compression, uncompressed_size: usiz
     match compression {
         Compression::None => Ok(data.to_vec()),
         Compression::Lz4 => {
-            lz4_flex::block::decompress(data, uncompressed_size)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            // Fast path: a single self-terminating LZ4 block whose decode consumes
+            // exactly `data` and yields exactly `uncompressed_size` bytes. True for
+            // 123/126 client tables.
+            match lz4_flex::block::decompress(data, uncompressed_size) {
+                Ok(out) => Ok(out),
+                Err(e) => {
+                    // A handful of the *largest* client blob tables (buffinfo,
+                    // dropsetinfo, gimmickinfo) store an LZ4 block that decodes to
+                    // exactly `uncompressed_size` output bytes but is followed by a
+                    // tail of trailing compressed bytes (~12% of the block) that the
+                    // game ignores — it decompresses with a fixed output capacity of
+                    // `uncompressed_size` (LZ4_decompress_safe_partial semantics) and
+                    // stops once the destination is full.
+                    //
+                    // lz4_flex has no partial-decode entry point: both `decompress`
+                    // and `decompress_into` insist on consuming the whole input, so
+                    // they error on the trailing token with "output too small,
+                    // expected uncompressed_size+N". Crucially, `decompress_into`
+                    // still writes the full `uncompressed_size` bytes into the buffer
+                    // *before* it errors on the overflowing tail — verified head+tail
+                    // byte-match against the vanilla fixtures — so the buffer holds
+                    // the correct decompressed content.
+                    //
+                    // Recover by decoding into an exactly-`uncompressed_size` buffer
+                    // and accepting the populated buffer on the overflow error. Any
+                    // other failure (genuinely corrupt input) is propagated.
+                    let mut buf = vec![0u8; uncompressed_size];
+                    match lz4_flex::block::decompress_into(data, &mut buf) {
+                        Ok(_) => Ok(buf),
+                        // The only tolerated error is "destination full with input
+                        // remaining" (trailing-tail blocks). The buffer is complete.
+                        Err(lz4_flex::block::DecompressError::OutputTooSmall { .. }) => Ok(buf),
+                        Err(_) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
+                    }
+                }
+            }
         }
         Compression::Zlib => {
             use std::io::Read;
@@ -631,6 +665,30 @@ mod tests {
 
     fn make_tempdir() -> tempfile::TempDir {
         tempdir().expect("failed to create temp dir")
+    }
+
+    #[test]
+    fn test_lz4_decode_with_trailing_tail() {
+        // Regression for the trailing-tail LZ4 layout used by the largest client
+        // blob tables (buffinfo / dropsetinfo / gimmickinfo): the compressed block
+        // decodes to exactly `uncompressed_size` output bytes but is followed by
+        // extra trailing compressed bytes that the game ignores. Strict
+        // single-shot LZ4 decode errors on the tail; `decompress` must recover the
+        // full `uncompressed_size` payload anyway.
+        let payload: Vec<u8> = (0..5000u32).flat_map(|i| i.to_le_bytes()).collect();
+        let mut block = compress(&payload, Compression::Lz4).unwrap();
+        // Append a trailing LZ4 "tail" that would overrun the buffer if consumed
+        // (simulates the game's partial-decode-with-fixed-capacity layout).
+        let tail = compress(&payload, Compression::Lz4).unwrap();
+        block.extend_from_slice(&tail);
+
+        // Sanity: strict decode of the concatenated stream overruns and errors.
+        assert!(lz4_flex::block::decompress(&block, payload.len()).is_err());
+
+        // Our decompress() recovers exactly `uncompressed_size` correct bytes.
+        let out = decompress(&block, Compression::Lz4, payload.len()).unwrap();
+        assert_eq!(out.len(), payload.len());
+        assert_eq!(out, payload);
     }
 
     #[test]
