@@ -659,6 +659,20 @@ pub fn normalize_target_name(input: &str) -> Option<&'static str> {
         return Some("faction_group_info");
     }
 
+    // A handful of game filenames abbreviate the canonical name beyond a
+    // simple "_info"-drop (the generic rule below handles the common case),
+    // so map these onto their parser explicitly. Verified by parsing the
+    // live 0008 client tables: entitlementinfo→platform_entitlement_info,
+    // keymap→key_map_setting_list_info, levelinfo→game_level_info,
+    // reviepointinfo→field_revive_info.
+    match stripped {
+        "entitlementinfo" => return Some("platform_entitlement_info"),
+        "keymap" => return Some("key_map_setting_list_info"),
+        "levelinfo" => return Some("game_level_info"),
+        "reviepointinfo" => return Some("field_revive_info"),
+        _ => {}
+    }
+
     // Paloc has multiple legitimate aliases.
     if matches!(stripped, "paloc" | "localizationstring") {
         return Some("paloc");
@@ -672,30 +686,42 @@ pub fn normalize_target_name(input: &str) -> Option<&'static str> {
     }
 
     // Compact form: canonical with underscores stripped (e.g.
-    // "characterinfo" → "character_info"). Done O(N) — the table list is
-    // ~120 entries; if this becomes hot we can lazy-init a HashMap.
+    // "characterinfo" → "character_info"). Most 1.0.8+ client filenames also
+    // drop the trailing "_info" word (e.g. "gameplaytrigger" →
+    // "game_play_trigger_info", "inventory" → "inventory_info"), so try both
+    // the full canonical and the canonical-without-"_info", each compared
+    // ignoring underscores. Done O(N) — the table list is ~120 entries; if
+    // this becomes hot we can lazy-init a HashMap. Verified collision-free
+    // across all canonical names. (This also subsumes the skill/factionnode/
+    // factiongroup special-cases above, kept for explicitness.)
     for &canonical in supported_tables() {
-        if !canonical.contains('_') {
-            continue;
+        if eq_ignoring_underscores(stripped, canonical) {
+            return Some(canonical);
         }
-        let compact_len = canonical.len() - canonical.matches('_').count();
-        if stripped.len() != compact_len {
-            continue;
-        }
-        // Compare canonical (skipping '_') against stripped char-by-char.
-        let mut cs = canonical.bytes().filter(|&b| b != b'_');
-        let mut ss = stripped.bytes();
-        let matches = std::iter::from_fn(|| match (cs.next(), ss.next()) {
-            (Some(a), Some(b)) => Some(a == b),
-            (None, None) => None,
-            _ => Some(false),
-        }).all(|m| m);
-        if matches {
+        let info_dropped_match = canonical
+            .strip_suffix("_info")
+            .is_some_and(|base| eq_ignoring_underscores(stripped, base));
+        if info_dropped_match {
             return Some(canonical);
         }
     }
 
     None
+}
+
+/// Compare two byte strings for equality after dropping every `_`.
+/// Used by [`normalize_target_name`] to match a compact game filename
+/// (`gameplaytrigger`) against a snake_case canonical (`game_play_trigger`).
+fn eq_ignoring_underscores(a: &str, b: &str) -> bool {
+    let mut ai = a.bytes().filter(|&c| c != b'_');
+    let mut bi = b.bytes().filter(|&c| c != b'_');
+    loop {
+        match (ai.next(), bi.next()) {
+            (Some(x), Some(y)) if x == y => continue,
+            (None, None) => return true,
+            _ => return false,
+        }
+    }
 }
 
 /// True if `table_name` is supported by `parse_table_to_json`/`serialize_table_from_json`.
@@ -1054,6 +1080,54 @@ mod tests {
             normalize_target_name("terrainregionautospawninfo.pabgb"),
             Some("terrain_region_auto_spawn_info"),
         );
+    }
+
+    #[test]
+    fn normalize_target_name_info_dropped() {
+        // 1.0.8+ client filenames drop the trailing "_info" word. Verified
+        // against the live 0008 client table list (126 .pabgb files). The
+        // first three also have explicit special-cases; assert the generic
+        // rule agrees so removing those cases later can't regress silently.
+        for (filename, canonical) in [
+            ("skill", "skill_info"),
+            ("factionnode", "faction_node_info"),
+            ("factiongroup", "faction_group_info"),
+            ("bitmapposition", "bitmap_position_info"),
+            ("board", "board_info"),
+            ("characterchange", "character_change_info"),
+            ("faction", "faction_info"),
+            ("factionrelationgroup", "faction_relation_group_info"),
+            ("factionwaypoint", "faction_waypoint_info"),
+            ("gameeventhandler", "game_event_handler_info"),
+            ("gameplaytrigger", "game_play_trigger_info"),
+            ("gimmickgateconnection", "gimmick_gate_connection_info"),
+            ("globalgameevent", "global_game_event_info"),
+            ("globalgameeventgroup", "global_game_event_group_info"),
+            ("inventory", "inventory_info"),
+            ("reserveslot", "reserve_slot_info"),
+            ("royalsupply", "royal_supply_info"),
+            ("specialmode", "special_mode_info"),
+            ("uisocialaction", "ui_social_action_info"),
+            ("validscheduleaction", "valid_schedule_action_info"),
+        ] {
+            assert_eq!(
+                normalize_target_name(&format!("{filename}.pabgb")),
+                Some(canonical),
+                "filename '{filename}' should resolve to '{canonical}'",
+            );
+        }
+    }
+
+    #[test]
+    fn normalize_target_name_abbreviated_aliases() {
+        // Filenames that abbreviate beyond a simple "_info"-drop; verified by
+        // parsing the live 0008 client tables.
+        assert_eq!(normalize_target_name("entitlementinfo.pabgb"), Some("platform_entitlement_info"));
+        assert_eq!(normalize_target_name("keymap.pabgb"), Some("key_map_setting_list_info"));
+        assert_eq!(normalize_target_name("levelinfo.pabgb"), Some("game_level_info"));
+        assert_eq!(normalize_target_name("reviepointinfo.pabgb"), Some("field_revive_info"));
+        // factionoperationgroupinfo has no parser — must stay unresolved.
+        assert_eq!(normalize_target_name("factionoperationgroupinfo.pabgb"), None);
     }
 
     #[test]
