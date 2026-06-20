@@ -68,6 +68,10 @@ py_binary_struct! {
         // Verified via wire-walker: reconciles all 509 records (byte-exact).
         pub trailing_u32_110: u32,
         pub trailing_u8_110: u8,
+        // 1.12: another trailing u32 (observed all-zero) appended after the
+        // 1.10 trailing bytes. Byte-diff decisive: +4B [00 00 00 00] once per
+        // record at the prior 1.11 record-end (offset 108).
+        pub trailing_u32_112: u32,
     }
 }
 

@@ -200,7 +200,9 @@ pub fn parse_table_to_json(
         "mercenary_group_info"           => s!(crate::tables::mercenary_group_info::MercenaryGroupInfo),
         "mercenary_info"                 => s!(crate::tables::mercenary_info::MercenaryInfo),
         "npc_activity_group_info"        => s!(crate::tables::npc_activity_group_info::NpcActivityGroupInfo),
-        "npc_activity_info"              => s!(crate::tables::npc_activity_info::NpcActivityInfo),
+        // 1.12: Tier-1.5 (typed prefix + opaque tail) — pabgh-bounded so the
+        // record size is known. See npc_activity_info::info for the rationale.
+        "npc_activity_info"              => p!(crate::tables::npc_activity_info::NpcActivityInfo),
         "part_prefab_dye_slot_info"      => s!(crate::tables::part_prefab_dye_slot_info::PartPrefabDyeSlotInfo),
         "part_prefab_dye_texture_pallete_info" => s!(crate::tables::part_prefab_dye_texture_pallete_info::PartPrefabDyeTexturePalleteInfo),
         "pattern_description_info"       => s!(crate::tables::pattern_description_info::PatternDescriptionInfo),
@@ -1279,5 +1281,55 @@ mod tests {
         assert!(new_body.is_empty());
         assert!(new_pabgh.is_none());
         assert!(outcomes.is_empty());
+    }
+
+    #[test]
+    fn probe_modded_overlays_reparse_clean() {
+        let d12 = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-6-19";
+        let mods = r"C:\Users\justi\Desktop\DMM\mods";
+        let cases = [
+            ("regioninfo", "regioninfo.pabgb", format!(r"{}\Mounts Everywhere.json", mods)),
+            ("inventory",  "inventory.pabgb",  format!(r"{}\I like Space V3.json", mods)),
+            ("buff_info",  "buffinfo.pabgb",   format!(r"{}\Ez_Trust_Dark_Fog_Lantern\Ez_Trust_DarkFogLantern.json", mods)),
+        ];
+        for (tname, file, mjpath) in cases {
+            let Ok(raw) = std::fs::read(&mjpath) else { eprintln!("[{}] SKIP (no mod json {})", tname, mjpath); continue; };
+            let doc: serde_json::Value = serde_json::from_slice(&raw).unwrap();
+            // collect intents for this file (v3.1 targets[] or v3.0 target+intents)
+            let mut intent_vals: Vec<serde_json::Value> = vec![];
+            if let Some(ts) = doc.get("targets").and_then(|v| v.as_array()) {
+                for t in ts {
+                    if t.get("file").and_then(|v| v.as_str()).map(|s| s.eq_ignore_ascii_case(file)).unwrap_or(false) {
+                        if let Some(arr) = t.get("intents").and_then(|v| v.as_array()) { intent_vals.extend(arr.iter().cloned()); }
+                    }
+                }
+            } else if let Some(arr) = doc.get("intents").and_then(|v| v.as_array()) {
+                intent_vals.extend(arr.iter().cloned());
+            }
+            let intents: Vec<crate::intents::Intent> = intent_vals.iter()
+                .map(|v| crate::intents::Intent::from_value(v).unwrap()).collect();
+
+            let body = std::fs::read(format!(r"{}\{}", d12, file)).unwrap();
+            let ph = std::fs::read(format!(r"{}\{}", d12, file).replace(".pabgb", ".pabgh")).unwrap();
+            let vanilla_n = parse_table_to_json(tname, &body, Some(&ph)).unwrap().len();
+
+            match apply_intents_to_table_body(file, &body, Some(&ph), &intents) {
+                Ok((nb, np, _outs)) => {
+                    // RE-PARSE the modded output (this is what the game must read)
+                    match parse_table_to_json(tname, &nb, np.as_deref()) {
+                        Ok(recs) => {
+                            let blob = recs.iter().filter(|r| r.as_object()
+                                .map(|o| o.contains_key("_blob_fallback") || o.contains_key("_blob_b64") || o.contains_key("_tail_b64"))
+                                .unwrap_or(false)).count();
+                            eprintln!("[{}] {} intents → modded {}B: re-parse {} recs (vanilla {}), blob_fallback={} {}",
+                                tname, intents.len(), nb.len(), recs.len(), vanilla_n, blob,
+                                if recs.len()==vanilla_n && blob==0 {"OK"} else {"*** CORRUPT ***"});
+                        }
+                        Err(e) => eprintln!("[{}] modded body FAILS RE-PARSE *** CORRUPT ***: {}", tname, e),
+                    }
+                }
+                Err(e) => eprintln!("[{}] apply ERROR: {}", tname, e),
+            }
+        }
     }
 }

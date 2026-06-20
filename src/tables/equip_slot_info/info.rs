@@ -96,8 +96,9 @@ use std::io::{self, Write};
 pub struct EquipInfoData {
     /// equip_type_info hashes the slot accepts. Add hashes to grant new equip permissions.
     pub etl_hashes: CArray<u32>,
-    pub category_a: u32,
-    pub category_b: u32,
+    // 1.12: category_a + category_b (2× u32) removed from EquipInfoData.
+    // Byte-decisive: key-aligned del 8B at the post-etl_hashes position across
+    // all 22 entries of record k=1; the unlock gate uses etl_hashes (kept).
     pub name_hash: u32,
     pub slot_index: u16,
     pub field_u64: u64,
@@ -106,12 +107,10 @@ pub struct EquipInfoData {
     pub complex_u8: u8,
     pub complex_u64: u64,
     pub complex_blob: CArray<u8>,
-    /// 11-byte tail composite split into 8 named fields. Empirical sweep
-    /// shows: byte 0 = small flag (0/1), byte 1 = small count (0-9),
-    /// bytes 2-5 = u32 (always 0 in vanilla), bytes 6-10 = 5× small u8
-    /// flags (0/1).
-    pub tail_byte_0: u8,
-    pub tail_byte_1: u8,
+    /// 1.12: the leading 2 tail bytes (was tail_byte_0 flag + tail_byte_1
+    /// count) were removed. Byte-decisive: per-entry del 2B == [tail_byte_0,
+    /// tail_byte_1] (e4=[01 0b], e16=[01 0a]… match exactly). Remaining tail =
+    /// tail_pad_u32 + 5× u8 flags (tail_byte_6..10).
     pub tail_pad_u32: u32,
     pub tail_byte_6: u8,
     pub tail_byte_7: u8,
@@ -123,8 +122,7 @@ pub struct EquipInfoData {
 impl<'a> BinaryRead<'a> for EquipInfoData {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let etl_hashes = CArray::<u32>::read_from(data, offset)?;
-        let category_a = u32::read_from(data, offset)?;
-        let category_b = u32::read_from(data, offset)?;
+        // 1.12: category_a + category_b removed here.
         let name_hash = u32::read_from(data, offset)?;
         let slot_index = u16::read_from(data, offset)?;
         let field_u64 = u64::read_from(data, offset)?;
@@ -133,8 +131,7 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         let complex_u8 = u8::read_from(data, offset)?;
         let complex_u64 = u64::read_from(data, offset)?;
         let complex_blob = CArray::<u8>::read_from(data, offset)?;
-        let tail_byte_0 = u8::read_from(data, offset)?;
-        let tail_byte_1 = u8::read_from(data, offset)?;
+        // 1.12: tail_byte_0 + tail_byte_1 removed here.
         let tail_pad_u32 = u32::read_from(data, offset)?;
         let tail_byte_6 = u8::read_from(data, offset)?;
         let tail_byte_7 = u8::read_from(data, offset)?;
@@ -142,10 +139,10 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         let tail_byte_9 = u8::read_from(data, offset)?;
         let tail_byte_10 = u8::read_from(data, offset)?;
         Ok(Self {
-            etl_hashes, category_a, category_b, name_hash, slot_index,
+            etl_hashes, name_hash, slot_index,
             field_u64, name_hash_2, fields_u32, complex_u8, complex_u64,
             complex_blob,
-            tail_byte_0, tail_byte_1, tail_pad_u32,
+            tail_pad_u32,
             tail_byte_6, tail_byte_7, tail_byte_8, tail_byte_9, tail_byte_10,
         })
     }
@@ -154,8 +151,6 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
 impl BinaryWrite for EquipInfoData {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.etl_hashes.write_to(w)?;
-        self.category_a.write_to(w)?;
-        self.category_b.write_to(w)?;
         self.name_hash.write_to(w)?;
         self.slot_index.write_to(w)?;
         self.field_u64.write_to(w)?;
@@ -164,8 +159,6 @@ impl BinaryWrite for EquipInfoData {
         self.complex_u8.write_to(w)?;
         self.complex_u64.write_to(w)?;
         self.complex_blob.write_to(w)?;
-        self.tail_byte_0.write_to(w)?;
-        self.tail_byte_1.write_to(w)?;
         self.tail_pad_u32.write_to(w)?;
         self.tail_byte_6.write_to(w)?;
         self.tail_byte_7.write_to(w)?;
@@ -180,8 +173,6 @@ impl ToJsonValue for EquipInfoData {
     fn to_json_value(&self) -> Value {
         json!({
             "etl_hashes": self.etl_hashes.to_json_value(),
-            "category_a": self.category_a,
-            "category_b": self.category_b,
             "name_hash": self.name_hash,
             "slot_index": self.slot_index,
             "field_u64": self.field_u64,
@@ -190,8 +181,6 @@ impl ToJsonValue for EquipInfoData {
             "complex_u8": self.complex_u8,
             "complex_u64": self.complex_u64,
             "complex_blob": self.complex_blob.to_json_value(),
-            "tail_byte_0": self.tail_byte_0,
-            "tail_byte_1": self.tail_byte_1,
             "tail_pad_u32": self.tail_pad_u32,
             "tail_byte_6": self.tail_byte_6,
             "tail_byte_7": self.tail_byte_7,
@@ -207,8 +196,6 @@ impl WriteJsonValue for EquipInfoData {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "EquipInfoData: expected object"))?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "etl_hashes")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "category_a")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "category_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name_hash")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "slot_index")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_u64")?)?;
@@ -217,8 +204,6 @@ impl WriteJsonValue for EquipInfoData {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u8")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u64")?)?;
         <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_blob")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_0")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_1")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_pad_u32")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_6")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_7")?)?;

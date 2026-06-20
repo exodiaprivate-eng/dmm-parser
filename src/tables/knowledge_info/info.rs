@@ -265,7 +265,14 @@ py_binary_struct! {
         pub is_show_ui: u8,
         pub is_show_ui_alert: u8,
         pub is_legendary_animal: u8,
+        // Added since the old IDA-doc build: one u8 flag before
+        // ui_component_name (anchored by the 0xeac5e173 sentinel landing on
+        // ui_component_name only with this byte present).
+        pub unk_flag_pre_ui: u8,
         pub ui_component_name: u32,
+        // Added since the old IDA-doc build: a second u32 lookup (sentinel
+        // 0xeac5e173) sits between ui_component_name and knowledge_from_list.
+        pub unk_lookup_post_ui: u32,
         pub knowledge_from_list: CArray<KnowledgeFromItem>,
         pub knowledge_group_list: CArray<u32>,
         pub knowledge_level_data_list: CArray<KnowledgeLevelData<'a>>,

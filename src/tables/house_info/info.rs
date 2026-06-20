@@ -52,6 +52,10 @@ py_binary_struct! {
         pub house_name: LocalizableString<'a>,
         pub unlock_condition_info: u32,
         pub house_region_data_list: CArray<HouseRegionData<'a>>,
+        // 1.12: trailing f32 (observed constant 4.0 = `00 00 80 40`) appended
+        // to each HouseInfo record after the region list. Byte-diff decisive:
+        // +4B once per record at the prior record-end offset (146/292/438).
+        pub unk_f32_112: f32,
     }
 }
 

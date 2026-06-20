@@ -178,6 +178,9 @@ py_binary_struct! {
         pub is_minimap_zoom_out: u8,
         pub is_allow_dialog: u8,
         pub use_world_lighting: u8,
+        // NEW 1.12: one extra u8 flag appended to the flag block, before the
+        // 24 option slots (verified: shifted slot7's "01" count by +1 byte).
+        pub new_112_flag: u8,
         pub option_slots: SpecialModeOptionSlots<'a>,
         pub detect_mode_area_data: DetectModeAreaData<'a>,
         pub player_action_limit_desc: PlayerActionLimitDesc,

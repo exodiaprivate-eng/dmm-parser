@@ -45,6 +45,12 @@ py_binary_struct! {
         pub flag_d: u8,
         pub flag_e: u8,
         pub flag_f: u8,
+        // 1.12: trailing 5 bytes appended to each DyeSlotEntry (after flag_f),
+        // observed `ff 00 00 00 00`. Byte-decisive: per-record length delta ==
+        // 5 × sub_mesh_count across 881/891 key-aligned records → fixed 5-byte
+        // per-entry field (u8 flag + u32), not a top-level or variable field.
+        pub flag_g_112: u8,
+        pub unk_u32_112: u32,
     }
 }
 

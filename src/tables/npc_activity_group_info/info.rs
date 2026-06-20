@@ -10,8 +10,14 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub npc_activity_tag: u32,
+        // 1.12: the trailing fixed tail shrank from 8 bytes (npc_activity_tag
+        // u32 + activity_info_key u32) to 6 bytes — uniformly across all 17
+        // records. The hash-shaped npc_activity_tag was dropped; the
+        // activity-reference u32 (small-negative, same character as the old
+        // activity_info_key) is kept, followed by a new trailing u16
+        // (observed flag+small e.g. `00 07`, `01 02`).
         pub activity_info_key: u32,
+        pub unk_u16_112: u16,
     }
 }
 
