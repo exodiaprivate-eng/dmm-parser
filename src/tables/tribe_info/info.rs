@@ -122,6 +122,9 @@ py_binary_struct! {
         pub unk_24: u32,
         pub unk_28: u8,
         pub unk_29: u8,
+        // 1.12: new u8 (observed 0) between unk_29 and unk_30. Decisive via
+        // non-zero-anchored record 0x8d1578a0 (unk_30's value 0x01 shifts +1).
+        pub unk_112_a: u8,
         pub unk_30: u8,
         pub unk_31: u8,
         pub unk_32: u8,
@@ -132,6 +135,10 @@ py_binary_struct! {
         pub unk_36: u32,
         pub unk_40: u32,
         pub unk_44: u32,
+        // 1.12: new u8 (observed 0) between unk_44 and unk_48. Decisive via
+        // non-zero record 0x8d1578a0 (unk_44's 0xbf and unk_48.len's 0x21
+        // bracket the inserted 0x00 — unambiguous, not a zero-run artifact).
+        pub unk_112_b: u8,
         // 1.0.8: was u32, now CString
         pub unk_48: CString<'a>,
         pub unk_56: u32,

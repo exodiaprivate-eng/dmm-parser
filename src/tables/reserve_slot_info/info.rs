@@ -150,6 +150,10 @@ py_binary_struct! {
         // mislabeled `unk_trailing_108` — the Korean error string at 0x10190eaa0
         // names it _restoreOnRetry (a Re-Blockade / retry feature flag).
         pub restore_on_retry: u8,
+        // 1.12: trailing u16 (observed all-zero) appended to each record after
+        // restore_on_retry. Byte-diff decisive: +2B [00 00] once per record at
+        // the prior 1.11 record-end (offset 141/283/387/491).
+        pub trailing_u16_112: u16,
     }
 }
 

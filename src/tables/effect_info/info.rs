@@ -70,7 +70,6 @@ use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 const TAIL_SIZE: usize = 3;
-const MESH_ELEMENT_WIRE_SIZE: usize = 50;
 
 /// One entry in `EffectInfo._meshEffectDataList`. Wire format read by
 /// `sub_1410DBD90`: fixed 50 bytes per element. Typed below.
@@ -83,6 +82,9 @@ pub struct MeshEffectData {
     pub field_e: u32,
     pub field_f: u32,
     pub field_g: u32,
+    // NEW 1.12: two f32-as-u32 fields inserted after field_g (default -1.0).
+    pub new_112_a: u32,
+    pub new_112_b: u32,
     pub field_h: u32,
     pub field_i: u32,
     pub field_flag: u8,
@@ -101,6 +103,8 @@ impl MeshEffectData {
         let field_e = u32::read_from(data, offset)?;
         let field_f = u32::read_from(data, offset)?;
         let field_g = u32::read_from(data, offset)?;
+        let new_112_a = u32::read_from(data, offset)?;
+        let new_112_b = u32::read_from(data, offset)?;
         let field_h = u32::read_from(data, offset)?;
         let field_i = u32::read_from(data, offset)?;
         let field_flag = u8::read_from(data, offset)?;
@@ -109,7 +113,8 @@ impl MeshEffectData {
         let lookup_c = u32::read_from(data, offset)?;
         let lookup_d = u32::read_from(data, offset)?;
         Ok(Self {
-            field_a, field_b, field_c, field_d, field_e, field_f, field_g, field_h, field_i,
+            field_a, field_b, field_c, field_d, field_e, field_f, field_g,
+            new_112_a, new_112_b, field_h, field_i,
             field_flag, lookup_a, lookup_b, lookup_c, lookup_d,
         })
     }
@@ -122,6 +127,8 @@ impl MeshEffectData {
         self.field_e.write_to(w)?;
         self.field_f.write_to(w)?;
         self.field_g.write_to(w)?;
+        self.new_112_a.write_to(w)?;
+        self.new_112_b.write_to(w)?;
         self.field_h.write_to(w)?;
         self.field_i.write_to(w)?;
         self.field_flag.write_to(w)?;
@@ -141,6 +148,8 @@ impl MeshEffectData {
         m.insert("field_e".to_string(), self.field_e.to_json_value());
         m.insert("field_f".to_string(), self.field_f.to_json_value());
         m.insert("field_g".to_string(), self.field_g.to_json_value());
+        m.insert("new_112_a".to_string(), self.new_112_a.to_json_value());
+        m.insert("new_112_b".to_string(), self.new_112_b.to_json_value());
         m.insert("field_h".to_string(), self.field_h.to_json_value());
         m.insert("field_i".to_string(), self.field_i.to_json_value());
         m.insert("field_flag".to_string(), self.field_flag.to_json_value());
@@ -159,6 +168,8 @@ impl MeshEffectData {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_e")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_f")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_g")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_h")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_i")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_flag")?)?;
@@ -186,50 +197,6 @@ pub struct EffectInfo<'a> {
     pub target_color_lerp_type: u8,
 }
 
-/// Locate the boundary between effect_data_blob and the mesh CArray by
-/// reverse probing. The blob ends with `[N_mesh: u32][N_mesh × 50 bytes]`,
-/// so we iterate candidate N_mesh values until the count at the implied
-/// position matches the candidate AND the candidate fits cleanly.
-///
-/// On real vanilla data this converges to a unique answer per entry.
-fn find_mesh_split(blob: &[u8]) -> io::Result<usize> {
-    let blob_len = blob.len();
-    // Smallest valid layout: 4 bytes effect count + 4 bytes mesh count + 0 mesh
-    // = 8 bytes total. Anything shorter is malformed.
-    if blob_len < 8 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("effectinfo: combined blob too short ({}) for mesh+effect split", blob_len),
-        ));
-    }
-    let max_mesh = (blob_len - 8) / MESH_ELEMENT_WIRE_SIZE;
-    // Prefer the largest candidate that satisfies the constraint — that
-    // keeps the effect side tight and matches the actual writer's layout.
-    // Iterate descending so we early-out on the first match.
-    for n_mesh in (0..=max_mesh).rev() {
-        let mesh_total = MESH_ELEMENT_WIRE_SIZE * n_mesh;
-        let mesh_offset = blob_len - mesh_total - 4;
-        if mesh_offset < 4 {
-            continue;
-        }
-        let n_at_offset = u32::from_le_bytes(
-            blob[mesh_offset..mesh_offset + 4]
-                .try_into()
-                .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "effectinfo: short read"))?,
-        ) as usize;
-        if n_at_offset == n_mesh {
-            return Ok(mesh_offset);
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!(
-            "effectinfo: could not locate mesh CArray split in {}-byte blob",
-            blob_len
-        ),
-    ))
-}
-
 impl<'a> EffectInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
@@ -250,23 +217,17 @@ impl<'a> EffectInfo<'a> {
             ));
         }
         let blob_end = entry_end - TAIL_SIZE;
-        let mesh_split = find_mesh_split(&data[*offset..blob_end])? + *offset;
 
-        // Effect data list: u32 count + N × variable-size element
+        // Effect data list: u32 count + N × variable-size element. Read
+        // linearly — each EffectDataElement is fully typed and byte-exact,
+        // so the cursor lands naturally at the mesh CArray. (The former
+        // `find_mesh_split` reverse-probe heuristic broke on 1.12 blob shapes
+        // and is no longer needed now that the element reader is complete.)
         let mut cur = *offset;
         let n_effect = u32::read_from(data, &mut cur)? as usize;
         let mut effect_data = Vec::with_capacity(n_effect);
         for _ in 0..n_effect {
             effect_data.push(EffectDataElement::read_from(data, &mut cur)?);
-        }
-        if cur != mesh_split {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "effectinfo: effect_data under/over-consumed: cursor {} != mesh_split {}",
-                    cur, mesh_split
-                ),
-            ));
         }
 
         let n_mesh = u32::read_from(data, &mut cur)? as usize;
@@ -314,17 +275,12 @@ impl<'a> EffectInfo<'a> {
                 "effectinfo: entry too small for tail"));
         }
         let blob_end = entry_end - TAIL_SIZE;
-        let mesh_split = find_mesh_split(&data[*offset..blob_end])? + *offset;
 
         let effect_data = track_read_with(offset, path, ranges, "effect_data", "Vec<EffectDataElement>", |o| {
             let n_effect = u32::read_from(data, o)? as usize;
             let mut v = Vec::with_capacity(n_effect);
             for _ in 0..n_effect {
                 v.push(EffectDataElement::read_from(data, o)?);
-            }
-            if *o != mesh_split {
-                return Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("effectinfo: effect_data under/over-consumed: cursor {} != mesh_split {}", *o, mesh_split)));
             }
             Ok(v)
         })?;

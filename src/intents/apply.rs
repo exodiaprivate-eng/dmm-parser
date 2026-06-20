@@ -352,17 +352,52 @@ pub fn apply_intents_to_iteminfo(
     let mut records = parse_iteminfo_to_json(body)?;
 
     // Normalize v3.1 _camelCase field paths to rust snake_case BEFORE apply.
-    let intents: Vec<Intent> = intents.iter().map(|i| {
+    let mut intents: Vec<Intent> = intents.iter().map(|i| {
         let mut clone = i.clone();
         normalize_intent_v3_1(&mut clone, "iteminfo");
         clone
     }).collect();
+    normalize_legacy_cooltime_fields(&mut intents);
 
     let outcomes = apply_resolved_intents(&mut records, &intents).map_err(|e| {
         io::Error::new(io::ErrorKind::InvalidData, format!("iteminfo apply: {}", e))
     })?;
     let new_body = serialize_iteminfo_from_json(&records)?;
     Ok((new_body, outcomes))
+}
+
+/// Back-compat for the iteminfo `_cooltime` field. Before 2026-05 the parser
+/// exposed the 24-byte cooltime as three separate i64 fields — `cooltime`,
+/// `unk_post_cooltime_a`, `unk_post_cooltime_b`. IDA RE (sub_101886C44) folded
+/// them into one `Cooltime { a, b, c }` struct, orphaning the two trailing
+/// names, so mods authored against them (e.g. Nexus "Combat God's Plate Gloves")
+/// fail to resolve (`field not found in vanilla`) and the whole mod is rejected.
+///
+/// We remap the two orphaned names onto the struct's `.b`/`.c` sub-fields. The
+/// scalar `cooltime` intent is redirected to `cooltime.a` ONLY when those legacy
+/// siblings are present (the old 3-field pattern) — a lone scalar `cooltime`
+/// keeps its existing `{n,0,0}` compat so SuperMod-style mods are unaffected.
+fn normalize_legacy_cooltime_fields(intents: &mut [Intent]) {
+    let has_legacy = intents.iter().any(|i| {
+        matches!(i.field.as_deref(), Some("unk_post_cooltime_a") | Some("unk_post_cooltime_b"))
+    });
+    if !has_legacy {
+        return;
+    }
+    for i in intents.iter_mut() {
+        let remap = match i.field.as_deref() {
+            Some("unk_post_cooltime_a") => Some("cooltime.b"),
+            Some("unk_post_cooltime_b") => Some("cooltime.c"),
+            // Legacy scalar cooltime → the struct's first slot, preserving b/c
+            // (set just below by the remapped siblings). An object-valued
+            // `cooltime` is left alone — it already sets the whole struct.
+            Some("cooltime") if i.new.as_ref().is_some_and(|v| v.is_number()) => Some("cooltime.a"),
+            _ => None,
+        };
+        if let Some(path) = remap {
+            i.field = Some(path.to_string());
+        }
+    }
 }
 
 /// Normalize a single intent so that v3.1 PA-canonical `_camelCase` field
@@ -427,6 +462,49 @@ mod tests {
     use super::*;
     use crate::intents::types::Patch;
     use serde_json::json;
+
+    fn cooltime_intent(field: &str, new: Value) -> Intent {
+        Intent { op: Some("set".into()), field: Some(field.into()), new: Some(new), ..Default::default() }
+    }
+
+    #[test]
+    fn legacy_cooltime_remapped_when_siblings_present() {
+        // Old 3-field pattern (Nexus "Combat God's Plate Gloves"): the orphaned
+        // unk_post_cooltime_a/b map onto the Cooltime struct's b/c, and the scalar
+        // cooltime is redirected to .a (preserving b/c set by the siblings).
+        let mut intents = vec![
+            cooltime_intent("cooltime", json!(1)),
+            cooltime_intent("unk_post_cooltime_a", json!(1)),
+            cooltime_intent("unk_post_cooltime_b", json!(1)),
+            cooltime_intent("equip_passive_skill_list", json!([])),
+        ];
+        normalize_legacy_cooltime_fields(&mut intents);
+        assert_eq!(intents[0].field.as_deref(), Some("cooltime.a"));
+        assert_eq!(intents[1].field.as_deref(), Some("cooltime.b"));
+        assert_eq!(intents[2].field.as_deref(), Some("cooltime.c"));
+        assert_eq!(intents[3].field.as_deref(), Some("equip_passive_skill_list"));
+    }
+
+    #[test]
+    fn lone_scalar_cooltime_unchanged() {
+        // No legacy siblings → keep the existing {n,0,0} scalar compat (SuperMod).
+        let mut intents = vec![cooltime_intent("cooltime", json!(0))];
+        normalize_legacy_cooltime_fields(&mut intents);
+        assert_eq!(intents[0].field.as_deref(), Some("cooltime"));
+    }
+
+    #[test]
+    fn object_cooltime_not_redirected() {
+        // An object-valued cooltime sets the whole struct — leave it alone even
+        // when legacy siblings are present.
+        let mut intents = vec![
+            cooltime_intent("cooltime", json!({"a":1,"b":2,"c":3})),
+            cooltime_intent("unk_post_cooltime_a", json!(1)),
+        ];
+        normalize_legacy_cooltime_fields(&mut intents);
+        assert_eq!(intents[0].field.as_deref(), Some("cooltime"));
+        assert_eq!(intents[1].field.as_deref(), Some("cooltime.b"));
+    }
 
     fn fake_records() -> Vec<Value> {
         vec![

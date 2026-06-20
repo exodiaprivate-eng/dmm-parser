@@ -108,7 +108,13 @@ impl WriteJsonValue for u8 {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 format!("expected u8 number, got {}", type_name(v))))?;
         if n > u8::MAX as u64 {
-            return err(format!("value {} out of u8 range", n));
+            // Over-range mod set-value: clamp to field max instead of aborting
+            // the whole-table encode. One out-of-range intent must not drop
+            // every other intent/mod sharing the overlay (see No-Fall-Damage:
+            // a 100-billion value on a u8/u32 field was killing the buff group).
+            eprintln!("[V3_CLAMP] value {} exceeds u8 max {} — clamped (over-range mod set-value)", n, u8::MAX);
+            w.push(u8::MAX);
+            return Ok(());
         }
         w.push(n as u8);
         Ok(())
@@ -128,7 +134,9 @@ impl WriteJsonValue for u16 {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 format!("expected u16 number, got {}", type_name(v))))?;
         if n > u16::MAX as u64 {
-            return err(format!("value {} out of u16 range", n));
+            eprintln!("[V3_CLAMP] value {} exceeds u16 max {} — clamped (over-range mod set-value)", n, u16::MAX);
+            w.extend_from_slice(&u16::MAX.to_le_bytes());
+            return Ok(());
         }
         w.extend_from_slice(&(n as u16).to_le_bytes());
         Ok(())
@@ -148,7 +156,9 @@ impl WriteJsonValue for u32 {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 format!("expected u32 number, got {}", type_name(v))))?;
         if n > u32::MAX as u64 {
-            return err(format!("value {} out of u32 range", n));
+            eprintln!("[V3_CLAMP] value {} exceeds u32 max {} — clamped (over-range mod set-value)", n, u32::MAX);
+            w.extend_from_slice(&u32::MAX.to_le_bytes());
+            return Ok(());
         }
         w.extend_from_slice(&(n as u32).to_le_bytes());
         Ok(())
@@ -191,7 +201,10 @@ impl WriteJsonValue for i8 {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 format!("expected i8 number, got {}", type_name(v))))?;
         if !(i8::MIN as i64..=i8::MAX as i64).contains(&n) {
-            return err(format!("value {} out of i8 range", n));
+            let c = n.clamp(i8::MIN as i64, i8::MAX as i64) as i8;
+            eprintln!("[V3_CLAMP] value {} out of i8 range — clamped to {} (over-range mod set-value)", n, c);
+            w.extend_from_slice(&c.to_le_bytes());
+            return Ok(());
         }
         w.extend_from_slice(&(n as i8).to_le_bytes());
         Ok(())
@@ -478,5 +491,42 @@ impl<T: WriteJsonValue> WriteJsonValue for COptional<T> {
             T::write_from_json(w, v)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod clamp_tests {
+    use super::*;
+    use serde_json::json;
+
+    // Over-range mod set-values must CLAMP to the field max (with a warning),
+    // not error — one bad intent must never abort a whole-table encode and
+    // drop every other intent/mod sharing the overlay. (No-Fall-Damage set a
+    // u32 field to 100_000_000_000; that previously killed the buff group.)
+    #[test]
+    fn over_range_integers_clamp_not_error() {
+        let mut w = Vec::new();
+        u32::write_from_json(&mut w, &json!(100_000_000_000u64)).expect("u32 clamps");
+        assert_eq!(w, u32::MAX.to_le_bytes());
+
+        let mut w = Vec::new();
+        u16::write_from_json(&mut w, &json!(70_000u64)).expect("u16 clamps");
+        assert_eq!(w, u16::MAX.to_le_bytes());
+
+        let mut w = Vec::new();
+        u8::write_from_json(&mut w, &json!(999u64)).expect("u8 clamps");
+        assert_eq!(w, [u8::MAX]);
+
+        let mut w = Vec::new();
+        i8::write_from_json(&mut w, &json!(-999i64)).expect("i8 clamps");
+        assert_eq!(w, (i8::MIN).to_le_bytes());
+    }
+
+    // In-range values are unaffected — roundtrip stays byte-exact.
+    #[test]
+    fn in_range_integers_unchanged() {
+        let mut w = Vec::new();
+        u32::write_from_json(&mut w, &json!(1_000_000u64)).unwrap();
+        assert_eq!(w, 1_000_000u32.to_le_bytes());
     }
 }

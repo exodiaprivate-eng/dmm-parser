@@ -72,6 +72,7 @@
 // ✅ _worldMapColorR (direct_u8, stream=1)
 
 use crate::binary::*;
+use crate::py_binary_struct;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
@@ -176,6 +177,13 @@ impl WriteJsonValue for TargetDataItem {
     }
 }
 
+py_binary_struct! {
+    pub struct GptTrailingItem {
+        pub tag: u8,
+        pub value: u32,
+    }
+}
+
 #[derive(Debug)]
 pub struct GamePlayTriggerInfo<'a> {
     pub key: u32,
@@ -201,6 +209,14 @@ pub struct GamePlayTriggerInfo<'a> {
     /// NEW 1.10: `_skillLevel` (@a2+72, reader sub_1006E4328 — u32, width 4).
     pub skill_level: u32,
     pub target_data_list: CArray<TargetDataItem>,
+    // NEW 1.12: 22 fixed bytes + CArray of 5-byte {u8 tag, u32} items.
+    pub new_112_a: u32,
+    pub new_112_b: u32,
+    pub new_112_c: u32,
+    pub new_112_d: u32,
+    pub new_112_e: u32,
+    pub new_112_f: u16,
+    pub new_112_list: CArray<GptTrailingItem>,
 }
 
 impl<'a> GamePlayTriggerInfo<'a> {
@@ -236,12 +252,22 @@ impl<'a> GamePlayTriggerInfo<'a> {
         let contents_phase_type = u8::read_from(data, offset)?;
         let skill_info = u32::read_from(data, offset)?;
         let skill_level = u32::read_from(data, offset)?;
+        // NEW 1.12: 26-byte block (22 fixed + CArray<5B>) is inserted BEFORE
+        // target_data_list, not appended after it.
+        let new_112_a = u32::read_from(data, offset)?;
+        let new_112_b = u32::read_from(data, offset)?;
+        let new_112_c = u32::read_from(data, offset)?;
+        let new_112_d = u32::read_from(data, offset)?;
+        let new_112_e = u32::read_from(data, offset)?;
+        let new_112_f = u16::read_from(data, offset)?;
+        let new_112_list = CArray::<GptTrailingItem>::read_from(data, offset)?;
         let target_data_list = CArray::<TargetDataItem>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, trigger_type, is_enable, safe_zone_type,
             player_condition_info, ui_map_texture_info, position, rotation_y,
             world_map_color_r, playable_character_list, field_revive_info,
             contents_phase_type, skill_info, skill_level, target_data_list,
+            new_112_a, new_112_b, new_112_c, new_112_d, new_112_e, new_112_f, new_112_list,
         })
     }
 
@@ -262,6 +288,13 @@ impl<'a> GamePlayTriggerInfo<'a> {
         self.contents_phase_type.write_to(w)?;
         self.skill_info.write_to(w)?;
         self.skill_level.write_to(w)?;
+        self.new_112_a.write_to(w)?;
+        self.new_112_b.write_to(w)?;
+        self.new_112_c.write_to(w)?;
+        self.new_112_d.write_to(w)?;
+        self.new_112_e.write_to(w)?;
+        self.new_112_f.write_to(w)?;
+        self.new_112_list.write_to(w)?;
         self.target_data_list.write_to(w)?;
         Ok(())
     }
@@ -285,6 +318,13 @@ impl<'a> GamePlayTriggerInfo<'a> {
         m.insert("skill_info".to_string(), self.skill_info.to_json_value());
         m.insert("skill_level".to_string(), self.skill_level.to_json_value());
         m.insert("target_data_list".to_string(), self.target_data_list.to_json_value());
+        m.insert("new_112_a".to_string(), self.new_112_a.to_json_value());
+        m.insert("new_112_b".to_string(), self.new_112_b.to_json_value());
+        m.insert("new_112_c".to_string(), self.new_112_c.to_json_value());
+        m.insert("new_112_d".to_string(), self.new_112_d.to_json_value());
+        m.insert("new_112_e".to_string(), self.new_112_e.to_json_value());
+        m.insert("new_112_f".to_string(), self.new_112_f.to_json_value());
+        m.insert("new_112_list".to_string(), self.new_112_list.to_json_value());
         m
     }
 
@@ -305,6 +345,13 @@ impl<'a> GamePlayTriggerInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contents_phase_type")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_level")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_a")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_d")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_e")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_f")?)?;
+        <CArray<GptTrailingItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_list")?)?;
         <CArray<TargetDataItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_data_list")?)?;
         Ok(())
     }

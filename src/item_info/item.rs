@@ -195,6 +195,13 @@ py_binary_struct! {
         pub is_has_item_use_data_inventory_buff: u8,
         pub is_preserved_on_extract: u8,
         pub respawn_time_seconds: i64,
+        // 1.12: NEW u32 inserted between respawn_time_seconds and max_endurance
+        // (always 0 in vanilla). Byte-decisive: 1.11/1.12 iteminfo are byte-identical
+        // except a +4 `00 00 00 00` at this exact field boundary (tracked field map:
+        // respawn_time_seconds ends @622, max_endurance starts @622 — the 4 new bytes
+        // land between them), once per record. Semantic unknown → u32 placeholder so
+        // the record realigns and stays JSON-addressable.
+        pub unk_u32_112: u32,
         pub max_endurance: u16,
         pub repair_data_list: CArray<RepairData>,
     }
