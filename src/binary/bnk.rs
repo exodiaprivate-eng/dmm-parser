@@ -82,6 +82,114 @@ impl BnkFile {
     }
 }
 
+// ── HIRC Sound media-size patch (voice-mod auto-rebuild) ─────────────────────
+//
+// A .bnk-less voice mod ships re-recorded `.wem` but not the soundbank that
+// drives them. The engine reads exactly `uInMemoryMediaSize` bytes for each
+// clip, and the VANILLA invariant is `uInMemoryMediaSize == .wem file size`
+// (verified exact across 0006 dialogue AND 0004 media/combat-grunt clips —
+// see dmm_probes/wwise_bnk_proof.py). When a mod replaces a `.wem` with a
+// different-sized one and the bank keeps the stale size, the engine reads the
+// wrong byte count → the clip drops (silent). DMM can synthesize a correct
+// bank by re-stamping each Sound's `uInMemoryMediaSize` to the modded `.wem`'s
+// actual size — a same-length edit, so the bank round-trips and stays valid.
+//
+// HIRC layout: `u32 count`, then per object `{u8 type, u32 sectionSize, body}`.
+// Sound object (type 2) body: `ulID(4) pluginID(4) streamType(1) sourceID(4)
+// uInMemoryMediaSize(4) …`. (Verified on BKHD version 150.)
+
+/// HIRC object type for a Sound (CAkSound).
+const HIRC_OBJ_SOUND: u8 = 2;
+/// Byte offset of `sourceID` within a Sound object body.
+const SOUND_SOURCE_ID_OFF: usize = 9;
+/// Byte offset of `uInMemoryMediaSize` within a Sound object body.
+const SOUND_MEDIA_SIZE_OFF: usize = 13;
+/// Minimum Sound body length to contain `uInMemoryMediaSize` (ends at +17).
+const SOUND_MIN_BODY: usize = SOUND_MEDIA_SIZE_OFF + 4;
+
+impl BnkFile {
+    fn hirc_data(&self) -> Option<&[u8]> {
+        self.chunks.iter().find(|c| &c.id == b"HIRC").map(|c| c.data.as_slice())
+    }
+    fn hirc_data_mut(&mut self) -> Option<&mut Vec<u8>> {
+        self.chunks.iter_mut().find(|c| &c.id == b"HIRC").map(|c| &mut c.data)
+    }
+
+    /// Walk HIRC Sound objects, returning `(sourceID, offset-within-HIRC-data of
+    /// the u32 uInMemoryMediaSize)`. Skips non-Sound / unknown object types by
+    /// their declared section size, so it is robust to a heterogeneous HIRC.
+    fn sound_media_size_fields(data: &[u8]) -> Vec<(u32, usize)> {
+        let mut out = Vec::new();
+        if data.len() < 4 {
+            return out;
+        }
+        let count = u32::from_le_bytes(data[0..4].try_into().unwrap());
+        let mut p = 4usize;
+        for _ in 0..count {
+            if p + 5 > data.len() {
+                break;
+            }
+            let otype = data[p];
+            let osize = u32::from_le_bytes(data[p + 1..p + 5].try_into().unwrap()) as usize;
+            let body = p + 5;
+            let end = match body.checked_add(osize) {
+                Some(e) if e <= data.len() => e,
+                _ => break,
+            };
+            if otype == HIRC_OBJ_SOUND && osize >= SOUND_MIN_BODY {
+                let source_id = u32::from_le_bytes(
+                    data[body + SOUND_SOURCE_ID_OFF..body + SOUND_SOURCE_ID_OFF + 4]
+                        .try_into()
+                        .unwrap(),
+                );
+                out.push((source_id, body + SOUND_MEDIA_SIZE_OFF));
+            }
+            p = end;
+        }
+        out
+    }
+
+    /// Each Sound's `(sourceID, current uInMemoryMediaSize)`. Empty if no HIRC.
+    pub fn sound_media_sizes(&self) -> Vec<(u32, u32)> {
+        let data = match self.hirc_data() {
+            Some(d) => d,
+            None => return Vec::new(),
+        };
+        Self::sound_media_size_fields(data)
+            .into_iter()
+            .map(|(sid, off)| {
+                (sid, u32::from_le_bytes(data[off..off + 4].try_into().unwrap()))
+            })
+            .collect()
+    }
+
+    /// Re-stamp each Sound's `uInMemoryMediaSize` to the modded `.wem` size,
+    /// keyed by `sourceID`. Sounds whose `sourceID` is absent from `wem_sizes`
+    /// are left untouched. Same-length edit (round-trip-safe). Returns the
+    /// number of Sound objects updated.
+    pub fn patch_media_sizes(
+        &mut self,
+        wem_sizes: &std::collections::HashMap<u32, u32>,
+    ) -> usize {
+        let fields = match self.hirc_data() {
+            Some(d) => Self::sound_media_size_fields(d),
+            None => return 0,
+        };
+        let data = match self.hirc_data_mut() {
+            Some(d) => d,
+            None => return 0,
+        };
+        let mut n = 0;
+        for (sid, off) in fields {
+            if let Some(&new_sz) = wem_sizes.get(&sid) {
+                data[off..off + 4].copy_from_slice(&new_sz.to_le_bytes());
+                n += 1;
+            }
+        }
+        n
+    }
+}
+
 // ── JSON ────────────────────────────────────────────────────────────────────
 
 fn id_str(id: &[u8; 4]) -> String {
@@ -241,5 +349,147 @@ mod tests {
         let f2 = BnkFile::from_json(&j).unwrap();
         assert_eq!(f, f2);
         assert_eq!(f2.to_bytes().unwrap(), bytes);
+    }
+
+    // ── HIRC media-size patch ────────────────────────────────────────────────
+
+    /// A 21-byte CAkSound body: ulID, pluginID(=Vorbis), streamType, sourceID,
+    /// uInMemoryMediaSize, + 4 trailing param bytes.
+    fn sound_body(ul_id: u32, source_id: u32, media_size: u32) -> Vec<u8> {
+        let mut b = Vec::new();
+        b.extend_from_slice(&ul_id.to_le_bytes()); // +0  ulID
+        b.extend_from_slice(&0x0004_0001u32.to_le_bytes()); // +4  pluginID (Vorbis)
+        b.push(0); // +8  streamType
+        b.extend_from_slice(&source_id.to_le_bytes()); // +9  sourceID
+        b.extend_from_slice(&media_size.to_le_bytes()); // +13 uInMemoryMediaSize
+        b.extend_from_slice(&[0xDE, 0xAD, 0xBE, 0xEF]); // +17 trailing params
+        b
+    }
+
+    fn hirc_object(otype: u8, body: &[u8]) -> Vec<u8> {
+        let mut o = Vec::new();
+        o.push(otype);
+        o.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        o.extend_from_slice(body);
+        o
+    }
+
+    /// BKHD + a HIRC with two Sounds (src 500 @1000, src 600 @2000) and a
+    /// non-Sound Event object that must be left untouched.
+    fn build_bnk_with_hirc() -> Vec<u8> {
+        let mut hirc = Vec::new();
+        hirc.extend_from_slice(&3u32.to_le_bytes()); // object count
+        hirc.extend(hirc_object(HIRC_OBJ_SOUND, &sound_body(100, 500, 1000)));
+        hirc.extend(hirc_object(HIRC_OBJ_SOUND, &sound_body(101, 600, 2000)));
+        hirc.extend(hirc_object(4 /*Event*/, &[0x11; 10]));
+
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"BKHD");
+        buf.extend_from_slice(&16u32.to_le_bytes());
+        buf.extend_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        buf.extend_from_slice(b"HIRC");
+        buf.extend_from_slice(&(hirc.len() as u32).to_le_bytes());
+        buf.extend_from_slice(&hirc);
+        buf
+    }
+
+    #[test]
+    fn reads_sound_media_sizes() {
+        let f = BnkFile::parse(&build_bnk_with_hirc()).unwrap();
+        assert_eq!(f.sound_media_sizes(), vec![(500, 1000), (600, 2000)]);
+    }
+
+    #[test]
+    fn patch_media_sizes_restamps_and_roundtrips() {
+        let orig = build_bnk_with_hirc();
+        let mut f = BnkFile::parse(&orig).unwrap();
+        let mut sizes = std::collections::HashMap::new();
+        sizes.insert(500u32, 1234u32);
+        sizes.insert(600u32, 5678u32);
+        // a sourceID not in the bank — must be ignored, not error
+        sizes.insert(999u32, 42u32);
+
+        let n = f.patch_media_sizes(&sizes);
+        assert_eq!(n, 2, "both Sounds re-stamped");
+        assert_eq!(f.sound_media_sizes(), vec![(500, 1234), (600, 5678)]);
+
+        // same-length edit → byte length unchanged, still valid
+        let out = f.to_bytes().unwrap();
+        assert_eq!(out.len(), orig.len(), "media-size patch is length-preserving");
+        // the Event object (last 10 body bytes) is untouched
+        assert!(out.windows(10).any(|w| w == [0x11u8; 10]));
+        // re-parse is stable
+        assert_eq!(BnkFile::parse(&out).unwrap(), f);
+    }
+
+    #[test]
+    fn patch_only_present_source_ids() {
+        let mut f = BnkFile::parse(&build_bnk_with_hirc()).unwrap();
+        let mut sizes = std::collections::HashMap::new();
+        sizes.insert(600u32, 5678u32); // only the second Sound
+        let n = f.patch_media_sizes(&sizes);
+        assert_eq!(n, 1);
+        assert_eq!(f.sound_media_sizes(), vec![(500, 1000), (600, 5678)]);
+    }
+
+    #[test]
+    fn patch_no_hirc_is_noop() {
+        // BKHD-only bank: no HIRC → nothing to patch, no panic.
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"BKHD");
+        buf.extend_from_slice(&4u32.to_le_bytes());
+        buf.extend_from_slice(&[0, 0, 0, 0]);
+        let mut f = BnkFile::parse(&buf).unwrap();
+        let mut sizes = std::collections::HashMap::new();
+        sizes.insert(1u32, 2u32);
+        assert_eq!(f.patch_media_sizes(&sizes), 0);
+        assert!(f.sound_media_sizes().is_empty());
+    }
+
+    /// Validate the HIRC walker against REAL heterogeneous banks (every object
+    /// type: Attenuation, RanSeqCntr, BlendCntr, ActorMixer, Event, …) using
+    /// local fixtures from `dmm_probes/dump_bnk_fixture.py`. Confirms the
+    /// vanilla invariant `uInMemoryMediaSize == .wem size` on real data and that
+    /// the real bank round-trips byte-for-byte. Skips if fixtures are absent
+    /// (CI / other machines) — the synthetic tests above always run.
+    #[test]
+    fn real_bank_media_size_invariant_and_roundtrip() {
+        use std::path::Path;
+        let base = concat!(env!("CARGO_MANIFEST_DIR"), "/dmm_probes/fixtures");
+        if !Path::new(base).exists() {
+            eprintln!("skipping real-bank validation: no fixtures at {base}");
+            return;
+        }
+        let mut total_checked = 0usize;
+        for bid in ["3684722581", "694511365"] {
+            let bin = format!("{base}/bnk_{bid}.bin");
+            let js = format!("{base}/bnk_{bid}_wem.json");
+            if !Path::new(&bin).exists() || !Path::new(&js).exists() {
+                continue;
+            }
+            let bytes = std::fs::read(&bin).unwrap();
+            let sizes: Map<String, Value> =
+                serde_json::from_slice(&std::fs::read(&js).unwrap()).unwrap();
+            let f = BnkFile::parse(&bytes).unwrap();
+
+            // byte-exact round-trip on a real bank
+            assert_eq!(f.to_bytes().unwrap(), bytes, "real bank {bid} must round-trip");
+
+            // every locatable Sound's field must equal the vanilla .wem size
+            let mut matched = 0;
+            for (sid, field) in f.sound_media_sizes() {
+                if let Some(v) = sizes.get(&sid.to_string()).and_then(|v| v.as_u64()) {
+                    assert_eq!(
+                        field as u64, v,
+                        "bank {bid} sourceID {sid}: uInMemoryMediaSize {field} != vanilla .wem {v}"
+                    );
+                    matched += 1;
+                }
+            }
+            assert!(matched > 50, "bank {bid}: only {matched} clips validated");
+            total_checked += matched;
+        }
+        assert!(total_checked > 100, "expected >100 real clips validated, got {total_checked}");
+        eprintln!("real-bank validation: {total_checked} clips match vanilla invariant");
     }
 }
