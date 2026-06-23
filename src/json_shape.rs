@@ -99,6 +99,21 @@ pub fn lookup_table_aliases_v3_1(
         .map(|(_, aliases)| *aliases)
 }
 
+/// Look up a table's COMMUNITY field-name alias table — third-party exporter
+/// vocabularies that differ from this parser's field names (e.g. CrimsonGameMods
+/// "DropSets" names the drop array `drops`; the parser exposes it as `list`).
+/// Distinct from the auto-generated v3.1 camelCase aliases. Returns `None` for
+/// tables with no community aliases (the common case). `(canonical_snake,
+/// accepted_alias)` pairs, consumed by `intents::normalize_intent_community`.
+pub fn lookup_table_community_aliases(
+    table_name: &str,
+) -> Option<FieldAliasTable> {
+    match table_name {
+        "drop_set_info" => Some(crate::tables::drop_set_info::FIELD_ALIASES_COMMUNITY),
+        _ => None,
+    }
+}
+
 /// Rewrite a JSON object's keys from Rust snake_case to Pearl Abyss
 /// canonical `_camelCase` (the v3.1 surface). The `aliases` table here
 /// uses `(rust_snake, _camelCase)` pairs — opposite semantics from

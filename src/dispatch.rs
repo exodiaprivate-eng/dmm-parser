@@ -472,7 +472,19 @@ pub fn apply_intents_to_table_body(
     }
 
     let mut records = parse_table_to_json(table_name, body, pabgh)?;
-    let outcomes = crate::intents::apply_resolved_intents(&mut records, intents)
+    // Normalize third-party-exporter field-name aliases (e.g. CrimsonGameMods
+    // DropSets `drops` → `list`) so their intents resolve instead of silently
+    // dropping. Snake-named intents and tables without community aliases pass
+    // through unchanged, so this is a no-op for every existing mod.
+    let intents_norm: Vec<crate::intents::Intent> = intents
+        .iter()
+        .map(|i| {
+            let mut c = i.clone();
+            crate::intents::normalize_intent_community(&mut c, table_name);
+            c
+        })
+        .collect();
+    let outcomes = crate::intents::apply_resolved_intents(&mut records, &intents_norm)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("apply: {}", e)))?;
 
     if let Some(pabgh_bytes) = pabgh {
