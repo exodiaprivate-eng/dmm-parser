@@ -31,6 +31,13 @@ pub fn dmm_parser(m: &Bound<'_, PyModule>) -> PyResult<()> {
     python::register(m)
 }
 
+// Alias module so the same cdylib works when deployed as `crimson_rs.pyd`
+// (the main app imports `crimson_rs`; mod-workbench imports `dmm_parser`).
+#[pymodule]
+pub fn crimson_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    python::register(m)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::binary::BinaryRead;

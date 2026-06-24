@@ -248,6 +248,23 @@ impl WriteJsonValue for f32 {
     }
 }
 
+impl ToJsonValue for f64 {
+    fn to_json_value(&self) -> Value {
+        Value::from(*self)
+    }
+}
+impl WriteJsonValue for f64 {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0f64.to_le_bytes()); return Ok(()); }
+        let f = v
+            .as_f64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                format!("expected f64 number, got {}", type_name(v))))?;
+        w.extend_from_slice(&f.to_le_bytes());
+        Ok(())
+    }
+}
+
 // ── Fixed-size arrays ─────────────────────────────────────────────────────────
 // [u8; N] base64 impl lives in `binary/arrays.rs` (predates this module).
 
