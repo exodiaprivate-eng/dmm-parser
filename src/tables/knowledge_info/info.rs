@@ -1,3 +1,7 @@
+//! ✅ 1.12 FIX (2026-06-24): added 2 NEW fields _isUseAlertDesc (u8 @99) +
+//!   _narrationAudioPathStringInfo (u32 StringInfoKey @102) per Mac reader
+//!   sub_101FAC234. Was falling back on ALL 6212 records (struct 2 fields short).
+//!   Now 6212/6212 tail=0, fallback=0, byte-exact on live 1.12.02. Inner structs unchanged.
 //! Tier 1 — fully typed (no _tail_b64).
 //!
 //! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
@@ -265,7 +269,9 @@ py_binary_struct! {
         pub is_show_ui: u8,
         pub is_show_ui_alert: u8,
         pub is_legendary_animal: u8,
+        pub is_use_alert_desc: u8,                    // NEW 1.12 (sub_100D391B8 @99)
         pub ui_component_name: u32,
+        pub narration_audio_path_string_info: u32,    // NEW 1.12 (StringInfoKey sub_1013633A4 @102)
         pub knowledge_from_list: CArray<KnowledgeFromItem>,
         pub knowledge_group_list: CArray<u32>,
         pub knowledge_level_data_list: CArray<KnowledgeLevelData<'a>>,

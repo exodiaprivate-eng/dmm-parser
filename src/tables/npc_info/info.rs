@@ -114,6 +114,10 @@ pub struct NpcInfo<'a> {
     pub contribution_sub_level_info: u32,
     pub dye_color_group_data_list: CArray<DyeColorGroupData>,
     pub dye_texture_set_data_list: CArray<DyeTextureSetData>,
+    /// NEW 1.12: `_bankInfoList` (Mac sub_101FB80A8, element sub_101618A18 =
+    /// BankInfoKey resolved u16, 2-byte wire). Empty for most NPCs (count=0 → +4
+    /// shortfall that broke the 1.10 schema on every record).
+    pub bank_info_list: CArray<u16>,
 }
 
 impl<'a> NpcInfo<'a> {
@@ -149,12 +153,13 @@ impl<'a> NpcInfo<'a> {
         let contribution_sub_level_info = u32::read_from(data, offset)?;
         let dye_color_group_data_list = CArray::<DyeColorGroupData>::read_from(data, offset)?;
         let dye_texture_set_data_list = CArray::<DyeTextureSetData>::read_from(data, offset)?;
+        let bank_info_list = CArray::<u16>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, icon_path, store_info, coupon_item_info,
             npc_greet_friendly, npc_function_type_flag, shop_scenekey,
             exchange_group_key, exchange_button_text, shop_name, interaction_name,
             contribution_sub_level_info,
-            dye_color_group_data_list, dye_texture_set_data_list,
+            dye_color_group_data_list, dye_texture_set_data_list, bank_info_list,
         })
     }
 
@@ -175,6 +180,7 @@ impl<'a> NpcInfo<'a> {
         self.contribution_sub_level_info.write_to(w)?;
         self.dye_color_group_data_list.write_to(w)?;
         self.dye_texture_set_data_list.write_to(w)?;
+        self.bank_info_list.write_to(w)?;
         Ok(())
     }
 
@@ -196,6 +202,7 @@ impl<'a> NpcInfo<'a> {
         m.insert("contribution_sub_level_info".to_string(), self.contribution_sub_level_info.to_json_value());
         m.insert("dye_color_group_data_list".to_string(), self.dye_color_group_data_list.to_json_value());
         m.insert("dye_texture_set_data_list".to_string(), self.dye_texture_set_data_list.to_json_value());
+        m.insert("bank_info_list".to_string(), self.bank_info_list.to_json_value());
         m
     }
 
@@ -216,6 +223,7 @@ impl<'a> NpcInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contribution_sub_level_info")?)?;
         <CArray<DyeColorGroupData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_color_group_data_list")?)?;
         <CArray<DyeTextureSetData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_texture_set_data_list")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bank_info_list")?)?;
         Ok(())
     }
 }

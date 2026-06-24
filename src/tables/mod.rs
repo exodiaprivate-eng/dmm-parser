@@ -134,6 +134,13 @@ pub mod valid_schedule_action_info;
 
 pub mod key_map_setting_list_info;
 pub mod game_level_info;
+pub mod game_start_info;
+pub mod zone_info;
+pub mod contents_phase_info;
+pub mod faction_reblockading_info;
+pub mod quick_slot_info;
+pub mod bank_info;
+pub mod talk_tree_info;
 pub mod platform_entitlement_info;
 pub mod equip_info;
 pub mod field_revive_info;
