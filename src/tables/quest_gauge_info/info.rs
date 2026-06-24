@@ -64,6 +64,10 @@ py_binary_struct! {
         pub faction_info_list: CArray<u32>,
         pub faction_node_info_list: CArray<u32>,
         pub percent: u64,
+        // 1.10: +5 trailing bytes after percent (u32 + u8, observed all-zero).
+        // Verified via wire-walker: reconciles all 509 records (byte-exact).
+        pub trailing_u32_110: u32,
+        pub trailing_u8_110: u8,
     }
 }
 
@@ -71,12 +75,11 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/questgaugeinfo.pabgb";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("questgaugeinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;
@@ -94,8 +97,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;

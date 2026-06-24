@@ -5,6 +5,35 @@
 //! Mac binary __cstring declaration order. Round-trip-validated against
 //! the vanilla pabgb dump from the live game install.
 //!
+//! ─── 2026-05-12 Mac IDA verification (1.06 fixture-confirmed) ──────────
+//! Mac binary parser `sub_10187EFEC` in `CrimsonDesert_Steam` reads
+//! 16 wire fields. Verified against extracted live 1.06 fixture:
+//! 483 records, 35473 bytes, byte-identical roundtrip.
+//!
+//! Wire reads in order:
+//!   1.  _key                                (sub_100F39E0C, u16)
+//!   2.  _stringKey                          (CString)
+//!   3.  _isBlocked                          (u8)
+//!   4.  _soundEvent                         (CString)
+//!   5.  _footStepSoundEvent                 (CString)
+//!   6.  _footStepCrouchSoundEvent           (CString)
+//!   7.  _footStepLandSoundEvent             (CString)
+//!   8.  _footStepGroundSoundEvent           (CString)
+//!   9.  _footStepDisableCollideImpactSound  (u8) ← 1.06 ADDITION
+//!  10.  _footStepSoundOffset                (u8)
+//!  11.  _footStepCrouchSoundOffset          (u8)
+//!  12.  _footStepLandSoundOffset            (u8)
+//!  13.  _footStepGroundSoundOffset          (u8)
+//!  14.  _gender                             (u8)
+//!  15.  _characterAge                       (u8)
+//!  16.  _jobInfoList                        (CArray<u16>)
+//!
+//! Total wire: 2 + 6*(4+N) + 1 + 7 + (4+2K) = 38 + 6N + 2K bytes
+//!
+//! Pre-2026-05-12 dmm-parser was missing `_footStepDisableCollideImpactSound`
+//! at wire position #9 — this commit adds it. Key remains u16 (Mac
+//! reader sub_100F39E0C confirmed via `__int16 v4` BYREF, vtbl `2LL`).
+//!
 //! DO NOT EDIT BY HAND - regenerate via tools/ida_extract.py.
 
 
@@ -41,6 +70,12 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct DialogVoiceInfo<'a> {
+        // 2026-05-12: confirmed u16 wire via Mac reader sub_100F39E0C
+        // (`__int16 v4` BYREF, vtbl call with `2LL` size arg). An
+        // earlier mid-day commit briefly changed this to u8 — that was
+        // a misread of the reader (mercenary uses sub_100F3E64C which
+        // IS u8 with `1LL` arg; dialog_voice uses a different reader
+        // with `2LL`). 1.06 fixture roundtrip confirms u16.
         pub key: u16,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
@@ -49,6 +84,11 @@ py_binary_struct! {
         pub foot_step_crouch_sound_event: CString<'a>,
         pub foot_step_land_sound_event: CString<'a>,
         pub foot_step_ground_sound_event: CString<'a>,
+        // NEW 2026-05-12: Mac canonical wire position #9, reader
+        // sub_1006BED20 (u8). dmm-parser was always missing this
+        // field; pre-2026-05-12 the missing byte was hidden by the
+        // u16 key reading 1 extra byte (sum still matched per record).
+        pub foot_step_disable_collide_impact_sound: u8,
         pub foot_step_sound_offset: u8,
         pub foot_step_crouch_sound_offset: u8,
         pub foot_step_land_sound_offset: u8,
@@ -63,12 +103,11 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/dialogvoiceinfo.pabgb";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("dialogvoiceinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;
@@ -86,8 +125,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;

@@ -1,6 +1,27 @@
+//! ✅ 1.12 FIX (2026-06-24): added 2 NEW fields _isUseAlertDesc (u8 @99) +
+//!   _narrationAudioPathStringInfo (u32 StringInfoKey @102) per Mac reader
+//!   sub_101FAC234. Was falling back on ALL 6212 records (struct 2 fields short).
+//!   Now 6212/6212 tail=0, fallback=0, byte-exact on live 1.12.02. Inner structs unchanged.
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410E36C0` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410C51C0` — the KnowledgeInfo deserializer (found
+//! via xref to the "KnowledgeInfo" class block at 0x144AF8110+). All
+//! fields confirmed in order. (Cited `sub_1410E36C0` was stale — it is
+//! an inner reader SHARED with another large table `sub_1410B8D40`,
+//! 800+ byte struct, NOT KnowledgeInfo.)
+//! Type confirmations (the kind byte-roundtrip can't prove):
+//!   - region_info_list (sub_1410E2070): u32 count + **u16** elements
+//!     (2-byte wire read + hash remap). Rust `CArray<u16>` correct —
+//!     genuinely 2-byte, not the usual u32-ref.
+//!   - knowledge_from_list element: u8 flag + u64 value = 9 wire bytes
+//!     (read 1 + read 8). Matches `KnowledgeFromItem`.
+//!   - learning_position: a single **12-byte** raw read. Rust `[f32;3]`
+//!     has the right width; the float interpretation is a modeling
+//!     choice (3-component position) the reader neither confirms nor
+//!     denies — bits are preserved either way.
+//!   - u32-wire ID refs via sub_1410E1350/E2EE0/E2D50/E1B70/E1190 etc.
+//!     (4-byte wire → u16 RAM). Rust `u32` models the wire.
 //!
 //! ─── v3.1 closure analysis (iter 77) ────────────────────────────────────
 //! Cross-check via `sub_1410AFE20` (typeinfo→record-reader path per the
@@ -248,7 +269,9 @@ py_binary_struct! {
         pub is_show_ui: u8,
         pub is_show_ui_alert: u8,
         pub is_legendary_animal: u8,
+        pub is_use_alert_desc: u8,                    // NEW 1.12 (sub_100D391B8 @99)
         pub ui_component_name: u32,
+        pub narration_audio_path_string_info: u32,    // NEW 1.12 (StringInfoKey sub_1013633A4 @102)
         pub knowledge_from_list: CArray<KnowledgeFromItem>,
         pub knowledge_group_list: CArray<u32>,
         pub knowledge_level_data_list: CArray<KnowledgeLevelData<'a>>,
@@ -284,13 +307,11 @@ impl<'a> KnowledgeInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/knowledgeinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/knowledgeinfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("knowledgeinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -307,8 +328,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
@@ -330,8 +351,8 @@ mod tests {
     /// Confirm typed lists carry data — guards against silent regression.
     #[test]
     fn typed_lists_populated() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut totals = (0usize, 0usize, 0usize, 0usize);
         for (_, s, _) in &ranges {

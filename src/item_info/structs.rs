@@ -215,7 +215,7 @@ impl WriteJsonValue for MaxChargedUseableCount {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("MaxChargedUseableCount: number {} out of u32 range", n)));
             }
-            return MaxChargedUseableCount { a: n as u32, b: 0, c: 0 }.write_to(w);
+            return MaxChargedUseableCount { a: n as u32, b: n as u32, c: n as u32 }.write_to(w);
         }
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData,
@@ -245,7 +245,7 @@ impl ToPyValue for MaxChargedUseableCount {
 impl WritePyValue for MaxChargedUseableCount {
     fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
         if let Ok(n) = obj.extract::<u32>() {
-            MaxChargedUseableCount { a: n, b: 0, c: 0 }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            MaxChargedUseableCount { a: n, b: n, c: n }.write_to(w).map_err(|e| PyValueError::new_err(e.to_string()))?;
             return Ok(());
         }
         let d = obj.cast::<PyDict>()?;
@@ -357,6 +357,12 @@ py_binary_struct! {
         pub enchant_stat_data: EnchantStatData,
         pub buy_price_list: CArray<ItemPriceInfo>,
         pub equip_buffs: CArray<EquipmentBuff>,
+        // 1.12: new _itemEffectInfo appended after _equipBuffs. Game reader
+        // sub_101FAC7C4 reads a 4-byte EffectKey (sub_1016169B0, resolved to a
+        // u16 EffectInfo index at struct+104) — same pattern as ItemInfo's own
+        // item_effect_info. Round-tripped as the raw u32 wire key. Only items
+        // with a populated enchant_data_list expose this field.
+        pub item_effect_info: u32,
     }
 }
 
@@ -449,6 +455,11 @@ py_binary_struct! {
         pub ui_component: CString<'a>,
         pub minimum: u32,
         pub icon_path: StringInfoKey,
+        // 1.10: new u32 (name-hash) inserted between icon_path and item_name.
+        // Only money items (MoneyTypeDefine.unit_data_list_map) carry UnitData,
+        // so this is what broke Money_Copper etc. while regular items parsed.
+        // Verified against live 1.10 iteminfo (Copper/Silver units reconcile).
+        pub unk_hash_110: u32,
         pub item_name: LocalizableString<'a>,
         pub item_desc: LocalizableString<'a>,
     }
@@ -500,6 +511,8 @@ py_binary_struct! {
         pub is_bag_docking: u8,
         pub enable_collision: u8,
         pub disable_collision_with_other_gimmick: u8,
+        // 1.0.8: new u8 field in DockingChildData (IDA shows 14 u8 reads vs 13 in Rust)
+        pub unk_docking_108: u8,
         pub docking_slot_key: CString<'a>,
         pub inherit_summoner: u8,
         pub summon_tag_name_hash: [u32; 4],
@@ -554,7 +567,10 @@ impl<'a> BinaryRead<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_from(data, offset)?),
             3 => SubItemValue::Character(CharacterKey::read_from(data, offset)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_from(data, offset)?),
-            14 | 15 | 255 => SubItemValue::None,
+            // 1.12: sentinel for "no sub-item" changed 15 -> 16 (game reader
+            // sub_101741D78: type 16 reads zero payload). Keep 14/15/255 for
+            // back-compat with <=1.10 tables.
+            14 | 15 | 16 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -582,7 +598,8 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_tracked(data, offset, path, ranges)?),
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
-            14 | 15 | 255 => SubItemValue::None,
+            // 1.12: sentinel for "no sub-item" changed 15 -> 16 (see read_from).
+            14 | 15 | 16 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -631,7 +648,9 @@ impl WritePyValue for SubItem {
                 let v: u32 = get_field(d, "value")?.extract()?;
                 w.extend_from_slice(&v.to_le_bytes());
             }
-            14 | 15 => {}
+            // 1.12: type 16 is the new "no sub-item" sentinel (was 15). 255 is
+            // the legacy sentinel. All carry no payload — see read_from.
+            14 | 15 | 16 | 255 => {}
             _ => {
                 return Err(PyValueError::new_err(format!(
                     "invalid SubItem type_id: {}",

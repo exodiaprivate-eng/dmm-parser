@@ -1,6 +1,17 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410F64D0` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410D89A0` — RoyalSupplyInfo deserializer (via
+//! "RoyalSupplyInfo" class block at 0x144B1B880+). `a2` is `_WORD*`.
+//! 7 fields confirmed in order at bytes 0/8/16/24/56/88/104, matching
+//! the offset map below. (Cited `sub_1410F64D0` stale.) Element readers:
+//! random-map = `sub_1410ECB70`, default_random_list element
+//! (RoyalSupplyRandomData) = `sub_1410EC9E0` (cited `sub_14110A270`/
+//! `sub_14110A0E0` stale). RoyalSupplyRandomData element confirmed:
+//! active_quest_info + active_mission_info + item_info (`sub_1410E1B70`,
+//! u32 wire→u16 RAM) + 8 raw bytes = 20 wire bytes. stage_info via
+//! `sub_1410E52D0` (u32 wire). All ID refs read wider on the wire than
+//! RAM, as elsewhere; Rust models the wire width.
 //!
 //! ─── v3.1 closure analysis (iter 71) ────────────────────────────────────
 //! Cross-check via `sub_1410C3220` (typeinfo→record-reader path per the
@@ -111,13 +122,11 @@ impl<'a> RoyalSupplyInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/royalsupply.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/royalsupply.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("royalsupply.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -134,8 +143,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
@@ -157,8 +166,8 @@ mod tests {
     /// Confirm typed lists carry data — guards against silent regression.
     #[test]
     fn typed_lists_populated() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut totals = (0usize, 0usize, 0usize);
         for (_, s, _) in &ranges {

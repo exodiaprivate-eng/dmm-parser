@@ -7,13 +7,15 @@
 // of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
 // (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
 
-use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyNone, PyString};
-use pyo3::exceptions::{PyIOError, PyKeyError, PyValueError};
+use std::io;
 
-use crate::binary::*;
-use crate::binary::papgt::PackGroupTreeMeta;
+use pyo3::exceptions::{PyIOError, PyKeyError, PyValueError};
+use pyo3::prelude::*;
+use pyo3::types::{PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyNone, PyString, PyTuple};
+
 use crate::binary::pamt::PackMeta;
+use crate::binary::papgt::PackGroupTreeMeta;
+use crate::binary::*;
 use crate::item_info::ItemInfo;
 
 // ── Dict helpers ───────────────────────────────────────────────────────────
@@ -42,7 +44,11 @@ fn json_to_py(py: Python<'_>, v: &serde_json::Value) -> PyResult<Py<PyAny>> {
             } else if let Some(u) = n.as_u64() {
                 Ok(u.into_pyobject(py)?.into_any().unbind())
             } else {
-                Ok(n.as_f64().unwrap_or(0.0).into_pyobject(py)?.into_any().unbind())
+                Ok(n.as_f64()
+                    .unwrap_or(0.0)
+                    .into_pyobject(py)?
+                    .into_any()
+                    .unbind())
             }
         }
         serde_json::Value::String(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
@@ -85,7 +91,10 @@ fn py_to_json(v: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
         return Ok(serde_json::Value::String(s));
     }
     if let Ok(list) = v.cast::<PyList>() {
-        let arr: Vec<serde_json::Value> = list.iter().map(|i| py_to_json(&i)).collect::<PyResult<_>>()?;
+        let arr: Vec<serde_json::Value> = list
+            .iter()
+            .map(|i| py_to_json(&i))
+            .collect::<PyResult<_>>()?;
         return Ok(serde_json::Value::Array(arr));
     }
     if let Ok(dict) = v.cast::<PyDict>() {
@@ -96,7 +105,10 @@ fn py_to_json(v: &Bound<'_, PyAny>) -> PyResult<serde_json::Value> {
         }
         return Ok(serde_json::Value::Object(map));
     }
-    Err(PyValueError::new_err(format!("cannot convert {} to JSON", v.get_type().name()?)))
+    Err(PyValueError::new_err(format!(
+        "cannot convert {} to JSON",
+        v.get_type().name()?
+    )))
 }
 
 // ── ItemInfo Python conversion ─────────────────────────────────────────────
@@ -114,8 +126,7 @@ fn wr_item(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
 
 #[pyfunction]
 pub fn parse_iteminfo_from_file(py: Python<'_>, path: &str) -> PyResult<Py<PyAny>> {
-    let data = std::fs::read(path)
-        .map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let data = std::fs::read(path).map_err(|e| PyIOError::new_err(e.to_string()))?;
     parse_iteminfo_from_bytes_inner(py, &data)
 }
 
@@ -128,10 +139,9 @@ pub fn parse_iteminfo_from_bytes_inner(py: Python<'_>, data: &[u8]) -> PyResult<
     let mut offset = 0;
     let mut items = Vec::new();
     while offset < data.len() {
-        let item = ItemInfo::read_from(data, &mut offset)
-            .map_err(|e| PyValueError::new_err(
-                format!("parse error at offset 0x{:08X}: {}", offset, e),
-            ))?;
+        let item = ItemInfo::read_from(data, &mut offset).map_err(|e| {
+            PyValueError::new_err(format!("parse error at offset 0x{:08X}: {}", offset, e))
+        })?;
         items.push(to_py_item(py, &item)?);
     }
     Ok(PyList::new(py, items)?.into_any().unbind())
@@ -184,8 +194,7 @@ pub fn parse_iteminfo_tracked(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>
 #[pyfunction]
 pub fn write_iteminfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult<()> {
     let data = serialize_iteminfo_impl(items)?;
-    std::fs::write(path, data)
-        .map_err(|e| PyIOError::new_err(e.to_string()))
+    std::fs::write(path, data).map_err(|e| PyIOError::new_err(e.to_string()))
 }
 
 #[pyfunction]
@@ -204,7 +213,10 @@ pub fn serialize_iteminfo_impl(items: &Bound<'_, PyList>) -> PyResult<Vec<u8>> {
 
 // ── PAPGT to/from Python ───────────────────────────────────────────────────
 
-pub fn to_py_papgt<'py>(py: Python<'py>, papgt: &PackGroupTreeMeta) -> PyResult<Bound<'py, PyDict>> {
+pub fn to_py_papgt<'py>(
+    py: Python<'py>,
+    papgt: &PackGroupTreeMeta,
+) -> PyResult<Bound<'py, PyDict>> {
     let d = PyDict::new(py);
     d.set_item("unknown0", papgt.header.unknown0)?;
     d.set_item("checksum", papgt.header.checksum)?;
@@ -283,13 +295,14 @@ pub fn wr_papgt_from_dict(d: &Bound<'_, PyDict>) -> PyResult<Vec<u8>> {
         group_names_buffer,
     };
 
-    papgt.to_bytes().map_err(|e| PyIOError::new_err(e.to_string()))
+    papgt
+        .to_bytes()
+        .map_err(|e| PyIOError::new_err(e.to_string()))
 }
 
 #[pyfunction]
 pub fn parse_papgt_file(py: Python<'_>, path: &str) -> PyResult<Py<PyAny>> {
-    let data = std::fs::read(path)
-        .map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let data = std::fs::read(path).map_err(|e| PyIOError::new_err(e.to_string()))?;
     parse_papgt_bytes_inner(py, &data)
 }
 
@@ -299,16 +312,14 @@ pub fn parse_papgt_bytes(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
 }
 
 pub fn parse_papgt_bytes_inner(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-    let papgt = PackGroupTreeMeta::parse(data)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let papgt = PackGroupTreeMeta::parse(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(to_py_papgt(py, &papgt)?.into_any().unbind())
 }
 
 #[pyfunction]
 pub fn write_papgt_file(data: &Bound<'_, PyDict>, path: &str) -> PyResult<()> {
     let bytes = wr_papgt_from_dict(data)?;
-    std::fs::write(path, bytes)
-        .map_err(|e| PyIOError::new_err(e.to_string()))
+    std::fs::write(path, bytes).map_err(|e| PyIOError::new_err(e.to_string()))
 }
 
 #[pyfunction]
@@ -374,16 +385,21 @@ pub fn to_py_pamt<'py>(py: Python<'py>, pamt: &PackMeta) -> PyResult<Bound<'py, 
     d.set_item("directories", dirs)?;
 
     // Raw trie buffers for roundtrip writing
-    d.set_item("_dir_names_buffer", PyBytes::new(py, &pamt.dir_names_buffer))?;
-    d.set_item("_file_names_buffer", PyBytes::new(py, &pamt.file_names_buffer))?;
+    d.set_item(
+        "_dir_names_buffer",
+        PyBytes::new(py, &pamt.dir_names_buffer),
+    )?;
+    d.set_item(
+        "_file_names_buffer",
+        PyBytes::new(py, &pamt.file_names_buffer),
+    )?;
 
     Ok(d)
 }
 
 #[pyfunction]
 pub fn parse_pamt_file(py: Python<'_>, path: &str) -> PyResult<Py<PyAny>> {
-    let data = std::fs::read(path)
-        .map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let data = std::fs::read(path).map_err(|e| PyIOError::new_err(e.to_string()))?;
     parse_pamt_bytes_inner(py, &data)
 }
 
@@ -393,16 +409,14 @@ pub fn parse_pamt_bytes(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
 }
 
 pub fn parse_pamt_bytes_inner(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-    let pamt = PackMeta::parse(data, None)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let pamt = PackMeta::parse(data, None).map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(to_py_pamt(py, &pamt)?.into_any().unbind())
 }
 
 #[pyfunction]
 pub fn write_pamt_file(data: &Bound<'_, PyDict>, path: &str) -> PyResult<()> {
     let bytes = wr_pamt_from_dict(data)?;
-    std::fs::write(path, bytes)
-        .map_err(|e| PyIOError::new_err(e.to_string()))
+    std::fs::write(path, bytes).map_err(|e| PyIOError::new_err(e.to_string()))
 }
 
 #[pyfunction]
@@ -420,7 +434,8 @@ pub fn wr_pamt_from_dict(d: &Bound<'_, PyDict>) -> PyResult<Vec<u8>> {
     let ei_obj = get_obj(d, "encrypt_info")?.cast::<PyDict>()?.clone();
     let ei_unknown0: u8 = get(&ei_obj, "unknown0")?;
     let ei_bytes: Vec<u8> = get(&ei_obj, "encrypt_info")?;
-    let encrypt_info_arr: [u8; 3] = ei_bytes.try_into()
+    let encrypt_info_arr: [u8; 3] = ei_bytes
+        .try_into()
         .map_err(|_| PyValueError::new_err("encrypt_info must be 3 bytes"))?;
 
     let chunks_list = get_obj(d, "chunks")?.cast::<PyList>()?.clone();
@@ -489,12 +504,16 @@ pub fn wr_pamt_from_dict(d: &Bound<'_, PyDict>) -> PyResult<Vec<u8>> {
         raw_files,
     };
 
-    pamt.to_bytes().map_err(|e| PyIOError::new_err(e.to_string()))
+    pamt.to_bytes()
+        .map_err(|e| PyIOError::new_err(e.to_string()))
 }
 
 // ── Localization to/from Python ────────────────────────────────────────────
 
-fn to_py_paloc_entry<'py>(py: Python<'py>, entry: &crate::binary::paloc::LocalizationEntry) -> PyResult<Bound<'py, PyDict>> {
+fn to_py_paloc_entry<'py>(
+    py: Python<'py>,
+    entry: &crate::binary::paloc::LocalizationEntry,
+) -> PyResult<Bound<'py, PyDict>> {
     let d = PyDict::new(py);
     d.set_item("unk_id", entry.unk_id)?;
     d.set_item("string_key", entry.string_key.data)?;
@@ -529,14 +548,22 @@ fn serialize_paloc_impl(items: &Bound<'_, PyList>) -> PyResult<Vec<u8>> {
         let string_key: String = get(d, "string_key")?;
         let string_value: String = get(d, "string_value")?;
 
-        unk_id.write_to(&mut buf).map_err(|e| PyIOError::new_err(e.to_string()))?;
-        (string_key.len() as u32).write_to(&mut buf).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        unk_id
+            .write_to(&mut buf)
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        (string_key.len() as u32)
+            .write_to(&mut buf)
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
         buf.extend_from_slice(string_key.as_bytes());
-        (string_value.len() as u32).write_to(&mut buf).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        (string_value.len() as u32)
+            .write_to(&mut buf)
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
         buf.extend_from_slice(string_value.as_bytes());
     }
     let count = items.len() as u32;
-    count.write_to(&mut buf).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    count
+        .write_to(&mut buf)
+        .map_err(|e| PyIOError::new_err(e.to_string()))?;
     Ok(buf)
 }
 
@@ -558,7 +585,9 @@ pub fn parse_paloc_from_bytes(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let entries = PyList::empty(py);
     for value in &json_array {
-        let obj = value.as_object().expect("parse_paloc_to_json returns objects");
+        let obj = value
+            .as_object()
+            .expect("parse_paloc_to_json returns objects");
         let d = PyDict::new(py);
         let category = obj.get("category").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
         let key = obj.get("key").and_then(|v| v.as_str()).unwrap_or("");
@@ -582,7 +611,10 @@ pub fn serialize_paloc_to_bytes(py: Python<'_>, items: &Bound<'_, PyList>) -> Py
         let key: String = get(d, "key")?;
         let value: String = get(d, "value")?;
         let mut obj = serde_json::Map::new();
-        obj.insert("category".to_string(), serde_json::Value::Number(category.into()));
+        obj.insert(
+            "category".to_string(),
+            serde_json::Value::Number(category.into()),
+        );
         obj.insert("key".to_string(), serde_json::Value::String(key));
         obj.insert("value".to_string(), serde_json::Value::String(value));
         json_items.push(serde_json::Value::Object(obj));
@@ -619,17 +651,20 @@ pub fn classify_dds(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
 
 #[pyfunction]
 pub fn validate_dds(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-    use crate::dds::{validate_dds_for_game, Severity};
+    use crate::dds::{Severity, validate_dds_for_game};
     let findings = validate_dds_for_game(data);
     let out = PyList::empty(py);
     for f in &findings {
         let d = PyDict::new(py);
         d.set_item("code", f.code)?;
-        d.set_item("severity", match f.severity {
-            Severity::Fatal => "fatal",
-            Severity::Warning => "warning",
-            Severity::Info => "info",
-        })?;
+        d.set_item(
+            "severity",
+            match f.severity {
+                Severity::Fatal => "fatal",
+                Severity::Warning => "warning",
+                Severity::Info => "info",
+            },
+        )?;
         d.set_item("message", &f.message)?;
         out.append(d)?;
     }
@@ -660,11 +695,14 @@ pub fn classify_wem(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
     let d = PyDict::new(py);
     d.set_item("file_size", m.file_size)?;
     d.set_item("format_tag", m.format_tag.raw())?;
-    d.set_item("format_tag_label", match m.format_tag {
-        crate::audio::WemFormatTag::WaveformatExtensible => "WaveformatExtensible",
-        crate::audio::WemFormatTag::WwiseVorbis => "WwiseVorbis",
-        crate::audio::WemFormatTag::Other(_) => "Other",
-    })?;
+    d.set_item(
+        "format_tag_label",
+        match m.format_tag {
+            crate::audio::WemFormatTag::WaveformatExtensible => "WaveformatExtensible",
+            crate::audio::WemFormatTag::WwiseVorbis => "WwiseVorbis",
+            crate::audio::WemFormatTag::Other(_) => "Other",
+        },
+    )?;
     d.set_item("channels", m.channels)?;
     d.set_item("sample_rate", m.sample_rate)?;
     d.set_item("byte_rate", m.byte_rate)?;
@@ -725,17 +763,20 @@ pub fn infer_audio_vpath(vpath: &str) -> Option<&'static str> {
 
 #[pyfunction]
 pub fn validate_audio(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-    use crate::audio::{validate_audio as core, AudioSeverity};
+    use crate::audio::{AudioSeverity, validate_audio as core};
     let findings = core(data);
     let out = PyList::empty(py);
     for f in &findings {
         let d = PyDict::new(py);
         d.set_item("code", f.code)?;
-        d.set_item("severity", match f.severity {
-            AudioSeverity::Fatal => "fatal",
-            AudioSeverity::Warning => "warning",
-            AudioSeverity::Info => "info",
-        })?;
+        d.set_item(
+            "severity",
+            match f.severity {
+                AudioSeverity::Fatal => "fatal",
+                AudioSeverity::Warning => "warning",
+                AudioSeverity::Info => "info",
+            },
+        )?;
         d.set_item("message", &f.message)?;
         out.append(d)?;
     }
@@ -753,31 +794,45 @@ pub fn calculate_checksum(data: &[u8]) -> u32 {
 
 #[pyfunction]
 pub fn compress_data(py: Python<'_>, data: &[u8], compression: u8) -> PyResult<Py<PyAny>> {
-    use crate::binary::paz;
     use crate::binary::pamt::Compression;
+    use crate::binary::paz;
 
     let comp = match compression {
         0 => Compression::None,
         2 => Compression::Lz4,
         3 => Compression::Zlib,
-        _ => return Err(PyValueError::new_err(format!("unsupported compression: {}", compression))),
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "unsupported compression: {}",
+                compression
+            )));
+        }
     };
 
-    let result = paz::compress(data, comp)
-        .map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let result = paz::compress(data, comp).map_err(|e| PyIOError::new_err(e.to_string()))?;
     Ok(PyBytes::new(py, &result).into_any().unbind())
 }
 
 #[pyfunction]
-pub fn decompress_data(py: Python<'_>, data: &[u8], compression: u8, uncompressed_size: usize) -> PyResult<Py<PyAny>> {
-    use crate::binary::paz;
+pub fn decompress_data(
+    py: Python<'_>,
+    data: &[u8],
+    compression: u8,
+    uncompressed_size: usize,
+) -> PyResult<Py<PyAny>> {
     use crate::binary::pamt::Compression;
+    use crate::binary::paz;
 
     let comp = match compression {
         0 => Compression::None,
         2 => Compression::Lz4,
         3 => Compression::Zlib,
-        _ => return Err(PyValueError::new_err(format!("unsupported compression: {}", compression))),
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "unsupported compression: {}",
+                compression
+            )));
+        }
     };
 
     let result = paz::decompress(data, comp, uncompressed_size)
@@ -793,7 +848,10 @@ fn parse_compression(compression: u8) -> PyResult<crate::binary::pamt::Compressi
         0 => Ok(Compression::None),
         2 => Ok(Compression::Lz4),
         3 => Ok(Compression::Zlib),
-        _ => Err(PyValueError::new_err(format!("unsupported compression: {}", compression))),
+        _ => Err(PyValueError::new_err(format!(
+            "unsupported compression: {}",
+            compression
+        ))),
     }
 }
 
@@ -802,7 +860,10 @@ fn parse_crypto(crypto: u8) -> PyResult<crate::binary::pamt::CryptoType> {
     match crypto {
         0 => Ok(CryptoType::None),
         3 => Ok(CryptoType::ChaCha20),
-        _ => Err(PyValueError::new_err(format!("unsupported crypto: {}", crypto))),
+        _ => Err(PyValueError::new_err(format!(
+            "unsupported crypto: {}",
+            crypto
+        ))),
     }
 }
 
@@ -831,12 +892,12 @@ impl PyPackGroupBuilder {
     ) -> PyResult<Self> {
         let comp = parse_compression(compression)?;
         let cry = parse_crypto(crypto)?;
-        let ei: [u8; 3] = encrypt_info.try_into()
+        let ei: [u8; 3] = encrypt_info
+            .try_into()
             .map_err(|_| PyValueError::new_err("encrypt_info must be 3 bytes"))?;
 
         // Create output directory if it doesn't exist
-        std::fs::create_dir_all(output_dir)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        std::fs::create_dir_all(output_dir).map_err(|e| PyIOError::new_err(e.to_string()))?;
 
         let builder = crate::binary::paz::PackGroupBuilder::new(
             std::path::Path::new(output_dir),
@@ -846,31 +907,47 @@ impl PyPackGroupBuilder {
             max_chunk_size,
         );
 
-        Ok(PyPackGroupBuilder { inner: Some(builder) })
+        Ok(PyPackGroupBuilder {
+            inner: Some(builder),
+        })
     }
 
     /// Add a file from raw bytes.
     fn add_file(&mut self, dir_path: &str, file_name: &str, data: &[u8]) -> PyResult<()> {
-        let builder = self.inner.as_mut()
+        let builder = self
+            .inner
+            .as_mut()
             .ok_or_else(|| PyValueError::new_err("builder already finished"))?;
-        builder.add_file(dir_path, file_name, data)
+        builder
+            .add_file(dir_path, file_name, data)
             .map_err(|e| PyIOError::new_err(e.to_string()))
     }
 
     /// Add a file by reading from a path on disk.
-    fn add_file_from_path(&mut self, dir_path: &str, file_name: &str, file_path: &str) -> PyResult<()> {
-        let builder = self.inner.as_mut()
+    fn add_file_from_path(
+        &mut self,
+        dir_path: &str,
+        file_name: &str,
+        file_path: &str,
+    ) -> PyResult<()> {
+        let builder = self
+            .inner
+            .as_mut()
             .ok_or_else(|| PyValueError::new_err("builder already finished"))?;
-        builder.add_file_from_path(dir_path, file_name, std::path::Path::new(file_path))
+        builder
+            .add_file_from_path(dir_path, file_name, std::path::Path::new(file_path))
             .map_err(|e| PyIOError::new_err(e.to_string()))
     }
 
     /// Finish building: flush remaining chunk, write 0.pamt.
     /// Returns the raw PAMT bytes (for computing checksum for PAPGT).
     fn finish(&mut self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let builder = self.inner.take()
+        let builder = self
+            .inner
+            .take()
             .ok_or_else(|| PyValueError::new_err("builder already finished"))?;
-        let pamt_bytes = builder.finish()
+        let pamt_bytes = builder
+            .finish()
             .map_err(|e| PyIOError::new_err(e.to_string()))?;
         Ok(PyBytes::new(py, &pamt_bytes).into_any().unbind())
     }
@@ -891,17 +968,18 @@ pub fn add_papgt_entry(
 ) -> PyResult<Py<PyAny>> {
     // Reconstruct the PackGroupTreeMeta from the dict
     let bytes = wr_papgt_from_dict(papgt_data)?;
-    let mut papgt = PackGroupTreeMeta::parse(&bytes)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let mut papgt =
+        PackGroupTreeMeta::parse(&bytes).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
     papgt.add_entry(group_name, pack_meta_checksum, is_optional, language);
 
-    let new_bytes = papgt.to_bytes()
+    let new_bytes = papgt
+        .to_bytes()
         .map_err(|e| PyIOError::new_err(e.to_string()))?;
 
     // Re-parse to get the dict representation
-    let new_papgt = PackGroupTreeMeta::parse(&new_bytes)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let new_papgt =
+        PackGroupTreeMeta::parse(&new_bytes).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
     Ok(to_py_papgt(py, &new_papgt)?.into_any().unbind())
 }
@@ -920,29 +998,39 @@ pub fn extract_file(
     dir_path: &str,
     file_name: &str,
 ) -> PyResult<Py<PyAny>> {
-    use std::path::Path;
     use crate::binary::paz;
+    use std::path::Path;
 
     let group_dir = Path::new(game_dir).join(group_name);
     let pamt_path = group_dir.join("0.pamt");
 
     let pamt_data = std::fs::read(&pamt_path)
         .map_err(|e| PyIOError::new_err(format!("{}: {}", pamt_path.display(), e)))?;
-    let pamt = PackMeta::parse(&pamt_data, None)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let pamt =
+        PackMeta::parse(&pamt_data, None).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
     // Find the directory and file
-    let dir = pamt.directories.iter()
+    let dir = pamt
+        .directories
+        .iter()
         .find(|d| d.path == dir_path)
-        .ok_or_else(|| PyValueError::new_err(
-            format!("directory '{}' not found in {}/{}", dir_path, group_name, "0.pamt"),
-        ))?;
+        .ok_or_else(|| {
+            PyValueError::new_err(format!(
+                "directory '{}' not found in {}/{}",
+                dir_path, group_name, "0.pamt"
+            ))
+        })?;
 
-    let file = dir.files.iter()
+    let file = dir
+        .files
+        .iter()
         .find(|f| f.name == file_name)
-        .ok_or_else(|| PyValueError::new_err(
-            format!("file '{}' not found in directory '{}'", file_name, dir_path),
-        ))?;
+        .ok_or_else(|| {
+            PyValueError::new_err(format!(
+                "file '{}' not found in directory '{}'",
+                file_name, dir_path
+            ))
+        })?;
 
     let encrypt_info = pamt.header.encrypt_info.encrypt_info;
     let raw = paz::extract_file(&group_dir, file, dir_path, &encrypt_info)
@@ -954,14 +1042,22 @@ pub fn extract_file(
 // ── SkillInfo ──────────────────────────────────────────────────────────────
 
 #[pyfunction]
-pub fn parse_skillinfo_from_file(py: Python<'_>, pabgb_path: &str, pabgh_path: &str) -> PyResult<Py<PyAny>> {
+pub fn parse_skillinfo_from_file(
+    py: Python<'_>,
+    pabgb_path: &str,
+    pabgh_path: &str,
+) -> PyResult<Py<PyAny>> {
     let data = std::fs::read(pabgb_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
     let pabgh = std::fs::read(pabgh_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
     parse_skillinfo_from_bytes(py, &data, &pabgh)
 }
 
 #[pyfunction]
-pub fn parse_skillinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) -> PyResult<Py<PyAny>> {
+pub fn parse_skillinfo_from_bytes(
+    py: Python<'_>,
+    pabgb: &[u8],
+    pabgh: &[u8],
+) -> PyResult<Py<PyAny>> {
     let items = crate::tables::skill_info::parse_skill_to_json_with_pabgh(pabgb, pabgh)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
@@ -973,7 +1069,8 @@ pub fn parse_skillinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) ->
 
 #[pyfunction]
 pub fn serialize_skillinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
-    let values: Vec<serde_json::Value> = items.iter()
+    let values: Vec<serde_json::Value> = items
+        .iter()
         .map(|item| py_to_json(&item))
         .collect::<PyResult<_>>()?;
     let data = crate::tables::skill_info::serialize_skill_from_json(&values)
@@ -983,7 +1080,8 @@ pub fn serialize_skillinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResul
 
 #[pyfunction]
 pub fn write_skillinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult<()> {
-    let values: Vec<serde_json::Value> = items.iter()
+    let values: Vec<serde_json::Value> = items
+        .iter()
         .map(|item| py_to_json(&item))
         .collect::<PyResult<_>>()?;
     let data = crate::tables::skill_info::serialize_skill_from_json(&values)
@@ -994,14 +1092,22 @@ pub fn write_skillinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResul
 // ── BuffInfo ───────────────────────────────────────────────────────────────
 
 #[pyfunction]
-pub fn parse_buffinfo_from_file(py: Python<'_>, pabgb_path: &str, pabgh_path: &str) -> PyResult<Py<PyAny>> {
+pub fn parse_buffinfo_from_file(
+    py: Python<'_>,
+    pabgb_path: &str,
+    pabgh_path: &str,
+) -> PyResult<Py<PyAny>> {
     let data = std::fs::read(pabgb_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
     let pabgh = std::fs::read(pabgh_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
     parse_buffinfo_from_bytes(py, &data, &pabgh)
 }
 
 #[pyfunction]
-pub fn parse_buffinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) -> PyResult<Py<PyAny>> {
+pub fn parse_buffinfo_from_bytes(
+    py: Python<'_>,
+    pabgb: &[u8],
+    pabgh: &[u8],
+) -> PyResult<Py<PyAny>> {
     let items = crate::tables::buff_info::parse_buffinfo_to_json_with_pabgh(pabgb, pabgh)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
@@ -1013,7 +1119,8 @@ pub fn parse_buffinfo_from_bytes(py: Python<'_>, pabgb: &[u8], pabgh: &[u8]) -> 
 
 #[pyfunction]
 pub fn serialize_buffinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
-    let values: Vec<serde_json::Value> = items.iter()
+    let values: Vec<serde_json::Value> = items
+        .iter()
         .map(|item| py_to_json(&item))
         .collect::<PyResult<_>>()?;
     let data = crate::tables::buff_info::serialize_buffinfo_from_json(&values)
@@ -1023,7 +1130,8 @@ pub fn serialize_buffinfo(py: Python<'_>, items: &Bound<'_, PyList>) -> PyResult
 
 #[pyfunction]
 pub fn write_buffinfo_to_file(items: &Bound<'_, PyList>, path: &str) -> PyResult<()> {
-    let values: Vec<serde_json::Value> = items.iter()
+    let values: Vec<serde_json::Value> = items
+        .iter()
         .map(|item| py_to_json(&item))
         .collect::<PyResult<_>>()?;
     let data = crate::tables::buff_info::serialize_buffinfo_from_json(&values)
@@ -1069,10 +1177,9 @@ pub fn parse_table(
 ) -> PyResult<Py<PyAny>> {
     let shape_enum = crate::json_shape::JsonShape::from_str(shape.unwrap_or(""))
         .map_err(PyValueError::new_err)?;
-    let values = crate::dispatch::parse_table_to_json_shaped(
-        table_name, pabgb, pabgh, shape_enum,
-    )
-    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let table_name = crate::dispatch::normalize_target_name(table_name).unwrap_or(table_name);
+    let values = crate::dispatch::parse_table_to_json_shaped(table_name, pabgb, pabgh, shape_enum)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
     for v in values {
         list.append(json_to_py(py, &v)?)?;
@@ -1080,24 +1187,133 @@ pub fn parse_table(
     Ok(list.into_any().unbind())
 }
 
+/// Build a `{key: name}` index from a parsed table's records.
+///
+/// Pulls each record's `"key"` and `name_field` (default `"string_key"`).
+/// Use the result as a value in the `context` dict passed to
+/// [`parse_table_resolved`]. Records with a zero key or missing name are
+/// skipped.
 #[pyfunction]
-#[pyo3(signature = (table_name, items, shape=None))]
+#[pyo3(signature = (items, name_field="string_key"))]
+pub fn build_key_name_index(
+    py: Python<'_>,
+    items: &Bound<'_, PyList>,
+    name_field: &str,
+) -> PyResult<Py<PyAny>> {
+    let json_items: Vec<serde_json::Value> = items
+        .iter()
+        .map(|item| py_to_json(&item))
+        .collect::<PyResult<_>>()?;
+    let map = crate::resolve::extract_key_name_index(&json_items, name_field);
+    let out = PyDict::new(py);
+    for (k, v) in map {
+        out.set_item(k, v)?;
+    }
+    Ok(out.into_any().unbind())
+}
+
+/// Parse a table and annotate cross-table reference fields with readable
+/// names, using a caller-supplied resolution `context`.
+///
+/// `context` maps a referenced table's canonical name (e.g.
+/// `"knowledge_info"`) to its `{key: name}` index (build one with
+/// [`build_key_name_index`]). Scalar reference fields gain a
+/// `<field>_name` string; array reference fields gain a `<field>_names`
+/// parallel array (`None` per unresolved element). The raw hash stays
+/// authoritative — companion fields are advisory and ignored on
+/// serialize, so this never affects round-trip.
+#[pyfunction]
+#[pyo3(signature = (table_name, pabgb, pabgh=None, shape=None, context=None))]
+pub fn parse_table_resolved(
+    py: Python<'_>,
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+    shape: Option<&str>,
+    context: Option<&Bound<'_, PyDict>>,
+) -> PyResult<Py<PyAny>> {
+    let shape_enum = crate::json_shape::JsonShape::from_str(shape.unwrap_or(""))
+        .map_err(PyValueError::new_err)?;
+    let mut values =
+        crate::dispatch::parse_table_to_json_shaped(table_name, pabgb, pabgh, shape_enum)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    if let Some(ctx) = context {
+        let mut idx: crate::resolve::NameIndex = std::collections::HashMap::new();
+        for (k, v) in ctx.iter() {
+            let tname: String = k.extract()?;
+            let inner = v.cast::<PyDict>().map_err(|_| {
+                PyValueError::new_err(format!(
+                    "context['{}'] must be a dict of {{int: str}}",
+                    tname
+                ))
+            })?;
+            let mut m = std::collections::HashMap::new();
+            for (kk, vv) in inner.iter() {
+                let key: u64 = kk.extract().map_err(|_| {
+                    PyValueError::new_err(format!("context['{}'] key must be int", tname))
+                })?;
+                if key > u32::MAX as u64 {
+                    continue;
+                }
+                let name: String = vv.extract().map_err(|_| {
+                    PyValueError::new_err(format!("context['{}'] value must be str", tname))
+                })?;
+                m.insert(key as u32, name);
+            }
+            idx.insert(tname, m);
+        }
+        crate::resolve::annotate(
+            crate::dispatch::normalize_target_name(table_name).unwrap_or(table_name),
+            &mut values,
+            &idx,
+        );
+    }
+
+    let list = PyList::empty(py);
+    for v in values {
+        list.append(json_to_py(py, &v)?)?;
+    }
+    Ok(list.into_any().unbind())
+}
+
+// serialize_table_from_json_with_pabgh(
+//     table_name: &str,
+//     items: &[serde_json::Value],
+//     original_pabgh: &[u8],
+// )
+
+#[pyfunction]
+#[pyo3(signature = (table_name, items, shape=None, original_pabgh=None))]
 pub fn serialize_table(
     py: Python<'_>,
     table_name: &str,
     items: &Bound<'_, PyList>,
     shape: Option<&str>,
+    original_pabgh: Option<&[u8]>,
 ) -> PyResult<Py<PyAny>> {
     let shape_enum = crate::json_shape::JsonShape::from_str(shape.unwrap_or(""))
         .map_err(PyValueError::new_err)?;
-    let json_items: Vec<serde_json::Value> = items.iter()
+    let json_items: Vec<serde_json::Value> = items
+        .iter()
         .map(|item| py_to_json(&item))
         .collect::<PyResult<_>>()?;
-    let data = crate::dispatch::serialize_table_from_json_shaped(
-        table_name, &json_items, shape_enum,
-    )
-    .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    Ok(PyBytes::new(py, &data).into_any().unbind())
+
+    if let Some(pabgh) = original_pabgh {
+        let (pabgb, pabgh) =
+            crate::dispatch::serialize_table_from_json_with_pabgh(table_name, &json_items, &pabgh)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        return Ok(
+            PyTuple::new(py, &[PyBytes::new(py, &pabgb), PyBytes::new(py, &pabgh)])?
+                .into_any()
+                .unbind(),
+        );
+    } else {
+        let pabgb =
+            crate::dispatch::serialize_table_from_json_shaped(table_name, &json_items, shape_enum)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        return Ok(PyBytes::new(py, &pabgb).into_any().unbind());
+    };
 }
 
 #[pyfunction]
@@ -1106,7 +1322,8 @@ pub fn write_table_to_file(
     items: &Bound<'_, PyList>,
     path: &str,
 ) -> PyResult<()> {
-    let json_items: Vec<serde_json::Value> = items.iter()
+    let json_items: Vec<serde_json::Value> = items
+        .iter()
         .map(|item| py_to_json(&item))
         .collect::<PyResult<_>>()?;
     let data = dispatch_serialize_bytes(table_name, &json_items)?;
@@ -1157,13 +1374,9 @@ pub fn apply_intents(
         })
         .collect::<PyResult<_>>()?;
 
-    let (new_body, new_pabgh, outcomes) = crate::dispatch::apply_intents_to_table_body(
-        table_name,
-        pabgb,
-        pabgh,
-        &intent_list,
-    )
-    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let (new_body, new_pabgh, outcomes) =
+        crate::dispatch::apply_intents_to_table_body(table_name, pabgb, pabgh, &intent_list)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
     let result = PyDict::new(py);
     result.set_item("body", PyBytes::new(py, &new_body))?;
@@ -1225,17 +1438,16 @@ macro_rules! bind_typed_format {
     ($parse_fn:ident, $write_fn:ident, $parse_file_fn:ident, $write_file_fn:ident, $typed:path) => {
         #[pyfunction]
         pub fn $parse_fn(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-            use $typed as Typed;
             use crate::json_traits::ToJsonValue;
-            let typed = Typed::parse(data)
-                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            use $typed as Typed;
+            let typed = Typed::parse(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
             json_to_py(py, &typed.to_json_value())
         }
 
         #[pyfunction]
         pub fn $write_fn(py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
-            use $typed as Typed;
             use crate::json_traits::WriteJsonValue;
+            use $typed as Typed;
             let json = py_to_json(obj)?;
             let mut out = Vec::new();
             Typed::write_from_json(&mut out, &json)
@@ -1257,8 +1469,8 @@ macro_rules! bind_typed_format {
         /// Atomic via tempfile + rename when supported by the filesystem.
         #[pyfunction]
         pub fn $write_file_fn(py: Python<'_>, obj: &Bound<'_, PyAny>, path: &str) -> PyResult<()> {
-            use $typed as Typed;
             use crate::json_traits::WriteJsonValue;
+            use $typed as Typed;
             let json = py_to_json(obj)?;
             let mut out = Vec::new();
             Typed::write_from_json(&mut out, &json)
@@ -1272,33 +1484,45 @@ macro_rules! bind_typed_format {
 }
 
 bind_typed_format!(
-    parse_pastage_bytes, serialize_pastage,
-    parse_pastage_from_file, write_pastage_to_file,
+    parse_pastage_bytes,
+    serialize_pastage,
+    parse_pastage_from_file,
+    write_pastage_to_file,
     crate::binary::pastage::TypedPastageFile
 );
 bind_typed_format!(
-    parse_paseq_bytes, serialize_paseq,
-    parse_paseq_from_file, write_paseq_to_file,
+    parse_paseq_bytes,
+    serialize_paseq,
+    parse_paseq_from_file,
+    write_paseq_to_file,
     crate::binary::paseq::TypedPaseqFile
 );
 bind_typed_format!(
-    parse_paseqc_bytes, serialize_paseqc,
-    parse_paseqc_from_file, write_paseqc_to_file,
+    parse_paseqc_bytes,
+    serialize_paseqc,
+    parse_paseqc_from_file,
+    write_paseqc_to_file,
     crate::binary::paseqc::TypedPaseqcFile
 );
 bind_typed_format!(
-    parse_paschedule_bytes, serialize_paschedule,
-    parse_paschedule_from_file, write_paschedule_to_file,
+    parse_paschedule_bytes,
+    serialize_paschedule,
+    parse_paschedule_from_file,
+    write_paschedule_to_file,
     crate::binary::paschedule::TypedPascheduleFile
 );
 bind_typed_format!(
-    parse_paschedulepath_bytes, serialize_paschedulepath,
-    parse_paschedulepath_from_file, write_paschedulepath_to_file,
+    parse_paschedulepath_bytes,
+    serialize_paschedulepath,
+    parse_paschedulepath_from_file,
+    write_paschedulepath_to_file,
     crate::binary::paschedulepath::TypedPaschedulePathFile
 );
 bind_typed_format!(
-    parse_paatt_bytes, serialize_paatt,
-    parse_paatt_from_file, write_paatt_to_file,
+    parse_paatt_bytes,
+    serialize_paatt,
+    parse_paatt_from_file,
+    write_paatt_to_file,
     crate::binary::paatt::PaattFile
 );
 
@@ -1312,16 +1536,14 @@ macro_rules! bind_json_format {
         #[pyfunction]
         pub fn $parse_name(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
             use $module as m;
-            let v = m::parse(data)
-                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            let v = m::parse(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
             json_to_py(py, &v)
         }
         #[pyfunction]
         pub fn $serialize_name(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
             use $module as m;
             let v = py_to_json(value)?;
-            let bytes = m::serialize(&v)
-                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            let bytes = m::serialize(&v).map_err(|e| PyValueError::new_err(e.to_string()))?;
             Ok(PyBytes::new(py, &bytes).into_any().unbind())
         }
     };
@@ -1379,16 +1601,48 @@ mod count_record_table_pyshim {
 
 bind_json_format!(parse_pami_bytes, serialize_pami, crate::python::pami_pyshim);
 bind_json_format!(parse_par_bytes, serialize_par, crate::python::par_pyshim);
-bind_json_format!(parse_motionblending_bytes, serialize_motionblending, crate::python::motionblending_pyshim);
-bind_json_format!(parse_pamlod_bytes, serialize_pamlod, crate::python::pamlod_pyshim);
-bind_json_format!(parse_paasmt_bytes, serialize_paasmt, crate::python::paasmt_pyshim);
-bind_json_format!(parse_paccd_bytes, serialize_paccd, crate::python::paccd_pyshim);
+bind_json_format!(
+    parse_motionblending_bytes,
+    serialize_motionblending,
+    crate::python::motionblending_pyshim
+);
+bind_json_format!(
+    parse_pamlod_bytes,
+    serialize_pamlod,
+    crate::python::pamlod_pyshim
+);
+bind_json_format!(
+    parse_paasmt_bytes,
+    serialize_paasmt,
+    crate::python::paasmt_pyshim
+);
+bind_json_format!(
+    parse_paccd_bytes,
+    serialize_paccd,
+    crate::python::paccd_pyshim
+);
 bind_json_format!(parse_hkx_bytes, serialize_hkx, crate::python::hkx_pyshim);
-bind_json_format!(parse_binarystring_bytes, serialize_binarystring, crate::python::binarystring_pyshim);
-bind_json_format!(parse_xml_bytes, serialize_xml, crate::python::xml_resource_pyshim);
+bind_json_format!(
+    parse_binarystring_bytes,
+    serialize_binarystring,
+    crate::python::binarystring_pyshim
+);
+bind_json_format!(
+    parse_xml_bytes,
+    serialize_xml,
+    crate::python::xml_resource_pyshim
+);
 bind_json_format!(parse_imp_bytes, serialize_imp, crate::python::imp_pyshim);
-bind_json_format!(parse_impostor_bytes, serialize_impostor, crate::python::impostor_pyshim);
-bind_json_format!(parse_count_record_table_bytes, serialize_count_record_table, crate::python::count_record_table_pyshim);
+bind_json_format!(
+    parse_impostor_bytes,
+    serialize_impostor,
+    crate::python::impostor_pyshim
+);
+bind_json_format!(
+    parse_count_record_table_bytes,
+    serialize_count_record_table,
+    crate::python::count_record_table_pyshim
+);
 
 /// Parse the outer class field directory from a `.paseq` file. Returns
 /// a list of dicts: `[{"field_name": str, "type_name": str,
@@ -1398,10 +1652,11 @@ bind_json_format!(parse_count_record_table_bytes, serialize_count_record_table, 
 /// nested-class schema.
 #[pyfunction]
 pub fn parse_paseq_field_directory(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
     let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let fields = typed.outer_fields()
+    let fields = typed
+        .outer_fields()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
     for f in fields {
@@ -1419,10 +1674,11 @@ pub fn parse_paseq_field_directory(py: Python<'_>, data: &[u8]) -> PyResult<Py<P
 /// engine reflection serializer.
 #[pyfunction]
 pub fn parse_paseqc_field_directory(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
     let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let fields = typed.outer_fields()
+    let fields = typed
+        .outer_fields()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
     for f in fields {
@@ -1439,7 +1695,7 @@ fn class_blocks_to_pylist(
     py: Python<'_>,
     blocks: Vec<crate::binary::paseq::PaseqClassBlock>,
 ) -> PyResult<Py<PyAny>> {
-    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
     let list = PyList::empty(py);
     for block in blocks {
         let block_dict = PyDict::new(py);
@@ -1469,7 +1725,8 @@ fn class_blocks_to_pylist(
 pub fn parse_paseq_all_class_blocks(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
     let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let blocks = typed.all_class_blocks()
+    let blocks = typed
+        .all_class_blocks()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     class_blocks_to_pylist(py, blocks)
 }
@@ -1482,7 +1739,8 @@ pub fn parse_paseq_all_class_blocks(py: Python<'_>, data: &[u8]) -> PyResult<Py<
 pub fn parse_paseqc_all_class_blocks(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
     let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let blocks = typed.all_class_blocks()
+    let blocks = typed
+        .all_class_blocks()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     class_blocks_to_pylist(py, blocks)
 }
@@ -1494,7 +1752,8 @@ pub fn parse_paseqc_all_class_blocks(py: Python<'_>, data: &[u8]) -> PyResult<Py
 pub fn paseq_value_section_offset(data: &[u8]) -> PyResult<usize> {
     let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    typed.value_section_offset()
+    typed
+        .value_section_offset()
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
@@ -1505,7 +1764,8 @@ pub fn paseq_value_section_offset(data: &[u8]) -> PyResult<usize> {
 pub fn paseq_value_section<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
     let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let values = typed.value_section()
+    let values = typed
+        .value_section()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(PyBytes::new(py, values))
 }
@@ -1515,7 +1775,8 @@ pub fn paseq_value_section<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<
 pub fn paseqc_value_section_offset(data: &[u8]) -> PyResult<usize> {
     let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    typed.value_section_offset()
+    typed
+        .value_section_offset()
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
@@ -1524,7 +1785,8 @@ pub fn paseqc_value_section_offset(data: &[u8]) -> PyResult<usize> {
 pub fn paseqc_value_section<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
     let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let values = typed.value_section()
+    let values = typed
+        .value_section()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(PyBytes::new(py, values))
 }
@@ -1556,7 +1818,8 @@ fn strings_to_pylist<'py>(py: Python<'py>, strings: Vec<(usize, String)>) -> PyR
 pub fn paseq_value_section_strings(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
     let typed = crate::binary::paseq::TypedPaseqFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let strings = typed.value_section_strings()
+    let strings = typed
+        .value_section_strings()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     strings_to_pylist(py, strings)
 }
@@ -1566,7 +1829,8 @@ pub fn paseq_value_section_strings(py: Python<'_>, data: &[u8]) -> PyResult<Py<P
 pub fn paseqc_value_section_strings(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
     let typed = crate::binary::paseqc::TypedPaseqcFile::parse(data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let strings = typed.value_section_strings()
+    let strings = typed
+        .value_section_strings()
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     strings_to_pylist(py, strings)
 }
@@ -1611,9 +1875,9 @@ pub fn replace_cstring_at<'py>(
     new_value: &str,
     expected_value: Option<&str>,
 ) -> PyResult<Bound<'py, PyBytes>> {
-    let result = crate::binary::paseq::replace_cstring_at(
-        data, file_offset, expected_value, new_value,
-    ).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let result =
+        crate::binary::paseq::replace_cstring_at(data, file_offset, expected_value, new_value)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(PyBytes::new(py, &result))
 }
 
@@ -1663,10 +1927,9 @@ pub fn paatt_decode_base_data<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     use crate::binary::paatt_basedata::AttackInfoBaseData;
     use crate::json_shape::JsonShape;
-    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 
-    let shape = JsonShape::from_str(shape.unwrap_or("v3"))
-        .map_err(PyValueError::new_err)?;
+    let shape = JsonShape::from_str(shape.unwrap_or("v3")).map_err(PyValueError::new_err)?;
 
     let decoded = AttackInfoBaseData::decode(version, data)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -1722,7 +1985,7 @@ pub fn paatt_encode_base_data<'py>(
 ) -> PyResult<Bound<'py, PyBytes>> {
     use crate::binary::paatt_basedata::{BaseDataV0, BaseDataV1, BaseDataV2, BaseDataV3};
     use crate::json_traits::WriteJsonValue;
-    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 
     // Convert the Python dict to a serde_json::Value so we can use WriteJsonValue.
     let json_val = py_dict_to_json_value(fields)?;
@@ -1757,12 +2020,16 @@ pub fn paatt_encode_base_data<'py>(
             let b64_str = fields
                 .get_item("base_data_b64")
                 .map_err(|e| PyValueError::new_err(e.to_string()))?
-                .ok_or_else(|| PyValueError::new_err(
-                    "paatt_encode_base_data: raw version requires 'base_data_b64' key",
-                ))?;
-            let s: String = b64_str.extract()
+                .ok_or_else(|| {
+                    PyValueError::new_err(
+                        "paatt_encode_base_data: raw version requires 'base_data_b64' key",
+                    )
+                })?;
+            let s: String = b64_str
+                .extract()
                 .map_err(|e| PyValueError::new_err(format!("base_data_b64: {}", e)))?;
-            B64.decode(&s).map_err(|e| PyValueError::new_err(format!("base64 decode: {}", e)))?
+            B64.decode(&s)
+                .map_err(|e| PyValueError::new_err(format!("base64 decode: {}", e)))?
         }
     };
     let _ = py;
@@ -1778,13 +2045,15 @@ fn py_dict_to_json_value(dict: &Bound<'_, PyDict>) -> PyResult<serde_json::Value
             let b: bool = v.extract()?;
             serde_json::Value::Bool(b)
         } else if v.is_instance_of::<PyInt>() {
-            let n: i64 = v.extract().unwrap_or_else(|_| { let u: u64 = v.extract().unwrap_or(0); u as i64 });
+            let n: i64 = v.extract().unwrap_or_else(|_| {
+                let u: u64 = v.extract().unwrap_or(0);
+                u as i64
+            });
             serde_json::Value::Number(n.into())
         } else if v.is_instance_of::<PyFloat>() {
             let f: f64 = v.extract()?;
             serde_json::Value::Number(
-                serde_json::Number::from_f64(f)
-                    .unwrap_or_else(|| serde_json::Number::from(0i64)),
+                serde_json::Number::from_f64(f).unwrap_or_else(|| serde_json::Number::from(0i64)),
             )
         } else if v.is_instance_of::<PyString>() {
             let s: String = v.extract()?;
@@ -1872,6 +2141,8 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_buffinfo, m)?)?;
     m.add_function(wrap_pyfunction!(write_buffinfo_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_table, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_table_resolved, m)?)?;
+    m.add_function(wrap_pyfunction!(build_key_name_index, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_table, m)?)?;
     m.add_function(wrap_pyfunction!(write_table_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(apply_intents, m)?)?;

@@ -1,7 +1,19 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410E0100` in CrimsonDesert.exe (Win build).
-//! Inner `_targetDataList` reader: `sub_141103D50`.
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410C1BA0` — GamePlayTriggerInfo deserializer (via
+//! "GamePlayTriggerInfo" class block at 0x144AF37D0+). All 13 fields
+//! confirmed in order. (Cited `sub_1410E0100` stale.) Inner
+//! `_targetDataList` reader is `sub_1410E6300` (cited `sub_141103D50`
+//! stale): u32 count + per-elem {u8 tag + u32 hash} = 5 wire bytes,
+//! tag 0-3 dispatch to 4 hash helpers, tag ≥4 rejected — matches the
+//! TargetDataItem JSON narrowing below.
+//! Type confirmations: `position` = single 12-byte read ([u8;12] vec3,
+//! kept raw); `rotation_y` = 4-byte read (f32-as-u32, u32 bit-preserves
+//! the float); `player_condition_info` (sub_1410E19E0) & `ui_map_texture_
+//! info` are u32 wire → u16 RAM; `field_revive_info` is u32 wire → u32
+//! RAM (stored full-width DWORD, unlike the u16-remapped refs). All
+//! Rust field types correct for the wire.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u32 key                         (_key)
@@ -177,7 +189,17 @@ pub struct GamePlayTriggerInfo<'a> {
     pub position: [f32; 3],
     pub rotation_y: f32,
     pub world_map_color_r: u8,
+    /// NEW 1.10: `_playableChracterList` (Mac sub_10192405C @a2+48, reader
+    /// sub_1010A998C — CArray of CharacterKey, u32 wire). Inserted before
+    /// `_fieldReviveInfo`.
+    pub playable_character_list: CArray<u32>,
     pub field_revive_info: u32,
+    /// NEW 1.10: `_contentsPhaseType` (@a2+68, u8 via vtable width 1).
+    pub contents_phase_type: u8,
+    /// NEW 1.10: `_skillInfo` (@a2+70, reader sub_1007807C0 — SkillKey u32 wire).
+    pub skill_info: u32,
+    /// NEW 1.10: `_skillLevel` (@a2+72, reader sub_1006E4328 — u32, width 4).
+    pub skill_level: u32,
     pub target_data_list: CArray<TargetDataItem>,
 }
 
@@ -209,12 +231,17 @@ impl<'a> GamePlayTriggerInfo<'a> {
         let position = <[f32; 3]>::read_from(data, offset)?;
         let rotation_y = f32::read_from(data, offset)?;
         let world_map_color_r = u8::read_from(data, offset)?;
+        let playable_character_list = CArray::<u32>::read_from(data, offset)?;
         let field_revive_info = u32::read_from(data, offset)?;
+        let contents_phase_type = u8::read_from(data, offset)?;
+        let skill_info = u32::read_from(data, offset)?;
+        let skill_level = u32::read_from(data, offset)?;
         let target_data_list = CArray::<TargetDataItem>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, trigger_type, is_enable, safe_zone_type,
             player_condition_info, ui_map_texture_info, position, rotation_y,
-            world_map_color_r, field_revive_info, target_data_list,
+            world_map_color_r, playable_character_list, field_revive_info,
+            contents_phase_type, skill_info, skill_level, target_data_list,
         })
     }
 
@@ -230,7 +257,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         self.position.write_to(w)?;
         self.rotation_y.write_to(w)?;
         self.world_map_color_r.write_to(w)?;
+        self.playable_character_list.write_to(w)?;
         self.field_revive_info.write_to(w)?;
+        self.contents_phase_type.write_to(w)?;
+        self.skill_info.write_to(w)?;
+        self.skill_level.write_to(w)?;
         self.target_data_list.write_to(w)?;
         Ok(())
     }
@@ -248,7 +279,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         m.insert("position".to_string(), self.position.to_json_value());
         m.insert("rotation_y".to_string(), self.rotation_y.to_json_value());
         m.insert("world_map_color_r".to_string(), self.world_map_color_r.to_json_value());
+        m.insert("playable_character_list".to_string(), self.playable_character_list.to_json_value());
         m.insert("field_revive_info".to_string(), self.field_revive_info.to_json_value());
+        m.insert("contents_phase_type".to_string(), self.contents_phase_type.to_json_value());
+        m.insert("skill_info".to_string(), self.skill_info.to_json_value());
+        m.insert("skill_level".to_string(), self.skill_level.to_json_value());
         m.insert("target_data_list".to_string(), self.target_data_list.to_json_value());
         m
     }
@@ -265,7 +300,11 @@ impl<'a> GamePlayTriggerInfo<'a> {
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
         <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "world_map_color_r")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_character_list")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_revive_info")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contents_phase_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_level")?)?;
         <CArray<TargetDataItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_data_list")?)?;
         Ok(())
     }
@@ -275,13 +314,12 @@ impl<'a> GamePlayTriggerInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gameplaytrigger.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gameplaytrigger.pabgh";
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("gameplaytrigger.pabgb") }
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -298,8 +336,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
@@ -323,8 +361,8 @@ mod tests {
         // Confirm vanilla data exercises the variant — sanity check that
         // we're not just shipping an unused enum.
         use std::collections::HashMap;
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut counts: HashMap<&'static str, usize> = HashMap::new();
         for (_, s, _) in &ranges {

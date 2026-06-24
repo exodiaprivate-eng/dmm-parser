@@ -15,11 +15,7 @@ use crate::binary::variant::{entry_ranges, find_cstring_u8_trailer, load_pabgh_o
 use crate::binary::*;
 use std::collections::BTreeMap;
 
-const PABGB_PATH: &str =
-    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgb";
-const PABGH_PATH: &str =
-    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgh";
-
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("conditioninfo.pabgb") }
 /// One walk of the GameCondition blob, recording byte counts per ConditionData tag.
 /// Returns Ok with the cursor position if the walk completed without overshooting
 /// the blob_end. Aborts on first error.
@@ -262,11 +258,11 @@ fn walk_ivariant(data: &[u8], cursor: &mut usize, end: usize, tag: u8) -> Result
 
 #[test]
 fn diagnose_conditiondata_variants() {
-    let Ok(data) = std::fs::read(PABGB_PATH) else {
-        eprintln!("SKIP: missing {}", PABGB_PATH);
+    let Ok(data) = std::fs::read(pabgb_path()) else {
+        eprintln!("SKIP: fixture not found");
         return;
     };
-    let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+    let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
         eprintln!("SKIP: missing pabgh");
         return;
     };

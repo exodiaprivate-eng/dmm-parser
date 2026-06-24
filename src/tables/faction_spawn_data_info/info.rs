@@ -8,7 +8,8 @@
 //!   3. u8 is_blocked
 //!   4. patrol_spawn_data:    COptional<PatrolSpawnData>          (sub_141115560)
 //!   5. gimmick_spawn_data_list: CArray<GimmickElement>           (sub_141115390)
-//!   6. schedule_spawn_info:   COptional<CArray<u16>>             (inline, sub_1410FF0C0)
+//!   6. schedule_spawn_info:   COptional<CArray<FactionScheduleSpawnData>> (sub_101935820)
+//!      element {condition: u32, character_group_info: u16}  (1.10 fix; was u16)
 //!   7. sequencer_spawn_info:  COptional<CArray<u32>>             (sub_141115190)
 //!
 //! ## Inner structs (recovered from nested IDA decompilation):
@@ -118,11 +119,32 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    /// Per-element of `gimmick_spawn_data_list` (sub_141115390).
+    /// Per-element of `gimmick_spawn_data_list`. Mac reader sub_1018FFD5C
+    /// (`FactionGimmickActorSpawnInfo`): _gimmickSpawnTag (CString),
+    /// _characterGroupInfo (CharacterGroupKey, u16 wire), _condition
+    /// (ConditionKey, u32 wire). field_a=character_group, field_b=condition.
     pub struct GimmickElement<'a> {
         pub name: CString<'a>,
         pub field_a: u16,
         pub field_b: u32,
+    }
+}
+
+py_binary_struct! {
+    /// Element of `schedule_spawn_info`'s inner list. Mac reader sub_1018FFF68
+    /// (`FactionScheduleSpawnData`): _condition (ConditionKey, u32 wire → u16),
+    /// _characterGroupInfo (CharacterGroupKey, u16 wire → u16). 6 wire bytes.
+    ///
+    /// 2026-06-05: the prior parser modeled schedule_spawn_info as
+    /// `COptional<CArray<u16>>` — i.e. a 2-byte element. That was only ever
+    /// exercised on entries where the optional is ABSENT (most of them), so it
+    /// "passed" until an entry with a present schedule (key 0xf4255) under-read
+    /// by 4 bytes per element AND then misread the following (present)
+    /// sequencer list as absent — a 28-byte shortfall. Confirmed via the Mac
+    /// FactionScheduleSpawnData reader.
+    pub struct FactionScheduleSpawnData {
+        pub condition: u32,
+        pub character_group_info: u16,
     }
 }
 
@@ -133,7 +155,7 @@ pub struct FactionSpawnDataInfo<'a> {
     pub is_blocked: u8,
     pub patrol_spawn_data: COptional<PatrolSpawnData<'a>>,
     pub gimmick_spawn_data_list: CArray<GimmickElement<'a>>,
-    pub schedule_spawn_info: COptional<CArray<u16>>,
+    pub schedule_spawn_info: COptional<CArray<FactionScheduleSpawnData>>,
     pub sequencer_spawn_info: COptional<CArray<u32>>,
 }
 
@@ -151,7 +173,7 @@ impl<'a> FactionSpawnDataInfo<'a> {
         let is_blocked = u8::read_from(data, offset)?;
         let patrol_spawn_data = COptional::<PatrolSpawnData>::read_from(data, offset)?;
         let gimmick_spawn_data_list = CArray::<GimmickElement>::read_from(data, offset)?;
-        let schedule_spawn_info = COptional::<CArray<u16>>::read_from(data, offset)?;
+        let schedule_spawn_info = COptional::<CArray<FactionScheduleSpawnData>>::read_from(data, offset)?;
         let sequencer_spawn_info = COptional::<CArray<u32>>::read_from(data, offset)?;
 
         if *offset != entry_end {
@@ -204,7 +226,7 @@ impl<'a> FactionSpawnDataInfo<'a> {
         <CArray<GimmickElement> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "gimmick_spawn_data_list")?,
         )?;
-        <COptional<CArray<u16>> as WriteJsonValue>::write_from_json(
+        <COptional<CArray<FactionScheduleSpawnData>> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "schedule_spawn_info")?,
         )?;
         <COptional<CArray<u32>> as WriteJsonValue>::write_from_json(
@@ -219,13 +241,11 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/factionspawndatainfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/factionspawndatainfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("factionspawndatainfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: {}", PABGB_PATH); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: {}", PABGH_PATH); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
         let ranges = entry_ranges(&entries, data.len());
 
         let mut items = Vec::with_capacity(ranges.len());
@@ -245,12 +265,12 @@ mod tests {
     #[test]
     fn json_roundtrip() {
         use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());

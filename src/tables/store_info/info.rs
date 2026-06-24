@@ -1,6 +1,50 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410FCD20` in CrimsonDesert.exe (Win build).
+//! Reader (verified 2026-05-22 against CrimsonDesert.exe 1.0.8):
+//! `sub_1410F3B20` — the StoreInfo deserializer. `a1` = byte-stream
+//! reader object (vtable+8 = read-N-bytes), `a2` = StoreInfo struct.
+//! Each field is read individually into a fixed struct offset; the
+//! per-field error string (`unk_144B27XXX`) is that field's name.
+//! (The previously-cited `sub_1410FCD20` was stale — it falls inside
+//! `sub_1410FCC20`, an unrelated GamePlayVariableInfo lookup, in this
+//! build.)
+//!
+//! Full IDA field map (wire-width / mem-offset → Rust field):
+//!   a2+0   u16          key
+//!   a2+8   CString      string_key                (sub_14108B300)
+//!   a2+16  u8           is_blocked
+//!   a2+18  u32 wire     exchange_item_info_for_buy (sub_1410E1B70:
+//!          reads 4 wire bytes, remaps via lookup → u16 in RAM)
+//!   a2+24  CArray<u32>  exchange_item_info_list_for_sell
+//!          (sub_1410E24C0: u32 count + u32 elems, each → u16 in RAM)
+//!   a2+40  u64          sell_percents
+//!   a2+48  u8           store_type
+//!   a2+56  CArray<u64>  price_increase_percent_list (u32 count + u64[])
+//!   a2+72  u8           sellable_character_condition_logic
+//!          (1.0.8: changed from u32 lookup to plain u8)
+//!   a2+76  u32          reset_hour
+//!   a2+80  u32          reset_day
+//!   a2+84  u32          buyable_stock_count
+//!   a2+88  u32          sellable_stock_count
+//!   a2+92  u8           sellable_type
+//!   a2+96  CArray<StoreStockData>  stock_data_list
+//!          (u32 count + 88-mem-byte elems via sub_1410DEEC0)
+//!   a2+112 CArray<u8>   sale_item_type_list      (sub_1410E2850)
+//!   a2+128 CArray<u8>   not_sale_item_type_list  (sub_1410E2850, same)
+//!   a2+144 u32          custom_mesh_obb_max_length
+//!   a2+148 u8           fixed_price
+//!   a2+149 u8           use_housing_gimmick
+//!   a2+150 u8           reduce_price_by_looted_dead_body
+//!
+//! NOTE on wire vs memory type: fields 4, 5 read a **u32** off the
+//! wire then remap it through an ID-resolution table into a **u16**
+//! in-memory slot. The Rust struct models the *wire* type (`u32` /
+//! `CArray<u32>`), which is correct for read/write roundtrip and for
+//! v3 modding — the u16 RAM form is a runtime concern that never hits
+//! disk. Field 9 was likewise a u32 lookup in 1.0.7 but changed to
+//! a plain u8 in 1.0.8. Byte-exact roundtrip + this IDA cross-check
+//! together prove both field boundaries *and* field types at the wire
+//! level.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1. u16 key                                  (_key, pabgh format 2)
@@ -14,8 +58,8 @@
 //!   7. u8 store_type                            (_storeType)
 //!   8. CArray<u64> price_increase_percent_list  (_priceIncreasePercentList,
 //!      inline u32 count + N×u64)
-//!   9. u32 sellable_character_condition_logic   (_sellableCharacterConditionLogic,
-//!      sub_1410FF430 wire u32)
+//!   9. u8 sellable_character_condition_logic    (_sellableCharacterConditionLogic,
+//!      1.0.8: plain u8 read; was u32 lookup in 1.0.7)
 //!  10. u32 reset_hour                           (_resetHour)
 //!  11. u32 reset_day                            (_resetDay)
 //!  12. u32 buyable_stock_count                  (_buyableStockCount)
@@ -46,10 +90,11 @@ use crate::py_binary_struct;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-// ── StoreStockDataValue 14-arm polymorphic ─────────────────────────────────
+// ── StoreStockDataValue 15-arm polymorphic ─────────────────────────────────
 //
-// Per `sub_141600210` dispatcher. Common header (63 wire bytes) + per-disc
-// payload (0-42 wire bytes). Disc 11 (0xB) is the empty variant.
+// Per `sub_1416098C0` dispatcher (1.0.8). Common header (63 wire bytes) +
+// per-disc payload (0-32 wire bytes). Disc 11 (0xB) is the empty variant.
+// 1.0.8 adds disc 14 (0xE): u16 + u8 = 3 wire bytes.
 
 py_binary_struct! {
     pub struct StoreStockDataValueDisc7 {
@@ -81,6 +126,7 @@ pub enum StoreStockDataValuePayload {
     DiscB,
     DiscC(u32),                          // sub_1410FEBE0
     DiscD { lookup: u32, flag: u8 },     // sub_141102E00 + u8
+    DiscE { lookup: u16, flag: u8 },     // sub_14111D4C0 (u16 wire) + u8  [1.0.8]
 }
 
 impl StoreStockDataValuePayload {
@@ -108,6 +154,11 @@ impl StoreStockDataValuePayload {
                 let flag = u8::read_from(data, offset)?;
                 Self::DiscD { lookup, flag }
             }
+            14 => {
+                let lookup = u16::read_from(data, offset)?;
+                let flag = u8::read_from(data, offset)?;
+                Self::DiscE { lookup, flag }
+            }
             other => return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("StoreStockDataValuePayload: unknown disc {}", other),
@@ -130,6 +181,10 @@ impl StoreStockDataValuePayload {
                 lookup.write_to(w)?;
                 flag.write_to(w)
             }
+            Self::DiscE { lookup, flag } => {
+                lookup.write_to(w)?;
+                flag.write_to(w)
+            }
         }
     }
 
@@ -149,6 +204,7 @@ impl StoreStockDataValuePayload {
             Self::DiscB => "DiscB",
             Self::DiscC(_) => "DiscC",
             Self::DiscD { .. } => "DiscD",
+            Self::DiscE { .. } => "DiscE",
         }
     }
 
@@ -168,6 +224,12 @@ impl StoreStockDataValuePayload {
             }
             Self::DiscB => { m.insert("body".to_string(), Value::Null); }
             Self::DiscD { lookup, flag } => {
+                let mut body = Map::new();
+                body.insert("lookup".to_string(), lookup.to_json_value());
+                body.insert("flag".to_string(), flag.to_json_value());
+                m.insert("body".to_string(), Value::Object(body));
+            }
+            Self::DiscE { lookup, flag } => {
                 let mut body = Map::new();
                 body.insert("lookup".to_string(), lookup.to_json_value());
                 body.insert("flag".to_string(), flag.to_json_value());
@@ -204,6 +266,12 @@ impl StoreStockDataValuePayload {
                 let body_obj = body.as_object().ok_or_else(|| io::Error::new(
                     io::ErrorKind::InvalidData, "DiscD: expected object body"))?;
                 <u32 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "lookup")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "flag")?)?;
+            }
+            14 => {
+                let body_obj = body.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData, "DiscE: expected object body"))?;
+                <u16 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "lookup")?)?;
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(body_obj, "flag")?)?;
             }
             other => return Err(io::Error::new(
@@ -415,10 +483,10 @@ py_binary_struct! {
     }
 }
 
-/// `sub_1410FC8F0` — StoreStockData, 88 mem bytes per element.
+/// `sub_1410F36D0` — StoreStockData (1.0.8: added lookup_c after lookup_b).
 #[derive(Debug)]
 pub struct StoreStockData {
-    pub lookup_a: u16,                                    // sub_141103610 wire u16
+    pub lookup_a: u16,                                    // sub_1410FA410 wire u16
     pub raw_a: u64,
     pub raw_b: u64,
     pub raw_c: u32,
@@ -427,8 +495,14 @@ pub struct StoreStockData {
     pub flag_a: u8,
     pub flag_b: u8,
     pub flag_c: u8,
+    // 1.11: new _isRestoreItem u8 between _isStockBuyable (flag_c) and
+    // _dropInfoData (value). IDA: StoreStockData reader sub_10190AD14 reads it at
+    // a2+47 via the EEC u8 reader. Missing it shifted the value's disc byte →
+    // effect_list count blew up at offset 185.
+    pub is_restore_item: u8,
     pub value: OptionalStoreStockDataValue,
-    pub lookup_b: u32,                                    // sub_1410FF430 wire u32
+    pub lookup_b: u32,                                    // sub_1410F61C0 wire u32
+    pub lookup_c: u32,                                    // sub_1410F61C0 wire u32  [1.0.8]
     pub sub_data: OptionalStoreStockSubData,
     pub effect_list: CArray<StoreStockEffectEntry>,
 }
@@ -444,13 +518,15 @@ impl StoreStockData {
         let flag_a = u8::read_from(data, offset)?;
         let flag_b = u8::read_from(data, offset)?;
         let flag_c = u8::read_from(data, offset)?;
+        let is_restore_item = u8::read_from(data, offset)?;
         let value = OptionalStoreStockDataValue::read_from(data, offset)?;
         let lookup_b = u32::read_from(data, offset)?;
+        let lookup_c = u32::read_from(data, offset)?;
         let sub_data = OptionalStoreStockSubData::read_from(data, offset)?;
         let effect_list = CArray::<StoreStockEffectEntry>::read_from(data, offset)?;
         Ok(Self {
             lookup_a, raw_a, raw_b, raw_c, raw_d, raw_e,
-            flag_a, flag_b, flag_c, value, lookup_b, sub_data, effect_list,
+            flag_a, flag_b, flag_c, is_restore_item, value, lookup_b, lookup_c, sub_data, effect_list,
         })
     }
 
@@ -464,8 +540,10 @@ impl StoreStockData {
         self.flag_a.write_to(w)?;
         self.flag_b.write_to(w)?;
         self.flag_c.write_to(w)?;
+        self.is_restore_item.write_to(w)?;
         self.value.write_to(w)?;
         self.lookup_b.write_to(w)?;
+        self.lookup_c.write_to(w)?;
         self.sub_data.write_to(w)?;
         self.effect_list.write_to(w)
     }
@@ -481,8 +559,10 @@ impl StoreStockData {
         m.insert("flag_a".to_string(), self.flag_a.to_json_value());
         m.insert("flag_b".to_string(), self.flag_b.to_json_value());
         m.insert("flag_c".to_string(), self.flag_c.to_json_value());
+        m.insert("is_restore_item".to_string(), self.is_restore_item.to_json_value());
         m.insert("value".to_string(), self.value.to_json_value());
         m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
+        m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
         m.insert("sub_data".to_string(), self.sub_data.to_json_value());
         m.insert("effect_list".to_string(), self.effect_list.to_json_value());
         Value::Object(m)
@@ -500,8 +580,10 @@ impl StoreStockData {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_restore_item")?)?;
         OptionalStoreStockDataValue::write_from_json(w, json_get_field(obj, "value")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
         OptionalStoreStockSubData::write_from_json(w, json_get_field(obj, "sub_data")?)?;
         <CArray<StoreStockEffectEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "effect_list")?)?;
         Ok(())
@@ -518,7 +600,11 @@ pub struct StoreInfo<'a> {
     pub sell_percents: u64,
     pub store_type: u8,
     pub price_increase_percent_list: CArray<u64>,
-    pub sellable_character_condition_logic: u32,
+    pub sellable_character_condition_logic: u8,
+    // 1.11: new u8 read right after _sellableCharacterConditionLogic, before
+    // _resetHour (StoreInfo reader sub_10190B0A0 @ byte 73). Shifts the whole
+    // stock_data_list region — without it the value disc misreads.
+    pub pre_reset_extra_111: u8,
     pub reset_hour: u32,
     pub reset_day: u32,
     pub buyable_stock_count: u32,
@@ -563,7 +649,8 @@ impl<'a> StoreInfo<'a> {
         let sell_percents = track_read_field::<u64>(data, offset, path, ranges, "sell_percents", "u64")?;
         let store_type = track_read_field::<u8>(data, offset, path, ranges, "store_type", "u8")?;
         let price_increase_percent_list = track_read_field::<CArray<u64>>(data, offset, path, ranges, "price_increase_percent_list", "CArray<u64>")?;
-        let sellable_character_condition_logic = track_read_field::<u32>(data, offset, path, ranges, "sellable_character_condition_logic", "u32")?;
+        let sellable_character_condition_logic = track_read_field::<u8>(data, offset, path, ranges, "sellable_character_condition_logic", "u8")?;
+        let pre_reset_extra_111 = track_read_field::<u8>(data, offset, path, ranges, "pre_reset_extra_111", "u8")?;
         let reset_hour = track_read_field::<u32>(data, offset, path, ranges, "reset_hour", "u32")?;
         let reset_day = track_read_field::<u32>(data, offset, path, ranges, "reset_day", "u32")?;
         let buyable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "buyable_stock_count", "u32")?;
@@ -592,7 +679,7 @@ impl<'a> StoreInfo<'a> {
             key, string_key, is_blocked,
             exchange_item_info_for_buy, exchange_item_info_list_for_sell,
             sell_percents, store_type, price_increase_percent_list,
-            sellable_character_condition_logic, reset_hour, reset_day,
+            sellable_character_condition_logic, pre_reset_extra_111, reset_hour, reset_day,
             buyable_stock_count, sellable_stock_count, sellable_type,
             stock_data_list, sale_item_type_list, not_sale_item_type_list,
             custom_mesh_obb_max_length,
@@ -609,7 +696,8 @@ impl<'a> StoreInfo<'a> {
         let sell_percents = u64::read_from(data, offset)?;
         let store_type = u8::read_from(data, offset)?;
         let price_increase_percent_list = CArray::<u64>::read_from(data, offset)?;
-        let sellable_character_condition_logic = u32::read_from(data, offset)?;
+        let sellable_character_condition_logic = u8::read_from(data, offset)?;
+        let pre_reset_extra_111 = u8::read_from(data, offset)?;
         let reset_hour = u32::read_from(data, offset)?;
         let reset_day = u32::read_from(data, offset)?;
         let buyable_stock_count = u32::read_from(data, offset)?;
@@ -630,7 +718,7 @@ impl<'a> StoreInfo<'a> {
             key, string_key, is_blocked,
             exchange_item_info_for_buy, exchange_item_info_list_for_sell,
             sell_percents, store_type, price_increase_percent_list,
-            sellable_character_condition_logic, reset_hour, reset_day,
+            sellable_character_condition_logic, pre_reset_extra_111, reset_hour, reset_day,
             buyable_stock_count, sellable_stock_count, sellable_type,
             stock_data_list, sale_item_type_list, not_sale_item_type_list,
             custom_mesh_obb_max_length,
@@ -647,7 +735,8 @@ impl<'a> StoreInfo<'a> {
         self.sell_percents.write_to(w)?;
         self.store_type.write_to(w)?;
         self.price_increase_percent_list.write_to(w)?;
-        self.sellable_character_condition_logic.write_to(w)?;
+        self.sellable_character_condition_logic.write_to(w)?;  // u8 in 1.0.8 (was u32 in 1.0.7)
+        self.pre_reset_extra_111.write_to(w)?;
         self.reset_hour.write_to(w)?;
         self.reset_day.write_to(w)?;
         self.buyable_stock_count.write_to(w)?;
@@ -674,6 +763,7 @@ impl<'a> StoreInfo<'a> {
         m.insert("store_type".to_string(), self.store_type.to_json_value());
         m.insert("price_increase_percent_list".to_string(), self.price_increase_percent_list.to_json_value());
         m.insert("sellable_character_condition_logic".to_string(), self.sellable_character_condition_logic.to_json_value());
+        m.insert("pre_reset_extra_111".to_string(), self.pre_reset_extra_111.to_json_value());
         m.insert("reset_hour".to_string(), self.reset_hour.to_json_value());
         m.insert("reset_day".to_string(), self.reset_day.to_json_value());
         m.insert("buyable_stock_count".to_string(), self.buyable_stock_count.to_json_value());
@@ -699,7 +789,8 @@ impl<'a> StoreInfo<'a> {
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sell_percents")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_type")?)?;
         <CArray<u64> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "price_increase_percent_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_character_condition_logic")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_character_condition_logic")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pre_reset_extra_111")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_hour")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_day")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buyable_stock_count")?)?;
@@ -724,13 +815,11 @@ impl<'a> StoreInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/storeinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/storeinfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("storeinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -748,8 +837,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;

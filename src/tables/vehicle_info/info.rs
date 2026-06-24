@@ -97,14 +97,26 @@ py_binary_struct! {
         pub vehicle_spawn_upper_action: u32,
         pub escape_road_group_type: u8,
         pub cargo_seat_index_list: CArray<u8>,
-        pub call_vehicle_voxel_type: u32,
-        pub is_main_dischargeable: u8,
+        // 1.11: _callVehicleVoxelType widened from a single u32 to a CArray<u32>
+        // (count + N×u32). Verified via wire-walker: count=1 in most records,
+        // count=2 in the 0x424F record; all 34 reconcile.
+        pub call_vehicle_voxel_type_list: CArray<u32>,
         pub show_count_on_ui: u8,
         pub ui_map_texture_info: u32,
         pub rider_detect_info: u16,
         pub send_damage_to: u8,
         pub character_switchable: u8,
         pub max_allowable_height: u32,
+        // 1.10: one new u32 added to the fixed tail (position length-equivalent
+        // within the fixed-width tail). Verified via wire-walker: reconciles
+        // all 34 records (byte-exact roundtrip).
+        pub trailing_u32_110: u32,
+        // 1.11: one new 4-byte field appended to the fixed tail (a float —
+        // 0x7f7fffff = FLT_MAX default, or real values e.g. 0x44a8c000 = 1350.0);
+        // kept as u32 for bit-exact roundtrip. The other +4 bytes of the 1.11
+        // growth came from call_vehicle_voxel_type widening to a CArray (above).
+        // Verified via wire-walker: all 34 records byte-exact.
+        pub trailing_u32_111: u32,
     }
 }
 
@@ -112,12 +124,11 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/vehicleinfo.pabgb";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("vehicleinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;
@@ -135,8 +146,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;

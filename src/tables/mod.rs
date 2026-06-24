@@ -10,6 +10,9 @@
 //! Auto-generated table modules.
 //! Each pabgb table file gets its own submodule.
 
+pub mod game_version_data_info;
+pub mod npc_activity_group_info;
+pub mod npc_activity_info;
 pub mod breakable_object_info;
 pub mod wanted_info;
 pub mod aidialog_type_info;
@@ -131,6 +134,13 @@ pub mod valid_schedule_action_info;
 
 pub mod key_map_setting_list_info;
 pub mod game_level_info;
+pub mod game_start_info;
+pub mod zone_info;
+pub mod contents_phase_info;
+pub mod faction_reblockading_info;
+pub mod quick_slot_info;
+pub mod bank_info;
+pub mod talk_tree_info;
 pub mod platform_entitlement_info;
 pub mod equip_info;
 pub mod field_revive_info;

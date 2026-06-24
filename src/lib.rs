@@ -12,9 +12,12 @@ pub mod json_shape_table_registry;
 pub mod json_traits;
 mod python;
 pub(crate) mod python_traits;
+pub mod resolve;
 pub mod save;
 pub mod tables;
 pub mod tracked;
+#[cfg(test)]
+pub(crate) mod testenv;
 
 pub use dispatch::{
     is_supported_table, parse_table_to_json, serialize_table_from_json,
@@ -25,6 +28,13 @@ use pyo3::prelude::*;
 
 #[pymodule]
 pub fn dmm_parser(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    python::register(m)
+}
+
+// Alias module so the same cdylib works when deployed as `crimson_rs.pyd`
+// (the main app imports `crimson_rs`; mod-workbench imports `dmm_parser`).
+#[pymodule]
+pub fn crimson_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     python::register(m)
 }
 
@@ -81,8 +91,9 @@ mod tests {
         first_existing(
             "DMM_PARSER_PAPGT_PATH",
             &[
-                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.papgt",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert\meta\0.papgt",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\meta\0.papgt",
+                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.papgt",
             ],
         )
     }
@@ -91,9 +102,11 @@ mod tests {
         first_existing(
             "DMM_PARSER_PAMT_PATH",
             &[
-                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.pamt",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert\meta\0.pamt",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert\0020\0.pamt",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\meta\0.pamt",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\0020\0.pamt",
+                "/mnt/e/OpensourceGame/CrimsonDesert/Crimson Browser/Original/0.pamt",
             ],
         )
     }
@@ -102,8 +115,11 @@ mod tests {
         first_existing(
             "DMM_PARSER_GAME_DIR",
             &[
-                "/mnt/f/Program/Steam/steamapps/common/Crimson Desert",
+                r"D:\SteamLibrary\steamapps\common\Crimson Desert",
+                r"D:\Steam\steamapps\common\Crimson Desert",
                 r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert",
+                r"C:\SteamLibrary\steamapps\common\Crimson Desert",
+                "/mnt/f/Program/Steam/steamapps/common/Crimson Desert",
             ],
         )
     }

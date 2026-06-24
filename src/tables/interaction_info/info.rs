@@ -151,25 +151,13 @@ pub struct InteractionTailDecoded<'a> {
     pub unknown_flag_b: u8,
     pub unknown_flag_c: u8,
     pub unknown_flag_d: u8,
-    pub sequencer_desc: SequencerStageChartDescPartial<'a>,
-    pub raw_a: u32,
-    pub some_name: u32,
-    pub lookup_b: u32,
-    pub mob_list: CArray<FactionAdjacencyMobItem>,
-    pub lookup_c: u32,
-    pub list_a: CArray<u32>,
-    pub cstring_a: CString<'a>,
-    pub cstring_b: CString<'a>,
-    pub flag_a: u8,
-    pub flag_b: u8,
-    pub flag_c: u8,
-    pub flag_d: u8,
-    pub flag_e: u8,
-    pub flag_f: u8,
-    pub flag_g: u8,
-    pub flag_h: u8,
-    pub flag_i: u8,
-    pub flag_j: u8,
+    /// `_sequencerStageChartDesc` + trailing tail fields, preserved as an opaque
+    /// (lossless, byte-exact) blob. 1.12 rewrote this sub-structure (name/prefab
+    /// are now u32 hashes, not CStrings; variable-length nested arrays) and it
+    /// needs its own Mac-binary RE to field-type. Keeping it opaque lets ALL
+    /// entries decode + roundtrip while exposing the valuable conditions /
+    /// category / input-key fields above. See project_interaction_tail_decode.
+    pub rest: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -191,36 +179,20 @@ impl<'a> InteractionTail<'a> {
         let unknown_flag_b = u8::read_from(data, offset)?;
         let unknown_flag_c = u8::read_from(data, offset)?;
         let unknown_flag_d = u8::read_from(data, offset)?;
-        let sequencer_desc = SequencerStageChartDescPartial::read_from(data, offset)?;
-        let raw_a = u32::read_from(data, offset)?;
-        let some_name = u32::read_from(data, offset)?;
-        let lookup_b = u32::read_from(data, offset)?;
-        let mob_list = CArray::<FactionAdjacencyMobItem>::read_from(data, offset)?;
-        let lookup_c = u32::read_from(data, offset)?;
-        let list_a = CArray::<u32>::read_from(data, offset)?;
-        let cstring_a = CString::read_from(data, offset)?;
-        let cstring_b = CString::read_from(data, offset)?;
-        let flag_a = u8::read_from(data, offset)?;
-        let flag_b = u8::read_from(data, offset)?;
-        let flag_c = u8::read_from(data, offset)?;
-        let flag_d = u8::read_from(data, offset)?;
-        let flag_e = u8::read_from(data, offset)?;
-        let flag_f = u8::read_from(data, offset)?;
-        let flag_g = u8::read_from(data, offset)?;
-        let flag_h = u8::read_from(data, offset)?;
-        let flag_i = u8::read_from(data, offset)?;
-        let flag_j = u8::read_from(data, offset)?;
-        if *offset != end {
+        // Conditions + the simple fields above are fully typed (the gating logic
+        // each interaction uses). The remainder (sequencer_desc + tail) is kept
+        // opaque & byte-exact — see struct doc.
+        if *offset > end {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("InteractionTail decoded under/over-read ({} != {})", *offset, end)));
+                format!("InteractionTail prefix over-read ({} > {})", *offset, end)));
         }
+        let rest = data[*offset..end].to_vec();
+        *offset = end;
         Ok(InteractionTailDecoded {
             cond_data_list, auto_interaction_type, category_info, input_key_map_name,
             button_click_type, keyboard_click_type,
             unknown_flag_a, unknown_flag_b, unknown_flag_c, unknown_flag_d,
-            sequencer_desc, raw_a, some_name, lookup_b, mob_list, lookup_c, list_a,
-            cstring_a, cstring_b,
-            flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h, flag_i, flag_j,
+            rest,
         })
     }
 
@@ -253,25 +225,7 @@ impl<'a> InteractionTail<'a> {
                 d.unknown_flag_b.write_to(w)?;
                 d.unknown_flag_c.write_to(w)?;
                 d.unknown_flag_d.write_to(w)?;
-                d.sequencer_desc.write_to(w)?;
-                d.raw_a.write_to(w)?;
-                d.some_name.write_to(w)?;
-                d.lookup_b.write_to(w)?;
-                d.mob_list.write_to(w)?;
-                d.lookup_c.write_to(w)?;
-                d.list_a.write_to(w)?;
-                d.cstring_a.write_to(w)?;
-                d.cstring_b.write_to(w)?;
-                d.flag_a.write_to(w)?;
-                d.flag_b.write_to(w)?;
-                d.flag_c.write_to(w)?;
-                d.flag_d.write_to(w)?;
-                d.flag_e.write_to(w)?;
-                d.flag_f.write_to(w)?;
-                d.flag_g.write_to(w)?;
-                d.flag_h.write_to(w)?;
-                d.flag_i.write_to(w)?;
-                d.flag_j.write_to(w)?;
+                w.write_all(&d.rest)?;
                 Ok(())
             }
             InteractionTail::Raw(b) => w.write_all(b),
@@ -293,25 +247,7 @@ impl<'a> InteractionTail<'a> {
                 m.insert("unknown_flag_b".to_string(), d.unknown_flag_b.to_json_value());
                 m.insert("unknown_flag_c".to_string(), d.unknown_flag_c.to_json_value());
                 m.insert("unknown_flag_d".to_string(), d.unknown_flag_d.to_json_value());
-                m.insert("sequencer_desc".to_string(), d.sequencer_desc.to_json_value());
-                m.insert("raw_a".to_string(), d.raw_a.to_json_value());
-                m.insert("some_name".to_string(), d.some_name.to_json_value());
-                m.insert("lookup_b".to_string(), d.lookup_b.to_json_value());
-                m.insert("mob_list".to_string(), d.mob_list.to_json_value());
-                m.insert("lookup_c".to_string(), d.lookup_c.to_json_value());
-                m.insert("list_a".to_string(), d.list_a.to_json_value());
-                m.insert("cstring_a".to_string(), d.cstring_a.to_json_value());
-                m.insert("cstring_b".to_string(), d.cstring_b.to_json_value());
-                m.insert("flag_a".to_string(), d.flag_a.to_json_value());
-                m.insert("flag_b".to_string(), d.flag_b.to_json_value());
-                m.insert("flag_c".to_string(), d.flag_c.to_json_value());
-                m.insert("flag_d".to_string(), d.flag_d.to_json_value());
-                m.insert("flag_e".to_string(), d.flag_e.to_json_value());
-                m.insert("flag_f".to_string(), d.flag_f.to_json_value());
-                m.insert("flag_g".to_string(), d.flag_g.to_json_value());
-                m.insert("flag_h".to_string(), d.flag_h.to_json_value());
-                m.insert("flag_i".to_string(), d.flag_i.to_json_value());
-                m.insert("flag_j".to_string(), d.flag_j.to_json_value());
+                m.insert("rest_b64".to_string(), Value::String(B64.encode(&d.rest)));
                 Value::Object(m)
             }
             InteractionTail::Raw(b) => {
@@ -344,25 +280,12 @@ impl<'a> InteractionTail<'a> {
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unknown_flag_b")?)?;
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unknown_flag_c")?)?;
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unknown_flag_d")?)?;
-                <SequencerStageChartDescPartial as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sequencer_desc")?)?;
-                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
-                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "some_name")?)?;
-                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
-                <CArray<FactionAdjacencyMobItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mob_list")?)?;
-                <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
-                <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_a")?)?;
-                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_a")?)?;
-                <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_b")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_d")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_e")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_f")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_g")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_h")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_i")?)?;
-                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_j")?)?;
+                let rest_b64 = json_get_field(obj, "rest_b64")?.as_str()
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                        "InteractionTail.rest_b64: expected string"))?;
+                let rest = B64.decode(rest_b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("InteractionTail.rest_b64: invalid base64: {}", e)))?;
+                w.extend_from_slice(&rest);
                 Ok(())
             }
             "Raw" => {
@@ -497,13 +420,11 @@ impl<'a> InteractionInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/interactioninfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/interactioninfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("interactioninfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: {}", PABGB_PATH); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: {}", PABGH_PATH); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         let mut decoded = 0usize;
@@ -538,8 +459,8 @@ mod tests {
     #[ignore]
     fn diag_raw_entries() {
         use std::collections::BTreeMap;
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
         let mut count = 0usize;
@@ -575,8 +496,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: missing fixture {}", PABGB_PATH); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;

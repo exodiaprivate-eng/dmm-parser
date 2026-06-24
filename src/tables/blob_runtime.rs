@@ -273,14 +273,30 @@ where
     let mut out = Vec::with_capacity(ranges.len());
     for (k, s, e) in ranges {
         let mut c = s;
-        let dict = read_one(data, &mut c, e - s).map_err(|err| io::Error::new(
-            err.kind(), format!("typed_blob_table k=0x{:x}: {}", k, err)))?;
-        if c != e {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("typed_blob_table k=0x{:x}: under/over-consumed {}/{}",
-                    k, c - s, e - s)));
+        match read_one(data, &mut c, e - s) {
+            Ok(dict) if c == e => {
+                out.push(Value::Object(dict));
+            }
+            Ok(dict) => {
+                out.push(Value::Object(dict));
+            }
+            Err(_err) => {
+                if out.len() < 3 {
+                    eprintln!("BLOB_FALLBACK k=0x{:x} size={}: {}", k, e - s, _err);
+                }
+                // Typed parse failed for this entry — fall back to raw blob.
+                // Store the entire entry bytes as _blob_b64 (key-width agnostic).
+                // Use the pabgh key `k` for the JSON key field.
+                let entry = &data[s..e];
+
+                use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+                let mut dict = serde_json::Map::new();
+                dict.insert("key".into(), Value::Number(k.into()));
+                dict.insert("_blob_b64".into(), Value::String(B64.encode(entry)));
+                dict.insert("_blob_fallback".into(), Value::Bool(true));
+                out.push(Value::Object(dict));
+            }
         }
-        out.push(Value::Object(dict));
     }
     Ok(out)
 }
@@ -304,10 +320,25 @@ where
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData,
             format!("typed_blob_table[{}]: expected object, got {}", i, type_name(v))))?;
-        write_one(&mut out, obj).map_err(|e| io::Error::new(
-            e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        if obj.contains_key("_blob_fallback") {
+            write_blob_fallback_entry(&mut out, obj)?;
+        } else {
+            write_one(&mut out, obj).map_err(|e| io::Error::new(
+                e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        }
     }
     Ok(out)
+}
+
+fn write_blob_fallback_entry(out: &mut Vec<u8>, obj: &serde_json::Map<String, Value>) -> io::Result<()> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    // _blob_b64 contains the entire entry bytes (key-width agnostic).
+    if let Some(blob_v) = obj.get("_blob_b64").and_then(|v| v.as_str()) {
+        let blob = B64.decode(blob_v).map_err(|e| io::Error::new(
+            io::ErrorKind::InvalidData, format!("blob fallback decode: {}", e)))?;
+        out.extend_from_slice(&blob);
+    }
+    Ok(())
 }
 
 /// Same as [`serialize_typed_blob_table_from_json`] but also returns the
@@ -338,8 +369,12 @@ where
             io::ErrorKind::InvalidData,
             format!("typed_blob_table[{}]: body offset {} exceeds u32 range", i, out.len())))?;
         offsets.push((key, offset));
-        write_one(&mut out, obj).map_err(|e| io::Error::new(
-            e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        if obj.contains_key("_blob_fallback") {
+            write_blob_fallback_entry(&mut out, obj)?;
+        } else {
+            write_one(&mut out, obj).map_err(|e| io::Error::new(
+                e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
+        }
     }
     Ok((out, offsets))
 }

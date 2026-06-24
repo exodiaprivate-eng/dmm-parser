@@ -1,10 +1,41 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410DB040` in CrimsonDesert.exe (Win build), discovered
-//! via xref to "EquipInfo" string at 0x144ae7ee0. Mac equivalent
-//! `sub_10186D874` at 0x10186D874. **No on-disk pabgb dump** — the
-//! table is runtime/conditional, so the roundtrip test SKIPs and the
-//! typed schema is documentation + tooling support only.
+//! Reader (Tier IDA verified 2026-05-20 vs CrimsonDesert.exe md5
+//! 3d614280…) — 100% field-level, top to bottom. Table reader is
+//! `sub_1410BC9F0` (the cited `sub_1410DB040` was STALE → lands inside
+//! the element reader `sub_1410DAE40`). Full reader tree:
+//!
+//!   EquipInfo            sub_1410BC9F0  — 7 fields:
+//!     a2+0   u32 key
+//!     a2+8   CString string_key                 (sub_14108B300)
+//!     a2+16  u8 is_blocked
+//!     a2+18  u16 attacked_material_slot_no
+//!     a2+24  CArray<EquipListItem> list         (sub_1410FA190)
+//!     a2+40  CArray<Ragdoll…> ragdoll_list       (sub_1410F9F80)
+//!     a2+56  u32 ui_component_name              (sub_1410E1350,
+//!            4 wire bytes → u16 RAM)
+//!
+//!   EquipListItem        sub_1410BC660  — 20 fields, all confirmed:
+//!     list_u32 CArray<u32> (sub_1410E4B20: u32 wire→u16 RAM elems),
+//!     raw_a u32, raw_b u32, lookup_a (sub_1410E1350 u32→u16),
+//!     raw_c u16, raw_d u64, lookup_b (sub_1410E1350), raw_e..h u32×4,
+//!     label LocalizableString (sub_140F48220), flag_a/b u8,
+//!     lookup_c (sub_1410E4C30 u32→u16), flag_c..g u8×5.
+//!
+//!   RagdollEquipTableGroupData  sub_1410F9F80 elem (24 mem bytes):
+//!     raw_a u32 + triples CArray (sub_1410FA320).
+//!   RagdollGroupTriple   sub_1410FA320  — 12 wire bytes:
+//!     lookup (sub_1410E19E0 u32→u16) + raw_a u32 + raw_b u32.
+//!
+//! ⚠ **No on-disk pabgb dump in ANY version — runtime/conditional
+//! table, never serialized to disk.** Confirmed: `equipinfo.pabgb` is
+//! absent from both the 1.0.4 dump and the current 1.07 dump (only
+//! `equipslotinfo`/`equiptypeinfo` ship). Byte-roundtrip is therefore
+//! N/A by nature (the test SKIPs); the IDA reader-tree trace above IS
+//! the complete field-level validation — the strongest claim possible
+//! for a table with no on-disk form. ID-ref fields read wider on the
+//! wire than RAM, as elsewhere; Rust models the wire.
+//! (Original Mac note: `sub_10186D874`.)
 //!
 //! Wire reads, in order:
 //!   1. u32 key                          (a2+0)
@@ -97,12 +128,11 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
     // No on-disk pabgb dump for this table; test SKIPs.
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipinfo.pabgh";
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("equipinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -121,12 +151,12 @@ mod tests {
     #[test]
     fn json_roundtrip() {
         use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());

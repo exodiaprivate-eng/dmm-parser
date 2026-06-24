@@ -73,7 +73,7 @@
 
 use crate::binary::variants::buff_data::BuffData;
 use crate::binary::*;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
+use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field, get_field_or_null};
 use serde_json::{json, Value};
 use std::io::{self, Write};
 
@@ -259,6 +259,10 @@ pub struct SkillInfo<'a> {
     pub buff_sustain_flag: u32,
     pub dev_skill_name: CString<'a>,
     pub dev_skill_desc: CString<'a>,
+    /// Present only in newer-format entries (remaining > 4 after dev_skill_desc).
+    /// Two additional dev CStrings precede the actual video_path in those entries.
+    pub dev_extra_a: Option<CString<'a>>,
+    pub dev_extra_b: Option<CString<'a>>,
     pub video_path: u32,
 }
 
@@ -266,8 +270,9 @@ impl<'a> SkillInfo<'a> {
     pub fn read_with_size(
         data: &'a [u8],
         offset: &mut usize,
-        _entry_size: usize,
+        entry_size: usize,
     ) -> io::Result<Self> {
+        let start = *offset;
         let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
@@ -301,7 +306,38 @@ impl<'a> SkillInfo<'a> {
         let buff_sustain_flag = u32::read_from(data, offset)?;
         let dev_skill_name = CString::read_from(data, offset)?;
         let dev_skill_desc = CString::read_from(data, offset)?;
+
+        // Newer-format entries have 2 extra dev CStrings before the video_path u32.
+        // Detect by checking remaining bytes: old format has exactly 4 left (the u32),
+        // new format has 4 + 2*(4+cstring_len) left.
+        let consumed_so_far = *offset - start;
+        if consumed_so_far > entry_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "SkillInfo key={}: over-consumed {} bytes for entry of {} bytes (before tail check)",
+                    key, consumed_so_far, entry_size
+                ),
+            ));
+        }
+        let remaining = entry_size - consumed_so_far;
+        let (dev_extra_a, dev_extra_b) = if remaining == 4 {
+            (None, None)
+        } else {
+            let a = CString::read_from(data, offset)?;
+            let b = CString::read_from(data, offset)?;
+            (Some(a), Some(b))
+        };
+
         let video_path = u32::read_from(data, offset)?;
+
+        let consumed = *offset - start;
+        if consumed != entry_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("SkillInfo key={}: consumed {} bytes, expected {}", key, consumed, entry_size),
+            ));
+        }
 
         Ok(Self {
             key, string_key, is_blocked, cooltime, buff_level_list,
@@ -315,7 +351,8 @@ impl<'a> SkillInfo<'a> {
             allow_skill_with_low_resource, is_use_child_pattern_description_buff_data,
             damage_type, ui_type,
             reserve_slot_info_list, max_level, skill_group_key_list,
-            buff_sustain_flag, dev_skill_name, dev_skill_desc, video_path,
+            buff_sustain_flag, dev_skill_name, dev_skill_desc,
+            dev_extra_a, dev_extra_b, video_path,
         })
     }
 
@@ -353,6 +390,12 @@ impl<'a> SkillInfo<'a> {
         self.buff_sustain_flag.write_to(w)?;
         self.dev_skill_name.write_to(w)?;
         self.dev_skill_desc.write_to(w)?;
+        if let Some(a) = &self.dev_extra_a {
+            a.write_to(w)?;
+        }
+        if let Some(b) = &self.dev_extra_b {
+            b.write_to(w)?;
+        }
         self.video_path.write_to(w)?;
         Ok(())
     }
@@ -402,7 +445,7 @@ impl WriteJsonValue for ResourceStat {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "c")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "d")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_e")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_f")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, &get_field_or_null(obj, "lookup_f"))?;
         Ok(())
     }
 }
@@ -419,6 +462,20 @@ impl WriteJsonValue for ResourceItem {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "value")?)?;
         Ok(())
+    }
+}
+
+impl<'a> SkillInfo<'a> {
+    pub fn to_json_dict(&self) -> serde_json::Map<String, Value> {
+        match self.to_json_value() {
+            Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        }
+    }
+
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &serde_json::Map<String, Value>) -> io::Result<()> {
+        let v = Value::Object(obj.clone());
+        <Self as WriteJsonValue>::write_from_json(w, &v)
     }
 }
 
@@ -458,6 +515,8 @@ impl<'a> ToJsonValue for SkillInfo<'a> {
             "buff_sustain_flag": self.buff_sustain_flag,
             "dev_skill_name": self.dev_skill_name.data,
             "dev_skill_desc": self.dev_skill_desc.data,
+            "dev_extra_a": self.dev_extra_a.as_ref().map(|s| s.data).unwrap_or(""),
+            "dev_extra_b": self.dev_extra_b.as_ref().map(|s| s.data).unwrap_or(""),
             "video_path": self.video_path,
         })
     }
@@ -502,6 +561,17 @@ impl<'a> WriteJsonValue for SkillInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_sustain_flag")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_name")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_desc")?)?;
+        // dev_extra_a / dev_extra_b are present only in newer-format entries.
+        // In JSON they are serialized as "" for old-format entries; write them
+        // only when non-empty (i.e. the entry uses the new format).
+        let extra_a = json_get_field(obj, "dev_extra_a")
+            .ok()
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if !extra_a.is_empty() {
+            <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_extra_a")?)?;
+            <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_extra_b")?)?;
+        }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "video_path")?)?;
         Ok(())
     }
@@ -529,22 +599,60 @@ pub fn parse_skill_to_json(data: &[u8]) -> io::Result<Vec<Value>> {
 
 /// Variant of `parse_skill_to_json` that uses the pabgh sister file to
 /// verify each entry's byte boundaries. Useful for mod-time validation.
+///
+/// Entries that fail to parse (new game-version format not yet decoded) are
+/// stored as opaque passthrough objects `{"_opaque":true,"_raw_hex":"..."}`.
+/// The v3 overlay skips opaque entries (they have no `string_key`/`key`
+/// fields to match on) and `serialize_skill_from_json` writes them back
+/// verbatim — so the overall table round-trips byte-perfectly even when a
+/// handful of entries use a format the parser doesn't understand yet.
 pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<Vec<Value>> {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets_from_bytes};
     let entries = load_pabgh_offsets_from_bytes(pabgh).ok_or_else(|| io::Error::new(
         io::ErrorKind::InvalidData, "pabgh parse failed"))?;
     let ranges = entry_ranges(&entries, data.len());
     let mut items = Vec::with_capacity(ranges.len());
-    for (_k, s, e) in ranges {
+    for (k, s, e) in ranges {
         let mut c = s;
-        let item = SkillInfo::read_with_size(data, &mut c, e - s)?;
-        if c != e {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("SkillInfo entry under/over-consumed: {}/{}", c - s, e - s)));
+        let parsed_ok = match SkillInfo::read_with_size(data, &mut c, e - s) {
+            Ok(item) if c == e => { items.push(item.to_json_value()); true }
+            _ => false,
+        };
+        if !parsed_ok {
+            // Opaque fallback: store raw bytes verbatim so the table still
+            // round-trips and the v3 overlay can patch all other entries.
+            let raw_hex: String = data[s..e].iter()
+                .map(|b| format!("{:02x}", b))
+                .collect();
+            items.push(json!({
+                "_opaque": true,
+                "_key": k,
+                "_raw_hex": raw_hex,
+            }));
         }
-        items.push(item.to_json_value());
     }
     Ok(items)
+}
+
+/// Append a single record's bytes to `out`. Used by the tracked-offset
+/// apply path in `dispatch.rs` so it can record each record's start
+/// offset for pabgh rebuild.
+///
+/// Handles opaque passthrough entries produced by `parse_skill_to_json_with_pabgh`
+/// when an entry couldn't be decoded — writes the raw bytes verbatim.
+pub fn write_skill_info_record(out: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+    if v.get("_opaque").and_then(|f| f.as_bool()).unwrap_or(false) {
+        let hex = v.get("_raw_hex").and_then(|f| f.as_str()).unwrap_or("");
+        let bytes = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i+2], 16)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("opaque skill entry: bad hex: {}", e))))
+            .collect::<io::Result<Vec<u8>>>()?;
+        out.extend_from_slice(&bytes);
+        return Ok(());
+    }
+    SkillInfo::write_from_json(out, v)
 }
 
 /// Inverse of `parse_skill_to_json`: write a sequence of skill dicts back
@@ -552,7 +660,7 @@ pub fn parse_skill_to_json_with_pabgh(data: &[u8], pabgh: &[u8]) -> io::Result<V
 pub fn serialize_skill_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
     let mut out = Vec::with_capacity(items.len() * 512);
     for (i, v) in items.iter().enumerate() {
-        SkillInfo::write_from_json(&mut out, v).map_err(|e| io::Error::new(
+        write_skill_info_record(&mut out, v).map_err(|e| io::Error::new(
             e.kind(), format!("skill[{}]: {}", i, e)))?;
     }
     Ok(out)
@@ -563,13 +671,11 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/skill.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/skill.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("skill.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         let mut pass = 0;
@@ -601,8 +707,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
@@ -617,5 +723,33 @@ mod tests {
             assert_eq!(from_json, from_typed,
                 "e{} k=0x{:x}: JSON roundtrip diverges from typed write", i, k);
         }
+    }
+
+    #[test]
+    fn verify_stamina_keys_typed() {
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else { eprintln!("SKIP"); return; };
+        let items = parse_skill_to_json_with_pabgh(&data, &pabgh).unwrap();
+        let opaque = items.iter().filter(|v| v.get("_opaque").and_then(|f| f.as_bool()).unwrap_or(false)).count();
+        eprintln!("total entries={} opaque(blob-fallback)={}", items.len(), opaque);
+        let stamina_keys: [u64; 51] = [10059,10060,10062,10065,10067,10103,10105,10111,10118,10156,10166,10167,10168,10211,10213,10253,10256,10257,10258,10259,10260,10270,10273,10274,10278,10279,10283,10284,10302,10303,10304,10305,10306,10310,10311,10312,10313,10314,10320,10335,10378,12031,13003,13017,15004,15033,15035,15051,15052,15206,0];
+        let mut still_opaque = Vec::new();
+        for v in &items {
+            if v.get("_opaque").and_then(|f| f.as_bool()).unwrap_or(false) {
+                if let Some(k) = v.get("_key").and_then(|x| x.as_u64()) {
+                    if stamina_keys.contains(&k) { still_opaque.push(k); }
+                }
+            }
+        }
+        eprintln!("stamina keys STILL opaque: {:?}", still_opaque);
+        assert!(still_opaque.is_empty(), "some stamina keys still fail typed parse");
+
+        // The DMM mount path (parse_..._with_pabgh + serialize) must roundtrip the
+        // whole table byte-exact, with the 7 remaining disc-10 (SummonBuffData)
+        // entries preserved verbatim via opaque passthrough. This is the guarantee
+        // that lets the Infinite Stamina overlay edit every targeted skill safely.
+        let rebuilt = serialize_skill_from_json(&items).unwrap();
+        assert_eq!(rebuilt, data, "skill table opaque-path roundtrip not byte-exact");
+        assert!(opaque <= 7, "more opaque entries than the known SummonBuffData gap: {}", opaque);
     }
 }

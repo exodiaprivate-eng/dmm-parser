@@ -1,4 +1,11 @@
-//! Tier 1 — fully typed (no _tail_b64).
+//! Tier 2 — typed prefix (fields 1–17) + raw `tail_blob` (fields 18+).
+//!
+//! 1.10 layout: `_operationSpawnRadius` (f32) was added between
+//! `_worldPosition` and `_nodeRadius`. Fields 1–17 are typed and
+//! JSON-addressable; `_factionScheduleInfoList` onward stays in `tail_blob`
+//! because the FactionSchedule element decoder still over-consumes on the
+//! 359 records with populated schedule/adjacency lists. See the struct
+//! definition's truncation note for the full rationale.
 //!
 //! Reader: `sub_1410DE7A0` in CrimsonDesert.exe (Win build).
 //!
@@ -115,6 +122,7 @@
 // ✅ _key (direct_u32, stream=4)
 
 use crate::binary::*;
+use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -403,7 +411,7 @@ py_binary_struct! {
     }
 }
 
-py_binary_struct! {
+pabgh_typed_blob_table! {
     pub struct FactionNodeInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
@@ -417,56 +425,40 @@ py_binary_struct! {
         pub child_faction_info_list: CArray<u32>,
         pub node_line_main_faction_info_list: CArray<u32>,
         pub world_position: [f32; 3],
+        // 1.10 FIX (NattKh): _operationSpawnRadius is a plain f32 that sits
+        // BETWEEN _worldPosition (field 12) and _nodeRadius (field 13). It was
+        // absent from every prior layout, so the whole tail shifted by 4 bytes
+        // and the table fell to 100% blob-fallback (first record over-reads:
+        // "not enough data"). Inserting it realigns the prefix.
+        pub operation_spawn_radius: f32,
         pub node_radius: f32,
         pub apply_skill_data_list: CArray<ApplySkillData>,
         pub resource_item_list: CArray<ResourceItemData>,
         pub revival_stage_info_list: CArray<u32>,
         pub way_point_data_list_deprecated: CArray<WayPointDeprData>,
-        pub faction_schedule_list: CArray<FactionSchedule<'a>>,
-        pub unknown_a: u8,
-        pub key_str_after: CString<'a>,
-        pub unknown_b: u8,
-        pub lookup_after: u32,
-        pub unknown_c: u8,
-        pub unknown_d: u8,
-        pub adjacency_list: CArray<FactionAdjacencyEntry<'a>>,
-        pub big_composite_slots: FactionNodeBigCompositeSlots<'a>,
-        pub flag_after_slots: u8,
-        pub de690_data: FactionNodeDE690,
-        pub raw_after_de690: u32,
-        pub final_list_u32: CArray<u32>,    // sub_141100510 wire u32
-        pub final_list_u16: CArray<u16>,    // sub_1410FFAC0 wire u16
-        pub final_lookup: u32,              // sub_141103770 wire u32
     }
-}
-
-impl<'a> FactionNodeInfo<'a> {
-    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> std::io::Result<Self> {
-        let start = *offset;
-        let item = Self::read_from(data, offset)?;
-        let consumed = *offset - start;
-        if consumed != entry_size {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("FactionNodeInfo: consumed {} bytes, expected {}", consumed, entry_size),
-            ));
-        }
-        Ok(item)
-    }
+    // TYPED-PREFIX TRUNCATION (NattKh): fields 1–17 (_key … _wayPointDataList_
+    // deprecated) are typed & JSON-addressable; everything from
+    // _factionScheduleInfoList (field 18) onward is captured raw in tail_blob.
+    // The FactionSchedule (31-wire-field) element decoder is still incorrect —
+    // the 359 records with populated schedule/adjacency lists over-consume —
+    // so typing it would corrupt those records → in-game CTD. Blobbing the tail
+    // guarantees byte-exact roundtrip on ALL 1141 records while keeping the
+    // editable prefix exposed. The FactionSchedule/FactionAdjacency*/
+    // FactionNodeBigComposite* structs below remain as documented RE for a
+    // future dedicated typing pass.
+    tail: tail_blob;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/factionnode.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/factionnode.pabgh";
-
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("factionnode.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -485,12 +477,12 @@ mod tests {
     #[test]
     fn json_roundtrip() {
         use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());

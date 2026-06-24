@@ -565,6 +565,18 @@ impl<'a> ItemUseInfo<'a> {
         let entry_end = start + entry_size;
         let payload_size = entry_end - *offset;
         let variant = ItemUseDataVariant::read_with_size(data, offset, disc, payload_size)?;
+        // Reject incomplete decodes: if the variant didn't consume the whole
+        // payload (e.g. disc 14 PlaySequencer's SequencerStageChartDescPartial
+        // leaves an undecoded ConditionData tail), the unconsumed bytes would
+        // be silently DROPPED on write (data loss). Erroring here makes the
+        // dispatch fall back to a verbatim blob → byte-perfect round-trip.
+        if *offset != entry_end {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("ItemUseInfo: disc {} consumed {}/{} bytes (incomplete)",
+                    disc, *offset - start, entry_size),
+            ));
+        }
         Ok(ItemUseInfo { key, string_key, is_blocked, variant })
     }
 
@@ -585,6 +597,15 @@ impl<'a> ItemUseInfo<'a> {
         let variant = track_read_with(offset, path, ranges, "variant", "ItemUseDataVariant", |o| {
             ItemUseDataVariant::read_with_size(data, o, disc, payload_size)
         })?;
+        // See read_with_size: reject incomplete decodes so the dispatch blobs
+        // them (byte-perfect round-trip) instead of dropping the tail.
+        if *offset != entry_end {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("ItemUseInfo: disc {} consumed {}/{} bytes (incomplete)",
+                    disc, *offset - start, entry_size),
+            ));
+        }
         Ok(ItemUseInfo { key, string_key, is_blocked, variant })
     }
 
@@ -627,10 +648,8 @@ impl<'a> ItemUseInfo<'a> {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/itemuseinfo.pabgh";
-
-    fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("itemuseinfo.pabgb") }
+fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
         let count = u32::from_le_bytes(pabgh[..4].try_into().unwrap()) as usize;
         let mut entries = Vec::with_capacity(count);
         for i in 0..count {
@@ -645,12 +664,12 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Ok(pabgh) = std::fs::read(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
 
@@ -691,12 +710,12 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Ok(pabgh) = std::fs::read(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
 

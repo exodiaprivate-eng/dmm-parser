@@ -1,6 +1,29 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410DC8F0` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410BE2C0` — ElementalMaterialInfo deserializer
+//! (via "ElementalMaterialInfo" class block at 0x144AEC6D0+). (Cited
+//! `sub_1410DC8F0` stale.) The struct definition below is correct and
+//! fully matches the reader; the OLD prose field-list further down in
+//! this header was imprecise (it omitted `unk_new_u32_a/_b` and
+//! mislabeled the fuel block) — trust the struct, not that list.
+//! Verified mem map:
+//!   a2+0  u32 key (hashed sub_141BF0180)   a2+8  CString string_key
+//!   a2+16 u8 is_blocked                    a2+17 u8 system_type
+//!   a2+24 CString elemental_material_key
+//!   a2+32 u32 unk_new_u32_a                a2+36 u32 unk_new_u32_b
+//!   a2+40 u32 total_fuel_amount + a2+44 u32 fuel_standard_obb_size
+//!         (engine batches these two as one 8-byte read)
+//!   a2+48/52/56/60  4× u32 fuel_end_passive/active key+level
+//!   a2+64 u8 use_temperature_transfer_margin
+//!   a2+72  CArray state_data_list   a2+88/104 CArray min/max_stat_list
+//!   a2+120 CArray parent_material_key_list (elem = u32 raw + u32 hash)
+//!   a2+136..164  flag_0..flag_7 (8× u32, via `for j in 0..8` loop —
+//!         confirms the 1-to-8 `_flag` wrapper)
+//!   a2+168 u8 is_system_type   a2+176 CArray stat_data_list
+//!   a2+192 u8 scene_object_spawnable_type
+//! All ID-ref fields read wire-width per the struct; roundtrip + this
+//! map agree.
 //!
 //! ─── v3.1 closure analysis (iter 76) ────────────────────────────────────
 //! Cross-check via `sub_1410A8FA0` (typeinfo→record-reader path per the
@@ -186,13 +209,11 @@ impl<'a> ElementalMaterialInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/elementalmaterialinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/elementalmaterialinfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("elementalmaterialinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -209,8 +230,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;

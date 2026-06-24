@@ -51,10 +51,16 @@ py_binary_struct! {
         pub raw_h: u32,        // raw u32 at mem +36
         pub raw_i: u32,        // raw u32 at mem +40
         pub block: [u32; 4],   // sub_14100CAB0 at mem +44 (4× u32)
-        pub flag_a: u8,        // mem +60
-        pub flag_b: u8,        // mem +61
-        pub flag_c: u8,        // mem +62
-        pub raw_qword: u64,    // mem +64
+        // 1.10: a new 4-byte field was inserted here, after `block` and before
+        // `flag_a`. It carries a float (vanilla 0x3f800000 = 1.0f). Without it
+        // every PoolSplineEntry was 4 bytes short (81 vs 85 with one inner entry),
+        // desyncing the rest of the record and breaking byte round-trip. Kept as a
+        // separate u32 (not block[5]) so existing [u32;4]/u32 trait impls suffice.
+        pub block_extra: u32,  // 1.10: new field at mem +60 (float, 1.0f)
+        pub flag_a: u8,        // mem +64
+        pub flag_b: u8,        // mem +65
+        pub flag_c: u8,        // mem +66
+        pub raw_qword: u64,    // mem +68
     }
 }
 

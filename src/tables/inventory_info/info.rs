@@ -1,8 +1,32 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410E05E0` in CrimsonDesert.exe (Win build).
-//! Per-element reader for inventory_move_data_list: `sub_1410E0460`
-//! (160-byte composite). Inner readers fully decoded.
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410C20A0` — the InventoryInfo deserializer (found
+//! via xref to the "InventoryInfo" reflection class-name block at
+//! 0x144AF2DE0+). `a2` is `_WORD*`, so IDA's `a2+N` = byte offset 2N.
+//! All 18 top-level fields confirmed in order/width. Per-element reader
+//! for inventory_move_data_list is `sub_1410C1F20` (160-byte composite,
+//! 10 fields). (Previously-cited `sub_1410E05E0` / `sub_1410E0460` were
+//! stale — the former lands in an unrelated u32-key table reader in
+//! this build.)
+//!
+//! Element-reader type confirmations (the kind byte-roundtrip can't prove):
+//!   - pushable/excluded element (sub_1410E6560): u16 item_group
+//!     (sub_1410E2CA0 reads 2 wire bytes + hash remap) + u8 item_type.
+//!   - collection element (sub_1410E58C0): u32 item_info
+//!     (sub_1410E1B70: 4 wire bytes → u16 RAM) + 8 RAW wire bytes copied
+//!     opaquely (no float ops at read time). Rust models the 8 bytes as
+//!     `u64` — bit-preserving and correct for the wire; the "f32/f32"
+//!     reading is a usage-site guess the reader neither confirms nor
+//!     denies.
+//!   - key_guide_local_string_info (sub_1410E1600): 4 wire bytes → u16
+//!     RAM. Rust `u32` correct for wire.
+//!   - InventoryMoveData.from/to_inventory_info (sub_1410E64B0): 2 wire
+//!     bytes (u16) + hash remap. convert_money_item_info (sub_1410E1B70):
+//!     4 wire bytes (u32) → u16 RAM.
+//! As with StoreInfo, all ID-reference fields read a wider value off the
+//! wire than they keep in RAM; the Rust structs model the *wire* width,
+//! which is what read/write roundtrip and modding require.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
 //!   1.  u16 key                                   (_key, pabgh format 2)
@@ -34,7 +58,7 @@
 //!       (_collectionItemList, sub_141103310 — element wire = u32
 //!       _itemInfo + 8 raw bytes = 12 bytes)
 //!
-//! `InventoryMoveData` (sub_1410E0460) embeds an `OptionalGameCondition`
+//! `InventoryMoveData` (sub_1410E0460) embeds an `OptionalGameConditionNoTail`
 //! (sub_141103B30 → sub_141CEA810). Stream-mode reading uses lane A's
 //! public `GameConditionNode::read_from`; the 0.2% Raw fallback in
 //! `GameCondition::read_from` is unreachable here because we don't
@@ -42,7 +66,7 @@
 //! anti-disassembly variant (tags 54/286), parsing would fail; the
 //! roundtrip test below would catch it.
 
-use crate::binary::optional_game_condition::OptionalGameCondition;
+use crate::binary::optional_game_condition::OptionalGameConditionNoTail;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
@@ -86,9 +110,20 @@ py_binary_struct! {
     }
 }
 
-/// 160-byte InventoryMoveData composite per IDA sub_1410E0460.
+/// InventoryMoveData composite per IDA sub_1410E0460.
 /// 10 fields matching canonical Mac names (`InventoryMoveData` in
 /// docs/449_TABLE_CATALOG.md).
+///
+/// `move_condition` is an `OptionalGameConditionNoTail` — the
+/// `GameConditionNode` is self-delimiting (tag dispatch, all leaf variants
+/// include their own payload). There is no separate tail after the node;
+/// `condition_fail_text` immediately follows.
+///
+/// Earlier revisions of this struct had a `move_condition_tail: Option<[u8;5]>`
+/// field. That was a misidentification: bytes [2422..2427) in the Character
+/// entry (k=2) are the last 5 bytes of the `GameConditionNode` payload, not a
+/// separate field. Inserting an extra 5-byte read caused "not enough data"
+/// when the real `condition_fail_text` was read from the wrong offset.
 #[derive(Debug)]
 pub struct InventoryMoveData<'a> {
     pub type_: u8,
@@ -99,7 +134,7 @@ pub struct InventoryMoveData<'a> {
     pub move_all_key_guide_text: LocalizableString<'a>,
     pub modal_text: LocalizableString<'a>,
     pub item_move_data_list: CArray<InventoryItemMoveData>,
-    pub move_condition: OptionalGameCondition<'a>,
+    pub move_condition: OptionalGameConditionNoTail<'a>,
     pub condition_fail_text: LocalizableString<'a>,
 }
 
@@ -113,7 +148,7 @@ impl<'a> InventoryMoveData<'a> {
         let move_all_key_guide_text = LocalizableString::read_from(data, offset)?;
         let modal_text = LocalizableString::read_from(data, offset)?;
         let item_move_data_list = CArray::<InventoryItemMoveData>::read_from(data, offset)?;
-        let move_condition = OptionalGameCondition::read_from(data, offset)?;
+        let move_condition = OptionalGameConditionNoTail::read_from(data, offset)?;
         let condition_fail_text = LocalizableString::read_from(data, offset)?;
         Ok(Self {
             type_, from_inventory_info, to_inventory_info, convert_money_item_info,
@@ -174,7 +209,7 @@ impl<'a> WriteJsonValue for InventoryMoveData<'a> {
         <CArray<InventoryItemMoveData> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "item_move_data_list")?,
         )?;
-        OptionalGameCondition::write_from_json(w, json_get_field(obj, "move_condition")?)?;
+        OptionalGameConditionNoTail::write_from_json(w, json_get_field(obj, "move_condition")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_fail_text")?)?;
         Ok(())
     }
@@ -387,13 +422,13 @@ impl<'a> InventoryInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/inventory.pabgh";
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("inventoryinfo.pabgb") }
 
     #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -410,8 +445,9 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
@@ -430,10 +466,194 @@ mod tests {
         }
     }
 
+    fn read_u8_at(data: &[u8], offset: &mut usize) -> u8 {
+        let v = data[*offset];
+        *offset += 1;
+        v
+    }
+    fn read_u16_at(data: &[u8], offset: &mut usize) -> u16 {
+        let v = u16::from_le_bytes(data[*offset..*offset+2].try_into().unwrap());
+        *offset += 2;
+        v
+    }
+    fn read_u32_at(data: &[u8], offset: &mut usize) -> u32 {
+        let v = u32::from_le_bytes(data[*offset..*offset+4].try_into().unwrap());
+        *offset += 4;
+        v
+    }
+    fn read_u64_at(data: &[u8], offset: &mut usize) -> u64 {
+        let v = u64::from_le_bytes(data[*offset..*offset+8].try_into().unwrap());
+        *offset += 8;
+        v
+    }
+    fn read_cstring_len(data: &[u8], offset: &mut usize) -> u32 {
+        // reads len and skips content, returns len
+        if *offset + 4 > data.len() {
+            eprintln!("  read_cstring_len: TRUNCATED at {}", *offset);
+            return 0;
+        }
+        let len = read_u32_at(data, offset);
+        let advance = (len as usize).min(data.len() - *offset);
+        if advance < len as usize {
+            eprintln!("  read_cstring_len: len={} but only {} bytes remain — clamping", len, data.len() - *offset);
+        }
+        *offset += advance;
+        len
+    }
+    fn read_localizable_string(data: &[u8], offset: &mut usize, label: &str) {
+        let start = *offset;
+        if *offset + 13 > data.len() {
+            eprintln!("  {} at {}: TRUNCATED (only {} remain)", label, start, data.len() - *offset);
+            return;
+        }
+        let cat = read_u8_at(data, offset);
+        let idx = read_u64_at(data, offset);
+        // peek clen before consuming
+        let clen = u32::from_le_bytes(data[*offset..*offset+4].try_into().unwrap());
+        *offset += 4;
+        let content_end = (*offset + clen as usize).min(data.len());
+        let valid_utf8 = std::str::from_utf8(&data[*offset..content_end]).is_ok();
+        if *offset + clen as usize > data.len() {
+            eprintln!("  {} at {}: cat={} idx={} clen={} UTF8={} OVERFLOW (only {} remain)",
+                      label, start, cat, idx, clen, valid_utf8, data.len() - *offset);
+        } else {
+            eprintln!("  {} at {}: cat={} idx={} clen={} UTF8={} end={}",
+                      label, start, cat, idx, clen, valid_utf8, *offset + clen as usize);
+            *offset += clen as usize;
+        }
+    }
+
+    #[test]
+    fn diag_character_entry() {
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let Some(&(_, s, e)) = ranges.iter().find(|(k,_,_)| *k == 2) else {
+            panic!("Character entry (k=2) not found");
+        };
+        eprintln!("Character: s={} e={} size={}", s, e, e - s);
+
+        // ── Manual header walk ───────────────────────────────────────────────
+        let mut c = s;
+        let key        = read_u16_at(&data, &mut c);
+        let sk_len     = read_cstring_len(&data, &mut c);
+        let is_blocked = read_u8_at(&data, &mut c);
+        let push_count = read_u32_at(&data, &mut c);
+        c += push_count as usize * 3;      // InventoryPushableData = u16 + u8 = 3 bytes
+        let excl_count = read_u32_at(&data, &mut c);
+        c += excl_count as usize * 3;
+        eprintln!("header: key={} sk_len={} is_blocked={} push={} excl={} → cursor={}",
+                  key, sk_len, is_blocked, push_count, excl_count, c);
+
+        // ── inventory_move_data_list ─────────────────────────────────────────
+        let move_count = read_u32_at(&data, &mut c);
+        eprintln!("inventory_move_data_list count={} cursor={}", move_count, c);
+
+        for i in 0..move_count as usize {
+            let elem_start = c;
+            let saved_c = c;
+            match InventoryMoveData::read_from(&data, &mut c) {
+                Ok(elem) => {
+                    let cft_len = elem.condition_fail_text.default.length;
+                    let kgt_len = elem.key_guide_text.default.length;
+                    let mak_len = elem.move_all_key_guide_text.default.length;
+                    let mod_len = elem.modal_text.default.length;
+                    let imd_ct  = elem.item_move_data_list.items.len();
+                    let cond_p  = elem.move_condition.inner.is_some();
+                    eprintln!("[{}] OK  start={} end={} size={}  type_={} from_={} to_={} conv={}",
+                              i, elem_start, c, c - elem_start,
+                              elem.type_, elem.from_inventory_info, elem.to_inventory_info,
+                              elem.convert_money_item_info);
+                    eprintln!("     kgt_len={} mak_len={} mod_len={} imd_ct={} cond={} cft_len={}",
+                              kgt_len, mak_len, mod_len, imd_ct, cond_p, cft_len);
+                }
+                Err(er) => {
+                    eprintln!("[{}] FAIL start={} cursor_at_fail={} err={}", i, elem_start, c, er);
+                    // ── Per-field manual trace ───────────────────────────────
+                    let mut mc = saved_c;
+                    let type_  = read_u8_at(&data, &mut mc);
+                    let from_  = read_u16_at(&data, &mut mc);
+                    let to_    = read_u16_at(&data, &mut mc);
+                    let conv   = read_u32_at(&data, &mut mc);
+                    eprintln!("  type_={} from_={} to_={} conv={} mc={}", type_, from_, to_, conv, mc);
+                    read_localizable_string(&data, &mut mc, "key_guide_text");
+                    read_localizable_string(&data, &mut mc, "move_all_key_guide_text");
+                    read_localizable_string(&data, &mut mc, "modal_text");
+                    if mc + 4 <= data.len() {
+                        let imd_count = read_u32_at(&data, &mut mc);
+                        let imd_advance = (imd_count as usize * 13).min(data.len() - mc);
+                        mc += imd_advance;
+                        eprintln!("  item_move_data_list count={} mc={}", imd_count, mc);
+                    }
+                    if mc < data.len() {
+                        let presence = read_u8_at(&data, &mut mc);
+                        eprintln!("  move_condition presence={} mc={}", presence, mc);
+                        if presence != 0 {
+                            let mut cond_c = mc;
+                            match crate::binary::variants::game_condition::GameConditionNode::read_from(&data, &mut cond_c) {
+                                Ok(_) => {
+                                    eprintln!("  GameConditionNode OK  start={} end={} size={}", mc, cond_c, cond_c - mc);
+                                    mc = cond_c;
+                                }
+                                Err(er2) => {
+                                    eprintln!("  GameConditionNode FAIL at={}: {}", cond_c, er2);
+                                    let lo = mc;
+                                    let hi = (cond_c + 16).min(data.len());
+                                    eprintln!("  bytes[{}..{}]: {:02x?}", lo, hi, &data[lo..hi]);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    read_localizable_string(&data, &mut mc, "condition_fail_text");
+                    eprintln!("  mc after condition_fail_text={} (expected end={})", mc, e);
+                    break;
+                }
+            }
+        }
+
+        // ── Raw hex dump of key areas ────────────────────────────────────────
+        // Element 6 starts at 2345. Its condition node should be near 2418.
+        // Dump the 60 bytes around cft (condition_fail_text) to verify structure.
+        {
+            let lo = 2410usize;
+            let hi = (lo + 80).min(data.len());
+            eprintln!("--- hex[{}..{}]:", lo, hi);
+            for (i, chunk) in data[lo..hi].chunks(16).enumerate() {
+                let addr = lo + i * 16;
+                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02x}", b)).collect();
+                let ascii: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
+                eprintln!("  {:04x}: {}  {}", addr, hex.join(" "), ascii);
+            }
+        }
+        // Dump last 128 bytes of the Character entry (for post-list analysis)
+        {
+            let lo = e.saturating_sub(128);
+            let hi = e.min(data.len());
+            eprintln!("--- hex[{}..{}] (end of entry):", lo, hi);
+            for (i, chunk) in data[lo..hi].chunks(16).enumerate() {
+                let addr = lo + i * 16;
+                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02x}", b)).collect();
+                let ascii: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
+                eprintln!("  {:04x}: {}  {}", addr, hex.join(" "), ascii);
+            }
+        }
+
+        // ── Also try the full typed parse so we have a reference error line ──
+        eprintln!("---");
+        let mut c2 = s;
+        match InventoryInfo::read_from(&data, &mut c2) {
+            Ok(_)  => eprintln!("read_from: OK consumed={} expected={}", c2 - s, e - s),
+            Err(er) => eprintln!("read_from: ERR {} (cursor={})", er, c2),
+        }
+    }
+
     #[test]
     fn fields_addressable() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let p = pabgb_path();
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let Some((_, s, _)) = ranges.first() else { eprintln!("SKIP: no entries"); return; };
         let mut c = *s;

@@ -1,10 +1,16 @@
 //! Tier 1 — fully typed parser for `TerrainRegionAutoSpawnInfo.pabgb`.
 //!
-//! Per IDA sub_1410FA5B0: 24 fields. `_spawnList` is
+//! Per IDA sub_1410FA5B0: 24 fields (old binary). New binary adds `spawn_mode_type` (u8) after
+//! `stage_category`, giving 25 fields. `_spawnList` is
 //! `CArray<AutoSpawnEntry>` via sub_1411092E0 + sub_1410FA2A0 (shared with
 //! SpawningPoolAutoSpawnInfo). Per-element wire layout reverse-engineered
 //! and lives in `crate::binary::variants::auto_spawn_entry`. Despite the original
 //! "polymorphic" docstring, sub_1410FA2A0 is fixed-shape.
+//!
+//! **spawn_list inter-element separator**: `CArray<AutoSpawnEntry>` encodes a single
+//! 0xff byte between consecutive elements (N elements → N-1 separators). Entries with
+//! one ASE carry no separator; entries with N≥2 ASEs carry one 0xff byte after each
+//! non-final element. Handled explicitly in `read_with_size`/`write_to`/`write_from_json_dict`.
 
 use crate::binary::*;
 use crate::binary::variants::auto_spawn_entry::AutoSpawnEntry;
@@ -25,12 +31,19 @@ pub struct TerrainRegionAutoSpawnInfo<'a> {
     pub spawn_region_tag_list: CArray<u32>,
     pub not_spawn_region_tag_list: CArray<u32>,
     pub spawn_list: CArray<AutoSpawnEntry>,
+    /// Inter-element bytes between consecutive `spawn_list` elements (N-1 for N
+    /// elements). Previously assumed to always be `0xff` and hardcoded on write,
+    /// but real game data uses `0x00` for some entries — hardcoding `0xff`
+    /// flipped those bytes and broke byte round-trip (and shipped a corrupted
+    /// overlay for affected regions). We now preserve the actual bytes verbatim.
+    pub spawn_list_separators: Vec<u8>,
     pub voxel_type: u32,
     pub road_group_type: u8,
     pub is_only_summon_data: u8,
     pub is_only_check_data: u8,
     pub stage_category: u8,
-    pub tag_list: CArray<CString<'a>>,
+    pub spawn_mode_type: u8,
+    pub tag_list: CArray<CBytes<'a>>,
     pub is_default_activated: u8,
     pub all_terrain_region: u8,
     pub bitmap_position_info: u32,
@@ -59,14 +72,37 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         let spawn_region_tag_list = CArray::<u32>::read_from(data, offset)?;
         let not_spawn_region_tag_list = CArray::<u32>::read_from(data, offset)?;
 
-        let spawn_list = <CArray<AutoSpawnEntry>>::read_from(data, offset)?;
+        // spawn_list: CArray<AutoSpawnEntry> with N-1 inter-element separator bytes
+        // between consecutive elements (value 0xff).  For N elements, N-1 separator
+        // bytes are inserted between them.  Entries with a single ASE have no
+        // separator; entries with two or more ASEs each contribute one separator byte.
+        let (spawn_list, spawn_list_separators) = {
+            let count = u32::read_from(data, offset)? as usize;
+            let remaining = data.len().saturating_sub(*offset);
+            if count > remaining {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
+                    format!("CArray count {} exceeds remaining bytes {} at offset {}",
+                        count, remaining, *offset)));
+            }
+            let mut items = Vec::with_capacity(count.min(1 << 20));
+            let mut separators: Vec<u8> = Vec::with_capacity(count.saturating_sub(1));
+            for i in 0..count {
+                items.push(AutoSpawnEntry::read_from(data, offset)?);
+                if i + 1 < count {
+                    // preserve the inter-element separator byte (0x00 or 0xff)
+                    separators.push(u8::read_from(data, offset)?);
+                }
+            }
+            (CArray { items }, separators)
+        };
 
         let voxel_type = u32::read_from(data, offset)?;
         let road_group_type = u8::read_from(data, offset)?;
         let is_only_summon_data = u8::read_from(data, offset)?;
         let is_only_check_data = u8::read_from(data, offset)?;
         let stage_category = u8::read_from(data, offset)?;
-        let tag_list = CArray::<CString>::read_from(data, offset)?;
+        let spawn_mode_type = u8::read_from(data, offset)?;
+        let tag_list = CArray::<CBytes>::read_from(data, offset)?;
         let is_default_activated = u8::read_from(data, offset)?;
         let all_terrain_region = u8::read_from(data, offset)?;
         let bitmap_position_info = u32::read_from(data, offset)?;
@@ -80,8 +116,8 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
             auto_spawn_spline_name, auto_spawn_spline_except_name,
             region_info_list, not_spawn_region_info_list,
             spawn_region_tag_list, not_spawn_region_tag_list,
-            spawn_list, voxel_type, road_group_type,
-            is_only_summon_data, is_only_check_data, stage_category,
+            spawn_list, spawn_list_separators, voxel_type, road_group_type,
+            is_only_summon_data, is_only_check_data, stage_category, spawn_mode_type,
             tag_list, is_default_activated, all_terrain_region,
             bitmap_position_info, bitmap_color_list_for_spawn,
             spawn_at_height_field_landscape, fish_summon_time_frequency_type,
@@ -100,12 +136,23 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         self.not_spawn_region_info_list.write_to(w)?;
         self.spawn_region_tag_list.write_to(w)?;
         self.not_spawn_region_tag_list.write_to(w)?;
-        self.spawn_list.write_to(w)?;
+        // spawn_list: write count then elements with the PRESERVED N-1 separator
+        // bytes between them. Fall back to 0xff only if a separator is missing
+        // (e.g. spawn_list was grown by a mod beyond the captured separator count).
+        (self.spawn_list.items.len() as u32).write_to(w)?;
+        for (i, entry) in self.spawn_list.items.iter().enumerate() {
+            entry.write_to(w)?;
+            if i + 1 < self.spawn_list.items.len() {
+                let sep = self.spawn_list_separators.get(i).copied().unwrap_or(0xff);
+                w.write_all(&[sep])?;
+            }
+        }
         self.voxel_type.write_to(w)?;
         self.road_group_type.write_to(w)?;
         self.is_only_summon_data.write_to(w)?;
         self.is_only_check_data.write_to(w)?;
         self.stage_category.write_to(w)?;
+        self.spawn_mode_type.write_to(w)?;
         self.tag_list.write_to(w)?;
         self.is_default_activated.write_to(w)?;
         self.all_terrain_region.write_to(w)?;
@@ -130,11 +177,14 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         m.insert("spawn_region_tag_list".to_string(), self.spawn_region_tag_list.to_json_value());
         m.insert("not_spawn_region_tag_list".to_string(), self.not_spawn_region_tag_list.to_json_value());
         m.insert("spawn_list".to_string(), self.spawn_list.to_json_value());
+        m.insert("spawn_list_separators".to_string(),
+            Value::Array(self.spawn_list_separators.iter().map(|b| Value::from(*b)).collect()));
         m.insert("voxel_type".to_string(), self.voxel_type.to_json_value());
         m.insert("road_group_type".to_string(), self.road_group_type.to_json_value());
         m.insert("is_only_summon_data".to_string(), self.is_only_summon_data.to_json_value());
         m.insert("is_only_check_data".to_string(), self.is_only_check_data.to_json_value());
         m.insert("stage_category".to_string(), self.stage_category.to_json_value());
+        m.insert("spawn_mode_type".to_string(), self.spawn_mode_type.to_json_value());
         m.insert("tag_list".to_string(), self.tag_list.to_json_value());
         m.insert("is_default_activated".to_string(), self.is_default_activated.to_json_value());
         m.insert("all_terrain_region".to_string(), self.all_terrain_region.to_json_value());
@@ -157,13 +207,34 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_info_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_region_tag_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_spawn_region_tag_list")?)?;
-        <CArray<AutoSpawnEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_list")?)?;
+        // spawn_list: custom write — N-1 inter-element separator bytes (0xff) between elements
+        {
+            let v = json_get_field(obj, "spawn_list")?;
+            let arr = v.as_array().ok_or_else(|| std::io::Error::new(
+                std::io::ErrorKind::InvalidData, "spawn_list is not a JSON array"))?;
+            w.extend_from_slice(&(arr.len() as u32).to_le_bytes());
+            // Preserved separators (optional for backward-compat with JSON that
+            // predates this field; default 0xff if absent or short).
+            let seps = obj.get("spawn_list_separators").and_then(|v| v.as_array());
+            for (i, item) in arr.iter().enumerate() {
+                <AutoSpawnEntry as WriteJsonValue>::write_from_json(w, item)?;
+                if i + 1 < arr.len() {
+                    let sep = seps
+                        .and_then(|s| s.get(i))
+                        .and_then(|v| v.as_u64())
+                        .map(|n| n as u8)
+                        .unwrap_or(0xff);
+                    w.push(sep);
+                }
+            }
+        }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "voxel_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "road_group_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_only_summon_data")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_only_check_data")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_category")?)?;
-        <CArray<CString> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_mode_type")?)?;
+        <CArray<CBytes> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_default_activated")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "all_terrain_region")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bitmap_position_info")?)?;
@@ -180,13 +251,11 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/terrainregionautospawninfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/terrainregionautospawninfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("terrainregionautospawninfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: {}", PABGB_PATH); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: {}", PABGH_PATH); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
         let ranges = entry_ranges(&entries, data.len());
 
         let mut items = Vec::with_capacity(ranges.len());
@@ -206,12 +275,12 @@ mod tests {
     #[test]
     fn json_roundtrip() {
         use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());

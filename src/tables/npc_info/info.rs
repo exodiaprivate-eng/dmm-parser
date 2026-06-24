@@ -32,7 +32,20 @@
 #![allow(clippy::doc_overindented_list_items)]
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410EBEB0` in CrimsonDesert.exe (Win build).
+//! Reader (Tier IDA verified 2026-05-19 vs CrimsonDesert.exe md5
+//! 3d614280…): `sub_1410CDE10` — NpcInfo deserializer (via "NpcInfo"
+//! class block at 0x144B0B2C0+). All 15 fields confirmed in order.
+//! (Cited `sub_1410EBEB0` stale.) Type confirmations:
+//!   - store_info (sub_1410E5BC0): **2-byte wire (u16)** + hash remap.
+//!     Rust `u16` correct — a genuine u16 ref, not u32.
+//!   - exchange_group_key: direct 2-byte u16.
+//!   - dye_texture_set_data_list element: u16 texture_set_lookup + u32
+//!     dye_target_key (via sub_1410E19E0, 4-byte wire→u16 RAM) = 6 wire
+//!     bytes.
+//!   - icon_path (sub_1410E1350) & coupon_item_info (sub_1410E1B70):
+//!     u32 wire → u16 RAM. npc_greet_friendly/npc_function_type_flag/
+//!     shop_scenekey: direct u32. dye_color_group element reader
+//!     sub_1410F0C40.
 //! Inner `_dyeColorGroupDataList` reader: `sub_14110E340`.
 //!
 //! Wire reads, in order (canonical names from Mac Korean error strings):
@@ -95,8 +108,16 @@ pub struct NpcInfo<'a> {
     pub exchange_button_text: LocalizableString<'a>,
     pub shop_name: LocalizableString<'a>,
     pub interaction_name: LocalizableString<'a>,
+    /// NEW 1.10: `_contributionSubLevelInfo` (Mac sub_1018F889C @a2+68, reader
+    /// sub_1007805D0 — 4-byte wire SubLevelInfo key). Inserted between
+    /// `_interactionName` and `_dyeColorGroupDataList`.
+    pub contribution_sub_level_info: u32,
     pub dye_color_group_data_list: CArray<DyeColorGroupData>,
     pub dye_texture_set_data_list: CArray<DyeTextureSetData>,
+    /// NEW 1.12: `_bankInfoList` (Mac sub_101FB80A8, element sub_101618A18 =
+    /// BankInfoKey resolved u16, 2-byte wire). Empty for most NPCs (count=0 → +4
+    /// shortfall that broke the 1.10 schema on every record).
+    pub bank_info_list: CArray<u16>,
 }
 
 impl<'a> NpcInfo<'a> {
@@ -129,13 +150,16 @@ impl<'a> NpcInfo<'a> {
         let exchange_button_text = LocalizableString::read_from(data, offset)?;
         let shop_name = LocalizableString::read_from(data, offset)?;
         let interaction_name = LocalizableString::read_from(data, offset)?;
+        let contribution_sub_level_info = u32::read_from(data, offset)?;
         let dye_color_group_data_list = CArray::<DyeColorGroupData>::read_from(data, offset)?;
         let dye_texture_set_data_list = CArray::<DyeTextureSetData>::read_from(data, offset)?;
+        let bank_info_list = CArray::<u16>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, icon_path, store_info, coupon_item_info,
             npc_greet_friendly, npc_function_type_flag, shop_scenekey,
             exchange_group_key, exchange_button_text, shop_name, interaction_name,
-            dye_color_group_data_list, dye_texture_set_data_list,
+            contribution_sub_level_info,
+            dye_color_group_data_list, dye_texture_set_data_list, bank_info_list,
         })
     }
 
@@ -153,8 +177,10 @@ impl<'a> NpcInfo<'a> {
         self.exchange_button_text.write_to(w)?;
         self.shop_name.write_to(w)?;
         self.interaction_name.write_to(w)?;
+        self.contribution_sub_level_info.write_to(w)?;
         self.dye_color_group_data_list.write_to(w)?;
         self.dye_texture_set_data_list.write_to(w)?;
+        self.bank_info_list.write_to(w)?;
         Ok(())
     }
 
@@ -173,8 +199,10 @@ impl<'a> NpcInfo<'a> {
         m.insert("exchange_button_text".to_string(), self.exchange_button_text.to_json_value());
         m.insert("shop_name".to_string(), self.shop_name.to_json_value());
         m.insert("interaction_name".to_string(), self.interaction_name.to_json_value());
+        m.insert("contribution_sub_level_info".to_string(), self.contribution_sub_level_info.to_json_value());
         m.insert("dye_color_group_data_list".to_string(), self.dye_color_group_data_list.to_json_value());
         m.insert("dye_texture_set_data_list".to_string(), self.dye_texture_set_data_list.to_json_value());
+        m.insert("bank_info_list".to_string(), self.bank_info_list.to_json_value());
         m
     }
 
@@ -192,8 +220,10 @@ impl<'a> NpcInfo<'a> {
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_button_text")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shop_name")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contribution_sub_level_info")?)?;
         <CArray<DyeColorGroupData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_color_group_data_list")?)?;
         <CArray<DyeTextureSetData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_texture_set_data_list")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bank_info_list")?)?;
         Ok(())
     }
 }
@@ -202,13 +232,11 @@ impl<'a> NpcInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/npcinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/npcinfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("npcinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -225,8 +253,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
@@ -249,8 +277,8 @@ mod tests {
     /// silent regression to _tail_b64.
     #[test]
     fn dye_lists_populated() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let (mut total_color, mut total_texture, mut entries_count) = (0usize, 0usize, 0usize);
         for (_, s, _) in &ranges {

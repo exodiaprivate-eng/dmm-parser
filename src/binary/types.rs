@@ -29,8 +29,7 @@ impl<'a> BinaryRead<'a> for CString<'a> {
         let len = length as usize;
         check_remaining(data, *offset, len)?;
         let bytes = &data[*offset..*offset + len];
-        let s = std::str::from_utf8(bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let s = std::str::from_utf8(bytes).unwrap_or("");
         *offset += len;
         Ok(CString { length, data: s, raw: bytes })
     }
@@ -39,7 +38,7 @@ impl<'a> BinaryRead<'a> for CString<'a> {
 impl BinaryWrite for CString<'_> {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.length.write_to(w)?;
-        w.write_all(self.data.as_bytes())
+        w.write_all(self.raw)
     }
 }
 
@@ -67,8 +66,7 @@ impl<'a> BinaryReadTracked<'a> for CString<'a> {
         let len = length as usize;
         check_remaining(data, *offset, len)?;
         let bytes = &data[*offset..*offset + len];
-        let s = std::str::from_utf8(bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let s = std::str::from_utf8(bytes).unwrap_or("");
         *offset += len;
         ranges.push(FieldRange {
             path: path.clone(),
@@ -151,11 +149,12 @@ pub struct CArray<T> {
 impl<'a, T: BinaryRead<'a>> BinaryRead<'a> for CArray<T> {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let count = u32::read_from(data, offset)? as usize;
-        // Sanity clamp: even the smallest element is >= 1 byte, so a
-        // count exceeding the remaining byte budget can only be a
-        // corrupted stream (e.g. a mod that byte-patched a count
-        // prefix). Without this check, `Vec::with_capacity(huge)` can
-        // attempt a multi-GB allocation before the actual read fails.
+        // Sanity clamp: every element is >= 1 byte, so a count exceeding
+        // the remaining byte budget can only be a corrupted stream. There
+        // is no arbitrary count cap — real tables carry large arrays (e.g.
+        // bitmap_position region data has 30k+ u16 entries). `with_capacity`
+        // is bounded so a borderline count can't trigger a huge up-front
+        // allocation; the per-element read below still bounds the total.
         let remaining = data.len().saturating_sub(*offset);
         if count > remaining {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -164,7 +163,7 @@ impl<'a, T: BinaryRead<'a>> BinaryRead<'a> for CArray<T> {
                     count, remaining, *offset,
                 )));
         }
-        let mut items = Vec::with_capacity(count);
+        let mut items = Vec::with_capacity(count.min(1 << 20));
         for _ in 0..count {
             items.push(T::read_from(data, offset)?);
         }
@@ -211,7 +210,7 @@ impl<'a, T: BinaryReadTracked<'a>> BinaryReadTracked<'a> for CArray<T> {
                 )));
         }
 
-        let mut items = Vec::with_capacity(count);
+        let mut items = Vec::with_capacity(count.min(1 << 20));
         for i in 0..count {
             let saved = push_index(path, i);
             items.push(T::read_tracked(data, offset, path, ranges)?);

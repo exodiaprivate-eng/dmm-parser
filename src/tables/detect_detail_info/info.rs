@@ -31,7 +31,7 @@ use crate::tables::detect_info::DetectSenseData;
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-const DETAIL_LIST_LEN: usize = 0x3B; // 59 fixed entries per IDA sub_1415BE000
+const DETAIL_LIST_LEN: usize = 0x40; // 64 fixed entries per IDA sub_1415C6F80 (1.0.8)
 
 #[derive(Debug)]
 pub struct DetectDetailInfo<'a> {
@@ -109,12 +109,11 @@ impl<'a> DetectDetailInfo<'a> {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/detectdetailinfo.pabgb";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("detectdetailinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;
@@ -132,8 +131,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;

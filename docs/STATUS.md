@@ -1,10 +1,70 @@
 # dmm-parser status & handoff
 
-**Last updated**: 2026-05-10 (Session 28 — schema-verified v3.1 surface across 109 tables + decoder-gap audit + pycrimson reflection workflow)
+**Last updated**: 2026-05-22 (Session 29 — 1.07 field-level completion loop: 110/123 tables fully field-level, 0 roundtrip failures across the whole archive)
 **Repo**: https://github.com/exodiaprivate-eng/dmm-parser
 **Branch**: `main`
 
-> **Current state (2026-05-10 end-of-session, Session 28):**
+> **Current state (2026-05-22 end-of-session, Session 29):**
+> 1.07 field-level completion pass on the live current-version dump
+> (`C:\temp\GIT\CrimsonDesertUpdates\pabgb\live_full`, 123 tables).
+> Coverage scanner: `examples/scan_field_coverage.rs`; per-table verify:
+> `examples/verify_table.rs <stem>`.
+>
+> **Headline metrics (full-scan confirmed):**
+> - **110 / 123 tables fully field-level** (0 opaque records) — up from ~104.
+> - **0 roundtrip failures** — the *entire* 123-table archive now
+>   byte-roundtrips. This was the session's correctness milestone.
+> - **6 opaque-tail tables remain**, all `RT=true` (safe, genuine
+>   decode-richness work): condition_info (5884), interaction_info (374),
+>   global_game_event_info (103), item_use_info (7994, all-blob),
+>   gimmick_info (13), mini_game_data_info (11).
+>
+> **Landed this session (all validated, regression-free):**
+> 1. **6 layout-drift tables → 0 opaque** via the 1.07 realignment recipe
+>    (re-locate the shifted reader via class-name string → tracked-range
+>    localize → byte-parse the failing region → fix only the verified
+>    divergence → validate all records → revert on failure):
+>    `quest_info` (O(R²)→O(R) filter-blob sizing fix), `bitmap_position_info`,
+>    `gimmick_info` (residual drift), `special_mode_info` (added `raw_e2:u32`),
+>    `faction_node_info` (tail field reorder), `stage_info`
+>    (`platform_character` → `CArray<CString>`). Plus the highest-leverage
+>    single change: removed the over-strict `CArray` count cap in
+>    `binary/types.rs` (was rejecting legitimately-large arrays).
+> 2. **`item_use_info` roundtrip FIX** — `ItemUseInfo::read_with_size`
+>    (+ tracked) now errors when a typed variant doesn't consume the full
+>    payload, so incomplete decodes fall back to a verbatim blob instead
+>    of silently dropping the undecoded tail (was losing 8766 bytes /
+>    ~137 records — disc-14 PlaySequencer's `SequencerStageChartDescPartial`
+>    left an undecoded ConditionData tail). Restores the byte-roundtrip
+>    invariant; item_use opaque 7855→7994 (honest blobs), RT false→**true**.
+> 3. **8-table self-validating resolve layer** (`src/resolve.rs`) — Python
+>    `parse_table_resolved(table, pabgb, pabgh, context=...)` adds readable
+>    `<field>_name` / `<field>_names` companions for cross-table hash
+>    references (skill/knowledge/npc/store/character/mission/buff +
+>    nested `use_resource_stat_list` → status_info, incl. the stamina-cost
+>    capability). Advisory-only (ignored on serialize, roundtrip-safe).
+>    Docs: `docs/api.md` §parse_table_resolved, `docs/MOD_AUTHOR_GUIDE.md`.
+>
+> **Remaining 6 gaps = ONE root cause (focused IDA session, NOT loop work):**
+> the **ConditionData/GameCondition 405-variant decoder family** underlies
+> condition_info, interaction_info, mini_game_data_info, gimmick_info
+> (post-body), AND item_use disc-14 — plus the GameExpression family
+> (global_game_event execute_data). Diagnosed to **per-variant under-reads**
+> (1.07 added u16s to common variants; the Rust models the 1.06 layout).
+> Full decode chain re-located for 1.07: `sub_1410BB8B0` (condition reader)
+> → `sub_141CE2D00` (GameCondition wrapper = node + 3 tail u8s, unchanged)
+> → `sub_141E5C690` (node dispatch, u8 case_tag + 9 cases, unchanged) →
+> case 3 `sub_141C7F010` (267KB, the 405-variant ConditionData dispatch —
+> the drift lives here). Localizer: `examples/diag_condition_underread.rs`.
+> **CRITICAL validation rule** (learned the hard way): validate ConditionData
+> changes with the *magnitude histogram* (clean-count up, no new ±2), **never**
+> the opaque count — Raw-fallback masks field-level regressions (a speculative
+> disc208 edit this session showed −1 opaque while silently breaking ~207
+> decoding records; caught via the histogram and reverted). Proven repeatedly
+> that this cannot be safely localized in 2-minute loop chunks; needs a
+> dedicated session.
+>
+> **Earlier state (2026-05-10 end-of-session, Session 28):**
 > Four major deliverables shipped this session, all on `main`:
 >
 > 1. **Bulk v3.1 alias surface** (commit `9e29e10`) — 113 of 122 tables

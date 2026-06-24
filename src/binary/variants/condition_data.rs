@@ -617,7 +617,6 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct ConditionData_DockingGimmickStatePayload {
         pub field_at_24: u32,
-        pub field_at_28: u32,
     }
 }
 
@@ -970,7 +969,6 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct ConditionData_CheckTriggerVolumeGroupIndexPayload {
-        pub field_at_16: u8,
     }
 }
 
@@ -1216,6 +1214,7 @@ py_binary_struct! {
     pub struct ConditionData_CheckGimmickNonBreakTargetCountPayload<'a> {
         pub conditional_slot: GimmickConditionalSlot<'a>,
         pub field_a: u8,
+        pub field_mid: CString<'a>,
         pub field_b: u16,
     }
 }
@@ -1236,6 +1235,15 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct ConditionData_CheckSpawnReasonPayload {
         pub field_at_24: u32,
+    }
+}
+
+py_binary_struct! {
+    /// Recipe 225 (CheckFriendlyItemReward) body — single u32 (item/reward id).
+    /// Was mis-modeled as pure-discriminator; the 32-byte class + byte trace
+    /// (two clean 4-byte-body recipe-225 nodes) confirm a u32 body.
+    pub struct ConditionData_CheckFriendlyItemRewardPayload {
+        pub field_a: u32,
     }
 }
 
@@ -1321,8 +1329,49 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct ConditionData_GetAngularVelocityPayload {
-        pub field_at_24: u8,
+        pub field_at_24: u32,
+    }
+}
+
+py_binary_struct! {
+    /// recipe 321 HasBagDocking — IDA sub_141CD1340: u32@24 + u32@28 + u8@32 + u8@33.
+    pub struct ConditionData_HasBagDockingPayload {
+        pub field_at_24: u32,
         pub field_at_28: u32,
+        pub field_at_32: u8,
+        pub field_at_33: u8,
+    }
+}
+
+py_binary_struct! {
+    /// recipe 363 IsInGrassField — IDA sub_141C91B40: u8@24.
+    pub struct ConditionData_IsInGrassFieldPayload {
+        pub field_at_24: u8,
+    }
+}
+
+py_binary_struct! {
+    /// recipe 127 (was unhandled) — IDA sub_141CA5F40: u32@16.
+    pub struct ConditionData_Recipe127Payload {
+        pub field_at_16: u32,
+    }
+}
+
+py_binary_struct! {
+    /// recipe 201 CheckBurnable — was modeled as pure-discriminator, but the
+    /// wire carries a u32 body (a gimmick id, e.g. 0x000f424e). With no body the
+    /// id was misread as the option_block presence → CString len ~3906 → utf-8
+    /// crash. Exclusive to 1 record (tail_start 5140765) so adjusting is safe.
+    pub struct ConditionData_CheckBurnablePayload {
+        pub gimmick_id: u32,
+        pub extra: u16,
+    }
+}
+
+py_binary_struct! {
+    /// recipe 212 CheckGimmickAttachmentType — IDA sub_141C91B40: u8@24.
+    pub struct ConditionData_CheckGimmickAttachmentTypePayload {
+        pub field_at_24: u8,
     }
 }
 
@@ -1746,14 +1795,26 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct ConditionData_CheckInventoryMaxSlotCountPayload {
-        pub field_at_24: u16,
     }
 }
 
 py_binary_struct! {
+    // 1.09 drift fix: body is u32 + u16 (6 bytes), NOT u32 + u8 (5 bytes).
+    // Verified empirically via inventory.pabgb entry k=0x2 move_data[6].
+    // move_condition: case 3 (ConditionData) tag 402 (GetDifficultyOption),
+    // body bytes = 00 00 00 00 00 01 → field_at_16=0, field_at_20=0x0100=256.
+    // This is the same Class D payload-growth pattern already applied to
+    // tags 407/408 (U32U16BodyPayload). The trailing byte that earlier
+    // versions read as a separate option_present flag is now part of a u16
+    // body field, so 402 stays in variant_skips_option_block() (no extra
+    // option byte) and the field width simply widened u8 -> u16. Before this
+    // fix the Character entry under-read by 1 byte, mis-aligned
+    // condition_fail_text, over-ran the entry, and fell back to an opaque
+    // blob — which silently dropped V3 field edits (e.g. I Like Space's
+    // default_slot_count/max_slot_count never landed).
     pub struct ConditionData_GetDifficultyOptionPayload {
         pub field_at_16: u32,
-        pub field_at_20: u8,
+        pub field_at_20: u16,
     }
 }
 
@@ -1906,6 +1967,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckRepairableNpc,
     ConditionData_CheckSpecialMode(ConditionData_CheckSpecialModePayload),
     ConditionData_SpecialModeKey(ConditionData_SpecialModeKeyPayload),
+    ConditionData_Recipe127(ConditionData_Recipe127Payload),
     ConditionData_IsInRegion(ConditionData_IsInRegionPayload),
     ConditionData_IsInTown,
     ConditionData_IsAboveRoad(ConditionData_IsAboveRoadPayload),
@@ -1979,7 +2041,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickImpulseWhereType(ConditionData_CheckGimmickImpulseWhereTypePayload),
     ConditionData_CheckElementalMaterialStateSuccess(ConditionData_CheckElementalMaterialStateSuccessPayload),
     ConditionData_CheckCurrentEquipType_OrTag199,
-    ConditionData_CheckBurnable,
+    ConditionData_CheckBurnable(ConditionData_CheckBurnablePayload),
     ConditionData_CheckBreakable,
     ConditionData_CheckOriginalBreakable,
     ConditionData_CheckBreaked,
@@ -1990,7 +2052,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckGimmickRemoteCatchType,
     ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload<'a>),
     ConditionData_IsFullGimmickAttachment,
-    ConditionData_CheckGimmickAttachmentType,
+    ConditionData_CheckGimmickAttachmentType(ConditionData_CheckGimmickAttachmentTypePayload),
     ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload<'a>),
     ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload<'a>),
     ConditionData_CheckExistStealItem(ConditionData_CheckExistStealItemPayload),
@@ -2003,7 +2065,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckAttackImpulseLevel(ConditionData_CheckAttackImpulseLevelPayload),
     ConditionData_CheckBreakableAttackImpulseLevel,
     ConditionData_CheckSpawnReason(ConditionData_CheckSpawnReasonPayload),
-    ConditionData_CheckFriendlyItemReward,
+    ConditionData_CheckFriendlyItemReward(ConditionData_CheckFriendlyItemRewardPayload),
     ConditionData_CheckNearestTriggerTargetDistance(ConditionData_CheckNearestTriggerTargetDistancePayload),
     ConditionData_CheckHasMagneticPartner,
     ConditionData_CheckForceFieldType,
@@ -2099,7 +2161,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckLoginStep_OrTag317,
     ConditionData_CheckLoginStep_OrTag318,
     ConditionData_DockingChildTagCount(ConditionData_DockingChildTagCountPayload),
-    ConditionData_HasBagDocking,
+    ConditionData_HasBagDocking(ConditionData_HasBagDockingPayload),
     ConditionData_IsSpecialModeStartComplete,
     ConditionData_IsInteractable(OneByteBodyPayload),
     ConditionData_CheckVehicleType(ConditionData_CheckVehicleTypePayload),
@@ -2141,7 +2203,7 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_IsPassableState,
     ConditionData_CheckTargetDropListToPushInventory(OneByteBodyPayload),
     ConditionData_IsMiniGameBanned,
-    ConditionData_IsInGrassField,
+    ConditionData_IsInGrassField(ConditionData_IsInGrassFieldPayload),
     ConditionData_IsCoveredBySnow,
     ConditionData_IsInRegionTag(ConditionData_IsInRegionTagPayload),
     ConditionData_IsGround,
@@ -2184,6 +2246,17 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_GetMaxWantedLevel(ConditionData_GetMaxWantedLevelPayload),
     ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload),
     ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload),
+    ConditionData_Tag406,
+    /// Tag 407: body = u32 + u16 (6 bytes). No option_block (1.0.8 verified
+    /// by inventory.pabgb entry k=0x2 move_data[6].move_condition).
+    ConditionData_Tag407(U32U16BodyPayload),
+    /// Tag 408: body = u32 + u16 (6 bytes). No option_block (empirically
+    /// verified via inventory.pabgb k=0x2 Character entry; body bytes
+    /// 00 00 00 00 00 01 → u32=0, u16=256; same Class D shape as tag 407).
+    ConditionData_Tag408(U32U16BodyPayload),
+    /// 1.10 (Re-Blockade / pet growth) — same Class D shape as 407/408.
+    ConditionData_Tag409(U32U16BodyPayload),
+    ConditionData_Tag410(U32U16BodyPayload),
 }
 
 impl<'a> ConditionDataVariant<'a> {
@@ -2316,6 +2389,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRepairableNpc => 124,
             Self::ConditionData_CheckSpecialMode(_) => 125,
             Self::ConditionData_SpecialModeKey(_) => 126,
+            Self::ConditionData_Recipe127(_) => 127,
             Self::ConditionData_IsInRegion(_) => 128,
             Self::ConditionData_IsInTown => 129,
             Self::ConditionData_IsAboveRoad(_) => 130,
@@ -2389,7 +2463,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(_) => 198,
             Self::ConditionData_CheckElementalMaterialStateSuccess(_) => 199,
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => 200,
-            Self::ConditionData_CheckBurnable => 201,
+            Self::ConditionData_CheckBurnable(_) => 201,
             Self::ConditionData_CheckBreakable => 202,
             Self::ConditionData_CheckOriginalBreakable => 203,
             Self::ConditionData_CheckBreaked => 204,
@@ -2400,7 +2474,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickRemoteCatchType => 209,
             Self::ConditionData_CheckGimmickTriggerCount(_) => 210,
             Self::ConditionData_IsFullGimmickAttachment => 211,
-            Self::ConditionData_CheckGimmickAttachmentType => 212,
+            Self::ConditionData_CheckGimmickAttachmentType(_) => 212,
             Self::ConditionData_CheckGimmickTargetCount(_) => 213,
             Self::ConditionData_CheckGimmickNonBreakTargetCount(_) => 214,
             Self::ConditionData_CheckExistStealItem(_) => 215,
@@ -2413,7 +2487,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckAttackImpulseLevel(_) => 222,
             Self::ConditionData_CheckBreakableAttackImpulseLevel => 223,
             Self::ConditionData_CheckSpawnReason(_) => 224,
-            Self::ConditionData_CheckFriendlyItemReward => 225,
+            Self::ConditionData_CheckFriendlyItemReward(_) => 225,
             Self::ConditionData_CheckNearestTriggerTargetDistance(_) => 226,
             Self::ConditionData_CheckHasMagneticPartner => 227,
             Self::ConditionData_CheckForceFieldType => 228,
@@ -2509,7 +2583,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckLoginStep_OrTag317 => 318,
             Self::ConditionData_CheckLoginStep_OrTag318 => 319,
             Self::ConditionData_DockingChildTagCount(_) => 320,
-            Self::ConditionData_HasBagDocking => 321,
+            Self::ConditionData_HasBagDocking(_) => 321,
             Self::ConditionData_IsSpecialModeStartComplete => 322,
             Self::ConditionData_IsInteractable(_) => 323,
             Self::ConditionData_CheckVehicleType(_) => 324,
@@ -2551,7 +2625,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsPassableState => 360,
             Self::ConditionData_CheckTargetDropListToPushInventory(_) => 361,
             Self::ConditionData_IsMiniGameBanned => 362,
-            Self::ConditionData_IsInGrassField => 363,
+            Self::ConditionData_IsInGrassField(_) => 363,
             Self::ConditionData_IsCoveredBySnow => 364,
             Self::ConditionData_IsInRegionTag(_) => 365,
             Self::ConditionData_IsGround => 366,
@@ -2594,6 +2668,11 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(_) => 403,
             Self::ConditionData_CheckPlayerHouse(_) => 404,
             Self::ConditionData_CheckActivatedHousingRegion(_) => 405,
+            Self::ConditionData_Tag406 => 406,
+            Self::ConditionData_Tag407(_) => 407,
+            Self::ConditionData_Tag408(_) => 408,
+            Self::ConditionData_Tag409(_) => 409,
+            Self::ConditionData_Tag410(_) => 410,
         }
     }
 
@@ -2729,6 +2808,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRepairableNpc => "ConditionData_CheckRepairableNpc",
             Self::ConditionData_CheckSpecialMode(_) => "ConditionData_CheckSpecialMode",
             Self::ConditionData_SpecialModeKey(_) => "ConditionData_SpecialModeKey",
+            Self::ConditionData_Recipe127(_) => "ConditionData_Recipe127",
             Self::ConditionData_IsInRegion(_) => "ConditionData_IsInRegion",
             Self::ConditionData_IsInTown => "ConditionData_IsInTown",
             Self::ConditionData_IsAboveRoad(_) => "ConditionData_IsAboveRoad",
@@ -2802,7 +2882,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(_) => "ConditionData_CheckGimmickImpulseWhereType",
             Self::ConditionData_CheckElementalMaterialStateSuccess(_) => "ConditionData_CheckElementalMaterialStateSuccess",
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => "ConditionData_CheckCurrentEquipType_OrTag199",
-            Self::ConditionData_CheckBurnable => "ConditionData_CheckBurnable",
+            Self::ConditionData_CheckBurnable(_) => "ConditionData_CheckBurnable",
             Self::ConditionData_CheckBreakable => "ConditionData_CheckBreakable",
             Self::ConditionData_CheckOriginalBreakable => "ConditionData_CheckOriginalBreakable",
             Self::ConditionData_CheckBreaked => "ConditionData_CheckBreaked",
@@ -2813,7 +2893,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickRemoteCatchType => "ConditionData_CheckGimmickRemoteCatchType",
             Self::ConditionData_CheckGimmickTriggerCount(_) => "ConditionData_CheckGimmickTriggerCount",
             Self::ConditionData_IsFullGimmickAttachment => "ConditionData_IsFullGimmickAttachment",
-            Self::ConditionData_CheckGimmickAttachmentType => "ConditionData_CheckGimmickAttachmentType",
+            Self::ConditionData_CheckGimmickAttachmentType(_) => "ConditionData_CheckGimmickAttachmentType",
             Self::ConditionData_CheckGimmickTargetCount(_) => "ConditionData_CheckGimmickTargetCount",
             Self::ConditionData_CheckGimmickNonBreakTargetCount(_) => "ConditionData_CheckGimmickNonBreakTargetCount",
             Self::ConditionData_CheckExistStealItem(_) => "ConditionData_CheckExistStealItem",
@@ -2826,7 +2906,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckAttackImpulseLevel(_) => "ConditionData_CheckAttackImpulseLevel",
             Self::ConditionData_CheckBreakableAttackImpulseLevel => "ConditionData_CheckBreakableAttackImpulseLevel",
             Self::ConditionData_CheckSpawnReason(_) => "ConditionData_CheckSpawnReason",
-            Self::ConditionData_CheckFriendlyItemReward => "ConditionData_CheckFriendlyItemReward",
+            Self::ConditionData_CheckFriendlyItemReward(_) => "ConditionData_CheckFriendlyItemReward",
             Self::ConditionData_CheckNearestTriggerTargetDistance(_) => "ConditionData_CheckNearestTriggerTargetDistance",
             Self::ConditionData_CheckHasMagneticPartner => "ConditionData_CheckHasMagneticPartner",
             Self::ConditionData_CheckForceFieldType => "ConditionData_CheckForceFieldType",
@@ -2922,7 +3002,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckLoginStep_OrTag317 => "ConditionData_CheckLoginStep_OrTag317",
             Self::ConditionData_CheckLoginStep_OrTag318 => "ConditionData_CheckLoginStep_OrTag318",
             Self::ConditionData_DockingChildTagCount(_) => "ConditionData_DockingChildTagCount",
-            Self::ConditionData_HasBagDocking => "ConditionData_HasBagDocking",
+            Self::ConditionData_HasBagDocking(_) => "ConditionData_HasBagDocking",
             Self::ConditionData_IsSpecialModeStartComplete => "ConditionData_IsSpecialModeStartComplete",
             Self::ConditionData_IsInteractable(_) => "ConditionData_IsInteractable",
             Self::ConditionData_CheckVehicleType(_) => "ConditionData_CheckVehicleType",
@@ -2964,7 +3044,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsPassableState => "ConditionData_IsPassableState",
             Self::ConditionData_CheckTargetDropListToPushInventory(_) => "ConditionData_CheckTargetDropListToPushInventory",
             Self::ConditionData_IsMiniGameBanned => "ConditionData_IsMiniGameBanned",
-            Self::ConditionData_IsInGrassField => "ConditionData_IsInGrassField",
+            Self::ConditionData_IsInGrassField(_) => "ConditionData_IsInGrassField",
             Self::ConditionData_IsCoveredBySnow => "ConditionData_IsCoveredBySnow",
             Self::ConditionData_IsInRegionTag(_) => "ConditionData_IsInRegionTag",
             Self::ConditionData_IsGround => "ConditionData_IsGround",
@@ -3007,6 +3087,11 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(_) => "ConditionData_GetMaxWantedLevel",
             Self::ConditionData_CheckPlayerHouse(_) => "ConditionData_CheckPlayerHouse",
             Self::ConditionData_CheckActivatedHousingRegion(_) => "ConditionData_CheckActivatedHousingRegion",
+            Self::ConditionData_Tag406 => "ConditionData_Tag406",
+            Self::ConditionData_Tag407(_) => "ConditionData_Tag407",
+            Self::ConditionData_Tag408(_) => "ConditionData_Tag408",
+            Self::ConditionData_Tag409(_) => "ConditionData_Tag409",
+            Self::ConditionData_Tag410(_) => "ConditionData_Tag410",
         }
     }
 
@@ -3143,6 +3228,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRepairableNpc => {}
             Self::ConditionData_CheckSpecialMode(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_SpecialModeKey(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Recipe127(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsInRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsInTown => {}
             Self::ConditionData_IsAboveRoad(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3216,7 +3302,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckElementalMaterialStateSuccess(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => {}
-            Self::ConditionData_CheckBurnable => {}
+            Self::ConditionData_CheckBurnable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckBreakable => {}
             Self::ConditionData_CheckOriginalBreakable => {}
             Self::ConditionData_CheckBreaked => {}
@@ -3227,7 +3313,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickRemoteCatchType => {}
             Self::ConditionData_CheckGimmickTriggerCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsFullGimmickAttachment => {}
-            Self::ConditionData_CheckGimmickAttachmentType => {}
+            Self::ConditionData_CheckGimmickAttachmentType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGimmickTargetCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGimmickNonBreakTargetCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckExistStealItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3240,7 +3326,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckAttackImpulseLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckBreakableAttackImpulseLevel => {}
             Self::ConditionData_CheckSpawnReason(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_CheckFriendlyItemReward => {}
+            Self::ConditionData_CheckFriendlyItemReward(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckNearestTriggerTargetDistance(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckHasMagneticPartner => {}
             Self::ConditionData_CheckForceFieldType => {}
@@ -3336,7 +3422,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckLoginStep_OrTag317 => {}
             Self::ConditionData_CheckLoginStep_OrTag318 => {}
             Self::ConditionData_DockingChildTagCount(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_HasBagDocking => {}
+            Self::ConditionData_HasBagDocking(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsSpecialModeStartComplete => {}
             Self::ConditionData_IsInteractable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckVehicleType(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3378,7 +3464,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsPassableState => {}
             Self::ConditionData_CheckTargetDropListToPushInventory(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsMiniGameBanned => {}
-            Self::ConditionData_IsInGrassField => {}
+            Self::ConditionData_IsInGrassField(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsCoveredBySnow => {}
             Self::ConditionData_IsInRegionTag(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_IsGround => {}
@@ -3421,6 +3507,11 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckPlayerHouse(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckActivatedHousingRegion(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag406 => {}
+            Self::ConditionData_Tag407(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag408(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag409(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag410(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
         }
         Value::Object(m)
     }
@@ -3564,6 +3655,7 @@ impl<'a> ConditionDataVariant<'a> {
             124 => {}
             125 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSpecialMode: missing body object"))?; ConditionData_CheckSpecialModePayload::write_from_json_dict(w, body)?; }
             126 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_SpecialModeKey: missing body object"))?; ConditionData_SpecialModeKeyPayload::write_from_json_dict(w, body)?; }
+            127 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Recipe127: missing body object"))?; ConditionData_Recipe127Payload::write_from_json_dict(w, body)?; }
             128 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInRegion: missing body object"))?; ConditionData_IsInRegionPayload::write_from_json_dict(w, body)?; }
             129 => {}
             130 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsAboveRoad: missing body object"))?; ConditionData_IsAboveRoadPayload::write_from_json_dict(w, body)?; }
@@ -3637,7 +3729,7 @@ impl<'a> ConditionDataVariant<'a> {
             198 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickImpulseWhereType: missing body object"))?; ConditionData_CheckGimmickImpulseWhereTypePayload::write_from_json_dict(w, body)?; }
             199 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckElementalMaterialStateSuccess: missing body object"))?; ConditionData_CheckElementalMaterialStateSuccessPayload::write_from_json_dict(w, body)?; }
             200 => {}
-            201 => {}
+            201 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckBurnable: missing body object"))?; ConditionData_CheckBurnablePayload::write_from_json_dict(w, body)?; }
             202 => {}
             203 => {}
             204 => {}
@@ -3648,7 +3740,7 @@ impl<'a> ConditionDataVariant<'a> {
             209 => {}
             210 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTriggerCount: missing body object"))?; ConditionData_CheckGimmickTriggerCountPayload::write_from_json_dict(w, body)?; }
             211 => {}
-            212 => {}
+            212 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickAttachmentType: missing body object"))?; ConditionData_CheckGimmickAttachmentTypePayload::write_from_json_dict(w, body)?; }
             213 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickTargetCount: missing body object"))?; ConditionData_CheckGimmickTargetCountPayload::write_from_json_dict(w, body)?; }
             214 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckGimmickNonBreakTargetCount: missing body object"))?; ConditionData_CheckGimmickNonBreakTargetCountPayload::write_from_json_dict(w, body)?; }
             215 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckExistStealItem: missing body object"))?; ConditionData_CheckExistStealItemPayload::write_from_json_dict(w, body)?; }
@@ -3661,7 +3753,7 @@ impl<'a> ConditionDataVariant<'a> {
             222 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckAttackImpulseLevel: missing body object"))?; ConditionData_CheckAttackImpulseLevelPayload::write_from_json_dict(w, body)?; }
             223 => {}
             224 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckSpawnReason: missing body object"))?; ConditionData_CheckSpawnReasonPayload::write_from_json_dict(w, body)?; }
-            225 => {}
+            225 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckFriendlyItemReward: missing body object"))?; ConditionData_CheckFriendlyItemRewardPayload::write_from_json_dict(w, body)?; }
             226 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckNearestTriggerTargetDistance: missing body object"))?; ConditionData_CheckNearestTriggerTargetDistancePayload::write_from_json_dict(w, body)?; }
             227 => {}
             228 => {}
@@ -3757,7 +3849,7 @@ impl<'a> ConditionDataVariant<'a> {
             318 => {}
             319 => {}
             320 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_DockingChildTagCount: missing body object"))?; ConditionData_DockingChildTagCountPayload::write_from_json_dict(w, body)?; }
-            321 => {}
+            321 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_HasBagDocking: missing body object"))?; ConditionData_HasBagDockingPayload::write_from_json_dict(w, body)?; }
             322 => {}
             323 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInteractable: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             324 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckVehicleType: missing body object"))?; ConditionData_CheckVehicleTypePayload::write_from_json_dict(w, body)?; }
@@ -3799,7 +3891,7 @@ impl<'a> ConditionDataVariant<'a> {
             360 => {}
             361 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckTargetDropListToPushInventory: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             362 => {}
-            363 => {}
+            363 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInGrassField: missing body object"))?; ConditionData_IsInGrassFieldPayload::write_from_json_dict(w, body)?; }
             364 => {}
             365 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_IsInRegionTag: missing body object"))?; ConditionData_IsInRegionTagPayload::write_from_json_dict(w, body)?; }
             366 => {}
@@ -3842,6 +3934,11 @@ impl<'a> ConditionDataVariant<'a> {
             403 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_GetMaxWantedLevel: missing body object"))?; ConditionData_GetMaxWantedLevelPayload::write_from_json_dict(w, body)?; }
             404 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckPlayerHouse: missing body object"))?; ConditionData_CheckPlayerHousePayload::write_from_json_dict(w, body)?; }
             405 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActivatedHousingRegion: missing body object"))?; ConditionData_CheckActivatedHousingRegionPayload::write_from_json_dict(w, body)?; }
+            406 => {} // Tag406: bodyless
+            407 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag407: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            408 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag408: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            409 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag409: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            410 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag410: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataVariant: unknown disc {}", other))),
         }
@@ -3979,6 +4076,7 @@ impl<'a> ConditionDataVariant<'a> {
             124 => Self::ConditionData_CheckRepairableNpc,
             125 => Self::ConditionData_CheckSpecialMode(ConditionData_CheckSpecialModePayload::read_from(data, offset)?),
             126 => Self::ConditionData_SpecialModeKey(ConditionData_SpecialModeKeyPayload::read_from(data, offset)?),
+            127 => Self::ConditionData_Recipe127(ConditionData_Recipe127Payload::read_from(data, offset)?),
             128 => Self::ConditionData_IsInRegion(ConditionData_IsInRegionPayload::read_from(data, offset)?),
             129 => Self::ConditionData_IsInTown,
             130 => Self::ConditionData_IsAboveRoad(ConditionData_IsAboveRoadPayload::read_from(data, offset)?),
@@ -4052,7 +4150,7 @@ impl<'a> ConditionDataVariant<'a> {
             198 => Self::ConditionData_CheckGimmickImpulseWhereType(ConditionData_CheckGimmickImpulseWhereTypePayload::read_from(data, offset)?),
             199 => Self::ConditionData_CheckElementalMaterialStateSuccess(ConditionData_CheckElementalMaterialStateSuccessPayload::read_from(data, offset)?),
             200 => Self::ConditionData_CheckCurrentEquipType_OrTag199,
-            201 => Self::ConditionData_CheckBurnable,
+            201 => Self::ConditionData_CheckBurnable(ConditionData_CheckBurnablePayload::read_from(data, offset)?),
             202 => Self::ConditionData_CheckBreakable,
             203 => Self::ConditionData_CheckOriginalBreakable,
             204 => Self::ConditionData_CheckBreaked,
@@ -4063,7 +4161,7 @@ impl<'a> ConditionDataVariant<'a> {
             209 => Self::ConditionData_CheckGimmickRemoteCatchType,
             210 => Self::ConditionData_CheckGimmickTriggerCount(ConditionData_CheckGimmickTriggerCountPayload::read_from(data, offset)?),
             211 => Self::ConditionData_IsFullGimmickAttachment,
-            212 => Self::ConditionData_CheckGimmickAttachmentType,
+            212 => Self::ConditionData_CheckGimmickAttachmentType(ConditionData_CheckGimmickAttachmentTypePayload::read_from(data, offset)?),
             213 => Self::ConditionData_CheckGimmickTargetCount(ConditionData_CheckGimmickTargetCountPayload::read_from(data, offset)?),
             214 => Self::ConditionData_CheckGimmickNonBreakTargetCount(ConditionData_CheckGimmickNonBreakTargetCountPayload::read_from(data, offset)?),
             215 => Self::ConditionData_CheckExistStealItem(ConditionData_CheckExistStealItemPayload::read_from(data, offset)?),
@@ -4076,7 +4174,7 @@ impl<'a> ConditionDataVariant<'a> {
             222 => Self::ConditionData_CheckAttackImpulseLevel(ConditionData_CheckAttackImpulseLevelPayload::read_from(data, offset)?),
             223 => Self::ConditionData_CheckBreakableAttackImpulseLevel,
             224 => Self::ConditionData_CheckSpawnReason(ConditionData_CheckSpawnReasonPayload::read_from(data, offset)?),
-            225 => Self::ConditionData_CheckFriendlyItemReward,
+            225 => Self::ConditionData_CheckFriendlyItemReward(ConditionData_CheckFriendlyItemRewardPayload::read_from(data, offset)?),
             226 => Self::ConditionData_CheckNearestTriggerTargetDistance(ConditionData_CheckNearestTriggerTargetDistancePayload::read_from(data, offset)?),
             227 => Self::ConditionData_CheckHasMagneticPartner,
             228 => Self::ConditionData_CheckForceFieldType,
@@ -4172,7 +4270,7 @@ impl<'a> ConditionDataVariant<'a> {
             318 => Self::ConditionData_CheckLoginStep_OrTag317,
             319 => Self::ConditionData_CheckLoginStep_OrTag318,
             320 => Self::ConditionData_DockingChildTagCount(ConditionData_DockingChildTagCountPayload::read_from(data, offset)?),
-            321 => Self::ConditionData_HasBagDocking,
+            321 => Self::ConditionData_HasBagDocking(ConditionData_HasBagDockingPayload::read_from(data, offset)?),
             322 => Self::ConditionData_IsSpecialModeStartComplete,
             323 => Self::ConditionData_IsInteractable(OneByteBodyPayload::read_from(data, offset)?),
             324 => Self::ConditionData_CheckVehicleType(ConditionData_CheckVehicleTypePayload::read_from(data, offset)?),
@@ -4214,7 +4312,7 @@ impl<'a> ConditionDataVariant<'a> {
             360 => Self::ConditionData_IsPassableState,
             361 => Self::ConditionData_CheckTargetDropListToPushInventory(OneByteBodyPayload::read_from(data, offset)?),
             362 => Self::ConditionData_IsMiniGameBanned,
-            363 => Self::ConditionData_IsInGrassField,
+            363 => Self::ConditionData_IsInGrassField(ConditionData_IsInGrassFieldPayload::read_from(data, offset)?),
             364 => Self::ConditionData_IsCoveredBySnow,
             365 => Self::ConditionData_IsInRegionTag(ConditionData_IsInRegionTagPayload::read_from(data, offset)?),
             366 => Self::ConditionData_IsGround,
@@ -4257,6 +4355,11 @@ impl<'a> ConditionDataVariant<'a> {
             403 => Self::ConditionData_GetMaxWantedLevel(ConditionData_GetMaxWantedLevelPayload::read_from(data, offset)?),
             404 => Self::ConditionData_CheckPlayerHouse(ConditionData_CheckPlayerHousePayload::read_from(data, offset)?),
             405 => Self::ConditionData_CheckActivatedHousingRegion(ConditionData_CheckActivatedHousingRegionPayload::read_from(data, offset)?),
+            406 => Self::ConditionData_Tag406,
+            407 => Self::ConditionData_Tag407(U32U16BodyPayload::read_from(data, offset)?),
+            408 => Self::ConditionData_Tag408(U32U16BodyPayload::read_from(data, offset)?),
+            409 => Self::ConditionData_Tag409(U32U16BodyPayload::read_from(data, offset)?),
+            410 => Self::ConditionData_Tag410(U32U16BodyPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
         })
     }
@@ -4390,6 +4493,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckRepairableNpc => Ok(()),
             Self::ConditionData_CheckSpecialMode(p) => p.write_to(w),
             Self::ConditionData_SpecialModeKey(p) => p.write_to(w),
+            Self::ConditionData_Recipe127(p) => p.write_to(w),
             Self::ConditionData_IsInRegion(p) => p.write_to(w),
             Self::ConditionData_IsInTown => Ok(()),
             Self::ConditionData_IsAboveRoad(p) => p.write_to(w),
@@ -4463,7 +4567,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickImpulseWhereType(p) => p.write_to(w),
             Self::ConditionData_CheckElementalMaterialStateSuccess(p) => p.write_to(w),
             Self::ConditionData_CheckCurrentEquipType_OrTag199 => Ok(()),
-            Self::ConditionData_CheckBurnable => Ok(()),
+            Self::ConditionData_CheckBurnable(p) => p.write_to(w),
             Self::ConditionData_CheckBreakable => Ok(()),
             Self::ConditionData_CheckOriginalBreakable => Ok(()),
             Self::ConditionData_CheckBreaked => Ok(()),
@@ -4474,7 +4578,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckGimmickRemoteCatchType => Ok(()),
             Self::ConditionData_CheckGimmickTriggerCount(p) => p.write_to(w),
             Self::ConditionData_IsFullGimmickAttachment => Ok(()),
-            Self::ConditionData_CheckGimmickAttachmentType => Ok(()),
+            Self::ConditionData_CheckGimmickAttachmentType(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickTargetCount(p) => p.write_to(w),
             Self::ConditionData_CheckGimmickNonBreakTargetCount(p) => p.write_to(w),
             Self::ConditionData_CheckExistStealItem(p) => p.write_to(w),
@@ -4487,7 +4591,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckAttackImpulseLevel(p) => p.write_to(w),
             Self::ConditionData_CheckBreakableAttackImpulseLevel => Ok(()),
             Self::ConditionData_CheckSpawnReason(p) => p.write_to(w),
-            Self::ConditionData_CheckFriendlyItemReward => Ok(()),
+            Self::ConditionData_CheckFriendlyItemReward(p) => p.write_to(w),
             Self::ConditionData_CheckNearestTriggerTargetDistance(p) => p.write_to(w),
             Self::ConditionData_CheckHasMagneticPartner => Ok(()),
             Self::ConditionData_CheckForceFieldType => Ok(()),
@@ -4583,7 +4687,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckLoginStep_OrTag317 => Ok(()),
             Self::ConditionData_CheckLoginStep_OrTag318 => Ok(()),
             Self::ConditionData_DockingChildTagCount(p) => p.write_to(w),
-            Self::ConditionData_HasBagDocking => Ok(()),
+            Self::ConditionData_HasBagDocking(p) => p.write_to(w),
             Self::ConditionData_IsSpecialModeStartComplete => Ok(()),
             Self::ConditionData_IsInteractable(p) => p.write_to(w),
             Self::ConditionData_CheckVehicleType(p) => p.write_to(w),
@@ -4625,7 +4729,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_IsPassableState => Ok(()),
             Self::ConditionData_CheckTargetDropListToPushInventory(p) => p.write_to(w),
             Self::ConditionData_IsMiniGameBanned => Ok(()),
-            Self::ConditionData_IsInGrassField => Ok(()),
+            Self::ConditionData_IsInGrassField(p) => p.write_to(w),
             Self::ConditionData_IsCoveredBySnow => Ok(()),
             Self::ConditionData_IsInRegionTag(p) => p.write_to(w),
             Self::ConditionData_IsGround => Ok(()),
@@ -4668,6 +4772,11 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_GetMaxWantedLevel(p) => p.write_to(w),
             Self::ConditionData_CheckPlayerHouse(p) => p.write_to(w),
             Self::ConditionData_CheckActivatedHousingRegion(p) => p.write_to(w),
+            Self::ConditionData_Tag406 => Ok(()),
+            Self::ConditionData_Tag407(p) => p.write_to(w),
+            Self::ConditionData_Tag408(p) => p.write_to(w),
+            Self::ConditionData_Tag409(p) => p.write_to(w),
+            Self::ConditionData_Tag410(p) => p.write_to(w),
         }
     }
 }
@@ -4813,7 +4922,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // Class B — vtable[19] = thunk into anti-disassembly runtime
         // (sub_14F0D2550 / sub_14F24B730). Byte-math verified: vanilla
         // `case(1)+tag(2)+body+footer(3)` matches with zero option_block.
-        79 | 196 |
+        79 | 196 | 127 | 201 |
         // Class C — empirical add via LAST_ATTEMPTED_TAG diagnostic on
         // interaction_info. vtable[19] = `0x1413B89E0` (thunk in
         // sub_14139AE80, non-decompilable). Verified Win-IDA this
@@ -4824,7 +4933,16 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // others were promoted to body+option_block recipes during the
         // 2026-04-30 verification cycle (see docs/STATUS.md
         // "Stream-mode GameCondition" section). Tag 26 alone remains.
-        26
+        26 |
+        // Class D — payload-size change in 1.0.8 leaves no room for
+        // option_block. Verified empirically via inventory.pabgb entry
+        // k=0x2 move_data[6].move_condition: tag=407 body is now 6 bytes
+        // (U32U16BodyPayload) so the byte that was option_present is
+        // consumed as part of the payload (b field = 0x0100 = 256).
+        // Tag 408 shares the same Class D shape (U32U16BodyPayload,
+        // body=00 00 00 00 00 01, b=256) verified via same Character entry.
+        // Tags 409/410 added in 1.10 (Re-Blockade / pet growth) — same Class D shape.
+        407 | 408 | 409 | 410
     )
 }
 
@@ -4919,7 +5037,11 @@ pub struct ConditionDataOptionBlock<'a> {
 
 impl<'a> ConditionDataOptionBlock<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let _op_off = *offset;
         let option_present = u8::read_from(data, offset)?;
+        if std::env::var("OPTPRES").is_ok() && option_present != 0 {
+            eprintln!("OPTPRES {} {}", option_present, _op_off);
+        }
         let option_data = if option_present != 0 {
             Some(ConditionDataOptionData::read_from(data, offset)?)
         } else {
@@ -4970,6 +5092,99 @@ impl<'a> ConditionDataOptionBlock<'a> {
     }
 }
 
+/// Translate a 1.12 on-disk ("wire") ConditionData tag to the parser's
+/// internal recipe tag. The ConditionData enum was renumbered in 1.12
+/// (non-uniform +0..+8 shift; see condition_tag_map_112.json). We keep
+/// reading/writing the WIRE tag in `base.tag` (so writes stay byte-identical
+/// and roundtrip is automatic) and only translate when DISPATCHING the
+/// variant body + option-block decision. Tags new in 1.12 (no parser recipe)
+/// map to the 0xFFFF sentinel so dispatch cleanly errors → Raw/blob fallback
+/// instead of mis-decoding into a wrong same-numbered variant.
+/// AUTO-GENERATED from the Mac binary's tag→name pointer array (0x107a9b540).
+#[inline]
+pub fn wire_to_internal(wire: u16) -> u16 {
+    match wire {
+        73 => 72, 75 => 73, 76 => 74, 77 => 75, 78 => 76, 79 => 77, 80 => 78,
+        81 => 79, 82 => 80, 83 => 81, 84 => 82, 85 => 83, 86 => 84, 87 => 85,
+        88 => 86, 89 => 87, 90 => 88, 91 => 89, 92 => 90, 93 => 91, 95 => 93,
+        96 => 94, 97 => 95, 98 => 96, 99 => 97, 100 => 98, 101 => 99, 102 => 100,
+        103 => 101, 104 => 102, 105 => 103, 106 => 104, 107 => 105, 108 => 106,
+        109 => 107, 110 => 108, 111 => 109, 112 => 110, 113 => 111, 115 => 113,
+        116 => 114, 117 => 115, 120 => 116, 121 => 117, 122 => 118, 123 => 119,
+        124 => 120, 125 => 121, 126 => 122, 127 => 123, 128 => 124, 129 => 125,
+        130 => 126, 131 => 128, 132 => 129, 133 => 130, 134 => 131, 135 => 132,
+        136 => 133, 137 => 134, 138 => 135, 139 => 136, 140 => 137, 141 => 138,
+        142 => 139, 143 => 140, 144 => 141, 145 => 142, 146 => 143, 147 => 144,
+        148 => 145, 149 => 146, 150 => 147, 151 => 148, 152 => 149, 153 => 150,
+        155 => 151, 156 => 152, 158 => 153, 159 => 154, 160 => 155, 161 => 156,
+        162 => 157, 163 => 158, 164 => 159, 165 => 160, 166 => 161, 167 => 162,
+        168 => 163, 169 => 164, 170 => 165, 171 => 166, 172 => 167, 173 => 168,
+        174 => 169, 175 => 170, 176 => 171, 177 => 172, 178 => 173, 179 => 174,
+        180 => 175, 181 => 176, 182 => 177, 183 => 178, 184 => 179, 185 => 180,
+        186 => 181, 187 => 182, 188 => 183, 189 => 184, 190 => 185, 191 => 186,
+        192 => 187, 193 => 188, 194 => 189, 195 => 190, 196 => 191, 197 => 192,
+        198 => 193, 200 => 194, 201 => 195, 202 => 196, 203 => 197, 204 => 198,
+        205 => 199, 207 => 201, 208 => 202, 209 => 203, 210 => 204, 211 => 205,
+        212 => 206, 213 => 207, 214 => 208, 215 => 209, 216 => 210, 217 => 211,
+        218 => 212, 219 => 213, 220 => 214, 221 => 215, 222 => 216, 223 => 217,
+        224 => 218, 225 => 219, 226 => 220, 227 => 221, 228 => 222, 229 => 223,
+        230 => 224, 231 => 225, 232 => 226, 233 => 227, 234 => 228, 235 => 229,
+        236 => 230, 237 => 231, 238 => 232, 239 => 233, 240 => 234, 241 => 235,
+        242 => 236, 243 => 237, 245 => 239, 246 => 240, 247 => 241, 248 => 242,
+        249 => 243, 250 => 244, 251 => 245, 252 => 246, 253 => 247, 254 => 248,
+        255 => 249, 256 => 250, 257 => 251, 258 => 252, 259 => 253, 260 => 254,
+        261 => 255, 262 => 256, 263 => 257, 264 => 258, 265 => 259, 266 => 260,
+        267 => 261, 268 => 262, 269 => 263, 270 => 264, 271 => 265, 272 => 266,
+        273 => 267, 274 => 268, 275 => 269, 276 => 270, 277 => 271, 278 => 272,
+        279 => 273, 280 => 274, 281 => 275, 282 => 276, 283 => 277, 284 => 278,
+        285 => 279, 286 => 280, 287 => 281, 288 => 282, 289 => 283, 290 => 284,
+        291 => 285, 292 => 286, 294 => 288, 295 => 289, 296 => 290, 297 => 291,
+        298 => 292, 299 => 293, 300 => 294, 301 => 295, 302 => 296, 303 => 297,
+        304 => 298, 305 => 299, 306 => 300, 307 => 301, 308 => 302, 309 => 303,
+        310 => 304, 311 => 305, 312 => 306, 313 => 307, 314 => 308, 315 => 309,
+        317 => 311, 318 => 312, 319 => 313, 320 => 314, 321 => 315, 322 => 316,
+        323 => 317, 326 => 320, 327 => 321, 328 => 322, 329 => 323, 330 => 324,
+        331 => 325, 332 => 326, 333 => 327, 334 => 328, 335 => 329, 336 => 330,
+        337 => 331, 338 => 332, 339 => 333, 340 => 334, 341 => 336, 342 => 337,
+        343 => 338, 344 => 339, 345 => 340, 346 => 341, 347 => 342, 348 => 343,
+        349 => 344, 350 => 345, 351 => 346, 353 => 348, 354 => 349, 355 => 350,
+        358 => 351, 360 => 353, 361 => 354, 362 => 355, 363 => 356, 364 => 357,
+        365 => 358, 366 => 359, 368 => 360, 369 => 361, 370 => 362, 371 => 363,
+        372 => 364, 373 => 365, 374 => 366, 375 => 367, 376 => 368, 377 => 369,
+        378 => 370, 379 => 371, 380 => 372, 381 => 373, 382 => 374, 383 => 375,
+        384 => 376, 385 => 377, 386 => 378, 387 => 379, 388 => 380, 389 => 381,
+        390 => 382, 391 => 383, 392 => 384, 393 => 385, 394 => 386, 395 => 387,
+        396 => 388, 397 => 389, 398 => 390, 399 => 391, 400 => 392, 401 => 393,
+        402 => 394, 403 => 395, 404 => 396, 405 => 397, 406 => 398, 407 => 399,
+        408 => 400, 409 => 401, 410 => 402, 411 => 403, 412 => 404, 413 => 405,
+        62 | 72 | 74 | 94 | 114 | 118 | 119 | 154 | 157 | 199 | 206 | 244
+        | 293 | 316 | 324 | 325 | 352 | 356 | 357 | 359 | 367 | 414 | 415 | 416
+        | 417 | 418 | 419 | 420 | 421 | 422 | 423 | 424 | 425 | 426 | 427 | 428
+        | 429 | 430 | 431 | 432 | 433 | 434 | 435 | 436 | 437 | 438 | 439 | 440
+        | 441 | 442 | 443 => 0xFFFF,
+        other => other,
+    }
+}
+
+/// Body byte-count for ConditionData variants new in 1.12 that have no typed
+/// recipe yet (wire_to_internal -> 0xFFFF). The body is preserved as an opaque
+/// byte slice (byte-exact roundtrip); only the SIZE matters so the trailing
+/// option_block and the following conditions stay aligned. Sizes derived from
+/// interactioninfo wire data. `None` => unknown size -> clean decode error ->
+/// Raw/blob fallback (never silent corruption, since the body is opaque).
+fn sentinel_body_size(wire: u16) -> Option<usize> {
+    Some(match wire {
+        324 => 0,   // CanAddHyosi            (bodyless)
+        244 => 0,   // CheckGrowableGimmick   (bodyless)
+        359 => 4,   // CheckVoxelType         (u32)
+        419 => 4,   // ActionFrameTag         (u32)
+        423 => 4,   // NavigationMoveType     (u32)
+        154 => 5,   // CheckMyExperienceLevel (u8 + u32)
+        439 => 4,   // CompareMercenaryHiredCount (u32)
+        _ => return None,
+    })
+}
+
 /// Full ConditionData record: u16 tag + variant payload + optional
 /// option block.
 ///
@@ -4986,6 +5201,10 @@ pub struct ConditionData<'a> {
     pub base: ConditionDataBase,
     pub variant: ConditionDataVariant<'a>,
     pub option_block: Option<ConditionDataOptionBlock<'a>>,
+    /// Opaque body bytes for 1.12 sentinel variants (see sentinel_body_size).
+    /// When Some, this replaces `variant`'s body on write; `variant` is a
+    /// CheckNone placeholder.
+    pub sentinel_body: Option<Vec<u8>>,
 }
 
 thread_local! {
@@ -5005,10 +5224,31 @@ thread_local! {
 
 impl<'a> ConditionData<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let _cd_off = *offset;
         let base = ConditionDataBase::read_from(data, offset)?;
-        let disc = base.tag;
-        LAST_ATTEMPTED_TAG.with(|c| c.set(Some(disc)));
-        let variant = ConditionDataVariant::read_from(disc, data, offset)?;
+        // base.tag holds the 1.12 WIRE tag (stored/written as-is for byte-exact
+        // roundtrip); dispatch on the translated internal recipe tag.
+        let disc = wire_to_internal(base.tag);
+        LAST_ATTEMPTED_TAG.with(|c| c.set(Some(base.tag)));
+        if std::env::var("CONDTRACE").is_ok() && _cd_off >= 218058 && _cd_off <= 220856 {
+            eprintln!("CONDTRACE ConditionData wire={} disc={} @{}", base.tag, disc, _cd_off);
+        }
+        if std::env::var("ALLDISC").is_ok() {
+            eprintln!("ALLDISC {} {}", disc, _cd_off);
+        }
+        let (variant, sentinel_body) = if disc == 0xFFFF {
+            // 1.12 variant with no typed recipe: consume its body as opaque
+            // bytes (size table) so the rest of the stream stays aligned.
+            let sz = sentinel_body_size(base.tag).ok_or_else(|| io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("unknown ConditionData wire tag {} (no sentinel size)", base.tag)))?;
+            check_remaining(data, *offset, sz)?;
+            let body = data[*offset..*offset + sz].to_vec();
+            *offset += sz;
+            (ConditionDataVariant::ConditionData_CheckNone, Some(body))
+        } else {
+            (ConditionDataVariant::read_from(disc, data, offset)?, None)
+        };
         let option_block = if variant_skips_option_block(disc) {
             None
         } else {
@@ -5020,11 +5260,14 @@ impl<'a> ConditionData<'a> {
             if t.len() >= 8 { t.remove(0); }
             t.push((disc, post_offset));
         });
-        Ok(Self { base, variant, option_block })
+        Ok(Self { base, variant, option_block, sentinel_body })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.base.write_to(w)?;
-        self.variant.write_to(w)?;
+        match &self.sentinel_body {
+            Some(b) => w.write_all(b)?,
+            None => self.variant.write_to(w)?,
+        }
         if let Some(b) = &self.option_block {
             b.write_to(w)?;
         }
@@ -5051,6 +5294,10 @@ impl<'a> ConditionData<'a> {
                 None => Value::Null,
             },
         );
+        if let Some(b) = &self.sentinel_body {
+            m.insert("sentinel_body".into(),
+                Value::Array(b.iter().map(|x| Value::from(*x)).collect()));
+        }
         m
     }
 
@@ -5068,8 +5315,19 @@ impl<'a> ConditionData<'a> {
                 format!("ConditionData.base.tag: {} out of u16 range", tag)));
         }
         ConditionDataBase::write_from_json_dict(w, base_obj)?;
-        let variant_v = json_get_field(obj, "variant")?;
-        ConditionDataVariant::write_from_json(tag as u16, w, variant_v)?;
+        if let Some(sb) = obj.get("sentinel_body").and_then(|v| v.as_array()) {
+            // Opaque body for a 1.12 sentinel variant — emit bytes verbatim.
+            for x in sb {
+                let byte = x.as_u64().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData, "ConditionData.sentinel_body: expected u8"))?;
+                w.push(byte as u8);
+            }
+        } else {
+            let variant_v = json_get_field(obj, "variant")?;
+            // base.tag in JSON is the WIRE tag; dispatch the variant body writer
+            // on the translated internal recipe tag.
+            ConditionDataVariant::write_from_json(wire_to_internal(tag as u16), w, variant_v)?;
+        }
         let opt_v = json_get_field(obj, "option_block")?;
         match opt_v {
             Value::Null => {}

@@ -1,17 +1,29 @@
 //! Hand-corrected: IDA-derived parser for `ConditionInfo.pabgb`.
 //!
-//! Per IDA sub_1410D9F60: u32 key, CString string_key, u8 is_blocked,
-//! GameCondition (sub_141CEA810 → recursive variant tree via meta-dispatcher
-//! sub_141E65330), CString original_string, u8 parser_type.
+//! Field order (IDA, re-located for 1.07 = `sub_1410BB8B0`; the legacy
+//! `sub_1410D9F60` no longer resolves): u32 key, CString string_key,
+//! u8 is_blocked, GameCondition (1.07 wrapper `sub_141CE2D00` → node
+//! dispatch `sub_141E5C690`, 9 cases; case 3 = ConditionData leaf
+//! `sub_141C7F010`, 405 variants), CString original_string, u8 parser_type.
 //!
-//! ## Status: Tier 1 — typed GameCondition, 100% round-trip
+//! ## Status: byte-roundtrip 100%; field-level PARTIAL on 1.07 (~64.5% Raw)
 //!
 //! `game_condition` is the typed `GameCondition` wrapper (Decoded|Raw enum).
-//! 99.8% of entries decode into a structured tree (recursive expression
-//! with 9 root cases, 405 ConditionData variants). The 0.2% that hit
-//! anti-disassembly-obfuscated readers (tags 54/286), tag 272 sub_tag
-//! holes, or other edge cases fall back to `Raw(Vec<u8>)` — bytes pass
-//! through verbatim, round-trip stays byte-perfect.
+//! On the ORIGINAL build ~99.8% decoded; on **1.07 only ~35.5% decode**
+//! (5884/9117 fall to `Raw`). This is a 1.07 *drift* regression, NOT the
+//! old 0.2% anti-disassembly tail: 1.07 added u16 fields to several common
+//! ConditionData variants, so the 1.06-modelled `condition_data.rs` payloads
+//! UNDER-read by ~2 bytes, the node tree under-consumes its region, and the
+//! wrapper falls back to `Raw`. Bytes still pass through verbatim — round-trip
+//! stays byte-perfect — but field-level decode is incomplete pending a
+//! per-variant fix.
+//!
+//! To close: per-variant size comparison of `sub_141C7F010`'s 405 readers
+//! against the `condition_data.rs` payload structs (find which gained a u16
+//! in 1.07, add it). Localizer: `examples/diag_condition_underread.rs`.
+//! VALIDATE WITH THE MAGNITUDE HISTOGRAM, NOT the opaque count — Raw-fallback
+//! masks field-level regressions (a speculative edit showed −1 opaque while
+//! silently breaking ~207 decoding records). See `docs/STATUS.md` Session 29.
 //!
 //! See `dmm-parser/src/binary/variants/game_condition.rs` for the wrapper
 //! and `condition_data.rs` for the 405 variant decoders.
@@ -189,19 +201,15 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgb";
-    const PABGH_PATH: &str =
-        r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/conditioninfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("conditioninfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing pabgb fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing/unparseable pabgh fixture {}", PABGH_PATH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());
@@ -254,8 +262,8 @@ mod tests {
     #[ignore]
     fn diag_raw_entries() {
         use std::collections::BTreeMap;
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut hist: BTreeMap<u16, usize> = BTreeMap::new();
         let mut count = 0usize;
@@ -352,11 +360,11 @@ mod tests {
     /// tree-navigable GameCondition JSON shape preserves bytes.
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
+        let Ok(data) = std::fs::read(pabgb_path()) else {
             eprintln!("SKIP: missing pabgb fixture");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
             eprintln!("SKIP: missing pabgh fixture");
             return;
         };

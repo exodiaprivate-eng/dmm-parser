@@ -105,14 +105,10 @@ pub struct EquipInfoData {
     pub fields_u32: [u32; 4],
     pub complex_u8: u8,
     pub complex_u64: u64,
-    pub complex_blob: CArray<u8>,
-    /// 11-byte tail composite split into 8 named fields. Empirical sweep
-    /// shows: byte 0 = small flag (0/1), byte 1 = small count (0-9),
-    /// bytes 2-5 = u32 (always 0 in vanilla), bytes 6-10 = 5× small u8
-    /// flags (0/1).
-    pub tail_byte_0: u8,
-    pub tail_byte_1: u8,
-    pub tail_pad_u32: u32,
+    // 1.12: `complex_blob` (CArray<u8>) and the leading `tail_byte_0`/
+    // `tail_byte_1`/`tail_pad_u32` (6 bytes) were REMOVED. The trailing tail is
+    // now exactly 5 u8 flags. Verified: this layout walks all 16 records to the
+    // `tail_magic` (0xb954d87c) sentinel byte-exactly (1.06 had blob + 11 tail).
     pub tail_byte_6: u8,
     pub tail_byte_7: u8,
     pub tail_byte_8: u8,
@@ -132,10 +128,6 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         let fields_u32 = <[u32; 4]>::read_from(data, offset)?;
         let complex_u8 = u8::read_from(data, offset)?;
         let complex_u64 = u64::read_from(data, offset)?;
-        let complex_blob = CArray::<u8>::read_from(data, offset)?;
-        let tail_byte_0 = u8::read_from(data, offset)?;
-        let tail_byte_1 = u8::read_from(data, offset)?;
-        let tail_pad_u32 = u32::read_from(data, offset)?;
         let tail_byte_6 = u8::read_from(data, offset)?;
         let tail_byte_7 = u8::read_from(data, offset)?;
         let tail_byte_8 = u8::read_from(data, offset)?;
@@ -144,8 +136,6 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         Ok(Self {
             etl_hashes, category_a, category_b, name_hash, slot_index,
             field_u64, name_hash_2, fields_u32, complex_u8, complex_u64,
-            complex_blob,
-            tail_byte_0, tail_byte_1, tail_pad_u32,
             tail_byte_6, tail_byte_7, tail_byte_8, tail_byte_9, tail_byte_10,
         })
     }
@@ -163,10 +153,6 @@ impl BinaryWrite for EquipInfoData {
         self.fields_u32.write_to(w)?;
         self.complex_u8.write_to(w)?;
         self.complex_u64.write_to(w)?;
-        self.complex_blob.write_to(w)?;
-        self.tail_byte_0.write_to(w)?;
-        self.tail_byte_1.write_to(w)?;
-        self.tail_pad_u32.write_to(w)?;
         self.tail_byte_6.write_to(w)?;
         self.tail_byte_7.write_to(w)?;
         self.tail_byte_8.write_to(w)?;
@@ -189,10 +175,6 @@ impl ToJsonValue for EquipInfoData {
             "fields_u32": self.fields_u32.to_json_value(),
             "complex_u8": self.complex_u8,
             "complex_u64": self.complex_u64,
-            "complex_blob": self.complex_blob.to_json_value(),
-            "tail_byte_0": self.tail_byte_0,
-            "tail_byte_1": self.tail_byte_1,
-            "tail_pad_u32": self.tail_pad_u32,
             "tail_byte_6": self.tail_byte_6,
             "tail_byte_7": self.tail_byte_7,
             "tail_byte_8": self.tail_byte_8,
@@ -216,10 +198,6 @@ impl WriteJsonValue for EquipInfoData {
         <[u32; 4] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fields_u32")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u8")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u64")?)?;
-        <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_blob")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_0")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_1")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_pad_u32")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_6")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_7")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_8")?)?;
@@ -434,6 +412,13 @@ pub fn parse_equip_slot_info_to_json_with_pabgh(
 /// Inverse of `parse_equip_slot_info_to_json_with_pabgh`. Writes records back
 /// to pabgb bytes in the order given. The pabgh sister file must be rebuilt
 /// separately from the resulting offsets — this function does not produce one.
+/// Append a single record's bytes to `out`. Used by the tracked-offset
+/// apply path in `dispatch.rs` so it can record each record's start
+/// offset for pabgh rebuild.
+pub fn write_equip_slot_info_record(out: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+    EquipSlotInfo::write_from_json(out, v)
+}
+
 pub fn serialize_equip_slot_info_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
     let mut out = Vec::with_capacity(items.len() * 1024);
     for (i, v) in items.iter().enumerate() {
@@ -448,14 +433,12 @@ mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
-    const PABGB: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipslotinfo.pabgb";
-    const PABGH: &str = "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/equipslotinfo.pabgh";
-
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("equipslotinfo.pabgb") }
 
     #[test]
     fn roundtrip_bytes() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP: pabgb missing"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP: pabgh missing"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: pabgb missing"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh missing"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -472,8 +455,8 @@ mod tests {
 
     #[test]
     fn roundtrip_json() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP: pabgb missing"); return; };
-        let Ok(pabgh) = std::fs::read(PABGH) else { eprintln!("SKIP: pabgh missing"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: pabgb missing"); return; };
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else { eprintln!("SKIP: pabgh missing"); return; };
         let json = parse_equip_slot_info_to_json_with_pabgh(&data, &pabgh)
             .expect("parse_equip_slot_info_to_json_with_pabgh");
         let out = serialize_equip_slot_info_from_json(&json)
@@ -486,8 +469,8 @@ mod tests {
         // Smoke test: the field that mod intents will target must be reachable
         // by name from JSON output. Without this, "set entries[0].etl_hashes"
         // intents would silently drop on apply.
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP: pabgb missing"); return; };
-        let Ok(pabgh) = std::fs::read(PABGH) else { eprintln!("SKIP: pabgh missing"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: pabgb missing"); return; };
+        let Ok(pabgh) = std::fs::read(pabgb_path().with_extension("pabgh")) else { eprintln!("SKIP: pabgh missing"); return; };
         let json = parse_equip_slot_info_to_json_with_pabgh(&data, &pabgh).unwrap();
         let first = json.first().expect("at least one record");
         let entries = first.get("entries").and_then(|v| v.as_array()).expect("entries array");

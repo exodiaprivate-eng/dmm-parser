@@ -15,87 +15,129 @@
 // Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
 // (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
 //
-// Total canonical fields:  15
-// Decoded by dmm-parser:   15
-// Missing in this struct:  0
+// Canonical fields re-derived from current Win exe (sub_1410E14A0, 2026-05-29).
+// Mac-binary catalog was stale — _isSellable and _isGrowable no longer exist;
+// _sharedSummonCountTag and _feedFromGimmickInfo are new; _summonOwnerOption
+// and _parentMercenaryGroupInfo changed wire width; _setNewMercenaryIsMain added.
 //
-// ✅ = present in this struct (round-trips via shape='v3.1')
-// ⏳ = in canonical schema but not yet decoded by dmm-parser
-//
-// ✅ _setNewMercenaryIsMain (direct_u8, stream=1)
-// ✅ _isControllable (direct_u8, stream=1)
-// ✅ _isForceStackable (direct_u8, stream=1)
-// ✅ _mainMercenaryPerTribe (direct_u8, stream=1)
-// ✅ _useCampLevel (direct_u8, stream=1)
-// ✅ _isSellable (direct_u8, stream=1)
-// ✅ _spawnPositionType (direct_u8, stream=1)
-// ✅ _applyEquipItemStat (direct_u8, stream=1)
 // ✅ _key (direct_u8, stream=1)
-// ✅ _isBlocked (direct_u8, stream=1)
 // ✅ _stringKey
-// ✅ _defaultLimitHireCount (direct_u32, stream=4)
+// ✅ _isBlocked (direct_u8, stream=1)
 // ✅ _defaultLimitSummonCount (direct_u32, stream=4)
-// ✅ _farFromLeaderOption (direct_u8, stream=1)
+// ✅ _defaultLimitHireCount (direct_u32, stream=4)
 // ✅ _maxLimitHireCount (direct_u32, stream=4)
+// ✅ _mercenaryType (direct_u8, stream=1)
+// ✅ _farFromLeaderOption (direct_u8, stream=1)
+// ✅ _isControllable (direct_u8, stream=1)
+// ✅ _isPlayable (direct_u8, stream=1)
+// ✅ _summonAfterRegist (direct_u8, stream=1)
+// ✅ _mainMercenaryPerTribe (direct_u8, stream=1)
+// ✅ _isForceStackable (direct_u8, stream=1)
+// ✅ _useCampLevel (direct_u8, stream=1)
+// ✅ _applyEquipItemStat (direct_u8, stream=1)
+// ✅ _checkItemNoOnPushToItem (direct_u8, stream=1)
+// ✅ _allowExceedLimitHireCount (direct_u8, stream=1)
+// ✅ _isSelectMercenarySpawn (direct_u8, stream=1)
+// ✅ _unspawnOnFocusActorChanged (direct_u8, stream=1)
+// ✅ _isMainDischargeable (direct_u8, stream=1)
+// ✅ _spawnPositionType (direct_u8, stream=1)
+// ✅ _summonOwnerOption (direct_u8, stream=1)   — was u32, now u8 in-block
+// ✅ _parentMercenaryGroupInfo (lookup_u8, stream=1) — was u32, now 1B
+// ✅ _sharedSummonCountTag (lookup_u32, stream=4)   — re-added
+// ✅ _feedFromGimmickInfo (lookup_u32, stream=4)    — new
+// ✅ _hiredSkillInfoList
+// ✅ _setNewMercenaryIsMain (direct_u8, stream=1)   — new trailing byte
 
 use crate::binary::*;
 use crate::py_binary_struct;
 
-// Hand-corrected: parent_mercenary_group_info reads as u8 (file) but is stored
-// as u16 (looked-up via dictionary). hired_skill_info_list element is
-// {u32 lookup_key + u32 value} per IDA sub_141100A00.
+// NOTE: 1.10 removed hired_skill_info_list from MercenaryInfo, so the former
+// HiredSkillData element struct ({u32 skill_lookup_key + u32 level}, IDA
+// sub_141100A00) is no longer used and was removed. If a future version
+// re-adds the list, restore it here.
+
+// ─── 2026-05-29 IDA re-decode against current Win exe ────────────────────
+// Decompiled reader: sub_1410E14A0 (CrimsonDesert.exe 1.07+).
+// 16 consecutive u8 fields at struct offsets +32..+47, then three
+// helper reads (1B, 4B, 4B), then CArray, then 1 trailing u8.
+//
+// Changes from the previous Mac-canonical struct:
+//   REMOVED: _isSellable, _isGrowable (fields dropped from game)
+//   MOVED:   summon_owner_option — u32 post-block → u8 as 16th in-block field
+//   CHANGED: parent_mercenary_group_info u32 → u8 (sub_1410FD230 reads 1B)
+//   RE-ADDED: shared_summon_count_tag u32 (sub_1410F5B30 reads 4B; was
+//             removed in 1.0.8 comment but present again in current binary)
+//   ADDED:   feed_from_gimmick_info u32 (sub_1410F75A0 reads 4B; new field)
+//   ADDED:   set_new_mercenary_is_main u8 (trailing byte; canonical name
+//            from error string table — was listed ✅ in catalog but omitted)
+//
+// IDA error-string order confirming wire sequence (Korean: 읽어들이는데 실패했다):
+//   _key → _stringKey → _isBlocked → _defaultLimitSummonCount →
+//   _defaultLimitHireCount → _maxLimitHireCount → _mercenaryType →
+//   _farFromLeaderOption → _isControllable → _isPlayable →
+//   _summonAfterRegist → _mainMercenaryPerTribe → _isForceStackable →
+//   _useCampLevel → _applyEquipItemStat → _checkItemNoOnPushToItem →
+//   _allowExceedLimitHireCount → _isSelectMercenarySpawn →
+//   _unspawnOnFocusActorChanged → _isMainDischargeable →
+//   _spawnPositionType → _summonOwnerOption (u8, 16th in block) →
+//   _parentMercenaryGroupInfo (u8, sub_1410FD230) →
+//   _sharedSummonCountTag (u32, sub_1410F5B30) →
+//   _feedFromGimmickInfo (u32, sub_1410F75A0) →
+//   _hiredSkillInfoList → _setNewMercenaryIsMain
 py_binary_struct! {
-    pub struct HiredSkillData {
-        pub skill_lookup_key: u32,
-        pub level: u32,
+    pub struct MercenaryInfo<'a> {
+        pub key: u8,                              // _key
+        pub string_key: CString<'a>,             // _stringKey
+        pub is_blocked: u8,                      // _isBlocked
+        pub default_limit_summon_count: u32,     // _defaultLimitSummonCount
+        pub default_limit_hire_count: u32,       // _defaultLimitHireCount
+        pub max_limit_hire_count: u32,           // _maxLimitHireCount
+        // 16 u8 fields (struct offsets +32..+47 in IDA, wire bytes sequential)
+        pub mercenary_type: u8,                  // _mercenaryType
+        pub far_from_leader_option: u8,          // _farFromLeaderOption
+        pub is_controllable: u8,                 // _isControllable
+        pub is_playable: u8,                     // _isPlayable
+        pub summon_after_regist: u8,             // _summonAfterRegist
+        pub main_mercenary_per_tribe: u8,        // _mainMercenaryPerTribe
+        pub is_force_stackable: u8,              // _isForceStackable
+        pub use_camp_level: u8,                  // _useCampLevel
+        pub apply_equip_item_stat: u8,           // _applyEquipItemStat
+        pub check_item_no_on_push_to_item: u8,   // _checkItemNoOnPushToItem
+        pub allow_exceed_limit_hire_count: u8,   // _allowExceedLimitHireCount
+        pub is_select_mercenary_spawn: u8,       // _isSelectMercenarySpawn
+        pub unspawn_on_focus_actor_changed: u8,  // _unspawnOnFocusActorChanged
+        pub is_main_dischargeable: u8,           // _isMainDischargeable
+        pub spawn_position_type: u8,             // _spawnPositionType
+        pub summon_owner_option: u8,             // _summonOwnerOption (was u32, now u8 in-block)
+        pub parent_mercenary_group_info: u8,     // _parentMercenaryGroupInfo (sub_1410FD230: 1B)
+        // 1.10: tail RESTRUCTURED. shared_summon_count_tag (u32),
+        // hired_skill_info_list (CArray), and set_new_mercenary_is_main (u8)
+        // are GONE; the post-block tail is now u8 + u32 + u32 (fixed).
+        // The trailing u8 mirrors the record key in vanilla; the first u32 is
+        // a name-hash (0xEAC5E173 sentinel when empty); the second u32 is a
+        // key reference. Verified via wire-walker: all 18 records byte-exact.
+        pub tail_u8_110: u8,
+        // 1.11: one new u8 inserted between tail_u8_110 and the name-hash (small
+        // enum/flag, 0x40/0x41 observed), and _hiredSkillInfoList re-added as the
+        // trailing CArray (16-byte elements; was removed in 1.10). Verified via
+        // wire-walker against 1.11 pabgh boundaries: all 18 records byte-exact
+        // (empty list in 17 records, 8 entries in the "Pet" record).
+        pub tail_u8b_111: u8,
+        pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo (name-hash)
+        pub tail_u32_110: u32,
+        pub hired_skill_info_list: CArray<HiredSkillData>,  // _hiredSkillInfoList (1.11 re-add)
     }
 }
 
 py_binary_struct! {
-    pub struct MercenaryInfo<'a> {
-        pub key: u8,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub default_limit_summon_count: u32,
-        pub default_limit_hire_count: u32,
-        pub max_limit_hire_count: u32,
-        pub far_from_leader_option: u8,
-        pub combat_targeting_flags: u32,
-        pub is_controllable: u8,
-        pub is_playable: u8,
-        pub set_new_mercenary_is_main: u8,
-        pub main_mercenary_per_tribe: u8,
-        pub is_force_stackable: u8,
-        pub is_sellable: u8,
-        pub use_camp_level: u8,
-        pub apply_equip_item_stat: u8,
-        pub spawn_position_type: u8,
-        pub mercenary_type: u8,
-        pub is_growable: u8,
-        pub parent_mercenary_group_info: u8,
-        // 1.06 added 6 new bytes here. Per iter 5+7 of T0 verification
-        // loop, MercenaryInfo metaobject at 0x144b072e0+ exposes 5 NEW
-        // canonical field names. Per iter 8 value-distribution analysis
-        // across all 18 records:
-        //
-        // **`shared_summon_count_tag` = 0xEAC5E173 IDENTICAL across all
-        // 18 records** → 100% confirms canonical name `_sharedSummonCountTag`
-        // ("shared" = same value across mercenaries — perfect semantic match).
-        //
-        // **`summon_owner_option` = u8 enum {0,1,2,3}** (4 distinct values
-        // across records) → 4-state enum, likely (Self, Party, Faction, World)
-        // or similar — matches canonical `_summonOwnerOption`.
-        //
-        // **`packed_flags_106` = u8 in {64..71}** (8 distinct values) — bit 6
-        // is always set, low bits 0-2 vary → likely packed booleans for
-        // `_isSelectMercenarySpawn` (bit 0?), `_unspawnOnFocusActorChanged`
-        // (bit 1?), `_isMainDischargeable` (bit 2?). Could also be a u8 enum
-        // — disambiguation needs decompile but the round-trip is correct
-        // either way.
-        pub summon_owner_option: u8,         // _summonOwnerOption (4-state enum)
-        pub packed_flags_106: u8,            // packed booleans (bit 6 always set)
-        pub shared_summon_count_tag: u32,    // _sharedSummonCountTag (constant 0xEAC5E173)
-        pub hired_skill_info_list: CArray<HiredSkillData>,
+    /// 1.11 _hiredSkillInfoList element (16 wire bytes). Field 2 is the skill
+    /// lookup key, field 3 the level; the two zero u32s are unknown padding /
+    /// reserved (always 0 in vanilla). Kept as u32 for bit-exact roundtrip.
+    pub struct HiredSkillData {
+        pub unk0: u32,
+        pub skill_lookup_key: u32,
+        pub level: u32,
+        pub unk1: u32,
     }
 }
 
@@ -103,12 +145,11 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/mercenaryinfo.pabgb";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("mercenaryinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;
@@ -126,8 +167,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;

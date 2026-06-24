@@ -37,3 +37,7 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
+fixtures_1_06/
+
+# Debug symbols — never track (regenerated every build, 3MB churn)
+*.pdb

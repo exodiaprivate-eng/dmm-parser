@@ -19,7 +19,7 @@ use crate::crypto::chacha20;
 
 pub fn compress(data: &[u8], compression: Compression) -> io::Result<Vec<u8>> {
     match compression {
-        Compression::None => Ok(data.to_vec()),
+        Compression::None | Compression::Partial => Ok(data.to_vec()),
         Compression::Lz4 => Ok(lz4_flex::block::compress(data)),
         Compression::Zlib => {
             let mut encoder = flate2::write::ZlibEncoder::new(
@@ -172,6 +172,7 @@ impl PackGroupBuilder {
 
         let chunk_offset = self.current_chunk_data.len() as u32;
         self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk(); // JMM: every file must start at 16-byte boundary
 
         self.file_metas.push(FileMeta {
             dir_path: dir_path.to_string(),
@@ -231,6 +232,7 @@ impl PackGroupBuilder {
 
         let chunk_offset = self.current_chunk_data.len() as u32;
         self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk(); // JMM: every file must start at 16-byte boundary
 
         self.file_metas.push(FileMeta {
             dir_path: dir_path.to_string(),
@@ -239,6 +241,99 @@ impl PackGroupBuilder {
             chunk_offset,
             compressed_size: compressed_size as u32,
             uncompressed_size: data.len() as u32,
+            flags,
+        });
+
+        Ok(())
+    }
+
+    /// Add a file with explicit per-file compression AND crypto overrides.
+    /// Use when the group-level crypto doesn't apply to all files — e.g.
+    /// CSS/HTML/thtml in dmmloose need ChaCha20 encryption even though the
+    /// rest of the group is unencrypted.
+    pub fn add_file_with_options(
+        &mut self,
+        dir_path: &str,
+        file_name: &str,
+        data: &[u8],
+        compression: Compression,
+        crypto: CryptoType,
+    ) -> io::Result<()> {
+        let full_path = if dir_path.is_empty() {
+            file_name.to_string()
+        } else {
+            format!("{}/{}", dir_path, file_name)
+        };
+
+        let (processed, flags) = process_file(
+            data,
+            compression,
+            crypto,
+            &self.encrypt_info,
+            &full_path,
+        )?;
+
+        let compressed_size = processed.len() as u64;
+
+        if !self.current_chunk_data.is_empty()
+            && self.current_chunk_data.len() as u64 + compressed_size > self.max_chunk_size
+        {
+            self.flush_current_chunk()?;
+        }
+
+        let chunk_offset = self.current_chunk_data.len() as u32;
+        self.current_chunk_data.extend_from_slice(&processed);
+        self.align_chunk(); // JMM: every file must start at 16-byte boundary
+
+        self.file_metas.push(FileMeta {
+            dir_path: dir_path.to_string(),
+            file_name: file_name.to_string(),
+            chunk_id: self.current_chunk_id as u16,
+            chunk_offset,
+            compressed_size: compressed_size as u32,
+            uncompressed_size: data.len() as u32,
+            flags,
+        });
+
+        Ok(())
+    }
+
+    /// Store pre-processed (already compressed) bytes verbatim, recording
+    /// explicit `compressed_size` and `uncompressed_size` in the PAMT entry.
+    ///
+    /// Use this when the caller has already applied inner-LZ4 to (e.g.) the
+    /// DDS top-mip data so that `data.len() != uncompressed_size`.  The raw
+    /// bytes are copied into the PAZ chunk without any further transformation.
+    ///
+    /// `flags` must be set by the caller; the conventional value for a
+    /// Partial/DDS entry with inner-LZ4 is `0x0001`.
+    pub fn add_pre_compressed_file(
+        &mut self,
+        dir_path: &str,
+        file_name: &str,
+        data: &[u8],          // pre-processed bytes to write into the PAZ
+        flags: u8,            // raw PAMT flags byte
+        uncompressed_size: u32, // original (uncompressed) file size
+    ) -> io::Result<()> {
+        let compressed_size = data.len() as u64;
+
+        if !self.current_chunk_data.is_empty()
+            && self.current_chunk_data.len() as u64 + compressed_size > self.max_chunk_size
+        {
+            self.flush_current_chunk()?;
+        }
+
+        let chunk_offset = self.current_chunk_data.len() as u32;
+        self.current_chunk_data.extend_from_slice(data);
+        self.align_chunk();
+
+        self.file_metas.push(FileMeta {
+            dir_path: dir_path.to_string(),
+            file_name: file_name.to_string(),
+            chunk_id: self.current_chunk_id as u16,
+            chunk_offset,
+            compressed_size: compressed_size as u32,
+            uncompressed_size,
             flags,
         });
 
@@ -258,9 +353,34 @@ impl PackGroupBuilder {
         self.add_file_with_compression(dir_path, file_name, &data, compression)
     }
 
+    /// Append zero padding so the current write position is aligned to
+    /// PAZ_ALIGNMENT bytes. JMM confirmed: game requires every file entry to
+    /// start at a 16-byte boundary ("PAZ alignment is 16 bytes. Every file
+    /// entry in overlay PAZ must start at 16-byte boundary." — TECHNICAL_REFERENCE).
+    const PAZ_ALIGNMENT: usize = 16;
+
+    fn align_chunk(&mut self) {
+        let rem = self.current_chunk_data.len() % Self::PAZ_ALIGNMENT;
+        if rem != 0 {
+            let pad = Self::PAZ_ALIGNMENT - rem;
+            self.current_chunk_data.resize(self.current_chunk_data.len() + pad, 0);
+        }
+    }
+
     /// Flush the current in-progress chunk to disk.
     fn flush_current_chunk(&mut self) -> io::Result<()> {
-        if self.current_chunk_data.is_empty() {
+        // Flush when there are bytes OR when file ENTRIES were recorded for this
+        // chunk that produced no bytes — i.e. a group of all-zero-byte files (the
+        // legitimate Wwise "mute" pattern: empty .bnk/.wem at the hashed event IDs
+        // a mod wants to silence). Without the entry check an all-empty chunk is
+        // never written, `finished_chunks` stays empty, and `finish()` wrongly
+        // errors "no files were added" — silently dropping every (intentionally
+        // empty) file in the group.
+        let has_pending_entries = self
+            .file_metas
+            .iter()
+            .any(|m| m.chunk_id == self.current_chunk_id as u16);
+        if self.current_chunk_data.is_empty() && !has_pending_entries {
             return Ok(());
         }
 
@@ -457,17 +577,49 @@ pub fn extract_file(
     // (`50 41 52 20 ...` = PAR magic + .pam version). So we return
     // the decrypted bytes directly. `compression` is already None.
     if file.file.is_partial {
-        // Sanity: the on-disk size must match the expected uncompressed size
-        // for the no-op decompress to be safe.
-        if file.file.compressed_size != file.file.uncompressed_size {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("is_partial=true but compressed_size {} != uncompressed_size {} \
-                    (suggests the flag's meaning is different from 'raw passthrough')",
-                    file.file.compressed_size, file.file.uncompressed_size),
-            ));
+        // The `is_partial` (compression-nibble == 1) flag has TWO real meanings,
+        // depending on the asset:
+        //   • compressed_size == uncompressed_size → stored RAW (raw passthrough).
+        //     Verified iter-9 against `03_sphere.pam` (PAR magic read literally).
+        //   • compressed_size != uncompressed_size → INNER-LZ4 DDS. This is how the
+        //     engine stores `is_partial` UI atlases / streaming textures
+        //     (cd_icon_common_01, cd_itemslot_00, char streaming slots): the 128- or
+        //     148-byte DDS header is stored RAW, and the mip body that follows is a
+        //     single LZ4 block (uncompressed length = uncompressed_size - header).
+        //     This branch previously ERRORED on that case, so those files could not
+        //     be extracted at all — the gap that blocked format comparison.
+        if file.file.compressed_size == file.file.uncompressed_size {
+            return Ok(decrypted);
         }
-        return Ok(decrypted);
+        let total = file.file.uncompressed_size as usize;
+        let looks_dds = decrypted.len() >= 128 && &decrypted[..4] == b"DDS ";
+        if looks_dds {
+            let hdr_sz = if decrypted.len() >= 88 && &decrypted[84..88] == b"DX10" {
+                148
+            } else {
+                128
+            };
+            if hdr_sz < total && decrypted.len() > hdr_sz {
+                let body_uncomp = total - hdr_sz;
+                match lz4_flex::block::decompress(&decrypted[hdr_sz..], body_uncomp) {
+                    Ok(body) => {
+                        let mut out = Vec::with_capacity(total);
+                        out.extend_from_slice(&decrypted[..hdr_sz]);
+                        out.extend_from_slice(&body);
+                        return Ok(out);
+                    }
+                    // Multi-mip / per-mip layout we don't model: return the raw
+                    // bytes so callers can still read the DDS header (dims, format,
+                    // mip count) for inspection rather than failing outright.
+                    Err(_) => return Ok(decrypted),
+                }
+            }
+        }
+        // Non-DDS `is_partial` with comp != decomp: best-effort whole-buffer LZ4,
+        // falling back to raw bytes rather than erroring.
+        return Ok(
+            decompress(&decrypted, Compression::Lz4, total).unwrap_or(decrypted)
+        );
     }
     decompress(&decrypted, file.file.compression, file.file.uncompressed_size as usize)
 }

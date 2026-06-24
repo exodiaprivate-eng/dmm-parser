@@ -86,6 +86,8 @@ pub fn parse_table_to_json(
         }};
     }
 
+    let table_name = normalize_target_name(table_name).unwrap_or(table_name);
+
     Ok(match table_name {
         // ── pabgh-bounded tables ──────────────────────────────────────────
         "ai_dialog_string_info"          => p!(crate::tables::ai_dialog_string_info::AIDialogStringInfo),
@@ -131,11 +133,7 @@ pub fn parse_table_to_json(
         "region_info"                    => p!(crate::tables::region_info::RegionInfo),
         "royal_supply_info"              => p!(crate::tables::royal_supply_info::RoyalSupplyInfo),
         "sequencer_spawn_info"           => p!(crate::tables::sequencer_spawn_info::SequencerSpawnInfo),
-        "skill_info"                     => {
-            let ph = pabgh.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
-                "table 'skill_info' requires a pabgh file"))?;
-            crate::tables::skill_info::parse_skill_to_json_with_pabgh(pabgb, ph)?
-        },
+        "skill_info"                     => p!(crate::tables::skill_info::SkillInfo),
         "spawning_pool_auto_spawn_info"  => p!(crate::tables::spawning_pool_auto_spawn_info::SpawningPoolAutoSpawnInfo),
         "special_mode_info"              => p!(crate::tables::special_mode_info::SpecialModeInfo),
         "stage_info"                     => p!(crate::tables::stage_info::StageInfo),
@@ -151,12 +149,19 @@ pub fn parse_table_to_json(
         },
 
         // ── sequential tables ─────────────────────────────────────────────
-        "action_point_info"              => s!(crate::tables::action_point_info::ActionPointInfo),
+        "action_point_info"              => p!(crate::tables::action_point_info::ActionPointInfo),
         "action_restriction_order_info"  => s!(crate::tables::action_restriction_order_info::ActionRestrictionOrderInfo),
         "aiaction_attribute_info"        => s!(crate::tables::aiaction_attribute_info::AIActionAttributeInfo),
         "aidialog_type_info"             => s!(crate::tables::aidialog_type_info::AIDialogTypeInfo),
         "aievent_table_info"             => s!(crate::tables::aievent_table_info::AIEventTableInfo),
         "aimemory_info"                  => s!(crate::tables::aimemory_info::AIMemoryInfo),
+        "game_start_info"                => s!(crate::tables::game_start_info::GameStartInfo),
+        "zone_info"                      => s!(crate::tables::zone_info::ZoneInfo),
+        "contents_phase_info"            => s!(crate::tables::contents_phase_info::ContentsPhaseInfo),
+        "faction_reblockading_info"      => s!(crate::tables::faction_reblockading_info::FactionReblockadingInfo),
+        "quick_slot_info"                => s!(crate::tables::quick_slot_info::QuickSlotInfo),
+        "bank_info"                      => s!(crate::tables::bank_info::BankInfo),
+        "talk_tree_info"                 => s!(crate::tables::talk_tree_info::TalkTreeInfo),
         "aimove_speed_info"              => s!(crate::tables::aimove_speed_info::AIMoveSpeedInfo),
         "ally_group_info"                => s!(crate::tables::ally_group_info::AllyGroupInfo),
         "auto_spawn_filter_info"         => s!(crate::tables::auto_spawn_filter_info::AutoSpawnFilterInfo),
@@ -178,12 +183,13 @@ pub fn parse_table_to_json(
         "faction_relation_group_info"    => s!(crate::tables::faction_relation_group_info::FactionRelationGroupInfo),
         "faction_waypoint_info"          => s!(crate::tables::faction_waypoint_info::FactionWaypointInfo),
         "fail_message_info"              => s!(crate::tables::fail_message_info::FailMessageInfo),
-        "field_info"                     => s!(crate::tables::field_info::FieldInfo),
+        "field_info"                     => p!(crate::tables::field_info::FieldInfo),
         "field_level_name_table_info"    => s!(crate::tables::field_level_name_table_info::FieldLevelNameTableInfo),
         "formation_info"                 => s!(crate::tables::formation_info::FormationInfo),
         "game_advice_group_info"         => s!(crate::tables::game_advice_group_info::GameAdviceGroupInfo),
         "game_advice_info"               => s!(crate::tables::game_advice_info::GameAdviceInfo),
         "game_play_variable_info"        => s!(crate::tables::game_play_variable_info::GamePlayVariableInfo),
+        "game_version_data_info"         => s!(crate::tables::game_version_data_info::GameVersionDataInfo),
         "gimmick_event_table_info"       => s!(crate::tables::gimmick_event_table_info::GimmickEventTableInfo),
         "gimmick_gate_connection_info"   => s!(crate::tables::gimmick_gate_connection_info::GimmickGateConnectionInfo),
         "gimmick_gate_info"              => s!(crate::tables::gimmick_gate_info::GimmickGateInfo),
@@ -200,6 +206,8 @@ pub fn parse_table_to_json(
         "material_relation_info"         => s!(crate::tables::material_relation_info::MaterialRelationInfo),
         "mercenary_group_info"           => s!(crate::tables::mercenary_group_info::MercenaryGroupInfo),
         "mercenary_info"                 => s!(crate::tables::mercenary_info::MercenaryInfo),
+        "npc_activity_group_info"        => s!(crate::tables::npc_activity_group_info::NpcActivityGroupInfo),
+        "npc_activity_info"              => s!(crate::tables::npc_activity_info::NpcActivityInfo),
         "part_prefab_dye_slot_info"      => s!(crate::tables::part_prefab_dye_slot_info::PartPrefabDyeSlotInfo),
         "part_prefab_dye_texture_pallete_info" => s!(crate::tables::part_prefab_dye_texture_pallete_info::PartPrefabDyeTexturePalleteInfo),
         "pattern_description_info"       => s!(crate::tables::pattern_description_info::PatternDescriptionInfo),
@@ -227,6 +235,7 @@ pub fn parse_table_to_json(
         "vehicle_info"                   => s!(crate::tables::vehicle_info::VehicleInfo),
         "vibrate_pattern_info"           => s!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
         "wanted_info"                    => s!(crate::tables::wanted_info::WantedInfo),
+        "iteminfo"                       => s!(crate::item_info::ItemInfo),
 
         // ── file-format tables (non-pabgb) ────────────────────────────────
         // Parsers ported from Workbench fork. Each returns a 1-element
@@ -271,6 +280,8 @@ pub fn serialize_table_from_json(
         };
     }
 
+    let table_name = normalize_target_name(table_name).unwrap_or(table_name);
+
     Ok(match table_name {
         // ── pabgh-bounded tables ──────────────────────────────────────────
         "ai_dialog_string_info"          => d!(crate::tables::ai_dialog_string_info::AIDialogStringInfo),
@@ -314,9 +325,7 @@ pub fn serialize_table_from_json(
         "region_info"                    => d!(crate::tables::region_info::RegionInfo),
         "royal_supply_info"              => d!(crate::tables::royal_supply_info::RoyalSupplyInfo),
         "sequencer_spawn_info"           => d!(crate::tables::sequencer_spawn_info::SequencerSpawnInfo),
-        "skill_info"                     => {
-            crate::tables::skill_info::serialize_skill_from_json(json_items)?
-        },
+        "skill_info"                     => d!(crate::tables::skill_info::SkillInfo),
         "spawning_pool_auto_spawn_info"  => d!(crate::tables::spawning_pool_auto_spawn_info::SpawningPoolAutoSpawnInfo),
         "special_mode_info"              => d!(crate::tables::special_mode_info::SpecialModeInfo),
         "stage_info"                     => d!(crate::tables::stage_info::StageInfo),
@@ -336,6 +345,13 @@ pub fn serialize_table_from_json(
         "aidialog_type_info"             => d!(crate::tables::aidialog_type_info::AIDialogTypeInfo),
         "aievent_table_info"             => d!(crate::tables::aievent_table_info::AIEventTableInfo),
         "aimemory_info"                  => d!(crate::tables::aimemory_info::AIMemoryInfo),
+        "game_start_info"                => d!(crate::tables::game_start_info::GameStartInfo),
+        "zone_info"                      => d!(crate::tables::zone_info::ZoneInfo),
+        "contents_phase_info"            => d!(crate::tables::contents_phase_info::ContentsPhaseInfo),
+        "faction_reblockading_info"      => d!(crate::tables::faction_reblockading_info::FactionReblockadingInfo),
+        "quick_slot_info"                => d!(crate::tables::quick_slot_info::QuickSlotInfo),
+        "bank_info"                      => d!(crate::tables::bank_info::BankInfo),
+        "talk_tree_info"                 => d!(crate::tables::talk_tree_info::TalkTreeInfo),
         "aimove_speed_info"              => d!(crate::tables::aimove_speed_info::AIMoveSpeedInfo),
         "ally_group_info"                => d!(crate::tables::ally_group_info::AllyGroupInfo),
         "auto_spawn_filter_info"         => d!(crate::tables::auto_spawn_filter_info::AutoSpawnFilterInfo),
@@ -363,6 +379,7 @@ pub fn serialize_table_from_json(
         "game_advice_group_info"         => d!(crate::tables::game_advice_group_info::GameAdviceGroupInfo),
         "game_advice_info"               => d!(crate::tables::game_advice_info::GameAdviceInfo),
         "game_play_variable_info"        => d!(crate::tables::game_play_variable_info::GamePlayVariableInfo),
+        "game_version_data_info"         => d!(crate::tables::game_version_data_info::GameVersionDataInfo),
         "gimmick_event_table_info"       => d!(crate::tables::gimmick_event_table_info::GimmickEventTableInfo),
         "gimmick_gate_connection_info"   => d!(crate::tables::gimmick_gate_connection_info::GimmickGateConnectionInfo),
         "gimmick_gate_info"              => d!(crate::tables::gimmick_gate_info::GimmickGateInfo),
@@ -379,6 +396,8 @@ pub fn serialize_table_from_json(
         "material_relation_info"         => d!(crate::tables::material_relation_info::MaterialRelationInfo),
         "mercenary_group_info"           => d!(crate::tables::mercenary_group_info::MercenaryGroupInfo),
         "mercenary_info"                 => d!(crate::tables::mercenary_info::MercenaryInfo),
+        "npc_activity_group_info"        => d!(crate::tables::npc_activity_group_info::NpcActivityGroupInfo),
+        "npc_activity_info"              => d!(crate::tables::npc_activity_info::NpcActivityInfo),
         "part_prefab_dye_slot_info"      => d!(crate::tables::part_prefab_dye_slot_info::PartPrefabDyeSlotInfo),
         "part_prefab_dye_texture_pallete_info" => d!(crate::tables::part_prefab_dye_texture_pallete_info::PartPrefabDyeTexturePalleteInfo),
         "pattern_description_info"       => d!(crate::tables::pattern_description_info::PatternDescriptionInfo),
@@ -406,6 +425,7 @@ pub fn serialize_table_from_json(
         "vehicle_info"                   => d!(crate::tables::vehicle_info::VehicleInfo),
         "vibrate_pattern_info"           => d!(crate::tables::vibrate_pattern_info::VibratePatternInfo),
         "wanted_info"                    => d!(crate::tables::wanted_info::WantedInfo),
+        "iteminfo"                       => d!(crate::item_info::ItemInfo),
 
         // ── file-format tables (non-pabgb) ────────────────────────────────
         "pappt" => crate::tables::pappt::serialize_pappt_from_json(json_items)?,
@@ -585,18 +605,19 @@ fn serialize_table_from_json_tracked(
         "sub_level_info"                 => dt!(crate::tables::sub_level_info::SubLevelInfo),
         "terrain_region_auto_spawn_info" => dt!(crate::tables::terrain_region_auto_spawn_info::TerrainRegionAutoSpawnInfo),
 
-        // skill_info and equip_slot_info have special-case serializers
-        // that the tracked path doesn't yet wrap. Fall back to the
-        // non-tracked form for now and hand-track offsets at the call
-        // site if these tables become a target.
-        "skill_info" | "equip_slot_info" => {
-            return Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                format!(
-                    "table '{}' uses a special-case serializer; tracked-offset path not yet wired",
-                    table_name
-                ),
-            ));
+        "skill_info" => dt!(crate::tables::skill_info::SkillInfo),
+        "equip_slot_info" => {
+            let mut out = Vec::with_capacity(items.len() * 1024);
+            let mut offsets = Vec::with_capacity(items.len());
+            for (i, item) in items.iter().enumerate() {
+                let key = item.get("key").and_then(|v| v.as_u64()).ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("equip_slot_info[{}]: missing 'key' field for pabgh rebuild", i)))? as u32;
+                offsets.push((key, out.len() as u32));
+                crate::tables::equip_slot_info::info::write_equip_slot_info_record(&mut out, item)
+                    .map_err(|e| io::Error::new(e.kind(), format!("equip_slot_info[{}]: {}", i, e)))?;
+            }
+            (out, offsets)
         }
 
         _ => return Err(io::Error::new(io::ErrorKind::InvalidInput,
@@ -635,6 +656,21 @@ pub fn normalize_target_name(input: &str) -> Option<&'static str> {
     // Iteminfo lives outside dispatch's table list — handle it explicitly.
     if matches!(stripped, "iteminfo") {
         return Some("iteminfo");
+    }
+
+    // Skillinfo is named Skill in v1.0.8
+    if matches!(stripped, "skill") {
+        return Some("skill_info");
+    }
+
+    // FactionNodeInfo is named factionnode in v1.0.8
+    if matches!(stripped, "factionnode") {
+        return Some("faction_node_info");
+    }
+
+    // FactionGroupInfo is named factiongroup in v1.0.8
+    if matches!(stripped, "factiongroup") {
+        return Some("faction_group_info");
     }
 
     // Paloc has multiple legitimate aliases.
@@ -734,6 +770,8 @@ pub fn supported_tables() -> &'static [&'static str] {
         "action_point_info", "action_restriction_order_info",
         "aiaction_attribute_info", "aidialog_type_info", "aievent_table_info",
         "aimemory_info", "aimove_speed_info", "ally_group_info",
+        "game_start_info", "zone_info", "contents_phase_info",
+        "faction_reblockading_info", "quick_slot_info", "bank_info", "talk_tree_info",
         "auto_spawn_filter_info", "board_info", "breakable_object_info",
         "category_group_info", "category_info", "character_appearance_index_info",
         "character_group_info", "craft_tool_group_info", "craft_tool_info",
@@ -743,12 +781,14 @@ pub fn supported_tables() -> &'static [&'static str] {
         "faction_waypoint_info", "fail_message_info", "field_info",
         "field_level_name_table_info", "formation_info",
         "game_advice_group_info", "game_advice_info", "game_play_variable_info",
+        "game_version_data_info",
         "gimmick_event_table_info", "gimmick_gate_connection_info",
         "gimmick_gate_info", "global_game_event_group_info", "house_info",
         "item_group_info", "job_info", "key_map_setting_list_info",
         "knowledge_group_info", "level_action_point_info", "local_string_info",
         "material_blood_decal_info", "material_match_info",
         "material_relation_info", "mercenary_group_info", "mercenary_info",
+        "npc_activity_group_info", "npc_activity_info",
         "part_prefab_dye_slot_info", "part_prefab_dye_texture_pallete_info",
         "pattern_description_info", "platform_achievement_info",
         "quest_gauge_info", "quest_group_info", "quick_time_event_info",
@@ -758,7 +798,7 @@ pub fn supported_tables() -> &'static [&'static str] {
         "terrain_region_navi_info", "tribe_info", "trigger_region_info",
         "ui_social_action_info", "uifilter_group_info", "uimap_texture_info",
         "valid_schedule_action_info", "vehicle_info", "vibrate_pattern_info",
-        "wanted_info",
+        "wanted_info", "iteminfo",
         // file-format tables (Phase 1: parsers ported, JSON layer pending)
         "paac", "paatt", "pamhc", "pappt",
     ]
@@ -933,6 +973,83 @@ mod tests {
         let _ = &mut records;
     }
 
+    /// AUTHORITATIVE V3 coverage check: run the real V3 entry point
+    /// (`apply_intents_to_table_body` with empty intents = parse → serialize)
+    /// over EVERY supported table against a fixture dir, and report which
+    /// tables fail to parse or don't round-trip byte-perfect. Set
+    /// DMM_PARSER_V3_DIR to the fixture dir (e.g. the 1.11 extraction).
+    /// Fixtures are named compactly (buff_info → buffinfo.pabgb).
+    #[test]
+    #[ignore]
+    fn v3_all_tables_against_fixture_dir() {
+        let dir = std::env::var("DMM_PARSER_V3_DIR")
+            .unwrap_or_else(|_| r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-6-11".into());
+        let base = std::path::PathBuf::from(&dir);
+        let mut ok = Vec::new();
+        let mut fail = Vec::new();
+        let mut skip = Vec::new();
+
+        // Unique canonical tables (skip paloc aliases + file-format JSON-pending).
+        let mut names: Vec<&str> = supported_tables().iter().copied()
+            .filter(|n| !matches!(*n, "paloc.pamt" | "localizationstring"
+                | "paac" | "paatt" | "pamhc" | "pappt"))
+            .collect();
+        names.push("iteminfo");
+        names.sort(); names.dedup();
+
+        for name in names {
+            // The game names fixtures with short forms that vary: most use the
+            // compact (underscores stripped) name, but some drop a trailing
+            // "info" (skill_info → skill, faction_info → faction). Try candidates
+            // in order and take the first present.
+            let compact = name.replace('_', "");
+            let mut cands = vec![compact.clone()];
+            if let Some(stem) = compact.strip_suffix("info") {
+                cands.push(stem.to_string());
+            }
+            // A couple of heavily-truncated game names.
+            cands.push(name.split('_').next().unwrap_or(name).to_string());
+            // Explicit aliases where the game's short fixture name doesn't follow
+            // either rule above (verified against the 0008 bin listing).
+            for (canon, stem) in [
+                ("key_map_setting_list_info", "keymap"),
+                ("game_level_info", "levelinfo"),
+                ("platform_entitlement_info", "entitlementinfo"),
+            ] {
+                if name == canon { cands.insert(0, stem.to_string()); }
+            }
+            // No client 0008 .pabgb exists for these (can't be V3-modded); paloc
+            // is the localization path tested elsewhere. Don't report as gaps.
+            if matches!(name, "equip_info" | "field_revive_info" | "paloc") {
+                continue;
+            }
+            let found = cands.iter().find_map(|c| {
+                let p = base.join(format!("{}.pabgb", c));
+                std::fs::read(&p).ok().map(|b| (c.clone(), b))
+            });
+            let Some((stem, body)) = found else { skip.push(name); continue; };
+            let pabgh = std::fs::read(base.join(format!("{}.pabgh", stem))).ok();
+            // The real V3 read path. parse_table_to_json uses pabgh only for
+            // pabgh-bounded tables; sequential tables ignore it. iteminfo is
+            // routed through apply_intents_to_table_body's special case.
+            let parsed = if name == "iteminfo" {
+                crate::intents::apply_intents_to_iteminfo(&body, &[]).map(|_| ())
+            } else {
+                parse_table_to_json(name, &body, pabgh.as_deref()).map(|_| ())
+            };
+            match parsed {
+                Ok(()) => ok.push(name),
+                Err(e) => fail.push((name, e.to_string())),
+            }
+        }
+        eprintln!("\n=== V3 coverage vs {} ===", dir);
+        eprintln!("OK: {}  FAIL: {}  SKIP(no fixture): {}", ok.len(), fail.len(), skip.len());
+        if !skip.is_empty() { eprintln!("SKIP: {:?}", skip); }
+        eprintln!("--- FAILURES ---");
+        for (n, e) in &fail { eprintln!("  {:<34} {}", n, e); }
+        assert!(fail.is_empty(), "{} V3 tables broken on this build", fail.len());
+    }
+
     #[test]
     fn normalize_target_name_canonical() {
         assert_eq!(normalize_target_name("character_info"), Some("character_info"));
@@ -1096,9 +1213,10 @@ mod tests {
     #[test]
     fn sequential_table_returns_no_pabgh() {
         // Use a tiny synthetic body for a sequential table. action_point_info
-        // is the smallest entry shape; an empty body parses to an empty list.
+        // was switched to pabgh_blob_table in 1.0.8; use action_restriction_order_info
+        // instead — it is a fully-typed sequential table.
         let (new_body, new_pabgh, outcomes) =
-            apply_intents_to_table_body("action_point_info", &[], None, &[])
+            apply_intents_to_table_body("action_restriction_order_info", &[], None, &[])
                 .expect("apply");
         assert!(new_body.is_empty());
         assert!(new_pabgh.is_none());

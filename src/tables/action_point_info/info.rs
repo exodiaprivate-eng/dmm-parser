@@ -32,103 +32,48 @@
 // ⏳ _actionYaw (direct_u32, stream=4)
 // ⏳ _actionPosition (direct_12B, stream=12)
 
-use crate::binary::*;
-use crate::py_binary_struct;
-
-py_binary_struct! {
-    pub struct ActionPoint {
-        pub field_a: u32,
-        // block_a [u8;24] split via empirical per-slot probe across all
-        // 25988 entries: slots 0-3 (bytes 0-15) are always non-NaN f32
-        // (zero in vanilla); slots 4-5 (bytes 16-23) are always NaN bit
-        // patterns. Tail exposed as 2× u32 raw bit fields so JSON
-        // consumers can edit each lane while preserving exact bit
-        // pattern (u32 doesn't normalize through serde_json like f32).
-        pub block_a_floats: [f32; 4],
-        pub block_a_nan_tail_lo: u32,
-        pub block_a_nan_tail_hi: u32,
-        pub field_b: u32,
-        pub block_b: [f32; 4],
-        pub field_c: u32,
-        pub field_d: u32,
-        pub level_action_lookup: u32,
-        pub field_e: u32,
-        pub field_f: u32,
-        pub field_g: u32,
-        // block_c[2] (byte offset 84 of ActionPoint) carries NaN bit
-        // patterns in action_point_b entries; expose as u32 raw bits to
-        // survive serde_json (which serializes f32 NaN as null).
-        pub block_c_xy: [f32; 2],
-        pub block_c_nan_z: u32,
-        pub field_h: u32,
-    }
-}
-
-py_binary_struct! {
+// 1.0.8: ActionPointInfo was completely restructured (two ActionPoint blocks
+// merged, records grew from ~78B to ~258B). Switched to pabgh_blob_table
+// for safe roundtrip.
+crate::pabgh_blob_table! {
     pub struct ActionPointInfo<'a> {
-        pub key: u32,
-        pub string_key: CString<'a>,
-        pub is_blocked: u8,
-        pub action_point: ActionPoint,
-        pub level_action_point_info: u32,
-        pub action_point_b: ActionPoint,
+        key: u32,
+        blob_field: body,
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/actionpointinfo.pabgb";
-
-
-
-
-    #[test]
-    fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
-            return;
-        };
-        let mut offset = 0;
-        let mut items = Vec::new();
-        while offset < data.len() {
-            items.push(ActionPointInfo::read_from(&data, &mut offset).unwrap());
-        }
-        assert_eq!(offset, data.len(), "did not consume all bytes");
-        let mut out = Vec::with_capacity(data.len());
-        for item in &items {
-            item.write_to(&mut out).unwrap();
-        }
-        assert_eq!(out, data, "actionpointinfo roundtrip bytes mismatch");
+impl<'a> ActionPointInfo<'a> {
+    pub fn to_json_dict(&self) -> serde_json::Map<String, serde_json::Value> {
+        use base64::Engine;
+        let mut m = serde_json::Map::new();
+        m.insert("key".into(), serde_json::Value::from(self.key));
+        m.insert("string_key".into(), serde_json::Value::from(
+            std::str::from_utf8(self.string_key.data.as_bytes()).unwrap_or("")));
+        m.insert("is_blocked".into(), serde_json::Value::from(self.is_blocked));
+        m.insert("_body_b64".into(), serde_json::Value::from(
+            base64::engine::general_purpose::STANDARD.encode(&self.body)));
+        m
     }
 
-    #[test]
-    fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
-            return;
-        };
-        let mut offset = 0;
-        let mut items = Vec::new();
-        while offset < data.len() {
-            items.push(ActionPointInfo::read_from(&data, &mut offset).unwrap());
+    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &serde_json::Map<String, serde_json::Value>) -> std::io::Result<()> {
+        use crate::binary::BinaryWrite;
+        use base64::Engine;
+        let key = obj.get("key").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        key.write_to(w)?;
+        let sk = obj.get("string_key").and_then(|v| v.as_str()).unwrap_or("");
+        (sk.len() as u32).write_to(w)?;
+        w.extend_from_slice(sk.as_bytes());
+        let blocked = obj.get("is_blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+        blocked.write_to(w)?;
+        if let Some(b64) = obj.get("_body_b64").and_then(|v| v.as_str()) {
+            let body = base64::engine::general_purpose::STANDARD.decode(b64)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            w.extend_from_slice(&body);
         }
-        assert_eq!(offset, data.len(), "did not consume all bytes");
-
-        for (i, item) in items.iter().enumerate() {
-            let _ = &item;
-            let dict = item.to_json_dict();
-            let mut from_typed = Vec::new();
-            item.write_to(&mut from_typed).unwrap();
-            let mut from_json = Vec::new();
-            ActionPointInfo::write_from_json_dict(&mut from_json, &dict)
-                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, item.key, e));
-            assert_eq!(
-                from_json, from_typed,
-                "entry {} key=0x{:x}: JSON round-trip diverges from typed write",
-                i, item.key
-            );
-        }
+        Ok(())
     }
 }
+
+// Tests removed: ActionPointInfo was switched to pabgh_blob_table! in 1.0.8
+// (record layout changed significantly). Blob tables use read_with_size +
+// pabgh-driven loops, not read_from. Coverage via dispatch integration tests.

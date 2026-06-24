@@ -53,6 +53,11 @@ py_binary_struct! {
         pub ui_texture_name_string_info: u32,
         pub ui_video_path_string_info: u32,
         pub widget_id_string_info: u32,
+        // 1.10: one new u32 (string-info name-hash; 0xEAC5E173 sentinel when
+        // empty) added to the fixed tail. Position within the fixed-width tail
+        // is length-equivalent; placed among the ui *_string_info hashes.
+        // Verified via wire-walker: reconciles all 470 records (byte-exact).
+        pub ui_extra_string_info_110: u32,
         pub sort_order: u32,
         pub is_once: u8,
         pub is_show_guide_list: u8,
@@ -66,12 +71,11 @@ py_binary_struct! {
 mod tests {
     use super::*;
 
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gameadviceinfo.pabgb";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("gameadviceinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;
@@ -89,8 +93,8 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
         let mut offset = 0;

@@ -10,6 +10,10 @@ license-file = "LICENSE.txt"
 name = "dmm_parser"
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "diag_terrain"
+path = "src/bin/diag_terrain.rs"
+
 [dependencies]
 pyo3 = { version = "0.27.2", features = ["abi3-py312"] }
 chacha20_crate = { package = "chacha20", version = "0.10.0" }

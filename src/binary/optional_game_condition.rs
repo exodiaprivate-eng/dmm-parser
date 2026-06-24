@@ -104,3 +104,60 @@ impl<'a> OptionalGameCondition<'a> {
         Ok(())
     }
 }
+
+/// Same as OptionalGameCondition but WITHOUT the 3-byte tail.
+/// Used by InventoryMoveData where the condition has no footer.
+#[derive(Debug)]
+pub struct OptionalGameConditionNoTail<'a> {
+    pub inner: Option<GameConditionNode<'a>>,
+}
+
+impl<'a> OptionalGameConditionNoTail<'a> {
+    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let presence = u8::read_from(data, offset)?;
+        let inner = if presence != 0 {
+            Some(GameConditionNode::read_from(data, offset)?)
+        } else {
+            None
+        };
+        Ok(Self { inner })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        match &self.inner {
+            Some(tree) => {
+                1u8.write_to(w)?;
+                tree.write_to(w)?;
+            }
+            None => {
+                0u8.write_to(w)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn to_json_value(&self) -> Value {
+        match &self.inner {
+            Some(tree) => {
+                let mut m = Map::new();
+                m.insert("tree".to_string(), tree.to_json_value());
+                Value::Object(m)
+            }
+            None => Value::Null,
+        }
+    }
+
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() {
+            w.push(0);
+            return Ok(());
+        }
+        let obj = v.as_object().ok_or_else(|| io::Error::new(
+            io::ErrorKind::InvalidData,
+            "OptionalGameConditionNoTail: expected object or null",
+        ))?;
+        w.push(1);
+        GameConditionNode::write_from_json(w, json_get_field(obj, "tree")?)?;
+        Ok(())
+    }
+}

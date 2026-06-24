@@ -128,19 +128,23 @@ py_binary_struct! {
         pub unk_33: u8,
         pub unk_34: u8,
         pub unk_35: u8,
-        pub unk_36: u8,
+        // 1.0.8: was u8, now u32
+        pub unk_36: u32,
         pub unk_40: u32,
         pub unk_44: u32,
-        pub unk_48: u32,
-        pub unk_56: CString<'a>,
+        // 1.0.8: was u32, now CString
+        pub unk_48: CString<'a>,
+        pub unk_56: u32,
+        pub unk_60: u32,
         pub unk_64: u32,
         pub unk_68: u32,
-        pub unk_72: u32,
+        // 1.0.8: was u32, now u8
+        pub unk_72: u8,
+        pub unk_73: u8,
         pub unk_76: u32,
-        pub unk_80: u8,
-        pub unk_81: u8,
-        pub unk_84: u32,
-        pub unk_88: u64,
+        // 1.0.8: was u32 unk_84 + u64 unk_88, now 16B (2x u64)
+        pub unk_80_lo: u64,
+        pub unk_80_hi: u64,
         pub ref_list: CArray<u32>,
     }
 }
@@ -149,13 +153,11 @@ py_binary_struct! {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    const PABGB: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/tribeinfo.pabgb";
-    const PABGH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/tribeinfo.pabgh";
-
-    #[test]
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("tribeinfo.pabgb") }
+#[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
         let ranges = entry_ranges(&entries, data.len());
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
@@ -174,12 +176,12 @@ mod tests {
     #[test]
     fn json_roundtrip() {
         use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB) else {
-            eprintln!("SKIP: missing fixture {}", PABGB);
+        let Ok(data) = std::fs::read(pabgb_path()) else {
+            eprintln!("SKIP: fixture not found");
             return;
         };
-        let Some(entries) = load_pabgh_offsets(PABGH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH);
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
+            eprintln!("SKIP: pabgh not found");
             return;
         };
         let ranges = entry_ranges(&entries, data.len());

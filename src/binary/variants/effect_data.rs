@@ -309,7 +309,6 @@ pub struct EffectDataElement<'a> {
     pub core_block: EffectDataCoreBlock,
     pub lookups_c: [u32; 6],
     pub fields_d: [u32; 4],
-    pub byte_e: u8,
     pub cstring_list: Vec<CString<'a>>,
     pub fixed144_list: Vec<EffectDataD3Block>,
     /// `CArray<CArray<u32>>` — typed in this commit.
@@ -327,8 +326,6 @@ impl<'a> EffectDataElement<'a> {
         for x in &mut lookups_c { *x = u32::read_from(data, offset)?; }
         let mut fields_d = [0u32; 4];
         for x in &mut fields_d { *x = u32::read_from(data, offset)?; }
-        let byte_e = u8::read_from(data, offset)?;
-
         let cstring_count = u32::read_from(data, offset)? as usize;
         let mut cstring_list = Vec::with_capacity(cstring_count);
         for _ in 0..cstring_count {
@@ -357,7 +354,7 @@ impl<'a> EffectDataElement<'a> {
         }
 
         Ok(Self {
-            byte_a, lookup_b, core_block, lookups_c, fields_d, byte_e,
+            byte_a, lookup_b, core_block, lookups_c, fields_d,
             cstring_list, fixed144_list, nested_u32_lists, inner_map,
         })
     }
@@ -368,7 +365,6 @@ impl<'a> EffectDataElement<'a> {
         self.core_block.write_to(w)?;
         for x in &self.lookups_c { x.write_to(w)?; }
         for x in &self.fields_d { x.write_to(w)?; }
-        self.byte_e.write_to(w)?;
         (self.cstring_list.len() as u32).write_to(w)?;
         for s in &self.cstring_list { s.write_to(w)?; }
         (self.fixed144_list.len() as u32).write_to(w)?;
@@ -396,7 +392,6 @@ impl<'a> EffectDataElement<'a> {
             "fields_d".to_string(),
             Value::Array(self.fields_d.iter().map(|v| v.to_json_value()).collect()),
         );
-        m.insert("byte_e".to_string(), self.byte_e.to_json_value());
         m.insert(
             "cstring_list".to_string(),
             Value::Array(self.cstring_list.iter().map(|s| s.to_json_value()).collect()),
@@ -446,7 +441,6 @@ impl<'a> EffectDataElement<'a> {
                 format!("EffectDataElement: fields_d must have 4 items, got {}", fields_d.len())));
         }
         for v in fields_d { <u32 as WriteJsonValue>::write_from_json(w, v)?; }
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "byte_e")?)?;
         let cstrs = json_get_field(obj, "cstring_list")?.as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 "EffectDataElement: cstring_list must be array"))?;

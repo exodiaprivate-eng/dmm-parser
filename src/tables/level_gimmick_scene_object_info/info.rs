@@ -1,303 +1,92 @@
-//! Tier 1 — fully typed parser for `LevelGimmickSceneObjectInfo.pabgb`.
+//! Fully typed parser for `LevelGimmickSceneObjectInfo.pabgb` (165 records).
 //!
-//! ─── v3.1 closure analysis (iter 80) ────────────────────────────────────
-//! Decompiled `sub_1410B7EB0` (iter 60 typeinfo registry). The 7 sequential
-//! u8 reads at offsets 72-78 pair with 7 rust u8 fields:
-//!   72→show_icon_condition_type, 73→use_teleport, 74→use_guide_effect,
-//!   75→is_sub_inner_gimmick, 76→check_game_level_load_state,
-//!   77→unk_new_u8_a, 78→unk_new_u8_b
-//!
-//! Schema has only 24 canonicals — rust struct adds 3 extras. Of the 2
-//! "missing" canonicals:
-//!   `_levelGimmickSceneObjectDataList` → SHIPPED (data_list alias added
-//!                                        in MANUAL_OVERRIDES).
-//!   `_onDiscoverOnlyEnable` → maps to either `unk_new_u8_a` or
-//!                             `unk_new_u8_b` (both u8). Resolving which
-//!                             needs string-xref work (function-string-
-//!                             associate plugin against the byte's
-//!                             error-message anchor). Deferred to a
-//!                             future iter; partial close (1 of 2) for
-//!                             this iter.
-//!
-//! Per IDA sub_1410EB480: 25 fields. `_levelGimmickSceneObjectDataList`
-//! is a `CArray<LevelGimmickSceneObjectData>` via sub_14110ECD0 +
-//! sub_1410EB270. Despite the original "polymorphic" label, sub_1410EB270
-//! is a fixed-shape reader: 4× u32 (raw + 3 hash lookups) + CString +
-//! u32 + u32-hash + 16 raw + u32 + CString + 2× SceneObjectAA1B0Block
-//! (each = Vec3 + [u32;4] + Vec3) + 12 raw bytes. Mem stride 160.
+//! THE additive-NPC spawn lever — record 1000011 "Shop" holds ~500 town shop
+//! placements in `_levelGimmickSceneObjectDataList`. Reverse-engineered from the
+//! 1.12.02 Mac binary (ida-pro-mcp): record reader `sub_101F76270`, element
+//! reader `sub_101F75C18`. Field names from the Korean error strings, wire types
+//! from the per-field byte-count readers. Element wire = 221B for the Hernand
+//! butcher (matches the hand-decoded byte layout exactly). See
+//! `src/tables/LEVELGIMMICK_112_RE.md` for the full map.
 
 use crate::binary::*;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
-use serde_json::{Map, Value};
-use std::io::{self, Write};
+use crate::pabgh_typed_blob_table;
 
+// `LevelGimmickSceneObject_LinkedCompleteGimmick` element (sub_101FB3AA8 body):
+// 16B UUID + u32. Wire 20B/elem.
 py_binary_struct! {
-    /// `sub_1410AA1B0` per-call. 40 wire bytes / 40 mem bytes.
-    /// Wire ORDER (mem-out-of-order in IDA): vec_a (12 bytes, written to
-    /// mem +28), block (16 bytes via sub_1410AA0D0, written to mem +12),
-    /// vec_b (12 bytes, written to mem +0).
-    pub struct SceneObjectAA1B0Block {
+    pub struct LinkedCompleteGimmick {
+        pub scene_object_uuid: [u32; 4],
+        pub complete_gimmick_index: u32,
+    }
+}
+
+// `_worldTransform` / `_teleportOffsetTransform` (sub_100D39CD4) — 40 wire bytes,
+// read order: Vec3 + [u32;4] + Vec3.
+py_binary_struct! {
+    pub struct WorldTransform {
         pub vec_a: [f32; 3],
-        pub block: [u32; 4],
+        pub raw: [u32; 4],
         pub vec_b: [f32; 3],
     }
 }
 
+// `LevelGimmickSceneObjectData` — one placement (element reader sub_101F75C18).
 py_binary_struct! {
-    /// `sub_1410EB270` per-element. 144 wire bytes (excluding two CStrings)
-    /// / 160 mem bytes.
     pub struct LevelGimmickSceneObjectData<'a> {
-        pub raw_a: u32,            // sub_141106210 (u32 wire / u32 mem)
-        pub raw_b: u32,            // sub_141100740 (u32 wire / u16 mem)
-        pub raw_c: u32,            // sub_1410FF5C0 (u32 wire / u16 mem)
-        pub raw_d: u32,            // u32 raw → hash via 145F169C0
-        pub name: CString<'a>,
-        pub raw_e: u32,            // sub_141103530 (u32 wire / u32 mem)
-        pub raw_f: u32,            // read_u32_lookup_DA30 (u32 wire / u16 mem)
-        pub block_32: [u32; 4],    // 16 raw bytes
-        pub raw_g: u32,            // 4 raw bytes
-        pub texture_id: CString<'a>,
-        pub block_a: SceneObjectAA1B0Block,  // sub_1410AA1B0 #1
-        pub block_b: SceneObjectAA1B0Block,  // sub_1410AA1B0 #2
-        pub trail_a: u32,
-        pub trail_b: u32,
-        pub trail_c: u32,
+        pub level_gimmick_scene_object_info: u32,   // LevelGimmickSceneObjectInfoKey
+        pub gimmick_info: u32,                      // GimmickInfoKey
+        pub item_info: u32,                         // ItemKey
+        pub parent_spawning_pool_auto_spawn_info: u32,
+        pub level_name: CString<'a>,                // placement/area key (Shop_Hernand_0001_Phase00_05_sub_1_0)
+        pub related_game_level_info: u32,           // GameLevelKey
+        pub level_name_controlled_by_game_level_info: u32, // StringInfoKey
+        pub scene_object_uuid: [u32; 4],            // 16B UUID
+        pub root_gimmick_scene_object_uuid: [u32; 4],
+        pub spawn_reason: u32,
+        pub gimmick_alias_name: CString<'a>,        // scene/shop ref (Shop_Butcher_Hernand)
+        pub world_transform: WorldTransform,        // position lives here
+        pub teleport_offset_transform: WorldTransform,
+        pub guide_effect_offset_position: [f32; 3],
+        pub fog_reveal_bitmap_color_r: u8,
+        pub linked_complete_gimmick_list: CArray<LinkedCompleteGimmick>,
     }
 }
 
-#[derive(Debug)]
-pub struct LevelGimmickSceneObjectInfo<'a> {
-    pub key: u32,
-    pub string_key: CString<'a>,
-    pub is_blocked: u8,
-    pub level_name: CString<'a>,
-    pub data_list: CArray<LevelGimmickSceneObjectData<'a>>,
-    pub map_icon_texture_info: u32,
-    pub discover_near_fog: u8,
-    pub fog_map_icon_texture_info: u32,
-    pub fog_distance: u32,
-    pub over_abyss_icon_texture_info: u32,
-    pub over_abyss_fog_map_icon_texture_info: u32,
-    pub over_abyss_fog_distance: u32,
-    pub discover_distance: u32,
-    pub show_icon_condition_type: u8,
-    pub use_teleport: u8,
-    pub use_guide_effect: u8,
-    pub is_sub_inner_gimmick: u8,
-    pub check_game_level_load_state: u8,
-    pub unk_new_u8_a: u8,
-    pub unk_new_u8_b: u8,
-    pub completed_discover_map_icon_texture_info: u32,
-    pub over_abyss_completed_discover_map_icon_texture_info: u32,
-    pub guide_effect_socket_name: CString<'a>,
-    pub ore_vein_index: u32,
-    pub discover_type: u32,
-    pub ignore_same_gimmick_discover_distance: u32,
-    pub discover_gimmick_state_hash: u32,
-}
-
-impl<'a> LevelGimmickSceneObjectInfo<'a> {
-    pub fn read_with_size(
-        data: &'a [u8],
-        offset: &mut usize,
-        entry_size: usize,
-    ) -> io::Result<Self> {
-        let _ = entry_size; // typed reader is byte-perfect; size is informational
-
-        let key = u32::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let level_name = CString::read_from(data, offset)?;
-
-        let data_list = <CArray<LevelGimmickSceneObjectData>>::read_from(data, offset)?;
-
-        let map_icon_texture_info = u32::read_from(data, offset)?;
-        let discover_near_fog = u8::read_from(data, offset)?;
-        let fog_map_icon_texture_info = u32::read_from(data, offset)?;
-        let fog_distance = u32::read_from(data, offset)?;
-        let over_abyss_icon_texture_info = u32::read_from(data, offset)?;
-        let over_abyss_fog_map_icon_texture_info = u32::read_from(data, offset)?;
-        let over_abyss_fog_distance = u32::read_from(data, offset)?;
-        let discover_distance = u32::read_from(data, offset)?;
-        let show_icon_condition_type = u8::read_from(data, offset)?;
-        let use_teleport = u8::read_from(data, offset)?;
-        let use_guide_effect = u8::read_from(data, offset)?;
-        let is_sub_inner_gimmick = u8::read_from(data, offset)?;
-        let check_game_level_load_state = u8::read_from(data, offset)?;
-        let unk_new_u8_a = u8::read_from(data, offset)?;
-        let unk_new_u8_b = u8::read_from(data, offset)?;
-        let completed_discover_map_icon_texture_info = u32::read_from(data, offset)?;
-        let over_abyss_completed_discover_map_icon_texture_info = u32::read_from(data, offset)?;
-        let guide_effect_socket_name = CString::read_from(data, offset)?;
-        let ore_vein_index = u32::read_from(data, offset)?;
-        let discover_type = u32::read_from(data, offset)?;
-        let ignore_same_gimmick_discover_distance = u32::read_from(data, offset)?;
-        let discover_gimmick_state_hash = u32::read_from(data, offset)?;
-
-        Ok(Self {
-            key, string_key, is_blocked, level_name, data_list,
-            map_icon_texture_info, discover_near_fog, fog_map_icon_texture_info,
-            fog_distance, over_abyss_icon_texture_info, over_abyss_fog_map_icon_texture_info,
-            over_abyss_fog_distance, discover_distance,
-            show_icon_condition_type, use_teleport, use_guide_effect,
-            is_sub_inner_gimmick, check_game_level_load_state,
-            unk_new_u8_a, unk_new_u8_b,
-            completed_discover_map_icon_texture_info, over_abyss_completed_discover_map_icon_texture_info,
-            guide_effect_socket_name, ore_vein_index, discover_type,
-            ignore_same_gimmick_discover_distance, discover_gimmick_state_hash,
-        })
+pabgh_typed_blob_table! {
+    pub struct LevelGimmickSceneObjectInfo<'a> {
+        pub key: u32,
+        pub string_key: CString<'a>,
+        pub is_blocked: u8,
+        pub level_name: CString<'a>,
+        // the placements (THE spawn list)
+        pub level_gimmick_scene_object_data_list: CArray<LevelGimmickSceneObjectData<'a>>,
+        // map/fog/discover scalars (all key-lookups are u32 wire)
+        pub map_icon_texture_info: u32,
+        pub discover_near_fog: u8,
+        pub fog_map_icon_texture_info: u32,
+        pub fog_distance: u32,           // sub_100D392D8 = u32 (4B), NOT u64
+        pub over_abyss_icon_texture_info: u32,
+        pub over_abyss_fog_map_icon_texture_info: u32,
+        pub over_abyss_fog_distance: u32,
+        pub discover_distance: u32,
+        pub show_icon_condition_type: u8,
+        pub use_teleport: u8,
+        pub use_guide_effect: u8,
+        pub is_sub_inner_gimmick: u8,
+        pub check_game_level_load_state: u8,
+        pub use_gimmick_knowledge_for_ui: u8,
+        pub check_block_condition: u8,
+        pub is_restore_stock_target_item: u8,
+        pub completed_discover_map_icon_texture_info: u32,
+        pub over_abyss_completed_discover_map_icon_texture_info: u32,
+        pub guide_effect_socket_name: CString<'a>,
+        pub ore_vein_index: u32,
+        pub contents_phase_info_for_move_point: u16,  // ContentsPhaseKey reader = u16 wire
+        pub discover_type: u32,
+        pub ignore_same_gimmick_discover_distance: u32,
+        pub discover_gimmick_state_hash: u32,
+        pub is_empty_info: u8,
     }
-
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
-        self.string_key.write_to(w)?;
-        self.is_blocked.write_to(w)?;
-        self.level_name.write_to(w)?;
-        self.data_list.write_to(w)?;
-        self.map_icon_texture_info.write_to(w)?;
-        self.discover_near_fog.write_to(w)?;
-        self.fog_map_icon_texture_info.write_to(w)?;
-        self.fog_distance.write_to(w)?;
-        self.over_abyss_icon_texture_info.write_to(w)?;
-        self.over_abyss_fog_map_icon_texture_info.write_to(w)?;
-        self.over_abyss_fog_distance.write_to(w)?;
-        self.discover_distance.write_to(w)?;
-        self.show_icon_condition_type.write_to(w)?;
-        self.use_teleport.write_to(w)?;
-        self.use_guide_effect.write_to(w)?;
-        self.is_sub_inner_gimmick.write_to(w)?;
-        self.check_game_level_load_state.write_to(w)?;
-        self.unk_new_u8_a.write_to(w)?;
-        self.unk_new_u8_b.write_to(w)?;
-        self.completed_discover_map_icon_texture_info.write_to(w)?;
-        self.over_abyss_completed_discover_map_icon_texture_info.write_to(w)?;
-        self.guide_effect_socket_name.write_to(w)?;
-        self.ore_vein_index.write_to(w)?;
-        self.discover_type.write_to(w)?;
-        self.ignore_same_gimmick_discover_distance.write_to(w)?;
-        self.discover_gimmick_state_hash.write_to(w)?;
-        Ok(())
-    }
-
-    pub fn to_json_dict(&self) -> Map<String, Value> {
-        let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
-        m.insert("string_key".to_string(), self.string_key.to_json_value());
-        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("level_name".to_string(), self.level_name.to_json_value());
-        m.insert("data_list".to_string(), self.data_list.to_json_value());
-        m.insert("map_icon_texture_info".to_string(), self.map_icon_texture_info.to_json_value());
-        m.insert("discover_near_fog".to_string(), self.discover_near_fog.to_json_value());
-        m.insert("fog_map_icon_texture_info".to_string(), self.fog_map_icon_texture_info.to_json_value());
-        m.insert("fog_distance".to_string(), self.fog_distance.to_json_value());
-        m.insert("over_abyss_icon_texture_info".to_string(), self.over_abyss_icon_texture_info.to_json_value());
-        m.insert("over_abyss_fog_map_icon_texture_info".to_string(), self.over_abyss_fog_map_icon_texture_info.to_json_value());
-        m.insert("over_abyss_fog_distance".to_string(), self.over_abyss_fog_distance.to_json_value());
-        m.insert("discover_distance".to_string(), self.discover_distance.to_json_value());
-        m.insert("show_icon_condition_type".to_string(), self.show_icon_condition_type.to_json_value());
-        m.insert("use_teleport".to_string(), self.use_teleport.to_json_value());
-        m.insert("use_guide_effect".to_string(), self.use_guide_effect.to_json_value());
-        m.insert("is_sub_inner_gimmick".to_string(), self.is_sub_inner_gimmick.to_json_value());
-        m.insert("check_game_level_load_state".to_string(), self.check_game_level_load_state.to_json_value());
-        m.insert("unk_new_u8_a".to_string(), self.unk_new_u8_a.to_json_value());
-        m.insert("unk_new_u8_b".to_string(), self.unk_new_u8_b.to_json_value());
-        m.insert("completed_discover_map_icon_texture_info".to_string(), self.completed_discover_map_icon_texture_info.to_json_value());
-        m.insert("over_abyss_completed_discover_map_icon_texture_info".to_string(), self.over_abyss_completed_discover_map_icon_texture_info.to_json_value());
-        m.insert("guide_effect_socket_name".to_string(), self.guide_effect_socket_name.to_json_value());
-        m.insert("ore_vein_index".to_string(), self.ore_vein_index.to_json_value());
-        m.insert("discover_type".to_string(), self.discover_type.to_json_value());
-        m.insert("ignore_same_gimmick_discover_distance".to_string(), self.ignore_same_gimmick_discover_distance.to_json_value());
-        m.insert("discover_gimmick_state_hash".to_string(), self.discover_gimmick_state_hash.to_json_value());
-        m
-    }
-
-    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "level_name")?)?;
-        <CArray<LevelGimmickSceneObjectData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "data_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "map_icon_texture_info")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_near_fog")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_map_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_distance")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_fog_map_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_fog_distance")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_distance")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "show_icon_condition_type")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_teleport")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_guide_effect")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_sub_inner_gimmick")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "check_game_level_load_state")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_u8_a")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "unk_new_u8_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "completed_discover_map_icon_texture_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "over_abyss_completed_discover_map_icon_texture_info")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "guide_effect_socket_name")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ore_vein_index")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_type")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ignore_same_gimmick_discover_distance")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "discover_gimmick_state_hash")?)?;
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-
-    const PABGB_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/levelgimmicksceneobjectinfo.pabgb";
-    const PABGH_PATH: &str = r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/levelgimmicksceneobjectinfo.pabgh";
-
-    #[test]
-    fn roundtrip() {
-        let Ok(data) = std::fs::read(PABGB_PATH) else { eprintln!("SKIP: {}", PABGB_PATH); return; };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else { eprintln!("SKIP: {}", PABGH_PATH); return; };
-        let ranges = entry_ranges(&entries, data.len());
-
-        let mut items = Vec::with_capacity(ranges.len());
-        for (i, (key, start, end)) in ranges.iter().enumerate() {
-            let mut cursor = *start;
-            let item = LevelGimmickSceneObjectInfo::read_with_size(&data, &mut cursor, end - start)
-                .unwrap_or_else(|e| panic!("entry {} key=0x{:x} off=0x{:x} size={}: {}", i, key, start, end-start, e));
-            assert_eq!(cursor, *end);
-            items.push(item);
-        }
-
-        let mut out = Vec::with_capacity(data.len());
-        for item in &items { item.write_to(&mut out).unwrap(); }
-        assert_eq!(out, data, "levelgimmicksceneobjectinfo roundtrip bytes mismatch");
-    }
-
-    #[test]
-    fn json_roundtrip() {
-        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(PABGB_PATH) else {
-            eprintln!("SKIP: missing fixture {}", PABGB_PATH);
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(PABGH_PATH) else {
-            eprintln!("SKIP: missing pabgh fixture {}", PABGH_PATH);
-            return;
-        };
-        let ranges = entry_ranges(&entries, data.len());
-        for (i, (key, start, end)) in ranges.iter().enumerate() {
-            let mut cursor = *start;
-            let item = LevelGimmickSceneObjectInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
-            assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
-            let dict = item.to_json_dict();
-            let mut from_typed = Vec::new();
-            item.write_to(&mut from_typed).unwrap();
-            let mut from_json = Vec::new();
-            LevelGimmickSceneObjectInfo::write_from_json_dict(&mut from_json, &dict)
-                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
-            assert_eq!(
-                from_json, from_typed,
-                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
-            );
-        }
-    }
+    tail: tail_blob;
 }

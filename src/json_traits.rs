@@ -63,6 +63,19 @@ pub fn get_field<'a>(d: &'a Map<String, Value>, key: &str) -> io::Result<&'a Val
     })
 }
 
+/// Lenient variant of `get_field` used by the Rust/JSON serialization path
+/// (`write_from_json_dict`). Returns `Value::Null` (owned) when the key is
+/// absent instead of erroring. This lets old V3 mods that were authored
+/// before a game patch added a new struct field (e.g. `unk_docking_108` in
+/// `DockingChildData`) serialize successfully: the missing field gets the
+/// zero-default written by the primitive `WriteJsonValue` impls below.
+///
+/// The Python path (`write_from_py_dict`) continues to use strict `get_field`
+/// so Python callers still get clear errors for missing fields.
+pub fn get_field_or_null(d: &Map<String, Value>, key: &str) -> Value {
+    d.get(key).cloned().unwrap_or(Value::Null)
+}
+
 fn type_name(v: &Value) -> &'static str {
     match v {
         Value::Null => "null",
@@ -87,6 +100,9 @@ impl ToJsonValue for u8 {
 }
 impl WriteJsonValue for u8 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        // Null: field was absent from the mod dict (e.g. added by a later
+        // game patch). Default to 0 so old mods stay forward-compatible.
+        if v.is_null() { w.push(0); return Ok(()); }
         let n = v
             .as_u64()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -106,6 +122,7 @@ impl ToJsonValue for u16 {
 }
 impl WriteJsonValue for u16 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0u16.to_le_bytes()); return Ok(()); }
         let n = v
             .as_u64()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -125,6 +142,7 @@ impl ToJsonValue for u32 {
 }
 impl WriteJsonValue for u32 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0u32.to_le_bytes()); return Ok(()); }
         let n = v
             .as_u64()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -144,6 +162,7 @@ impl ToJsonValue for u64 {
 }
 impl WriteJsonValue for u64 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0u64.to_le_bytes()); return Ok(()); }
         // u64 may exceed i64::MAX where JS-side encoders downgrade to
         // string. Accept either form so spec-compliant writers stay
         // compatible with mod files round-tripped through web tooling.
@@ -166,6 +185,7 @@ impl ToJsonValue for i8 {
 }
 impl WriteJsonValue for i8 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0i8.to_le_bytes()); return Ok(()); }
         let n = v
             .as_i64()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -185,6 +205,7 @@ impl ToJsonValue for i64 {
 }
 impl WriteJsonValue for i64 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0i64.to_le_bytes()); return Ok(()); }
         let n = match v {
             Value::Number(n) => n.as_i64(),
             Value::String(s) => s.parse::<i64>().ok(),
@@ -204,11 +225,29 @@ impl ToJsonValue for f32 {
 }
 impl WriteJsonValue for f32 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0f32.to_le_bytes()); return Ok(()); }
         let f = v
             .as_f64()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                 format!("expected f32 number, got {}", type_name(v))))?;
         w.extend_from_slice(&(f as f32).to_le_bytes());
+        Ok(())
+    }
+}
+
+impl ToJsonValue for f64 {
+    fn to_json_value(&self) -> Value {
+        Value::from(*self)
+    }
+}
+impl WriteJsonValue for f64 {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0f64.to_le_bytes()); return Ok(()); }
+        let f = v
+            .as_f64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                format!("expected f64 number, got {}", type_name(v))))?;
+        w.extend_from_slice(&f.to_le_bytes());
         Ok(())
     }
 }

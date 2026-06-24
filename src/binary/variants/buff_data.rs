@@ -189,6 +189,18 @@ impl<'a> BuffDataBase<'a> {
 }
 
 py_binary_struct! {
+    /// DamageBuffData payload. Total = 117 bytes:
+    ///   f00(1) + 3×BuffDataValueBlock(3×28=84) + f04 u64(8) + f05(1) + f06 u64(8)
+    ///   + f07 u32(4) + f08..f0b(4×1) + f0c u32(4) + f0d(1) + f0e(1) + f0f(1) = 117.
+    ///
+    /// 2026-06-05: f0f restored. A prior edit removed a trailing byte ("f0c_new"),
+    /// dropping the payload to 116 bytes. That made EVERY skill_info entry whose buff
+    /// is DamageBuffData (disc 0) fail to typed-parse → blob-fallback (178 entries on
+    /// 1.10), which is why the Infinite Stamina mod's intents for those skills were
+    /// silently skipped. Empirically re-verified on 1.10: for all 31 single-buff disc-0
+    /// skill entries, skill_group_key (== skill key) lands at buff_end + exactly 1 byte,
+    /// i.e. the payload must consume one more byte. The removal note's own evidence
+    /// ("only consistent with 117-byte payload") agreed — the removal was the bug.
     pub struct DamageBuffDataPayload {
         pub f00: u8,
         pub f01: BuffDataValueBlock,
@@ -203,9 +215,9 @@ py_binary_struct! {
         pub f0a: u8,
         pub f0b: u8,
         pub f0c: u32,
-        pub f0c_new: u8,
         pub f0d: u8,
         pub f0e: u8,
+        pub f0f: u8,
     }
 }
 
@@ -1211,9 +1223,15 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// AddPercentInGameContentsBuffData payload. Total = 17 bytes (1 + 4×4).
+    /// f02/f03/f04 were missing; empirically found from key=1000190 (10 entries,
+    /// total body = 1480 bytes → 148 bytes/entry = 5(ll+af) + 126(base,ap=23) + 17(payload)).
     pub struct AddPercentInGameContentsBuffDataPayload {
         pub f00: u8,
-        pub f01: u64,
+        pub f01: u32,
+        pub f02: u32,
+        pub f03: u32,
+        pub f04: u32,
     }
 }
 

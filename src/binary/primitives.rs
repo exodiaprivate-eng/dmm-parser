@@ -44,6 +44,7 @@ tracked_leaf!(i8, "i8");
 tracked_leaf!(i32, "i32");
 tracked_leaf!(i64, "i64");
 tracked_leaf!(f32, "f32");
+tracked_leaf!(f64, "f64");
 
 impl<'a> BinaryRead<'a> for u8 {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
@@ -160,6 +161,21 @@ impl<'a> BinaryRead<'a> for f32 {
 }
 
 impl BinaryWrite for f32 {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        w.write_all(&self.to_le_bytes())
+    }
+}
+
+impl<'a> BinaryRead<'a> for f64 {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        check_remaining(data, *offset, 8)?;
+        let v = f64::from_le_bytes(data[*offset..*offset + 8].try_into().unwrap());
+        *offset += 8;
+        Ok(v)
+    }
+}
+
+impl BinaryWrite for f64 {
     fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         w.write_all(&self.to_le_bytes())
     }
