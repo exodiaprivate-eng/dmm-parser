@@ -20,6 +20,7 @@
 //! holds Wwise event objects (Sound, RandomContainer, Event, etc.) —
 //! a future Tier 1.1 pass can split those out as named JSON keys.
 
+use std::collections::HashMap;
 use std::io::{self, Write};
 
 use serde_json::{Map, Value};
@@ -80,6 +81,106 @@ impl BnkFile {
         w.write_all(&self.trailing)?;
         Ok(())
     }
+
+    /// Return `(source_id, in_memory_media_size)` pairs from HIRC Sound objects.
+    ///
+    /// Wwise HIRC objects are stored as `type:u8, size:u32, id:u32, payload...`;
+    /// Sound objects (`type == 2`) start with `AkBankSourceData`:
+    /// `plugin_id:u32, stream_type:u8, source_id:u32, uInMemoryMediaSize:u32`.
+    pub fn sound_media_sizes(&self) -> Vec<(u32, u32)> {
+        self.sound_media_size_offsets()
+            .into_iter()
+            .map(|(source_id, size, _)| (source_id, size))
+            .collect()
+    }
+
+    /// Patch HIRC Sound `uInMemoryMediaSize` fields for matching source IDs.
+    ///
+    /// Returns the number of fields changed. The patch is same-length and only
+    /// mutates bytes inside existing HIRC payloads, so `to_bytes()` preserves the
+    /// BNK section layout.
+    pub fn patch_media_sizes(&mut self, sizes: &HashMap<u32, u32>) -> usize {
+        if sizes.is_empty() {
+            return 0;
+        }
+
+        let mut changed = 0usize;
+        for chunk in &mut self.chunks {
+            if &chunk.id != b"HIRC" {
+                continue;
+            }
+            for (source_id, current_size, media_size_offset) in hirc_sound_media_size_offsets(&chunk.data) {
+                let Some(&new_size) = sizes.get(&source_id) else {
+                    continue;
+                };
+                if new_size == current_size {
+                    continue;
+                }
+                chunk.data[media_size_offset..media_size_offset + 4]
+                    .copy_from_slice(&new_size.to_le_bytes());
+                changed += 1;
+            }
+        }
+        changed
+    }
+
+    fn sound_media_size_offsets(&self) -> Vec<(u32, u32, usize)> {
+        let mut out = Vec::new();
+        for chunk in &self.chunks {
+            if &chunk.id == b"HIRC" {
+                out.extend(hirc_sound_media_size_offsets(&chunk.data));
+            }
+        }
+        out
+    }
+}
+
+fn hirc_sound_media_size_offsets(data: &[u8]) -> Vec<(u32, u32, usize)> {
+    const HIRC_SOUND: u8 = 2;
+    const SOUND_SOURCE_ID_OFFSET: usize = 5;
+    const SOUND_MEDIA_SIZE_OFFSET: usize = 9;
+    const SOUND_SOURCE_DATA_MIN: usize = 13;
+
+    let mut out = Vec::new();
+    if data.len() < 4 {
+        return out;
+    }
+
+    let count = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
+    let mut p = 4usize;
+    for _ in 0..count {
+        if p + 5 > data.len() {
+            break;
+        }
+
+        let object_type = data[p];
+        let object_size = u32::from_le_bytes(data[p + 1..p + 5].try_into().unwrap()) as usize;
+        let object_start = p + 5;
+        let Some(object_end) = object_start.checked_add(object_size) else {
+            break;
+        };
+        if object_end > data.len() {
+            break;
+        }
+
+        // object_size includes the 4-byte Wwise object ID before the payload.
+        let payload_start = object_start + 4;
+        if object_type == HIRC_SOUND && payload_start + SOUND_SOURCE_DATA_MIN <= object_end {
+            let source_id_offset = payload_start + SOUND_SOURCE_ID_OFFSET;
+            let media_size_offset = payload_start + SOUND_MEDIA_SIZE_OFFSET;
+            let source_id = u32::from_le_bytes(
+                data[source_id_offset..source_id_offset + 4].try_into().unwrap(),
+            );
+            let media_size = u32::from_le_bytes(
+                data[media_size_offset..media_size_offset + 4].try_into().unwrap(),
+            );
+            out.push((source_id, media_size, media_size_offset));
+        }
+
+        p = object_end;
+    }
+
+    out
 }
 
 // ── JSON ────────────────────────────────────────────────────────────────────
@@ -211,6 +312,28 @@ mod tests {
         buf
     }
 
+    fn build_hirc_sound_bnk(source_id: u32, media_size: u32) -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"BKHD");
+        buf.extend_from_slice(&16u32.to_le_bytes());
+        buf.extend_from_slice(&[0u8; 16]);
+
+        let mut hirc = Vec::new();
+        hirc.extend_from_slice(&1u32.to_le_bytes()); // one HIRC object
+        hirc.push(2); // Sound
+        hirc.extend_from_slice(&17u32.to_le_bytes()); // object ID + 13-byte AkBankSourceData
+        hirc.extend_from_slice(&1234u32.to_le_bytes()); // object ID
+        hirc.extend_from_slice(&0x0004_0001u32.to_le_bytes()); // plugin ID
+        hirc.push(0); // stream type
+        hirc.extend_from_slice(&source_id.to_le_bytes());
+        hirc.extend_from_slice(&media_size.to_le_bytes());
+
+        buf.extend_from_slice(b"HIRC");
+        buf.extend_from_slice(&(hirc.len() as u32).to_le_bytes());
+        buf.extend_from_slice(&hirc);
+        buf
+    }
+
     #[test]
     fn parse_minimal() {
         let bytes = build_minimal_bnk();
@@ -241,5 +364,23 @@ mod tests {
         let f2 = BnkFile::from_json(&j).unwrap();
         assert_eq!(f, f2);
         assert_eq!(f2.to_bytes().unwrap(), bytes);
+    }
+
+    #[test]
+    fn sound_media_sizes_patch_roundtrip() {
+        let bytes = build_hirc_sound_bnk(1045272379, 100);
+        let mut f = BnkFile::parse(&bytes).unwrap();
+        assert_eq!(f.sound_media_sizes(), vec![(1045272379, 100)]);
+
+        let changed = f.patch_media_sizes(&HashMap::from([(1045272379, 433_000)]));
+        assert_eq!(changed, 1);
+        assert_eq!(f.sound_media_sizes(), vec![(1045272379, 433_000)]);
+
+        let patched = f.to_bytes().unwrap();
+        assert_eq!(patched.len(), bytes.len());
+        assert_ne!(patched, bytes);
+
+        let reparsed = BnkFile::parse(&patched).unwrap();
+        assert_eq!(reparsed.sound_media_sizes(), vec![(1045272379, 433_000)]);
     }
 }
