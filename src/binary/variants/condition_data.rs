@@ -5114,99 +5114,6 @@ impl<'a> ConditionDataOptionBlock<'a> {
     }
 }
 
-/// Translate a 1.12 on-disk ("wire") ConditionData tag to the parser's
-/// internal recipe tag. The ConditionData enum was renumbered in 1.12
-/// (non-uniform +0..+8 shift; see condition_tag_map_112.json). We keep
-/// reading/writing the WIRE tag in `base.tag` (so writes stay byte-identical
-/// and roundtrip is automatic) and only translate when DISPATCHING the
-/// variant body + option-block decision. Tags new in 1.12 (no parser recipe)
-/// map to the 0xFFFF sentinel so dispatch cleanly errors → Raw/blob fallback
-/// instead of mis-decoding into a wrong same-numbered variant.
-/// AUTO-GENERATED from the Mac binary's tag→name pointer array (0x107a9b540).
-#[inline]
-pub fn wire_to_internal(wire: u16) -> u16 {
-    match wire {
-        73 => 72, 75 => 73, 76 => 74, 77 => 75, 78 => 76, 79 => 77, 80 => 78,
-        81 => 79, 82 => 80, 83 => 81, 84 => 82, 85 => 83, 86 => 84, 87 => 85,
-        88 => 86, 89 => 87, 90 => 88, 91 => 89, 92 => 90, 93 => 91, 95 => 93,
-        96 => 94, 97 => 95, 98 => 96, 99 => 97, 100 => 98, 101 => 99, 102 => 100,
-        103 => 101, 104 => 102, 105 => 103, 106 => 104, 107 => 105, 108 => 106,
-        109 => 107, 110 => 108, 111 => 109, 112 => 110, 113 => 111, 115 => 113,
-        116 => 114, 117 => 115, 120 => 116, 121 => 117, 122 => 118, 123 => 119,
-        124 => 120, 125 => 121, 126 => 122, 127 => 123, 128 => 124, 129 => 125,
-        130 => 126, 131 => 128, 132 => 129, 133 => 130, 134 => 131, 135 => 132,
-        136 => 133, 137 => 134, 138 => 135, 139 => 136, 140 => 137, 141 => 138,
-        142 => 139, 143 => 140, 144 => 141, 145 => 142, 146 => 143, 147 => 144,
-        148 => 145, 149 => 146, 150 => 147, 151 => 148, 152 => 149, 153 => 150,
-        155 => 151, 156 => 152, 158 => 153, 159 => 154, 160 => 155, 161 => 156,
-        162 => 157, 163 => 158, 164 => 159, 165 => 160, 166 => 161, 167 => 162,
-        168 => 163, 169 => 164, 170 => 165, 171 => 166, 172 => 167, 173 => 168,
-        174 => 169, 175 => 170, 176 => 171, 177 => 172, 178 => 173, 179 => 174,
-        180 => 175, 181 => 176, 182 => 177, 183 => 178, 184 => 179, 185 => 180,
-        186 => 181, 187 => 182, 188 => 183, 189 => 184, 190 => 185, 191 => 186,
-        192 => 187, 193 => 188, 194 => 189, 195 => 190, 196 => 191, 197 => 192,
-        198 => 193, 200 => 194, 201 => 195, 202 => 196, 203 => 197, 204 => 198,
-        205 => 199, 207 => 201, 208 => 202, 209 => 203, 210 => 204, 211 => 205,
-        212 => 206, 213 => 207, 214 => 208, 215 => 209, 216 => 210, 217 => 211,
-        218 => 212, 219 => 213, 220 => 214, 221 => 215, 222 => 216, 223 => 217,
-        224 => 218, 225 => 219, 226 => 220, 227 => 221, 228 => 222, 229 => 223,
-        230 => 224, 231 => 225, 232 => 226, 233 => 227, 234 => 228, 235 => 229,
-        236 => 230, 237 => 231, 238 => 232, 239 => 233, 240 => 234, 241 => 235,
-        242 => 236, 243 => 237, 245 => 239, 246 => 240, 247 => 241, 248 => 242,
-        249 => 243, 250 => 244, 251 => 245, 252 => 246, 253 => 247, 254 => 248,
-        255 => 249, 256 => 250, 257 => 251, 258 => 252, 259 => 253, 260 => 254,
-        261 => 255, 262 => 256, 263 => 257, 264 => 258, 265 => 259, 266 => 260,
-        267 => 261, 268 => 262, 269 => 263, 270 => 264, 271 => 265, 272 => 266,
-        273 => 267, 274 => 268, 275 => 269, 276 => 270, 277 => 271, 278 => 272,
-        279 => 273, 280 => 274, 281 => 275, 282 => 276, 283 => 277, 284 => 278,
-        285 => 279, 286 => 280, 287 => 281, 288 => 282, 289 => 283, 290 => 284,
-        291 => 285, 292 => 286, 294 => 288, 295 => 289, 296 => 290, 297 => 291,
-        298 => 292, 299 => 293, 300 => 294, 301 => 295, 302 => 296, 303 => 297,
-        304 => 298, 305 => 299, 306 => 300, 307 => 301, 308 => 302, 309 => 303,
-        310 => 304, 311 => 305, 312 => 306, 313 => 307, 314 => 308, 315 => 309,
-        317 => 311, 318 => 312, 319 => 313, 320 => 314, 321 => 315, 322 => 316,
-        323 => 317, 326 => 320, 327 => 321, 328 => 322, 329 => 323, 330 => 324,
-        331 => 325, 332 => 326, 333 => 327, 334 => 328, 335 => 329, 336 => 330,
-        337 => 331, 338 => 332, 339 => 333, 340 => 334, 341 => 336, 342 => 337,
-        343 => 338, 344 => 339, 345 => 340, 346 => 341, 347 => 342, 348 => 343,
-        349 => 344, 350 => 345, 351 => 346, 353 => 348, 354 => 349, 355 => 350,
-        358 => 351, 360 => 353, 361 => 354, 362 => 355, 363 => 356, 364 => 357,
-        365 => 358, 366 => 359, 368 => 360, 369 => 361, 370 => 362, 371 => 363,
-        372 => 364, 373 => 365, 374 => 366, 375 => 367, 376 => 368, 377 => 369,
-        378 => 370, 379 => 371, 380 => 372, 381 => 373, 382 => 374, 383 => 375,
-        384 => 376, 385 => 377, 386 => 378, 387 => 379, 388 => 380, 389 => 381,
-        390 => 382, 391 => 383, 392 => 384, 393 => 385, 394 => 386, 395 => 387,
-        396 => 388, 397 => 389, 398 => 390, 399 => 391, 400 => 392, 401 => 393,
-        402 => 394, 403 => 395, 404 => 396, 405 => 397, 406 => 398, 407 => 399,
-        408 => 400, 409 => 401, 410 => 402, 411 => 403, 412 => 404, 413 => 405,
-        62 | 72 | 74 | 94 | 114 | 118 | 119 | 154 | 157 | 199 | 206 | 244
-        | 293 | 316 | 324 | 325 | 352 | 356 | 357 | 359 | 367 | 414 | 415 | 416
-        | 417 | 418 | 419 | 420 | 421 | 422 | 423 | 424 | 425 | 426 | 427 | 428
-        | 429 | 430 | 431 | 432 | 433 | 434 | 435 | 436 | 437 | 438 | 439 | 440
-        | 441 | 442 | 443 => 0xFFFF,
-        other => other,
-    }
-}
-
-/// Body byte-count for ConditionData variants new in 1.12 that have no typed
-/// recipe yet (wire_to_internal -> 0xFFFF). The body is preserved as an opaque
-/// byte slice (byte-exact roundtrip); only the SIZE matters so the trailing
-/// option_block and the following conditions stay aligned. Sizes derived from
-/// interactioninfo wire data. `None` => unknown size -> clean decode error ->
-/// Raw/blob fallback (never silent corruption, since the body is opaque).
-fn sentinel_body_size(wire: u16) -> Option<usize> {
-    Some(match wire {
-        324 => 0,   // CanAddHyosi            (bodyless)
-        244 => 0,   // CheckGrowableGimmick   (bodyless)
-        359 => 4,   // CheckVoxelType         (u32)
-        419 => 4,   // ActionFrameTag         (u32)
-        423 => 4,   // NavigationMoveType     (u32)
-        154 => 5,   // CheckMyExperienceLevel (u8 + u32)
-        439 => 4,   // CompareMercenaryHiredCount (u32)
-        _ => return None,
-    })
-}
-
 /// Full ConditionData record: u16 tag + variant payload + optional
 /// option block.
 ///
@@ -5223,10 +5130,6 @@ pub struct ConditionData<'a> {
     pub base: ConditionDataBase,
     pub variant: ConditionDataVariant<'a>,
     pub option_block: Option<ConditionDataOptionBlock<'a>>,
-    /// Opaque body bytes for 1.12 sentinel variants (see sentinel_body_size).
-    /// When Some, this replaces `variant`'s body on write; `variant` is a
-    /// CheckNone placeholder.
-    pub sentinel_body: Option<Vec<u8>>,
 }
 
 thread_local! {
@@ -5248,29 +5151,15 @@ impl<'a> ConditionData<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let _cd_off = *offset;
         let base = ConditionDataBase::read_from(data, offset)?;
-        // base.tag holds the 1.12 WIRE tag (stored/written as-is for byte-exact
-        // roundtrip); dispatch on the translated internal recipe tag.
-        let disc = wire_to_internal(base.tag);
-        LAST_ATTEMPTED_TAG.with(|c| c.set(Some(base.tag)));
+        let disc = base.tag;
+        LAST_ATTEMPTED_TAG.with(|c| c.set(Some(disc)));
         if std::env::var("CONDTRACE").is_ok() && _cd_off >= 218058 && _cd_off <= 220856 {
-            eprintln!("CONDTRACE ConditionData wire={} disc={} @{}", base.tag, disc, _cd_off);
+            eprintln!("CONDTRACE ConditionData disc={} @{}", disc, _cd_off);
         }
         if std::env::var("ALLDISC").is_ok() {
             eprintln!("ALLDISC {} {}", disc, _cd_off);
         }
-        let (variant, sentinel_body) = if disc == 0xFFFF {
-            // 1.12 variant with no typed recipe: consume its body as opaque
-            // bytes (size table) so the rest of the stream stays aligned.
-            let sz = sentinel_body_size(base.tag).ok_or_else(|| io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("unknown ConditionData wire tag {} (no sentinel size)", base.tag)))?;
-            check_remaining(data, *offset, sz)?;
-            let body = data[*offset..*offset + sz].to_vec();
-            *offset += sz;
-            (ConditionDataVariant::ConditionData_CheckNone, Some(body))
-        } else {
-            (ConditionDataVariant::read_from(disc, data, offset)?, None)
-        };
+        let variant = ConditionDataVariant::read_from(disc, data, offset)?;
         let option_block = if variant_skips_option_block(disc) {
             None
         } else {
@@ -5282,14 +5171,11 @@ impl<'a> ConditionData<'a> {
             if t.len() >= 8 { t.remove(0); }
             t.push((disc, post_offset));
         });
-        Ok(Self { base, variant, option_block, sentinel_body })
+        Ok(Self { base, variant, option_block })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.base.write_to(w)?;
-        match &self.sentinel_body {
-            Some(b) => w.write_all(b)?,
-            None => self.variant.write_to(w)?,
-        }
+        self.variant.write_to(w)?;
         if let Some(b) = &self.option_block {
             b.write_to(w)?;
         }
@@ -5316,10 +5202,6 @@ impl<'a> ConditionData<'a> {
                 None => Value::Null,
             },
         );
-        if let Some(b) = &self.sentinel_body {
-            m.insert("sentinel_body".into(),
-                Value::Array(b.iter().map(|x| Value::from(*x)).collect()));
-        }
         m
     }
 
@@ -5337,19 +5219,8 @@ impl<'a> ConditionData<'a> {
                 format!("ConditionData.base.tag: {} out of u16 range", tag)));
         }
         ConditionDataBase::write_from_json_dict(w, base_obj)?;
-        if let Some(sb) = obj.get("sentinel_body").and_then(|v| v.as_array()) {
-            // Opaque body for a 1.12 sentinel variant — emit bytes verbatim.
-            for x in sb {
-                let byte = x.as_u64().ok_or_else(|| io::Error::new(
-                    io::ErrorKind::InvalidData, "ConditionData.sentinel_body: expected u8"))?;
-                w.push(byte as u8);
-            }
-        } else {
-            let variant_v = json_get_field(obj, "variant")?;
-            // base.tag in JSON is the WIRE tag; dispatch the variant body writer
-            // on the translated internal recipe tag.
-            ConditionDataVariant::write_from_json(wire_to_internal(tag as u16), w, variant_v)?;
-        }
+        let variant_v = json_get_field(obj, "variant")?;
+        ConditionDataVariant::write_from_json(tag as u16, w, variant_v)?;
         let opt_v = json_get_field(obj, "option_block")?;
         match opt_v {
             Value::Null => {}
