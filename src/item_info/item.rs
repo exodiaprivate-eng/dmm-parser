@@ -194,11 +194,6 @@ py_binary_struct! {
         // and _isPreservedOnExtract between _isPreorderItem and _respawnTimeSeconds.
         pub is_has_item_use_data_inventory_buff: u8,
         pub is_preserved_on_extract: u8,
-        // 1.12: new _itemEffectInfo field between _isPreservedOnExtract and
-        // _respawnTimeSeconds. Game reader sub_1013632AC reads a 4-byte EffectKey
-        // (resolved to a u16 EffectInfo index at struct+990). Stored/round-tripped
-        // as the raw u32 wire key.
-        pub item_effect_info: u32,
         pub respawn_time_seconds: i64,
         // 1.12: NEW u32 inserted between respawn_time_seconds and max_endurance
         // (always 0 in vanilla). Byte-decisive: 1.11/1.12 iteminfo are byte-identical

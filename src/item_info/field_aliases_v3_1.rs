@@ -107,7 +107,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("enable_equip_in_clone_actor", "_enableEquipInCloneActor"),
     ("is_blocked_store_sell", "_isBlockedStoreSell"),
     ("is_preorder_item", "_isPreorderItem"),
-    ("item_effect_info", "_itemEffectInfo"),
     ("respawn_time_seconds", "_respawnTimeSeconds"),
     ("max_endurance", "_maxEndurance"),
     ("repair_data_list", "_repairDataList"),

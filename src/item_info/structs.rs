@@ -357,12 +357,11 @@ py_binary_struct! {
         pub enchant_stat_data: EnchantStatData,
         pub buy_price_list: CArray<ItemPriceInfo>,
         pub equip_buffs: CArray<EquipmentBuff>,
-        // 1.12: new _itemEffectInfo appended after _equipBuffs. Game reader
-        // sub_101FAC7C4 reads a 4-byte EffectKey (sub_1016169B0, resolved to a
-        // u16 EffectInfo index at struct+104) — same pattern as ItemInfo's own
-        // item_effect_info. Round-tripped as the raw u32 wire key. Only items
-        // with a populated enchant_data_list expose this field.
-        pub item_effect_info: u32,
+        // 1.12 added a trailing u32 (=0 in all observed records) at the end of
+        // each EnchantData entry, after equip_buffs. Verified byte-decisively:
+        // record 2068 "Marni_Devotee_PlateArmor_Helm" (first enchanted item)
+        // shows a +4 [00 00 00 00] insertion at the end of every enchant level.
+        pub unk_u32_112: u32,
     }
 }
 
@@ -567,9 +566,11 @@ impl<'a> BinaryRead<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_from(data, offset)?),
             3 => SubItemValue::Character(CharacterKey::read_from(data, offset)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_from(data, offset)?),
-            // 1.12: sentinel for "no sub-item" changed 15 -> 16 (game reader
-            // sub_101741D78: type 16 reads zero payload). Keep 14/15/255 for
-            // back-compat with <=1.10 tables.
+            // 1.12 added SubItem discriminant 16 — a new zero-payload (None-like)
+            // sentinel. Proven by byte-diff: 1.11 item 0 had disc 0x0F (None) at the
+            // SAME offset with byte-identical following bytes; 1.12 differs ONLY in
+            // that one disc byte (0x0F→0x10), so 16 consumes 0 payload bytes exactly
+            // like 14/15/255. type_id is preserved, so write-back is byte-exact.
             14 | 15 | 16 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
@@ -598,7 +599,7 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_tracked(data, offset, path, ranges)?),
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
-            // 1.12: sentinel for "no sub-item" changed 15 -> 16 (see read_from).
+            // 1.12: disc 16 = new zero-payload sentinel (see read_from note above).
             14 | 15 | 16 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
@@ -648,8 +649,7 @@ impl WritePyValue for SubItem {
                 let v: u32 = get_field(d, "value")?.extract()?;
                 w.extend_from_slice(&v.to_le_bytes());
             }
-            // 1.12: type 16 is the new "no sub-item" sentinel (was 15). 255 is
-            // the legacy sentinel. All carry no payload — see read_from.
+            // 14/15/255 = legacy zero-payload sentinels; 16 added in 1.12.
             14 | 15 | 16 | 255 => {}
             _ => {
                 return Err(PyValueError::new_err(format!(
