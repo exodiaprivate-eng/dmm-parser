@@ -33,7 +33,7 @@ pub fn parse_binarystring_to_json(data: &[u8]) -> io::Result<Value> {
     }
     let count = u16::from_le_bytes(data[0..2].try_into().unwrap()) as usize;
 
-    let mut strings = Vec::with_capacity(count);
+    let mut strings = Vec::with_capacity(count.min(1 << 20));
     let mut off = 2usize;
     for i in 0..count {
         if off >= data.len() {

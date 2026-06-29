@@ -78,7 +78,7 @@ mod tests {
             return;
         };
         let count = u16::from_le_bytes(pabgh[0..2].try_into().unwrap()) as usize;
-        let mut offsets = Vec::with_capacity(count);
+        let mut offsets = Vec::with_capacity(count.min(1 << 20));
         for i in 0..count {
             let pos = 2 + i * 5;
             let off = u32::from_le_bytes(pabgh[pos + 1..pos + 5].try_into().unwrap()) as usize;
@@ -112,7 +112,7 @@ mod tests {
             return;
         };
         let count = u16::from_le_bytes(pabgh[0..2].try_into().unwrap()) as usize;
-        let mut offsets = Vec::with_capacity(count);
+        let mut offsets = Vec::with_capacity(count.min(1 << 20));
         for i in 0..count {
             let pos = 2 + i * 5;
             let off = u32::from_le_bytes(pabgh[pos + 1..pos + 5].try_into().unwrap()) as usize;

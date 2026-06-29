@@ -400,7 +400,7 @@ fn parse_pabgh_inline(data: &[u8]) -> Option<Vec<(u32, usize)>> {
         return None;
     };
 
-    let mut out = Vec::with_capacity(count);
+    let mut out = Vec::with_capacity(count.min(1 << 20));
     for i in 0..count {
         let pos = idx_start + i * entry_size;
         let key = if key_size == 1 {

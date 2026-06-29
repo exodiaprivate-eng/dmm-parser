@@ -129,7 +129,18 @@ impl PapptFile {
 
         // Primary count + entries.
         let primary_count = read_u32(bytes, &mut offset)?;
-        let mut primary = Vec::with_capacity(primary_count as usize);
+        // Sanity clamp (mirrors CArray in binary/types.rs): each entry is
+        // >= 1 byte, so a count exceeding the remaining byte budget is a
+        // corrupted stream — Err instead of a huge up-front allocation.
+        let remaining = bytes.len().saturating_sub(offset);
+        if primary_count as usize > remaining {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!(
+                    "pappt primary_count {} exceeds remaining {} at offset {}",
+                    primary_count, remaining, offset,
+                )));
+        }
+        let mut primary = Vec::with_capacity((primary_count as usize).min(1 << 20));
         for i in 0..primary_count {
             primary.push(read_primary_entry(bytes, &mut offset).map_err(|e| {
                 io::Error::new(
@@ -141,7 +152,18 @@ impl PapptFile {
 
         // Secondary count + entries.
         let secondary_count = read_u32(bytes, &mut offset)?;
-        let mut secondary = Vec::with_capacity(secondary_count as usize);
+        // Sanity clamp (mirrors CArray in binary/types.rs): each entry is
+        // >= 1 byte, so a count exceeding the remaining byte budget is a
+        // corrupted stream — Err instead of a huge up-front allocation.
+        let remaining = bytes.len().saturating_sub(offset);
+        if secondary_count as usize > remaining {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!(
+                    "pappt secondary_count {} exceeds remaining {} at offset {}",
+                    secondary_count, remaining, offset,
+                )));
+        }
+        let mut secondary = Vec::with_capacity((secondary_count as usize).min(1 << 20));
         for i in 0..secondary_count {
             secondary.push(read_secondary_entry(bytes, &mut offset).map_err(|e| {
                 io::Error::new(
@@ -552,7 +574,9 @@ fn read_primary_entry(bytes: &[u8], offset: &mut usize) -> io::Result<PrimaryEnt
     let flag = read_u8(bytes, offset)?;
     let child_count = read_u8(bytes, offset)?;
 
-    let mut children = Vec::with_capacity(child_count as usize);
+    // child_count is u8 (<= 255); cap the pre-allocation defensively to keep
+    // the Vec::with_capacity bounded, matching the clamp pattern elsewhere.
+    let mut children = Vec::with_capacity((child_count as usize).min(1 << 20));
     for i in 0..child_count {
         let sub_key = read_pstr(bytes, offset).map_err(|e| {
             io::Error::new(e.kind(), format!("child #{} sub_key: {}", i, e))
@@ -717,15 +741,23 @@ mod tests {
     }
 
     /// Truncated body (declared primary count larger than available
-    /// data) should produce a clean `UnexpectedEof` error rather than
-    /// panicking.
+    /// data) should produce a clean error rather than panicking. With the
+    /// 1.4.7.1 count-clamp (count exceeding the remaining byte budget is
+    /// rejected up front), the declared `primary_count=1` against zero
+    /// remaining bytes now surfaces as `InvalidData` instead of reaching
+    /// the entry reader's `UnexpectedEof`. Both are clean, catchable errors
+    /// — the contract is "Err, never panic/abort".
     #[test]
     fn truncated_body_errors_clean() {
         // Header + primary_count=1 + (no body)
         let mut bytes = vec![0u8; 8];
         bytes.extend_from_slice(&1u32.to_le_bytes());
-        let err = PapptFile::parse(&bytes).expect_err("expected EOF error");
-        assert_eq!(err.kind(), io::ErrorKind::UnexpectedEof);
+        let err = PapptFile::parse(&bytes).expect_err("expected truncation error");
+        assert!(
+            matches!(err.kind(), io::ErrorKind::UnexpectedEof | io::ErrorKind::InvalidData),
+            "expected a clean Err, got {:?}",
+            err.kind(),
+        );
     }
 
     /// JSON round-trip — parse synthetic file to JSON, serialize from

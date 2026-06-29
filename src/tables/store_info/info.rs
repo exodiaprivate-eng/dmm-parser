@@ -658,7 +658,19 @@ impl<'a> StoreInfo<'a> {
         let sellable_type = track_read_field::<u8>(data, offset, path, ranges, "sellable_type", "u8")?;
         let stock_data_list = track_read_with(offset, path, ranges, "stock_data_list", "Vec<StoreStockData>", |o| {
             let count = u32::read_from(data, o)?;
-            let mut v = Vec::with_capacity(count as usize);
+            // Sanity clamp (mirrors CArray in binary/types.rs): each StoreStockData
+            // is >= 1 byte, so a count exceeding the remaining byte budget is a
+            // corrupted/misaligned stream. Returning Err here turns a garbage count
+            // into a clean blob-fallback instead of a >500GB Vec::with_capacity abort.
+            let remaining = data.len().saturating_sub(*o);
+            if count as usize > remaining {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!(
+                        "storeinfo stock_data_list count {} exceeds remaining {} at offset {}",
+                        count, remaining, *o,
+                    )));
+            }
+            let mut v = Vec::with_capacity((count as usize).min(1 << 20));
             for _ in 0..count {
                 v.push(StoreStockData::read_from(data, o)?);
             }
@@ -704,7 +716,19 @@ impl<'a> StoreInfo<'a> {
         let sellable_stock_count = u32::read_from(data, offset)?;
         let sellable_type = u8::read_from(data, offset)?;
         let count = u32::read_from(data, offset)?;
-        let mut stock_data_list = Vec::with_capacity(count as usize);
+        // Sanity clamp (mirrors CArray in binary/types.rs): each StoreStockData
+        // is >= 1 byte, so a count exceeding the remaining byte budget is a
+        // corrupted/misaligned stream. Returning Err here turns a garbage count
+        // into a clean blob-fallback instead of a >500GB Vec::with_capacity abort.
+        let remaining = data.len().saturating_sub(*offset);
+        if count as usize > remaining {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!(
+                    "storeinfo stock_data_list count {} exceeds remaining {} at offset {}",
+                    count, remaining, *offset,
+                )));
+        }
+        let mut stock_data_list = Vec::with_capacity((count as usize).min(1 << 20));
         for _ in 0..count {
             stock_data_list.push(StoreStockData::read_from(data, offset)?);
         }
@@ -855,5 +879,52 @@ mod tests {
                 "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
             );
         }
+    }
+
+    /// Regression for the DMM 1.4.7.1 mid-mount `0xc0000409` OOM abort
+    /// (`docs/diag-1.4.7.1-storeinfo-mount-oom-abort.md`). A misaligned /
+    /// corrupted storeinfo body whose `stock_data_list` count reads as a
+    /// garbage `u32` (here `0xB401D000` ≈ 3.0e9) must produce a clean,
+    /// catchable `Err` — NOT an unbounded `Vec::with_capacity` that fails
+    /// to allocate ~579 GB and `abort()`s the process. The clamp at
+    /// `read_from` / `read_tracked_with_size` returns `Err` when the count
+    /// exceeds the remaining byte budget.
+    #[test]
+    fn garbage_stock_count_is_err_not_abort() {
+        let mut body: Vec<u8> = Vec::new();
+        body.extend_from_slice(&0u16.to_le_bytes()); // key
+        body.extend_from_slice(&0u32.to_le_bytes()); // string_key CString len=0
+        body.push(0); // is_blocked
+        body.extend_from_slice(&0u32.to_le_bytes()); // exchange_item_info_for_buy
+        body.extend_from_slice(&0u32.to_le_bytes()); // exchange_item_info_list_for_sell count=0
+        body.extend_from_slice(&0u64.to_le_bytes()); // sell_percents
+        body.push(0); // store_type
+        body.extend_from_slice(&0u32.to_le_bytes()); // price_increase_percent_list count=0
+        body.push(0); // sellable_character_condition_logic
+        body.push(0); // pre_reset_extra_111
+        body.extend_from_slice(&0u32.to_le_bytes()); // reset_hour
+        body.extend_from_slice(&0u32.to_le_bytes()); // reset_day
+        body.extend_from_slice(&0u32.to_le_bytes()); // buyable_stock_count
+        body.extend_from_slice(&0u32.to_le_bytes()); // sellable_stock_count
+        body.push(0); // sellable_type
+        body.extend_from_slice(&0xB401D000u32.to_le_bytes()); // stock_data_list count = GARBAGE
+
+        // Untracked reader.
+        let mut off = 0usize;
+        let res = StoreInfo::read_from(&body, &mut off);
+        assert!(res.is_err(), "garbage stock count must return Err, not abort");
+
+        // Tracked reader (the other unbounded site) must also be Err.
+        let mut off2 = 0usize;
+        let mut path = String::new();
+        let mut ranges: Vec<crate::binary::FieldRange> = Vec::new();
+        let res2 = StoreInfo::read_tracked_with_size(
+            &body,
+            &mut off2,
+            body.len(),
+            &mut path,
+            &mut ranges,
+        );
+        assert!(res2.is_err(), "tracked reader: garbage stock count must return Err, not abort");
     }
 }

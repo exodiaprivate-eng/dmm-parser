@@ -670,7 +670,7 @@ mod tests {
     fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("itemuseinfo.pabgb") }
 fn parse_pabgh(pabgh: &[u8]) -> Vec<(u32, usize)> {
         let count = u32::from_le_bytes(pabgh[..4].try_into().unwrap()) as usize;
-        let mut entries = Vec::with_capacity(count);
+        let mut entries = Vec::with_capacity(count.min(1 << 20));
         for i in 0..count {
             let pos = 4 + i * 8;
             let key = u32::from_le_bytes(pabgh[pos..pos + 4].try_into().unwrap());
