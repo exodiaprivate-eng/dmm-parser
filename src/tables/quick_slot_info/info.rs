@@ -20,7 +20,10 @@ py_binary_struct! {
         pub item_info_quick_slot_index: u8,
         pub use_special_reserve_slot: u8,
         pub use_on_select: u8,
-        pub show_item_group_key: u16,
+        // 1.13.00: narrowed u16 -> u8 (−1 B per QuickSlotItem). Byte-diff
+        // decisive: exactly one byte removed at element-offset +40 (this field's
+        // high byte) in every slot element; all following fields shift −1.
+        pub show_item_group_key: u8,
         pub show_item_tag: u32,
         pub fixed_status_key: u32,
         pub select_special_name: CString<'a>,

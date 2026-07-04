@@ -32,6 +32,9 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // 1.13.00 (game version 13) — 2026-07-03. Captured vanilla after the 1.12.2→1.13.00 patch.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-3",
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-7-3",
     // 1.12 (game version 12) — 2026-06-19. Captured vanilla after the 1.11→1.12 patch.
     r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-6-19",
     r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-6-19",

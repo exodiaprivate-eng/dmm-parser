@@ -39,6 +39,10 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct HouseRegionData<'a> {
         pub phase_id: u16,
+        // 1.13.00: new u16 inserted between phase_id and region_hash (+2 per
+        // element). Byte-diff decisive: region_hash (a stable hash) is unchanged
+        // and shifts +2 in each list element; the 2 bytes before it grew to 4.
+        pub phase_extra_113: u16,
         pub region_hash: u32,
         pub texture_path: CString<'a>,
     }

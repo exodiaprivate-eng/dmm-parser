@@ -478,12 +478,24 @@ py_binary_struct! {
     }
 }
 
+// 1.13.00: PrefabData and GimmickVisualPrefabData were UNIFIED into a single
+// PrefabData type (gimmick_visual_prefab_data_list removed from ItemInfo; its
+// entries now live in prefab_data_list, distinguished by prefab_data_type). The
+// field ORDER is from the game's PrefabData reader (Win 1.13.00 sub_1411759C0):
+// scale -> prefab_names -> animation_path_list -> equip_slot_list ->
+// tribe_gender_list -> use_gimmick_prefab -> is_craft_material -> prefab_data_type.
+// tag_name_hash (old gimmick-only) was dropped. Verified by full-table byte-exact
+// roundtrip over the 1.13.00 iteminfo.
 py_binary_struct! {
     pub struct PrefabData {
+        pub scale: [f32; 3],
         pub prefab_names: CArray<StringInfoKey>,
+        pub animation_path_list: CArray<StringInfoKey>,
         pub equip_slot_list: CArray<u16>,
         pub tribe_gender_list: CArray<StringInfoKey>,
+        pub use_gimmick_prefab: u8,
         pub is_craft_material: u8,
+        pub prefab_data_type: u8,
     }
 }
 
@@ -571,7 +583,9 @@ impl<'a> BinaryRead<'a> for SubItem {
             // SAME offset with byte-identical following bytes; 1.12 differs ONLY in
             // that one disc byte (0x0F→0x10), so 16 consumes 0 payload bytes exactly
             // like 14/15/255. type_id is preserved, so write-back is byte-exact.
-            14 | 15 | 16 | 255 => SubItemValue::None,
+            // 1.13.00 added disc 17 (0x10→0x11) — the same zero-payload progression;
+            // proven zero-payload by a full-table byte-exact roundtrip over all items.
+            14 | 15 | 16 | 17 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -599,8 +613,8 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_tracked(data, offset, path, ranges)?),
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
-            // 1.12: disc 16 = new zero-payload sentinel (see read_from note above).
-            14 | 15 | 16 | 255 => SubItemValue::None,
+            // 1.12: disc 16, 1.13.00: disc 17 = zero-payload sentinels (see read_from note).
+            14 | 15 | 16 | 17 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -649,8 +663,8 @@ impl WritePyValue for SubItem {
                 let v: u32 = get_field(d, "value")?.extract()?;
                 w.extend_from_slice(&v.to_le_bytes());
             }
-            // 14/15/255 = legacy zero-payload sentinels; 16 added in 1.12.
-            14 | 15 | 16 | 255 => {}
+            // 14/15/255 = legacy zero-payload sentinels; 16 added in 1.12, 17 in 1.13.00.
+            14 | 15 | 16 | 17 | 255 => {}
             _ => {
                 return Err(PyValueError::new_err(format!(
                     "invalid SubItem type_id: {}",
@@ -710,7 +724,7 @@ impl WriteJsonValue for SubItem {
                 }
                 w.extend_from_slice(&(n as u32).to_le_bytes());
             }
-            14 | 15 | 16 | 255 => {} // no payload (16 = 1.12 sentinel)
+            14 | 15 | 16 | 17 | 255 => {} // no payload (16 = 1.12, 17 = 1.13.00 sentinel)
             _ => {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("invalid SubItem.type_id: {}", type_id)));

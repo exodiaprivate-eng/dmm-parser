@@ -40,6 +40,17 @@ py_binary_struct! {
         pub max_amount_for_interest: u64,
         pub bank_pass_item_info: u32,
         pub bank_license_knowledge_info: u32,
+        // 1.13.00: new field block inserted here (+27 B once per record).
+        // Byte-diff decisive (single bank record 16960): 9 fixed scalar bytes
+        // followed by a CString (len-prefixed; "72842645340992" = 14 chars) then
+        // the old fix_interest_rate/interest-rate list resume verbatim. Field
+        // split within the 9 scalar bytes is roundtrip-equivalent; semantics
+        // unconfirmed (a u32 read the low bytes 0x340 as a bogus CArray count =
+        // the pre-fix V3 desync). Names are provisional.
+        pub bank_new_a_113: u32,
+        pub bank_new_b_113: u32,
+        pub bank_new_c_113: u8,
+        pub bank_new_str_113: CString<'a>,
         pub fix_interest_rate_on_investment: u8,
         pub bank_interest_rate: CArray<BankInterestRate>,
     }
