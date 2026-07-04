@@ -471,6 +471,14 @@ impl<T: ToJsonValue> ToJsonValue for CArray<T> {
 }
 impl<T: WriteJsonValue> WriteJsonValue for CArray<T> {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        // Absent field (null) → empty array. Keeps old V3 mods forward-compatible
+        // when a game patch adds a new CArray field they don't carry (e.g. 1.13.00
+        // PrefabData gained animation_path_list): the macro's get_field_or_null
+        // passes Null, and we serialize count 0 instead of aborting the overlay.
+        if v.is_null() {
+            w.extend_from_slice(&0u32.to_le_bytes());
+            return Ok(());
+        }
         let arr = v.as_array().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
             format!("expected array for CArray, got {}", type_name(v))))?;
         if arr.len() > u32::MAX as usize {
