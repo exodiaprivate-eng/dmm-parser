@@ -132,14 +132,14 @@ pub struct RegionInfo<'a> {
     pub is_ui_map_disable: u8,
     pub is_housing_region: u8,
     pub is_none_play_zone: u8,
-    pub vehicle_mercenary_allow_type: u8,
+    // 1.13.00 tail reorg (Mac reader sub_101FBDFF0 + Korean field errors):
+    // vehicle_mercenary_allow_type(u8) -> _forbiddenMercenaryKeyList (CArray<u8> —
+    // mercenary keys are u8; reader sub_101923C18 = u32 count + u8 elems widened to
+    // u16 in memory); u8_123 + trailing_u8_112 removed; gimmick_alias_pointer_list
+    // -> _isAccompanyAllowed(u8).
+    pub forbidden_mercenary_key_list: CArray<u8>,
     pub is_world_map_road_path_findable: u8,
-    pub u8_123: u8,
-    /// 1.12 — new trailing u8 inserted after `u8_123`, before the CArray tail
-    /// (verified by key-aligned field walk: +1B/record, value 0x00 on sampled
-    /// records). Earlier flags (incl is_town/is_wild) are unchanged.
-    pub trailing_u8_112: u8,
-    pub gimmick_alias_pointer_list: CArray<RegionGimmickAliasItem>,
+    pub is_accompany_allowed: u8,
     pub domain_faction_list: CArray<RegionDomainFactionItem>,
     pub tag_list: CArray<u32>,
 }
@@ -179,11 +179,9 @@ impl<'a> RegionInfo<'a> {
         let is_ui_map_disable = u8::read_from(data, offset)?;
         let is_housing_region = u8::read_from(data, offset)?;
         let is_none_play_zone = u8::read_from(data, offset)?;
-        let vehicle_mercenary_allow_type = u8::read_from(data, offset)?;
+        let forbidden_mercenary_key_list = CArray::<u8>::read_from(data, offset)?;
         let is_world_map_road_path_findable = u8::read_from(data, offset)?;
-        let u8_123 = u8::read_from(data, offset)?;
-        let trailing_u8_112 = u8::read_from(data, offset)?;
-        let gimmick_alias_pointer_list = CArray::<RegionGimmickAliasItem>::read_from(data, offset)?;
+        let is_accompany_allowed = u8::read_from(data, offset)?;
         let domain_faction_list = CArray::<RegionDomainFactionItem>::read_from(data, offset)?;
         let tag_list = CArray::<u32>::read_from(data, offset)?;
         Ok(Self {
@@ -192,8 +190,8 @@ impl<'a> RegionInfo<'a> {
             child_region_info_list, bitmap_color, overrided_max_height,
             region_type, fog_clear_condition, limit_vehicle_run, is_town,
             is_wild, is_ui_map_disable, is_housing_region, is_none_play_zone,
-            vehicle_mercenary_allow_type, is_world_map_road_path_findable,
-            u8_123, trailing_u8_112, gimmick_alias_pointer_list, domain_faction_list, tag_list,
+            forbidden_mercenary_key_list, is_world_map_road_path_findable,
+            is_accompany_allowed, domain_faction_list, tag_list,
         })
     }
 
@@ -216,11 +214,9 @@ impl<'a> RegionInfo<'a> {
         self.is_ui_map_disable.write_to(w)?;
         self.is_housing_region.write_to(w)?;
         self.is_none_play_zone.write_to(w)?;
-        self.vehicle_mercenary_allow_type.write_to(w)?;
+        self.forbidden_mercenary_key_list.write_to(w)?;
         self.is_world_map_road_path_findable.write_to(w)?;
-        self.u8_123.write_to(w)?;
-        self.trailing_u8_112.write_to(w)?;
-        self.gimmick_alias_pointer_list.write_to(w)?;
+        self.is_accompany_allowed.write_to(w)?;
         self.domain_faction_list.write_to(w)?;
         self.tag_list.write_to(w)?;
         Ok(())
@@ -246,11 +242,9 @@ impl<'a> RegionInfo<'a> {
         m.insert("is_ui_map_disable".to_string(), self.is_ui_map_disable.to_json_value());
         m.insert("is_housing_region".to_string(), self.is_housing_region.to_json_value());
         m.insert("is_none_play_zone".to_string(), self.is_none_play_zone.to_json_value());
-        m.insert("vehicle_mercenary_allow_type".to_string(), self.vehicle_mercenary_allow_type.to_json_value());
+        m.insert("forbidden_mercenary_key_list".to_string(), self.forbidden_mercenary_key_list.to_json_value());
         m.insert("is_world_map_road_path_findable".to_string(), self.is_world_map_road_path_findable.to_json_value());
-        m.insert("u8_123".to_string(), self.u8_123.to_json_value());
-        m.insert("trailing_u8_112".to_string(), self.trailing_u8_112.to_json_value());
-        m.insert("gimmick_alias_pointer_list".to_string(), self.gimmick_alias_pointer_list.to_json_value());
+        m.insert("is_accompany_allowed".to_string(), self.is_accompany_allowed.to_json_value());
         m.insert("domain_faction_list".to_string(), self.domain_faction_list.to_json_value());
         m.insert("tag_list".to_string(), self.tag_list.to_json_value());
         m
@@ -275,11 +269,9 @@ impl<'a> RegionInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_ui_map_disable")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_housing_region")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_none_play_zone")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "vehicle_mercenary_allow_type")?)?;
+        <CArray<u8> as WriteJsonValue>::write_from_json(w, obj.get("forbidden_mercenary_key_list").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_world_map_road_path_findable")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "u8_123")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing_u8_112")?)?;
-        <CArray<RegionGimmickAliasItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_alias_pointer_list")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, obj.get("is_accompany_allowed").unwrap_or(&Value::Null))?;
         <CArray<RegionDomainFactionItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "domain_faction_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
         Ok(())
@@ -347,8 +339,8 @@ mod tests {
             "overrided_max_height", "region_type", "fog_clear_condition",
             "limit_vehicle_run", "is_town", "is_wild", "is_ui_map_disable",
             "is_housing_region", "is_none_play_zone",
-            "vehicle_mercenary_allow_type", "is_world_map_road_path_findable",
-            "u8_123", "gimmick_alias_pointer_list", "domain_faction_list",
+            "forbidden_mercenary_key_list", "is_world_map_road_path_findable",
+            "is_accompany_allowed", "domain_faction_list",
             "tag_list",
         ] {
             assert!(dict.contains_key(f), "missing field `{}` in JSON dict", f);
