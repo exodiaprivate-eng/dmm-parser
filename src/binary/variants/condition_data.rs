@@ -2272,6 +2272,12 @@ pub enum ConditionDataVariant<'a> {
     /// Found in the inventory_info Character entry (key=2); without it that
     /// record blob-fell-back, dropping "I Like Space" default/max_slot_count.
     ConditionData_Tag411(U32U16BodyPayload),
+    /// Tags 412/413 added in 1.13.00 — SAME Class D shape (U32U16BodyPayload,
+    /// skip option_block). 413 is the same Character entry (k=0x2) move_condition
+    /// whose disc has walked 407→408→409→410→411→413; 1.13.00 bytes are IDENTICAL
+    /// to the 1.12.2 disc-411 body (verified byte-diff — only the tag changed).
+    ConditionData_Tag412(U32U16BodyPayload),
+    ConditionData_Tag413(U32U16BodyPayload),
 }
 
 impl<'a> ConditionDataVariant<'a> {
@@ -2689,6 +2695,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag409(_) => 409,
             Self::ConditionData_Tag410(_) => 410,
             Self::ConditionData_Tag411(_) => 411,
+            Self::ConditionData_Tag412(_) => 412,
+            Self::ConditionData_Tag413(_) => 413,
         }
     }
 
@@ -3109,6 +3117,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag409(_) => "ConditionData_Tag409",
             Self::ConditionData_Tag410(_) => "ConditionData_Tag410",
             Self::ConditionData_Tag411(_) => "ConditionData_Tag411",
+            Self::ConditionData_Tag412(_) => "ConditionData_Tag412",
+            Self::ConditionData_Tag413(_) => "ConditionData_Tag413",
         }
     }
 
@@ -3530,6 +3540,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag409(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag410(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag411(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag412(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag413(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
         }
         Value::Object(m)
     }
@@ -3958,6 +3970,8 @@ impl<'a> ConditionDataVariant<'a> {
             409 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag409: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             410 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag410: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             411 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag411: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            412 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag412: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            413 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag413: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataVariant: unknown disc {}", other))),
         }
@@ -4380,6 +4394,8 @@ impl<'a> ConditionDataVariant<'a> {
             409 => Self::ConditionData_Tag409(U32U16BodyPayload::read_from(data, offset)?),
             410 => Self::ConditionData_Tag410(U32U16BodyPayload::read_from(data, offset)?),
             411 => Self::ConditionData_Tag411(U32U16BodyPayload::read_from(data, offset)?),
+            412 => Self::ConditionData_Tag412(U32U16BodyPayload::read_from(data, offset)?),
+            413 => Self::ConditionData_Tag413(U32U16BodyPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
         })
     }
@@ -4798,6 +4814,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag409(p) => p.write_to(w),
             Self::ConditionData_Tag410(p) => p.write_to(w),
             Self::ConditionData_Tag411(p) => p.write_to(w),
+            Self::ConditionData_Tag412(p) => p.write_to(w),
+            Self::ConditionData_Tag413(p) => p.write_to(w),
         }
     }
 }
@@ -4964,7 +4982,7 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // body=00 00 00 00 00 01, b=256) verified via same Character entry.
         // Tags 409/410 added in 1.10 (Re-Blockade / pet growth) — same Class D shape.
         // Tag 411 added in 1.12 — same Class D shape (same Character entry, k=0x2).
-        407 | 408 | 409 | 410 | 411
+        407 | 408 | 409 | 410 | 411 | 412 | 413
     )
 }
 
