@@ -167,7 +167,7 @@ fn write_string_table(out: &mut Vec<u8>, table: &[String]) -> io::Result<()> {
 
 fn read_string_table(data: &[u8], cursor: &mut usize) -> io::Result<Vec<String>> {
     let count = read_u16(data, cursor)? as usize;
-    let mut out = Vec::with_capacity(count);
+    let mut out = Vec::with_capacity(count.min(1 << 20));
     for _ in 0..count {
         let len = read_u8(data, cursor)? as usize;
         let bytes = read_bytes(data, cursor, len)?;

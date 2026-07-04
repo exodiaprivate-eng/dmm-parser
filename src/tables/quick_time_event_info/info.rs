@@ -374,7 +374,18 @@ impl<'a> QuickTimeEventInfo<'a> {
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let count = u32::read_from(data, offset)? as usize;
-        let mut quick_time_event_data_list = Vec::with_capacity(count);
+        // Sanity clamp (mirrors CArray in binary/types.rs): each element is
+        // >= 1 byte, so a count exceeding the remaining byte budget is a
+        // corrupted stream — Err instead of a huge up-front allocation.
+        let remaining = data.len().saturating_sub(*offset);
+        if count > remaining {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!(
+                    "QuickTimeEventInfo quick_time_event_data_list count {} exceeds remaining {} at offset {}",
+                    count, remaining, *offset,
+                )));
+        }
+        let mut quick_time_event_data_list = Vec::with_capacity(count.min(1 << 20));
         for _ in 0..count {
             quick_time_event_data_list.push(QuickTimeEventInfoData::read_from(data, offset)?);
         }

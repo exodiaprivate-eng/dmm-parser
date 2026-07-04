@@ -51,6 +51,10 @@ pub struct TerrainRegionAutoSpawnInfo<'a> {
     pub spawn_at_height_field_landscape: u8,
     pub fish_summon_time_frequency_type: u8,
     pub spawn_reason_list: CArray<u32>,
+    // 1.13.00: new trailing u32 appended to every record (always 0 in vanilla;
+    // likely _spawnLimitCount or _attachTerrainCheckHeight per reflection). Byte-diff
+    // decisive: all records = 1.12.2 bytes + `00 00 00 00` at the tail.
+    pub trailing_u32_113: u32,
 }
 
 impl<'a> TerrainRegionAutoSpawnInfo<'a> {
@@ -110,6 +114,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         let spawn_at_height_field_landscape = u8::read_from(data, offset)?;
         let fish_summon_time_frequency_type = u8::read_from(data, offset)?;
         let spawn_reason_list = CArray::<u32>::read_from(data, offset)?;
+        let trailing_u32_113 = u32::read_from(data, offset)?;
 
         Ok(Self {
             key, string_key, is_blocked, possible_list,
@@ -121,7 +126,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
             tag_list, is_default_activated, all_terrain_region,
             bitmap_position_info, bitmap_color_list_for_spawn,
             spawn_at_height_field_landscape, fish_summon_time_frequency_type,
-            spawn_reason_list,
+            spawn_reason_list, trailing_u32_113,
         })
     }
 
@@ -161,6 +166,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         self.spawn_at_height_field_landscape.write_to(w)?;
         self.fish_summon_time_frequency_type.write_to(w)?;
         self.spawn_reason_list.write_to(w)?;
+        self.trailing_u32_113.write_to(w)?;
         Ok(())
     }
 
@@ -193,6 +199,7 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         m.insert("spawn_at_height_field_landscape".to_string(), self.spawn_at_height_field_landscape.to_json_value());
         m.insert("fish_summon_time_frequency_type".to_string(), self.fish_summon_time_frequency_type.to_json_value());
         m.insert("spawn_reason_list".to_string(), self.spawn_reason_list.to_json_value());
+        m.insert("trailing_u32_113".to_string(), self.trailing_u32_113.to_json_value());
         m
     }
 
@@ -242,6 +249,8 @@ impl<'a> TerrainRegionAutoSpawnInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_at_height_field_landscape")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fish_summon_time_frequency_type")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "spawn_reason_list")?)?;
+        // null-safe: old mods (pre-1.13.00) omit trailing_u32_113 → default 0.
+        <u32 as WriteJsonValue>::write_from_json(w, obj.get("trailing_u32_113").unwrap_or(&Value::Null))?;
         Ok(())
     }
 }

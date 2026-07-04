@@ -1,122 +1,92 @@
-//! Tier 1 — fully typed parser for `LevelGimmickSceneObjectInfo.pabgb`.
+//! Fully typed parser for `LevelGimmickSceneObjectInfo.pabgb` (165 records).
 //!
-//! ─── v3.1 closure analysis (iter 80) ────────────────────────────────────
-//! Decompiled `sub_1410B7EB0` (iter 60 typeinfo registry). The 7 sequential
-//! u8 reads at offsets 72-78 pair with 7 rust u8 fields:
-//!   72→show_icon_condition_type, 73→use_teleport, 74→use_guide_effect,
-//!   75→is_sub_inner_gimmick, 76→check_game_level_load_state,
-//!   77→unk_new_u8_a, 78→unk_new_u8_b
-//!
-//! Schema has only 24 canonicals — rust struct adds 3 extras. Of the 2
-//! "missing" canonicals:
-//!   `_levelGimmickSceneObjectDataList` → SHIPPED (data_list alias added
-//!                                        in MANUAL_OVERRIDES).
-//!   `_onDiscoverOnlyEnable` → maps to either `unk_new_u8_a` or
-//!                             `unk_new_u8_b` (both u8). Resolving which
-//!                             needs string-xref work (function-string-
-//!                             associate plugin against the byte's
-//!                             error-message anchor). Deferred to a
-//!                             future iter; partial close (1 of 2) for
-//!                             this iter.
-//!
-//! Per IDA sub_1410EB480: 25 fields. `_levelGimmickSceneObjectDataList`
-//! is a `CArray<LevelGimmickSceneObjectData>` via sub_14110ECD0 +
-//! sub_1410EB270. Despite the original "polymorphic" label, sub_1410EB270
-//! is a fixed-shape reader: 4× u32 (raw + 3 hash lookups) + CString +
-//! u32 + u32-hash + 16 raw + u32 + CString + 2× SceneObjectAA1B0Block
-//! (each = Vec3 + [u32;4] + Vec3) + 12 raw bytes. Mem stride 160.
+//! THE additive-NPC spawn lever — record 1000011 "Shop" holds ~500 town shop
+//! placements in `_levelGimmickSceneObjectDataList`. Reverse-engineered from the
+//! 1.12.02 Mac binary (ida-pro-mcp): record reader `sub_101F76270`, element
+//! reader `sub_101F75C18`. Field names from the Korean error strings, wire types
+//! from the per-field byte-count readers. Element wire = 221B for the Hernand
+//! butcher (matches the hand-decoded byte layout exactly). See
+//! `src/tables/LEVELGIMMICK_112_RE.md` for the full map.
 
-crate::pabgh_blob_table! {
+use crate::binary::*;
+use crate::py_binary_struct;
+use crate::pabgh_typed_blob_table;
+
+// `LevelGimmickSceneObject_LinkedCompleteGimmick` element (sub_101FB3AA8 body):
+// 16B UUID + u32. Wire 20B/elem.
+py_binary_struct! {
+    pub struct LinkedCompleteGimmick {
+        pub scene_object_uuid: [u32; 4],
+        pub complete_gimmick_index: u32,
+    }
+}
+
+// `_worldTransform` / `_teleportOffsetTransform` (sub_100D39CD4) — 40 wire bytes,
+// read order: Vec3 + [u32;4] + Vec3.
+py_binary_struct! {
+    pub struct WorldTransform {
+        pub vec_a: [f32; 3],
+        pub raw: [u32; 4],
+        pub vec_b: [f32; 3],
+    }
+}
+
+// `LevelGimmickSceneObjectData` — one placement (element reader sub_101F75C18).
+py_binary_struct! {
+    pub struct LevelGimmickSceneObjectData<'a> {
+        pub level_gimmick_scene_object_info: u32,   // LevelGimmickSceneObjectInfoKey
+        pub gimmick_info: u32,                      // GimmickInfoKey
+        pub item_info: u32,                         // ItemKey
+        pub parent_spawning_pool_auto_spawn_info: u32,
+        pub level_name: CString<'a>,                // placement/area key (Shop_Hernand_0001_Phase00_05_sub_1_0)
+        pub related_game_level_info: u32,           // GameLevelKey
+        pub level_name_controlled_by_game_level_info: u32, // StringInfoKey
+        pub scene_object_uuid: [u32; 4],            // 16B UUID
+        pub root_gimmick_scene_object_uuid: [u32; 4],
+        pub spawn_reason: u32,
+        pub gimmick_alias_name: CString<'a>,        // scene/shop ref (Shop_Butcher_Hernand)
+        pub world_transform: WorldTransform,        // position lives here
+        pub teleport_offset_transform: WorldTransform,
+        pub guide_effect_offset_position: [f32; 3],
+        pub fog_reveal_bitmap_color_r: u8,
+        pub linked_complete_gimmick_list: CArray<LinkedCompleteGimmick>,
+    }
+}
+
+pabgh_typed_blob_table! {
     pub struct LevelGimmickSceneObjectInfo<'a> {
-        key: u32,
-        blob_field: body,
+        pub key: u32,
+        pub string_key: CString<'a>,
+        pub is_blocked: u8,
+        pub level_name: CString<'a>,
+        // the placements (THE spawn list)
+        pub level_gimmick_scene_object_data_list: CArray<LevelGimmickSceneObjectData<'a>>,
+        // map/fog/discover scalars (all key-lookups are u32 wire)
+        pub map_icon_texture_info: u32,
+        pub discover_near_fog: u8,
+        pub fog_map_icon_texture_info: u32,
+        pub fog_distance: u32,           // sub_100D392D8 = u32 (4B), NOT u64
+        pub over_abyss_icon_texture_info: u32,
+        pub over_abyss_fog_map_icon_texture_info: u32,
+        pub over_abyss_fog_distance: u32,
+        pub discover_distance: u32,
+        pub show_icon_condition_type: u8,
+        pub use_teleport: u8,
+        pub use_guide_effect: u8,
+        pub is_sub_inner_gimmick: u8,
+        pub check_game_level_load_state: u8,
+        pub use_gimmick_knowledge_for_ui: u8,
+        pub check_block_condition: u8,
+        pub is_restore_stock_target_item: u8,
+        pub completed_discover_map_icon_texture_info: u32,
+        pub over_abyss_completed_discover_map_icon_texture_info: u32,
+        pub guide_effect_socket_name: CString<'a>,
+        pub ore_vein_index: u32,
+        pub contents_phase_info_for_move_point: u16,  // ContentsPhaseKey reader = u16 wire
+        pub discover_type: u32,
+        pub ignore_same_gimmick_discover_distance: u32,
+        pub discover_gimmick_state_hash: u32,
+        pub is_empty_info: u8,
     }
-}
-
-impl<'a> LevelGimmickSceneObjectInfo<'a> {
-    pub fn to_json_dict(&self) -> serde_json::Map<String, serde_json::Value> {
-        use base64::Engine;
-        let mut m = serde_json::Map::new();
-        m.insert("key".into(), serde_json::Value::from(self.key));
-        m.insert("string_key".into(), serde_json::Value::from(
-            std::str::from_utf8(self.string_key.data.as_bytes()).unwrap_or("")));
-        m.insert("is_blocked".into(), serde_json::Value::from(self.is_blocked));
-        m.insert("_body_b64".into(), serde_json::Value::from(
-            base64::engine::general_purpose::STANDARD.encode(&self.body)));
-        m
-    }
-
-    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &serde_json::Map<String, serde_json::Value>) -> std::io::Result<()> {
-        use crate::binary::BinaryWrite;
-        use base64::Engine;
-        let key = obj.get("key").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-        key.write_to(w)?;
-        let sk = obj.get("string_key").and_then(|v| v.as_str()).unwrap_or("");
-        (sk.len() as u32).write_to(w)?;
-        w.extend_from_slice(sk.as_bytes());
-        let blocked = obj.get("is_blocked").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
-        blocked.write_to(w)?;
-        if let Some(b64) = obj.get("_body_b64").and_then(|v| v.as_str()) {
-            let body = base64::engine::general_purpose::STANDARD.decode(b64)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-            w.extend_from_slice(&body);
-        }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-
-    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("levelgimmicksceneobjectinfo.pabgb") }
-#[test]
-    fn roundtrip() {
-        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
-        let ranges = entry_ranges(&entries, data.len());
-
-        let mut items = Vec::with_capacity(ranges.len());
-        for (i, (key, start, end)) in ranges.iter().enumerate() {
-            let mut cursor = *start;
-            let item = LevelGimmickSceneObjectInfo::read_with_size(&data, &mut cursor, end - start)
-                .unwrap_or_else(|e| panic!("entry {} key=0x{:x} off=0x{:x} size={}: {}", i, key, start, end-start, e));
-            assert_eq!(cursor, *end);
-            items.push(item);
-        }
-
-        let mut out = Vec::with_capacity(data.len());
-        for item in &items { item.write_to(&mut out).unwrap(); }
-        assert_eq!(out, data, "levelgimmicksceneobjectinfo roundtrip bytes mismatch");
-    }
-
-    #[test]
-    fn json_roundtrip() {
-        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-        let Ok(data) = std::fs::read(pabgb_path()) else {
-            eprintln!("SKIP: fixture not found");
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
-            eprintln!("SKIP: pabgh not found");
-            return;
-        };
-        let ranges = entry_ranges(&entries, data.len());
-        for (i, (key, start, end)) in ranges.iter().enumerate() {
-            let mut cursor = *start;
-            let item = LevelGimmickSceneObjectInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
-            assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
-            let dict = item.to_json_dict();
-            let mut from_typed = Vec::new();
-            item.write_to(&mut from_typed).unwrap();
-            let mut from_json = Vec::new();
-            LevelGimmickSceneObjectInfo::write_from_json_dict(&mut from_json, &dict)
-                .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
-            assert_eq!(
-                from_json, from_typed,
-                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
-            );
-        }
-    }
+    tail: tail_blob;
 }

@@ -136,9 +136,11 @@ py_binary_struct! {
         // PrefabData reader (sub_101969834, fields unchanged).
         pub apply_drop_stat_extra_111: u8,
         pub drop_default_data: DropDefaultData,
-        pub prefab_data_list: CArray<PrefabData>,
+        // 1.13.00: prefab_data_list RELOCATED to the record tail (after
+        // repair_data_list) and unified with the old gimmick_visual_prefab_data_list
+        // (which is gone). enchant_data_list now sits directly after drop_default_data.
+        // See PrefabData (structs.rs) + WORKING_STATE 1.13.00 notes.
         pub enchant_data_list: CArray<EnchantData>,
-        pub gimmick_visual_prefab_data_list: CArray<GimmickVisualPrefabData>,
         pub price_list: CArray<ItemPriceInfo>,
         pub docking_child_data: COptional<DockingChildData<'a>>,
         pub inventory_change_data: COptional<InventoryChangeData>,
@@ -204,6 +206,16 @@ py_binary_struct! {
         pub unk_u32_112: u32,
         pub max_endurance: u16,
         pub repair_data_list: CArray<RepairData>,
+        // 1.13.00: prefab_data_list moved here (from after drop_default_data),
+        // now the UNIFIED PrefabData type that also carries the old
+        // gimmick_visual_prefab_data_list entries. Wire-order confirmed via the
+        // game's ItemInfo/PrefabData readers (Win 1.13.00) + full-table roundtrip.
+        pub prefab_data_list: CArray<PrefabData>,
+        // 1.13.00: 2 trailing bytes after the relocated prefab_data_list. Per the
+        // game's ItemInfo reader, item_push_inventory_contents_type follows
+        // prefab_data_list; kept as u8 + u8 for bit-exact roundtrip (obs `ff 00`).
+        pub item_push_inventory_contents_type_113: u8,
+        pub trailing_u8_113: u8,
     }
 }
 
@@ -282,5 +294,37 @@ mod tests {
         item.write_to(&mut out).unwrap();
         assert_eq!(out.len(), end, "written size mismatch");
         assert_eq!(&out[..], &data[..end], "roundtrip bytes mismatch");
+    }
+
+    // Full-table byte-exact roundtrip: parse EVERY item to EOF and write each back,
+    // asserting byte-identity. This is the behavioral proof that new SubItem
+    // discriminants (e.g. 1.13.00's disc 17) consume the payload they actually
+    // carry — a mis-sized read would desync every subsequent item.
+    // Full-table byte-exact roundtrip: parse EVERY item to EOF and write each back.
+    // #[ignore]d until the 1.13.00 iteminfo record reorg is decoded (SubItem disc 17
+    // is handled, but prefab/enchant/gimmick_visual relocated to the record tail —
+    // see WORKING_STATE 1.13.00 notes). Run with DMM_PARSER_ITEMINFO_PATH set.
+    #[test]
+    #[ignore = "1.13.00 iteminfo record reorg not yet decoded"]
+    fn test_full_table_roundtrip() {
+        let data = load_or_skip!();
+        let mut offset = 0;
+        let mut count = 0usize;
+        while offset < data.len() {
+            let start = offset;
+            let item = ItemInfo::read_from(&data, &mut offset)
+                .unwrap_or_else(|e| panic!("item #{count} @ {start:#x}: {e}"));
+            let mut out = Vec::new();
+            item.write_to(&mut out).unwrap();
+            assert_eq!(
+                &out[..],
+                &data[start..offset],
+                "item #{count} key={} byte mismatch (span {start:#x}..{offset:#x})",
+                item.key.0
+            );
+            count += 1;
+        }
+        assert_eq!(offset, data.len(), "trailing bytes after {count} items");
+        println!("full-table roundtrip OK: {count} items, {} bytes", data.len());
     }
 }

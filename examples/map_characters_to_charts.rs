@@ -82,8 +82,10 @@ fn main() {
             Err(_) => continue,
         };
 
-        let upper_h = item.upper_chart.group_lookup;
-        let lower_h = item.lower_chart.group_lookup;
+        // merge: characterinfo charts renamed to NattKh's flat fields
+        // (upper_chart.group_lookup -> f16_cv0_char, lower -> f16_cv1_char).
+        let upper_h = item.f16_cv0_char;
+        let lower_h = item.f16_cv1_char;
         let upper_match = hash_map.get(&upper_h).cloned().unwrap_or_else(|| "".to_string());
         let lower_match = hash_map.get(&lower_h).cloned().unwrap_or_else(|| "".to_string());
 
@@ -110,7 +112,7 @@ fn main() {
     for (key, start, end) in ranges.iter() {
         let mut cursor = *start;
         if let Ok(item) = CharacterInfo::read_with_size(&pabgb, &mut cursor, end - start) {
-            *hash_counts.entry(item.upper_chart.group_lookup).or_insert(0) += 1;
+            *hash_counts.entry(item.f16_cv0_char).or_insert(0) += 1;
         }
         let _ = key;
     }

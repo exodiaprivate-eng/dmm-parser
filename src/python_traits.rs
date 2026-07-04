@@ -58,6 +58,7 @@ impl_primitive!(u64);
 impl_primitive!(i8);
 impl_primitive!(i64);
 impl_primitive!(f32);
+impl_primitive!(f64);
 
 // u8 is special: to_le_bytes returns [u8; 1], just push directly
 impl ToPyValue for u8 {

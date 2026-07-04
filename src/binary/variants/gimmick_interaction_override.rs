@@ -217,7 +217,18 @@ pub struct GimmickInteractionOverrideCArray<'a> {
 impl<'a> BinaryRead<'a> for GimmickInteractionOverrideCArray<'a> {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let count = u32::read_from(data, offset)?;
-        let mut items = Vec::with_capacity(count as usize);
+        // Sanity clamp (mirrors CArray in binary/types.rs): each element is
+        // >= 1 byte, so a count exceeding the remaining byte budget is a
+        // corrupted stream — Err instead of a huge up-front allocation.
+        let remaining = data.len().saturating_sub(*offset);
+        if count as usize > remaining {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!(
+                    "GimmickInteractionOverrideCArray count {} exceeds remaining {} at offset {}",
+                    count, remaining, *offset,
+                )));
+        }
+        let mut items = Vec::with_capacity((count as usize).min(1 << 20));
         for _ in 0..count {
             items.push(OptionalGimmickInteractionOverrideData::read_from(data, offset)?);
         }
@@ -240,7 +251,18 @@ impl<'a> crate::binary::BinaryReadTracked<'a> for GimmickInteractionOverrideCArr
         ranges: &mut Vec<crate::binary::FieldRange>,
     ) -> io::Result<Self> {
         let count = u32::read_from(data, offset)?;
-        let mut items = Vec::with_capacity(count as usize);
+        // Sanity clamp (mirrors CArray in binary/types.rs): each element is
+        // >= 1 byte, so a count exceeding the remaining byte budget is a
+        // corrupted stream — Err instead of a huge up-front allocation.
+        let remaining = data.len().saturating_sub(*offset);
+        if count as usize > remaining {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!(
+                    "GimmickInteractionOverrideCArray count {} exceeds remaining {} at offset {}",
+                    count, remaining, *offset,
+                )));
+        }
+        let mut items = Vec::with_capacity((count as usize).min(1 << 20));
         for i in 0..count {
             let elem_start = *offset;
             let item = OptionalGimmickInteractionOverrideData::read_from(data, offset)?;

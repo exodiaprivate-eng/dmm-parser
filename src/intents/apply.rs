@@ -433,6 +433,29 @@ pub fn normalize_intent_v3_1(intent: &mut Intent, table_name: &str) {
     }
 }
 
+/// Normalize a single intent's LEADING field name through a table's COMMUNITY
+/// alias table — third-party exporter vocabularies that differ from the parser's
+/// field names (e.g. CrimsonGameMods DropSets names the drop array `drops`; the
+/// parser exposes it as `list`). Mirrors `normalize_intent_v3_1` but sources
+/// `lookup_table_community_aliases`. No-op for tables without community aliases,
+/// and for snake-named intents (which pass through `translate_v3_1_path_to_snake`
+/// unchanged). The reuse of the translate helper is intentional — both alias
+/// kinds are leading-segment renames with the same `(snake, alias)` shape.
+pub fn normalize_intent_community(intent: &mut Intent, table_name: &str) {
+    let aliases = match crate::json_shape::lookup_table_community_aliases(table_name) {
+        Some(a) if !a.is_empty() => a,
+        _ => return,
+    };
+    if let Some(field) = &intent.field {
+        intent.field = Some(translate_v3_1_path_to_snake(field, aliases));
+    }
+    if let Some(patches) = &mut intent.patches {
+        for p in patches.iter_mut() {
+            p.path = translate_v3_1_path_to_snake(&p.path, aliases);
+        }
+    }
+}
+
 /// Translate the LEADING field name of a path from v3.1 _camelCase to
 /// rust snake_case using the table's alias table. Only the FIRST segment
 /// is rewritten — sub-struct fields keep their snake form (which is what
@@ -547,6 +570,41 @@ mod tests {
         // Unknown name: pass through (caller handles "field not found").
         assert_eq!(translate_v3_1_path_to_snake("_unknownField", aliases),
                    "_unknownField");
+    }
+
+    #[test]
+    fn community_alias_drops_to_list_for_dropsetinfo() {
+        // CrimsonGameMods DropSets names the loot array `drops`; the parser
+        // exposes it as `list`. The community alias must rewrite the leading
+        // field so the intent resolves instead of silently dropping.
+        let mut it = Intent {
+            op: Some("set".into()),
+            field: Some("drops".into()),
+            new: Some(json!([])),
+            ..Default::default()
+        };
+        normalize_intent_community(&mut it, "drop_set_info");
+        assert_eq!(it.field.as_deref(), Some("list"));
+
+        // Sub-path is preserved (only the leading segment is aliased).
+        let mut it2 = Intent {
+            op: Some("set".into()),
+            field: Some("drops[0].item_key".into()),
+            ..Default::default()
+        };
+        normalize_intent_community(&mut it2, "drop_set_info");
+        assert_eq!(it2.field.as_deref(), Some("list[0].item_key"));
+
+        // Already-canonical `list` passes through unchanged.
+        let mut it3 = Intent { field: Some("list".into()), ..Default::default() };
+        normalize_intent_community(&mut it3, "drop_set_info");
+        assert_eq!(it3.field.as_deref(), Some("list"));
+
+        // No community aliases on other tables → no-op (a real `drops` field
+        // elsewhere, if one existed, must not be hijacked).
+        let mut it4 = Intent { field: Some("drops".into()), ..Default::default() };
+        normalize_intent_community(&mut it4, "iteminfo");
+        assert_eq!(it4.field.as_deref(), Some("drops"));
     }
 
     #[test]

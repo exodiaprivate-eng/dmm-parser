@@ -223,6 +223,98 @@ impl<'a> BinaryReadTracked<'a> for OptStageOpt52<'a> {
     }
 }
 
+// Field 31 `_rematchStageDesc` (reader sub_101F78F38): a binarystring + a list of
+// binarystrings + a list of StageKeys. (sub_100D395EC / sub_1013700D0 read CString
+// wire even though mem stores hashes.)
+py_binary_struct! {
+    pub struct RematchStageDesc<'a> {
+        pub start_sub_timeline_name: CString<'a>,
+        pub end_sub_timeline_name_list: CArray<CString<'a>>,
+        pub stage_info_list: CArray<u32>,
+    }
+}
+
+// Field 43 element `SubTimelineBreakDesc` (reader sub_101F7A198): u8 + 3× StringInfoKey (u32 wire).
+py_binary_struct! {
+    pub struct SubTimelineBreakDesc {
+        pub event_type: u8,
+        pub npc_reaction_tag_non_battle: u32,
+        pub npc_reaction_tag_battle: u32,
+        pub sub_timeline_name: u32,
+    }
+}
+
+// Field 45 element (reader sub_101FB70E0): u32 hash + CString.
+py_binary_struct! {
+    pub struct ScheduleAiEvent<'a> {
+        pub ai_event_name_hash: u32,
+        pub target_folder_name: CString<'a>,
+    }
+}
+
+// Field 49 inner `StageInfo_GlobalEffect` (reader sub_101F7A000): optional trigger
+// volume + GameGlobalEffectKey(u16) + priority(u32) + blendingDistance(u32). The
+// trigger volume is absent on the abyss-weather records (the only ones that populate
+// field 49), so COptional<u32> placeholder suffices for its presence byte.
+// 40-byte transform (reader sub_100D39CD4): Vec3 + [u32;4] + Vec3 (same as level_gimmick).
+py_binary_struct! {
+    pub struct StageWorldTransform {
+        pub a: [f32; 3],
+        pub raw: [u32; 4],
+        pub b: [f32; 3],
+    }
+}
+// Trigger volume (reader sub_101AF7F08): u8 + transform + 2×CString + u8 + 2×Vec3 + 2×u8.
+py_binary_struct! {
+    pub struct StageTriggerVolume<'a> {
+        pub flag_a: u8,
+        pub transform: StageWorldTransform,
+        pub cstring_a: CString<'a>,
+        pub cstring_b: CString<'a>,
+        pub flag_b: u8,
+        pub vec_a: [f32; 3],
+        pub vec_b: [f32; 3],
+        pub flag_c: u8,
+        pub flag_d: u8,
+    }
+}
+py_binary_struct! {
+    pub struct StageGlobalEffect<'a> {
+        pub trigger_volume_data: COptional<StageTriggerVolume<'a>>,
+        pub global_effect_info: u16,
+        pub priority: u32,
+        pub blending_distance: u32,
+    }
+}
+// Field 63 element (reader sub_101D75F78): u32 + COptional<GameEventExecuteData
+// {u8 type + 3× ConditionKey u32}>.
+py_binary_struct! {
+    pub struct GameEventExecuteData {
+        pub game_event_type: u8,
+        pub player_condition: u32,
+        pub target_condition: u32,
+        pub event_condition: u32,
+    }
+}
+py_binary_struct! {
+    pub struct StageGameEventData {
+        pub hash: u32,
+        pub event_execute: COptional<GameEventExecuteData>,
+    }
+}
+
+// Fields 46/47: a struct of 4 CArrays (sub_101F79D50 / sub_101F79DB0 = 4× CArray builder).
+// 47 = DropSetKey lists (u32 wire). 46's elements are larger (32B mem) but empty in
+// vanilla → placeholder u32; fix if a record populates it.
+py_binary_struct! {
+    pub struct StageQuadList {
+        pub a: CArray<u32>,
+        pub b: CArray<u32>,
+        pub c: CArray<u32>,
+        pub d: CArray<u32>,
+    }
+}
+
 pabgh_typed_blob_table! {
     pub struct StageInfo<'a> {
         // === Fields 1-7: Header ===
@@ -244,127 +336,106 @@ pabgh_typed_blob_table! {
         pub close_filter_by_group: u64,
         // === Field 14: Global filter character list ===
         pub global_filter_character_list: CArray<u32>,
-        // === Fields 15-16: Type flags ===
+        // === Fields 15-23: byte-identical 1.06↔1.12 (same-record byte diff: HerStore
+        //     matched to offset 491; the 1.08 insertion is at field 24). ===
         pub quest_type: u8,
         pub stage_data_type: u8,
-        // === Fields 17-19: Parent/owner lookups (u32 wire) ===
         pub parent_quest: u32,
         pub parent_stage: u32,
         pub owner_mission_info: u32,
-        // === Fields 20-22: Child/executor lists ===
         pub child_stage_list: CArray<u32>,
         pub executor_mission_list: CArray<u32>,
         pub executor_stage_list: CArray<u32>,
-        // === Field 23: Filter entry list (19B compound elements) ===
         pub execute_target_stage_list: CArray<StageFilterEntry>,
-        // === Field 24: Hide mercenary group list (CArray<u8> wire!) ===
+        // === Field 24: NEW in the 1.08 update — `_logoutMercenaryGroupInfoList`
+        //     (reader sub_101FB6CCC), inserted before _hideMercenaryGroupInfoList. ===
+        pub logout_mercenary_group_info_list: CArray<u8>,
+        // === Fields 25-30 (1.12, = old 24-29 shifted past the field-24 insertion) ===
         pub hide_mercenary_group_info_list: CArray<u8>,
-        // === Fields 25-27: Condition/field lookups ===
         pub play_condition: u32,
         pub close_condition: u32,
         pub field_info: u32,
-        // === Fields 28-29: Character lists (KEY for char swap mod) ===
         pub start_player_list: CArray<u32>,
         pub forbidden_character_list: CArray<u32>,
-        // === Fields 30-31: CStrings ===
-        pub rematch_stage_desc: CString<'a>,
-        // 1.07: platform_character is a count-prefixed list of CStrings, not a
-        // bare CString. count=0 reads identically to an empty CString (u32 0),
-        // so the ~50731 empty records round-tripped under the old model; the 73
-        // records with count>=1 (e.g. ["SCENE_3"]) misread the count as a
-        // CString length → garbage stage_condition_list count downstream.
-        pub platform_character: CArray<CString<'a>>,
-        // === Field 32: Stage condition list ===
-        pub stage_condition_list: CArray<u32>,
-        // === Fields 33-34: Lookups ===
-        pub platform_socket_name: u32,
-        pub raw_d: u32,
-        // === Field 35: Guide effect name CString ===
-        pub guide_effect_name: CString<'a>,
-        // === Fields 36-37: Flags ===
-        pub flag_c: u8,
-        pub flag_d: u8,
-        // === Fields 38-39: Raw u32s ===
-        pub raw_e: u32,
-        pub raw_f: u32,
-        // === Field 40: Pair of u32s (sub_14108AD00 = 4B+4B) ===
-        pub pair_a: u32,
-        pub pair_b: u32,
-        // === Fields 41-43: Individual fields (was raw_ghi_block) ===
-        pub raw_g: u64,
-        pub raw_h: u32,
-        pub raw_i: u16,
-        // === Field 44: Mob map list (u8+u32+u32+u32 per element) ===
-        pub mob_map_list: CArray<StageMobMapEntry>,
-        // === Field 45: Lookup ===
-        pub lookup_j: u32,
-        // === Field 46: String entry list (u32+CString per element) ===
-        pub string_entry_list: CArray<StageU32StringEntry<'a>>,
-        // === Fields 47-50: 4× compound 28B lists (u32+u64+u64+u64) ===
-        pub compound_list_a: CArray<StageCompound28Entry>,
-        pub compound_list_b: CArray<StageCompound28Entry>,
-        pub compound_list_c: CArray<StageCompound28Entry>,
-        pub compound_list_d: CArray<StageCompound28Entry>,
-        // === Fields 51-54: 4× close filter d lists ===
-        pub close_filter_d_a: CArray<u32>,
-        pub close_filter_d_b: CArray<u32>,
-        pub close_filter_d_c: CArray<u32>,
-        pub close_filter_d_d: CArray<u32>,
-        // === Field 55: list_d ===
-        pub list_d: CArray<u32>,
-        // === Field 56: Platform entry (nested optional) ===
-        pub platform_entry: OptStageOpt52<'a>,
-        // === Fields 57-64: 8× u32 lookups ===
-        pub lookup_k: u32,
-        pub lookup_l: u32,
-        pub lookup_m: u32,
-        pub lookup_n: u32,
-        pub lookup_o: u32,
-        pub lookup_p: u32,
-        pub lookup_q: u32,
-        pub lookup_r: u32,
-        // === Field 65: LocalizableString ===
-        pub label_b: LocalizableString<'a>,
-        // === Field 66: Lookup ===
-        pub lookup_s: u32,
-        // === Fields 67-68: u8 flags ===
-        pub flag_e: u8,
-        pub flag_f: u8,
-        // === Field 69: Lookup (sub_1410E2250 = u32 wire) ===
-        pub lookup_s2: u32,
-        // === Field 70: Behavior entry list ===
-        pub behavior_entry_list: CArray<StageBehaviorEntry>,
-        // === Field 71: Raw u32 ===
-        pub raw_j: u32,
-        // === Field 72: u16 lookup (sub_1410E9A70 reads u16 wire) ===
-        pub lookup_u: u16,
-        // === Fields 73-74: u32 lookups ===
-        pub lookup_v: u32,
-        pub lookup_w: u32,
-        // === Fields 75-80: 6× u32 raw ===
-        pub raw_k: u32,
-        pub raw_l: u32,
-        pub raw_m: u32,
-        pub raw_n: u32,
-        pub raw_o: u32,
-        pub raw_p: u32,
-        // === Fields 81-96: 16× u8 flags ===
-        pub flag_g: u8,
-        pub flag_h: u8,
-        pub flag_i: u8,
-        pub flag_j: u8,
-        pub flag_k: u8,
-        pub flag_l: u8,
-        pub flag_m: u8,
-        pub flag_n: u8,
-        pub flag_o: u8,
-        pub flag_p: u8,
-        pub flag_q: u8,
-        pub flag_r: u8,
-        pub flag_s: u8,
-        pub flag_t: u8,
-        pub flag_u: u8,
-        pub flag_v: u8,
+        // === Fields 31-42 (authoritative 89-field map, nesting-depth paired) ===
+        pub rematch_stage_desc: RematchStageDesc<'a>,        // 31
+        pub platform_character: u32,                         // 32 CharacterKey (NOT a list!)
+        pub platform_docking_tag_hash: u32,                  // 33
+        pub platform_socket_name: CString<'a>,               // 34 binarystring
+        pub is_ignore_distance: u8,                          // 35
+        pub is_faction_sequencer: u8,                        // 36
+        pub faction_sequencer_spawn_tag_hash: u32,           // 37
+        pub reset_second: u32,                               // 38
+        pub random_spawn_count: [u32; 2],                    // 39 sub_100D399C0 (2×u32)
+        pub random_percent: u64,                             // 40
+        pub random_repeat_time: u32,                         // 41
+        pub complete_count: u16,                             // 42
+        pub sub_timeline_break_desc_list: CArray<SubTimelineBreakDesc>, // 43
+        pub schedule_complete_condition: u32,                // 44 ConditionKey
+        pub schedule_stage_complete_ai_event_list: CArray<ScheduleAiEvent<'a>>, // 45
+        pub item_condition_and_remove_array: StageQuadList,  // 46 (placeholder elems)
+        pub reward_drop_set_info_list: StageQuadList,        // 47 DropSetKey quad
+        pub level_name_hash: u32,                            // 48 StringInfoKey
+        pub global_effect_data: COptional<StageGlobalEffect<'a>>,              // 49 opt (placeholder inner)
+        pub guide_effect_name: u32,                          // 50 StringInfoKey
+        pub field_revive_info: u32,                          // 51 FieldReviveKey
+        pub stage_icon_path: u32,                            // 52 StringInfoKey
+        pub stage_text_icon_path: u32,                       // 53
+        pub stage_image_path: u32,                           // 54
+        pub complete_image_path: u32,                        // 55
+        pub npc_shop_character_info: u32,                    // 56 CharacterKey
+        pub close_dialog_speaker_character: u32,             // 57 CharacterKey
+        pub close_dialog_string: LocalizableString<'a>,      // 58
+        pub close_dialog_sound_event_name: u32,              // 59 StringInfoKey
+        pub update_priority: u8,                             // 60
+        pub complete_alert_type: u8,                         // 61
+        pub stage_knowledge: u32,                            // 62 KnowledgeKey
+        pub stage_game_event_data_list: CArray<StageGameEventData>,         // 63 (placeholder 16B elem; empty in vanilla)
+        pub spawn_block_type_flag: u32,                      // 64
+        pub weather_info: u16,                               // 65 GameGlobalEffectKey
+        pub game_level_info_for_validation: u32,             // 66 GameLevelKey
+        pub game_level_data_name_for_validation: u32,        // 67 StringInfoKey
+        pub weather_start_blend_time: u32,                   // 68
+        pub weather_end_blend_time: u32,                     // 69
+        pub weather_ing_time: u32,                           // 70
+        pub begin_time: u32,                                 // 71
+        pub end_time: u32,                                   // 72
+        pub change_time: u32,                                // 73
+        // Fields 74-89: 16 u8 flags
+        pub use_commute: u8,                                 // 74
+        pub show_stage_icon: u8,                             // 75
+        pub is_save: u8,                                     // 76
+        pub save_schedule: u8,                               // 77
+        pub has_dynamic_actor: u8,                           // 78
+        pub is_force_spawn_after_retreat: u8,                // 79
+        pub is_force_spawn_near_distance: u8,                // 80
+        pub is_force_spawn_all_actor: u8,                    // 81
+        pub disable_give_up: u8,                             // 82
+        pub revive_in_place_hard_difficulty: u8,             // 83
+        pub evade_projectile: u8,                            // 84
+        pub follow_parent_reaction: u8,                      // 85
+        pub is_playable_on_wanted: u8,                       // 86
+        pub allow_accompany: u8,                             // 87
+        pub use_revive_point_for_dead: u8,                   // 88
+        pub ignore_faction_close: u8,                        // 89
+        // ── 1.12 TRUNCATION (verified against CrimsonDesert_Steam 1.12.02,
+        //    reader sub_101F78FF8) ──────────────────────────────────────────
+        // StageInfo grew from the 1.06 layout this struct was written for to
+        // **89 wire fields** by the 1.08 update — a new field
+        // `_logoutMercenaryGroupInfoList` was inserted (between
+        // `_executeTargetStageList` and `_hideMercenaryGroupInfoList`) and a
+        // large run of new fields (`_randomSpawnCount`, `_rewardDropSetInfoList`,
+        // `_scheduleStageCompleteAIEventList`, `_fieldReviveInfo`,
+        // `_globalEffectData`, …) was added in the middle. The old fields 15-96
+        // below no longer matched 1.12 (every record blob-fell-back → 0 typed).
+        //
+        // Fields 1-14 ARE byte-identical between 1.06 and 1.12 (IDA-verified +
+        // confirmed by same-record byte diff). Everything from field 15 on is
+        // captured verbatim by `tail_blob`, so the table round-trips byte-exact
+        // on all 51441 records while exposing the placement-relevant prefix —
+        // crucially `sequencer_desc` (field 7) which carries the funcnpc scene
+        // name + world position. Full 89-field map: STAGEINFO_112_RE.md.
+        // To type more 1.12 fields later, extend from here per that map.
     }
     tail: tail_blob;
 }

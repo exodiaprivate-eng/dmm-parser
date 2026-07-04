@@ -77,7 +77,7 @@ fn validate_buffdata_manifest() {
         // probe-finds-wrong-boundary issue when multiple valid post-tail
         // positions exist.
 
-        let mut tag_sequence: Vec<u8> = Vec::with_capacity(count);
+        let mut tag_sequence: Vec<u8> = Vec::with_capacity(count.min(1 << 20));
         let mut entry_had_failure = false;
 
         for elem_idx in 0..count {

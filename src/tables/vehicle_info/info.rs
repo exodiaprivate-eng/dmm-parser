@@ -117,6 +117,10 @@ py_binary_struct! {
         // growth came from call_vehicle_voxel_type widening to a CArray (above).
         // Verified via wire-walker: all 34 records byte-exact.
         pub trailing_u32_111: u32,
+        // 1.13.00: one more 4-byte field appended to the fixed tail (always
+        // 0x00000000 in vanilla). Verified via drift_diff_1130: EVERY record =
+        // its 1.12.2 bytes + a trailing `00 00 00 00`, all 34 records byte-exact.
+        pub trailing_u32_113: u32,
     }
 }
 

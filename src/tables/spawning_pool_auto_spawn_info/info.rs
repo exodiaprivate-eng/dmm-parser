@@ -33,6 +33,10 @@ pub struct SpawningPoolAutoSpawnInfo<'a> {
     pub raw_b: u32,
     pub raw_c: u32,
     pub raw_d: u32,
+    // 1.13.00: new u32 inserted between raw_d and flag_a (+4 per record).
+    // Byte-diff decisive: tail alignment on non-zero records (e.g. key 100001)
+    // shows `00000000` between the raw block and the flag block.
+    pub raw_e_113: u32,
     pub flag_a: u8,
     pub flag_b: u8,
     pub flag_c: u8,
@@ -85,6 +89,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         let raw_b = u32::read_from(data, offset)?;
         let raw_c = u32::read_from(data, offset)?;
         let raw_d = u32::read_from(data, offset)?;
+        let raw_e_113 = u32::read_from(data, offset)?;
         let flag_a = u8::read_from(data, offset)?;
         let flag_b = u8::read_from(data, offset)?;
         let flag_c = u8::read_from(data, offset)?;
@@ -95,7 +100,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
             key, string_key, is_blocked,
             spawn_list, terminator,
             hash_list, socket_os_name,
-            raw_a, raw_b, raw_c, raw_d,
+            raw_a, raw_b, raw_c, raw_d, raw_e_113,
             flag_a, flag_b, flag_c, flag_d,
             final_u16,
         })
@@ -121,6 +126,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         self.raw_b.write_to(w)?;
         self.raw_c.write_to(w)?;
         self.raw_d.write_to(w)?;
+        self.raw_e_113.write_to(w)?;
         self.flag_a.write_to(w)?;
         self.flag_b.write_to(w)?;
         self.flag_c.write_to(w)?;
@@ -142,6 +148,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         m.insert("raw_b".to_string(), self.raw_b.to_json_value());
         m.insert("raw_c".to_string(), self.raw_c.to_json_value());
         m.insert("raw_d".to_string(), self.raw_d.to_json_value());
+        m.insert("raw_e_113".to_string(), self.raw_e_113.to_json_value());
         m.insert("flag_a".to_string(), self.flag_a.to_json_value());
         m.insert("flag_b".to_string(), self.flag_b.to_json_value());
         m.insert("flag_c".to_string(), self.flag_c.to_json_value());
@@ -175,6 +182,8 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_c")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_d")?)?;
+        // null-safe: old mods (pre-1.13.00) omit raw_e_113 → default 0.
+        <u32 as WriteJsonValue>::write_from_json(w, obj.get("raw_e_113").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;

@@ -1318,7 +1318,7 @@ pub struct AdditionalUseResourceStatBuffDataPayload {
 impl AdditionalUseResourceStatBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let f00 = CArray::<u32>::read_from(data, offset)?;
-        let f01 = { let count = u32::read_from(data, offset)? as usize; let mut v = Vec::with_capacity(count); for _ in 0..count { let mut b = [0u8; 22]; for x in &mut b { *x = u8::read_from(data, offset)?; } v.push(b); } v };
+        let f01 = { let count = u32::read_from(data, offset)? as usize; let remaining = data.len().saturating_sub(*offset); if count > remaining { return Err(io::Error::new(io::ErrorKind::InvalidData, format!("AdditionalUseResourceStatBuffDataPayload f01 count {} exceeds remaining {} at offset {}", count, remaining, *offset))); } let mut v = Vec::with_capacity(count.min(1 << 20)); for _ in 0..count { let mut b = [0u8; 22]; for x in &mut b { *x = u8::read_from(data, offset)?; } v.push(b); } v };
         Ok(Self { f00, f01 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {

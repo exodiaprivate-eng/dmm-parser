@@ -28,7 +28,7 @@ pub mod types;
 
 pub use apply::{
     apply_intents_to_iteminfo, apply_resolved_intents, find_record_index,
-    ApplyError, ApplyOutcome, ApplyStatus,
+    normalize_intent_community, ApplyError, ApplyOutcome, ApplyStatus,
 };
 pub use path::{
     array_append_at_path, get_value_at_path, parse_path, set_value_at_path, PathError,

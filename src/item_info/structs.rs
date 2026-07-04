@@ -478,12 +478,85 @@ py_binary_struct! {
     }
 }
 
+/// A PrefabData mesh scale (3 × f32), serialized exactly like `[f32; 3]`. The
+/// difference is on JSON/Py WRITE: a MISSING/null value defaults to identity
+/// `[1.0, 1.0, 1.0]` instead of erroring. 1.13.00 added `scale` to PrefabData, so
+/// a mod authored against the pre-scale layout (op:set on prefab_data_list with
+/// the old shape — no scale) would otherwise serialize null and abort the whole
+/// iteminfo overlay, or (with a 0-default) collapse the remapped mesh to zero
+/// size. Identity matches vanilla prefab entries and the pre-1.13.00 engine
+/// default. Round-trip of real data is unchanged (scale is always present there).
+#[derive(Debug, Clone, Copy)]
+pub struct PrefabScale(pub [f32; 3]);
+
+impl<'a> BinaryRead<'a> for PrefabScale {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        Ok(PrefabScale(<[f32; 3]>::read_from(data, offset)?))
+    }
+}
+impl BinaryWrite for PrefabScale {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        self.0.write_to(w)
+    }
+}
+impl<'a> BinaryReadTracked<'a> for PrefabScale {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> io::Result<Self> {
+        Ok(PrefabScale(<[f32; 3]>::read_tracked(data, offset, path, ranges)?))
+    }
+}
+impl ToJsonValue for PrefabScale {
+    fn to_json_value(&self) -> ::serde_json::Value {
+        self.0.to_json_value()
+    }
+}
+impl WriteJsonValue for PrefabScale {
+    fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> io::Result<()> {
+        if v.is_null() {
+            return <[f32; 3]>::write_from_json(w, &::serde_json::json!([1.0, 1.0, 1.0]));
+        }
+        <[f32; 3]>::write_from_json(w, v)
+    }
+}
+impl ToPyValue for PrefabScale {
+    fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.0.to_py_value(py)
+    }
+}
+impl WritePyValue for PrefabScale {
+    fn write_from_py(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
+        if obj.is_none() {
+            for f in [1.0f32, 1.0, 1.0] {
+                w.extend_from_slice(&f.to_le_bytes());
+            }
+            return Ok(());
+        }
+        <[f32; 3]>::write_from_py(w, obj)
+    }
+}
+
+// 1.13.00: PrefabData and GimmickVisualPrefabData were UNIFIED into a single
+// PrefabData type (gimmick_visual_prefab_data_list removed from ItemInfo; its
+// entries now live in prefab_data_list, distinguished by prefab_data_type). The
+// field ORDER is from the game's PrefabData reader (Win 1.13.00 sub_1411759C0):
+// scale -> prefab_names -> animation_path_list -> equip_slot_list ->
+// tribe_gender_list -> use_gimmick_prefab -> is_craft_material -> prefab_data_type.
+// tag_name_hash (old gimmick-only) was dropped. Verified by full-table byte-exact
+// roundtrip over the 1.13.00 iteminfo.
 py_binary_struct! {
     pub struct PrefabData {
+        pub scale: PrefabScale,
         pub prefab_names: CArray<StringInfoKey>,
+        pub animation_path_list: CArray<StringInfoKey>,
         pub equip_slot_list: CArray<u16>,
         pub tribe_gender_list: CArray<StringInfoKey>,
+        pub use_gimmick_prefab: u8,
         pub is_craft_material: u8,
+        pub prefab_data_type: u8,
     }
 }
 
@@ -571,7 +644,9 @@ impl<'a> BinaryRead<'a> for SubItem {
             // SAME offset with byte-identical following bytes; 1.12 differs ONLY in
             // that one disc byte (0x0F→0x10), so 16 consumes 0 payload bytes exactly
             // like 14/15/255. type_id is preserved, so write-back is byte-exact.
-            14 | 15 | 16 | 255 => SubItemValue::None,
+            // 1.13.00 added disc 17 (0x10→0x11) — the same zero-payload progression;
+            // proven zero-payload by a full-table byte-exact roundtrip over all items.
+            14 | 15 | 16 | 17 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -599,8 +674,8 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             0 => SubItemValue::Item(ItemKey::read_tracked(data, offset, path, ranges)?),
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
-            // 1.12: disc 16 = new zero-payload sentinel (see read_from note above).
-            14 | 15 | 16 | 255 => SubItemValue::None,
+            // 1.12: disc 16, 1.13.00: disc 17 = zero-payload sentinels (see read_from note).
+            14 | 15 | 16 | 17 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -649,8 +724,8 @@ impl WritePyValue for SubItem {
                 let v: u32 = get_field(d, "value")?.extract()?;
                 w.extend_from_slice(&v.to_le_bytes());
             }
-            // 14/15/255 = legacy zero-payload sentinels; 16 added in 1.12.
-            14 | 15 | 16 | 255 => {}
+            // 14/15/255 = legacy zero-payload sentinels; 16 added in 1.12, 17 in 1.13.00.
+            14 | 15 | 16 | 17 | 255 => {}
             _ => {
                 return Err(PyValueError::new_err(format!(
                     "invalid SubItem type_id: {}",
@@ -710,7 +785,7 @@ impl WriteJsonValue for SubItem {
                 }
                 w.extend_from_slice(&(n as u32).to_le_bytes());
             }
-            14 | 15 | 16 | 255 => {} // no payload (16 = 1.12 sentinel)
+            14 | 15 | 16 | 17 | 255 => {} // no payload (16 = 1.12, 17 = 1.13.00 sentinel)
             _ => {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("invalid SubItem.type_id: {}", type_id)));
@@ -973,6 +1048,36 @@ impl WriteJsonValue for SealableItemInfo<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // A 1.13.00 mod authored against the pre-scale PrefabData (op:set with the old
+    // shape: no scale / animation_path_list / use_gimmick_prefab / prefab_data_type)
+    // must serialize cleanly, defaulting scale to identity [1,1,1] and the new
+    // CArrays to empty — instead of aborting the whole iteminfo overlay on null.
+    #[test]
+    fn prefab_data_old_shape_json_defaults_identity_scale() {
+        let old_shape = ::serde_json::json!({
+            "prefab_names": [3640396009u32],
+            "equip_slot_list": [],
+            "tribe_gender_list": [],
+            "is_craft_material": 0
+        });
+        let mut out = Vec::new();
+        <PrefabData as WriteJsonValue>::write_from_json(&mut out, &old_shape)
+            .expect("old-shape PrefabData must serialize (not abort on null scale)");
+        // Wire = scale[12] + prefab_names(4+4) + anim(4=0) + equip(4=0) + tribe(4=0)
+        //        + use_gimmick(1) + is_craft(1) + prefab_data_type(1) = 35 bytes.
+        assert_eq!(out.len(), 35, "unexpected PrefabData wire size");
+        // scale defaulted to identity [1.0, 1.0, 1.0].
+        let one = 1.0f32.to_le_bytes();
+        assert_eq!(&out[0..4], &one, "scale.x should default to 1.0");
+        assert_eq!(&out[4..8], &one, "scale.y should default to 1.0");
+        assert_eq!(&out[8..12], &one, "scale.z should default to 1.0");
+        // prefab_names = [3640396009]
+        assert_eq!(&out[12..16], &1u32.to_le_bytes(), "prefab_names count");
+        assert_eq!(&out[16..20], &3640396009u32.to_le_bytes(), "prefab_names[0]");
+        // animation_path_list defaulted to empty (count 0).
+        assert_eq!(&out[20..24], &0u32.to_le_bytes(), "animation_path_list empty");
+    }
 
     #[test]
     fn test_sub_item_none_roundtrip() {

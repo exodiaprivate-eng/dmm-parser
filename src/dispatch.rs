@@ -155,6 +155,13 @@ pub fn parse_table_to_json(
         "aidialog_type_info"             => s!(crate::tables::aidialog_type_info::AIDialogTypeInfo),
         "aievent_table_info"             => s!(crate::tables::aievent_table_info::AIEventTableInfo),
         "aimemory_info"                  => s!(crate::tables::aimemory_info::AIMemoryInfo),
+        "game_start_info"                => s!(crate::tables::game_start_info::GameStartInfo),
+        "zone_info"                      => s!(crate::tables::zone_info::ZoneInfo),
+        "contents_phase_info"            => s!(crate::tables::contents_phase_info::ContentsPhaseInfo),
+        "faction_reblockading_info"      => s!(crate::tables::faction_reblockading_info::FactionReblockadingInfo),
+        "quick_slot_info"                => s!(crate::tables::quick_slot_info::QuickSlotInfo),
+        "bank_info"                      => s!(crate::tables::bank_info::BankInfo),
+        "talk_tree_info"                 => s!(crate::tables::talk_tree_info::TalkTreeInfo),
         "aimove_speed_info"              => s!(crate::tables::aimove_speed_info::AIMoveSpeedInfo),
         "ally_group_info"                => s!(crate::tables::ally_group_info::AllyGroupInfo),
         "auto_spawn_filter_info"         => s!(crate::tables::auto_spawn_filter_info::AutoSpawnFilterInfo),
@@ -340,6 +347,13 @@ pub fn serialize_table_from_json(
         "aidialog_type_info"             => d!(crate::tables::aidialog_type_info::AIDialogTypeInfo),
         "aievent_table_info"             => d!(crate::tables::aievent_table_info::AIEventTableInfo),
         "aimemory_info"                  => d!(crate::tables::aimemory_info::AIMemoryInfo),
+        "game_start_info"                => d!(crate::tables::game_start_info::GameStartInfo),
+        "zone_info"                      => d!(crate::tables::zone_info::ZoneInfo),
+        "contents_phase_info"            => d!(crate::tables::contents_phase_info::ContentsPhaseInfo),
+        "faction_reblockading_info"      => d!(crate::tables::faction_reblockading_info::FactionReblockadingInfo),
+        "quick_slot_info"                => d!(crate::tables::quick_slot_info::QuickSlotInfo),
+        "bank_info"                      => d!(crate::tables::bank_info::BankInfo),
+        "talk_tree_info"                 => d!(crate::tables::talk_tree_info::TalkTreeInfo),
         "aimove_speed_info"              => d!(crate::tables::aimove_speed_info::AIMoveSpeedInfo),
         "ally_group_info"                => d!(crate::tables::ally_group_info::AllyGroupInfo),
         "auto_spawn_filter_info"         => d!(crate::tables::auto_spawn_filter_info::AutoSpawnFilterInfo),
@@ -472,7 +486,19 @@ pub fn apply_intents_to_table_body(
     }
 
     let mut records = parse_table_to_json(table_name, body, pabgh)?;
-    let outcomes = crate::intents::apply_resolved_intents(&mut records, intents)
+    // Normalize third-party-exporter field-name aliases (e.g. CrimsonGameMods
+    // DropSets `drops` → `list`) so their intents resolve instead of silently
+    // dropping. Snake-named intents and tables without community aliases pass
+    // through unchanged, so this is a no-op for every existing mod.
+    let intents_norm: Vec<crate::intents::Intent> = intents
+        .iter()
+        .map(|i| {
+            let mut c = i.clone();
+            crate::intents::normalize_intent_community(&mut c, table_name);
+            c
+        })
+        .collect();
+    let outcomes = crate::intents::apply_resolved_intents(&mut records, &intents_norm)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("apply: {}", e)))?;
 
     if let Some(pabgh_bytes) = pabgh {
@@ -784,6 +810,8 @@ pub fn supported_tables() -> &'static [&'static str] {
         "action_point_info", "action_restriction_order_info",
         "aiaction_attribute_info", "aidialog_type_info", "aievent_table_info",
         "aimemory_info", "aimove_speed_info", "ally_group_info",
+        "game_start_info", "zone_info", "contents_phase_info",
+        "faction_reblockading_info", "quick_slot_info", "bank_info", "talk_tree_info",
         "auto_spawn_filter_info", "board_info", "breakable_object_info",
         "category_group_info", "category_info", "character_appearance_index_info",
         "character_group_info", "craft_tool_group_info", "craft_tool_info",

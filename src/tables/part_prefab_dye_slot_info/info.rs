@@ -34,23 +34,44 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    pub struct DyeSlotEntry<'a> {
-        pub name: CString<'a>,
-        pub flag_a: u8,
-        pub flag_b: u8,
-        pub flag_c: u8,
+    /// PartPrefabDyeTextureSet — 3 texture-path CStrings + 4 flag bytes. The game
+    /// reads this same layout for both a sub-mesh's `_default` set AND every element
+    /// of its `_modelPropertyDyeInfoList` (IDA readers sub_14117A1D0 / sub_1411937A0,
+    /// each = 3× CString + 3× u8 + 1× u8).
+    pub struct DyeTextureSet<'a> {
         pub texture_a: CString<'a>,
         pub texture_b: CString<'a>,
         pub texture_c: CString<'a>,
         pub flag_d: u8,
         pub flag_e: u8,
         pub flag_f: u8,
-        // 1.12: trailing 5 bytes appended to each DyeSlotEntry (after flag_f),
-        // observed `ff 00 00 00 00`. Byte-decisive: per-record length delta ==
-        // 5 × sub_mesh_count across 881/891 key-aligned records → fixed 5-byte
-        // per-entry field (u8 flag + u32), not a top-level or variable field.
+        pub flag_g: u8,
+    }
+}
+
+py_binary_struct! {
+    // PartSubMeshDyeData (IDA reader sub_141193270): subMeshName + 3 bytes +
+    // _default(DyeTextureSet) + _modelPropertyDyeInfoList(CArray<DyeTextureSet>).
+    pub struct DyeSlotEntry<'a> {
+        pub name: CString<'a>,
+        pub flag_a: u8,
+        pub flag_b: u8,
+        pub flag_c: u8,
+        // _default PartPrefabDyeTextureSet, inlined (3 CString + 4 u8).
+        pub texture_a: CString<'a>,
+        pub texture_b: CString<'a>,
+        pub texture_c: CString<'a>,
+        pub flag_d: u8,
+        pub flag_e: u8,
+        pub flag_f: u8,
         pub flag_g_112: u8,
-        pub unk_u32_112: u32,
+        // 1.13.00 FIX: this was mis-modeled as a plain u32 (`unk_u32_112`). It is
+        // actually the `_modelPropertyDyeInfoList` — a CArray whose elements share
+        // the _default's 3-CString + 4-u8 layout. Vanilla 1.12.2 records all had
+        // count 0, so the old u32 read matched by luck; 1.13.00's dyeable
+        // weapons/disguises populate it (>0) → the old parser desynced (record
+        // key=1414745672 had "cloth"+"leather" entries). Now decoded typed.
+        pub model_property_list: CArray<DyeTextureSet<'a>>,
     }
 }
 
