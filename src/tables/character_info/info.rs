@@ -1125,17 +1125,22 @@ pabgh_typed_blob_table! {
         pub f34: u8,
         pub f35: u8,
         pub f36: u8,
+        pub personality_info: u16,
         pub f37: u8,
         pub f38: LocalizableString<'a>,
         pub f39: LocalizableString<'a>,
         pub f40: u32,
         pub f41: u8,
         pub f42: u16,
+        pub of_origin_ally_group: u32,
+        pub of_origin_detect: u16,
         pub of_origin_skills: CArray<SkillPair>,
         pub of_origin_invincibility: u8,
         pub of_origin_is_attackable: u8,
         pub of_origin_is_aggro_targetable: u8,
         pub of_origin_is_valid: u8,
+        pub of_mercenary_ally_group: u32,
+        pub of_mercenary_detect: u16,
         pub of_mercenary_skills: CArray<SkillPair>,
         pub of_mercenary_invincibility: u8,
         pub of_mercenary_is_attackable: u8,
@@ -1156,7 +1161,6 @@ pabgh_typed_blob_table! {
         pub f57: u8,
         pub f58: u8,
         pub f59: u8,
-        pub f60: u8,
         pub f61: u8,
         pub f62: u8,
         pub f63: u8,
@@ -1204,7 +1208,6 @@ pabgh_typed_blob_table! {
         pub inspect_data_list: CArray<InspectData<'a>>, // 105 sub_101FD756C
         pub character_group_info_list: CArray<u16>,  // 106 CharacterGroupKey u16 — sub_101FDABC0
         pub visioning_data: VisioningData,           // 107 conditional — sub_10138917C
-        pub detect_info: u16,                        // 108 DetectKey — sub_101FAAE1C
         pub max_aggro_count: u16,                    // 109 sub_100D39238
         pub personality_type: u8,                    // 110 sub_101A72E34
         pub character_tier: u8,                      // 111 sub_101378480
@@ -1214,7 +1217,6 @@ pabgh_typed_blob_table! {
         pub dialog_voice_info: u16,                  // 115 DialogVoiceKey — sub_101D7C614
         pub interaction_category_group_info: u16,    // 116 CategoryGroupKey — sub_101FB1524
         pub detect_reaction_info: u32,               // 117 DetectReactionKey — sub_101EA4114
-        pub ally_group_info: u32,                    // 118 AllyGroupKey — sub_101FA18A0
         pub character_pause_type: u32,               // 119 sub_101A730E4 (INLINE 4)
         pub owner_follow_type: u8,                   // 120 sub_101378514
         pub farm_drop_info_list: CArray<u32>,        // 121 DropSetKey — sub_10185DCAC
