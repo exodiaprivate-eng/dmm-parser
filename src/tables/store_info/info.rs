@@ -484,127 +484,123 @@ py_binary_struct! {
 }
 
 /// `sub_1410F36D0` — StoreStockData (1.0.8: added lookup_c after lookup_b).
+///
+/// ⚠ DO NOT RENAME these placeholder fields. V3 store mods target them by field-path
+/// (e.g. `stock_data_list[N].value.raw_q`, `stock_data_list[N].raw_c`) — GildyBoye's Shop
+/// Editor and hand-authored mods alike. Renaming silently breaks every such mod on apply
+/// ("missing field"). Canonical RE names live in memory dmm_store_buyprice_itemid_1130_RE
+/// (lookup_a=_storeInfo, raw_a=_minPricePercent, raw_c=_maxRefillCount, value=_dropInfoData…).
 #[derive(Debug)]
 pub struct StoreStockData {
-    // Canonical field names (1.13 Mac RE, StoreStockData deser sub_101FBF4E4 —
-    // see dmm_store_buyprice_itemid_1130_RE). Wire order/types unchanged.
-    pub store_info: u16,               // _storeInfo — the item id/displayid. ★ REMAPPED at load
-                                       //   (unknown id → 0xFFFF, item vanishes). sub_1410FA410 wire u16.
-    pub min_price_percent: u64,        // _minPricePercent (1_000_000 = 100.000000%, NOT gold)
-    pub max_price_percent: u64,        // _maxPricePercent
-    pub max_refill_count: u32,         // _maxRefillCount
-    pub stock_index: u32,              // _stockIndex
-    pub important_save_index: u32,     // _importantSaveIndex
+    pub lookup_a: u16,                                    // sub_1410FA410 wire u16
+    pub raw_a: u64,
+    pub raw_b: u64,
+    pub raw_c: u32,
+    pub raw_d: u32,
+    pub raw_e: u32,
     // 1.13.00: new u32 _orderIndex (Mac reader sub_101FBF4E4: _maxRefillCount,
     // _stockIndex, _importantSaveIndex, _orderIndex — 4 consecutive u32 where
     // 1.12.2 had 3). Default 0xFFFFFFFF (-1). +4 per StoreStockData.
-    pub order_index_113: u32,          // _orderIndex
-    pub refill_by_reset_store: u8,     // _refillByResetStore
-    pub is_stock_sellable: u8,         // _isStockSellable
-    pub is_stock_buyable: u8,          // _isStockBuyable
-    // 1.11: new _isRestoreItem u8 between _isStockBuyable and _dropInfoData. IDA:
-    // StoreStockData reader sub_10190AD14 reads it at a2+47 via the EEC u8 reader.
-    // Missing it shifted the value's disc byte → drop_info_data count blew up.
-    pub is_restore_item: u8,           // _isRestoreItem
-    pub drop_info_data: OptionalStoreStockDataValue,      // _dropInfoData
-    pub player_condition_info: u32,    // _playerConditionInfo (sub_1410F61C0 wire u32)
-    pub target_condition_info: u32,    // _targetConditionInfo (sub_1410F61C0 wire u32) [1.0.8]
-    pub condition_option: OptionalStoreStockSubData,      // _conditionOption
-    pub order_count_data_list: CArray<StoreStockEffectEntry>, // _orderCountDataList
+    pub order_index_113: u32,
+    pub flag_a: u8,
+    pub flag_b: u8,
+    pub flag_c: u8,
+    // 1.11: new _isRestoreItem u8 between _isStockBuyable (flag_c) and
+    // _dropInfoData (value). IDA: StoreStockData reader sub_10190AD14 reads it at
+    // a2+47 via the EEC u8 reader. Missing it shifted the value's disc byte →
+    // effect_list count blew up at offset 185.
+    pub is_restore_item: u8,
+    pub value: OptionalStoreStockDataValue,
+    pub lookup_b: u32,                                    // sub_1410F61C0 wire u32
+    pub lookup_c: u32,                                    // sub_1410F61C0 wire u32  [1.0.8]
+    pub sub_data: OptionalStoreStockSubData,
+    pub effect_list: CArray<StoreStockEffectEntry>,
 }
 
 impl StoreStockData {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
-        let store_info = u16::read_from(data, offset)?;
-        let min_price_percent = u64::read_from(data, offset)?;
-        let max_price_percent = u64::read_from(data, offset)?;
-        let max_refill_count = u32::read_from(data, offset)?;
-        let stock_index = u32::read_from(data, offset)?;
-        let important_save_index = u32::read_from(data, offset)?;
+        let lookup_a = u16::read_from(data, offset)?;
+        let raw_a = u64::read_from(data, offset)?;
+        let raw_b = u64::read_from(data, offset)?;
+        let raw_c = u32::read_from(data, offset)?;
+        let raw_d = u32::read_from(data, offset)?;
+        let raw_e = u32::read_from(data, offset)?;
         let order_index_113 = u32::read_from(data, offset)?;
-        let refill_by_reset_store = u8::read_from(data, offset)?;
-        let is_stock_sellable = u8::read_from(data, offset)?;
-        let is_stock_buyable = u8::read_from(data, offset)?;
+        let flag_a = u8::read_from(data, offset)?;
+        let flag_b = u8::read_from(data, offset)?;
+        let flag_c = u8::read_from(data, offset)?;
         let is_restore_item = u8::read_from(data, offset)?;
-        let drop_info_data = OptionalStoreStockDataValue::read_from(data, offset)?;
-        let player_condition_info = u32::read_from(data, offset)?;
-        let target_condition_info = u32::read_from(data, offset)?;
-        let condition_option = OptionalStoreStockSubData::read_from(data, offset)?;
-        let order_count_data_list = CArray::<StoreStockEffectEntry>::read_from(data, offset)?;
+        let value = OptionalStoreStockDataValue::read_from(data, offset)?;
+        let lookup_b = u32::read_from(data, offset)?;
+        let lookup_c = u32::read_from(data, offset)?;
+        let sub_data = OptionalStoreStockSubData::read_from(data, offset)?;
+        let effect_list = CArray::<StoreStockEffectEntry>::read_from(data, offset)?;
         Ok(Self {
-            store_info, min_price_percent, max_price_percent, max_refill_count, stock_index,
-            important_save_index, order_index_113, refill_by_reset_store, is_stock_sellable,
-            is_stock_buyable, is_restore_item, drop_info_data, player_condition_info,
-            target_condition_info, condition_option, order_count_data_list,
+            lookup_a, raw_a, raw_b, raw_c, raw_d, raw_e, order_index_113,
+            flag_a, flag_b, flag_c, is_restore_item, value, lookup_b, lookup_c, sub_data, effect_list,
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.store_info.write_to(w)?;
-        self.min_price_percent.write_to(w)?;
-        self.max_price_percent.write_to(w)?;
-        self.max_refill_count.write_to(w)?;
-        self.stock_index.write_to(w)?;
-        self.important_save_index.write_to(w)?;
+        self.lookup_a.write_to(w)?;
+        self.raw_a.write_to(w)?;
+        self.raw_b.write_to(w)?;
+        self.raw_c.write_to(w)?;
+        self.raw_d.write_to(w)?;
+        self.raw_e.write_to(w)?;
         self.order_index_113.write_to(w)?;
-        self.refill_by_reset_store.write_to(w)?;
-        self.is_stock_sellable.write_to(w)?;
-        self.is_stock_buyable.write_to(w)?;
+        self.flag_a.write_to(w)?;
+        self.flag_b.write_to(w)?;
+        self.flag_c.write_to(w)?;
         self.is_restore_item.write_to(w)?;
-        self.drop_info_data.write_to(w)?;
-        self.player_condition_info.write_to(w)?;
-        self.target_condition_info.write_to(w)?;
-        self.condition_option.write_to(w)?;
-        self.order_count_data_list.write_to(w)
+        self.value.write_to(w)?;
+        self.lookup_b.write_to(w)?;
+        self.lookup_c.write_to(w)?;
+        self.sub_data.write_to(w)?;
+        self.effect_list.write_to(w)
     }
 
     pub fn to_json_value(&self) -> Value {
         let mut m = Map::new();
-        m.insert("store_info".to_string(), self.store_info.to_json_value());
-        m.insert("min_price_percent".to_string(), self.min_price_percent.to_json_value());
-        m.insert("max_price_percent".to_string(), self.max_price_percent.to_json_value());
-        m.insert("max_refill_count".to_string(), self.max_refill_count.to_json_value());
-        m.insert("stock_index".to_string(), self.stock_index.to_json_value());
-        m.insert("important_save_index".to_string(), self.important_save_index.to_json_value());
+        m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
+        m.insert("raw_a".to_string(), self.raw_a.to_json_value());
+        m.insert("raw_b".to_string(), self.raw_b.to_json_value());
+        m.insert("raw_c".to_string(), self.raw_c.to_json_value());
+        m.insert("raw_d".to_string(), self.raw_d.to_json_value());
+        m.insert("raw_e".to_string(), self.raw_e.to_json_value());
         m.insert("order_index_113".to_string(), self.order_index_113.to_json_value());
-        m.insert("refill_by_reset_store".to_string(), self.refill_by_reset_store.to_json_value());
-        m.insert("is_stock_sellable".to_string(), self.is_stock_sellable.to_json_value());
-        m.insert("is_stock_buyable".to_string(), self.is_stock_buyable.to_json_value());
+        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
+        m.insert("flag_b".to_string(), self.flag_b.to_json_value());
+        m.insert("flag_c".to_string(), self.flag_c.to_json_value());
         m.insert("is_restore_item".to_string(), self.is_restore_item.to_json_value());
-        m.insert("drop_info_data".to_string(), self.drop_info_data.to_json_value());
-        m.insert("player_condition_info".to_string(), self.player_condition_info.to_json_value());
-        m.insert("target_condition_info".to_string(), self.target_condition_info.to_json_value());
-        m.insert("condition_option".to_string(), self.condition_option.to_json_value());
-        m.insert("order_count_data_list".to_string(), self.order_count_data_list.to_json_value());
+        m.insert("value".to_string(), self.value.to_json_value());
+        m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
+        m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
+        m.insert("sub_data".to_string(), self.sub_data.to_json_value());
+        m.insert("effect_list".to_string(), self.effect_list.to_json_value());
         Value::Object(m)
     }
 
     pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "StoreStockData: expected object"))?;
-        // Accept the canonical names; fall back to the old placeholder names so
-        // any mod authored against the previous parser output still parses.
-        let f = |new: &str, old: &str| -> io::Result<&Value> {
-            obj.get(new).or_else(|| obj.get(old)).ok_or_else(|| io::Error::new(
-                io::ErrorKind::InvalidData, format!("StoreStockData: missing field {new}")))
-        };
-        <u16 as WriteJsonValue>::write_from_json(w, f("store_info", "lookup_a")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, f("min_price_percent", "raw_a")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, f("max_price_percent", "raw_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, f("max_refill_count", "raw_c")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, f("stock_index", "raw_d")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, f("important_save_index", "raw_e")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_c")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_d")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_e")?)?;
         // null-safe: old mods omit order_index_113 → default 0.
         <u32 as WriteJsonValue>::write_from_json(w, obj.get("order_index_113").unwrap_or(&Value::Null))?;
-        <u8 as WriteJsonValue>::write_from_json(w, f("refill_by_reset_store", "flag_a")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, f("is_stock_sellable", "flag_b")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, f("is_stock_buyable", "flag_c")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, f("is_restore_item", "is_restore_item")?)?;
-        OptionalStoreStockDataValue::write_from_json(w, f("drop_info_data", "value")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, f("player_condition_info", "lookup_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, f("target_condition_info", "lookup_c")?)?;
-        OptionalStoreStockSubData::write_from_json(w, f("condition_option", "sub_data")?)?;
-        <CArray<StoreStockEffectEntry> as WriteJsonValue>::write_from_json(w, f("order_count_data_list", "effect_list")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_restore_item")?)?;
+        OptionalStoreStockDataValue::write_from_json(w, json_get_field(obj, "value")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
+        OptionalStoreStockSubData::write_from_json(w, json_get_field(obj, "sub_data")?)?;
+        <CArray<StoreStockEffectEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "effect_list")?)?;
         Ok(())
     }
 }
