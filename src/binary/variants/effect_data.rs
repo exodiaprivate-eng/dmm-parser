@@ -141,11 +141,11 @@ impl<'a> EffectDataInner<'a> {
         for x in &mut lookups { *x = u32::read_from(data, offset)?; }
 
         let list_a_count = u32::read_from(data, offset)? as usize;
-        let mut list_a = Vec::with_capacity(list_a_count);
+        let mut list_a = Vec::with_capacity(list_a_count.min(1 << 20));
         for _ in 0..list_a_count { list_a.push(CString::read_from(data, offset)?); }
 
         let list_b_count = u32::read_from(data, offset)? as usize;
-        let mut list_b = Vec::with_capacity(list_b_count);
+        let mut list_b = Vec::with_capacity(list_b_count.min(1 << 20));
         for _ in 0..list_b_count { list_b.push(u32::read_from(data, offset)?); }
 
         let vec_a = <[f32; 3]>::read_from(data, offset)?;
@@ -156,11 +156,11 @@ impl<'a> EffectDataInner<'a> {
         let field_after_vecs = u32::read_from(data, offset)?;
 
         let cstring_count = u32::read_from(data, offset)? as usize;
-        let mut cstring_list = Vec::with_capacity(cstring_count);
+        let mut cstring_list = Vec::with_capacity(cstring_count.min(1 << 20));
         for _ in 0..cstring_count { cstring_list.push(CString::read_from(data, offset)?); }
 
         let fixed144_count = u32::read_from(data, offset)? as usize;
-        let mut fixed144_list = Vec::with_capacity(fixed144_count);
+        let mut fixed144_list = Vec::with_capacity(fixed144_count.min(1 << 20));
         for _ in 0..fixed144_count {
             fixed144_list.push(EffectDataD3Block::read_from(data, offset)?);
         }
@@ -327,28 +327,28 @@ impl<'a> EffectDataElement<'a> {
         let mut fields_d = [0u32; 4];
         for x in &mut fields_d { *x = u32::read_from(data, offset)?; }
         let cstring_count = u32::read_from(data, offset)? as usize;
-        let mut cstring_list = Vec::with_capacity(cstring_count);
+        let mut cstring_list = Vec::with_capacity(cstring_count.min(1 << 20));
         for _ in 0..cstring_count {
             cstring_list.push(CString::read_from(data, offset)?);
         }
 
         let fixed144_count = u32::read_from(data, offset)? as usize;
-        let mut fixed144_list = Vec::with_capacity(fixed144_count);
+        let mut fixed144_list = Vec::with_capacity(fixed144_count.min(1 << 20));
         for _ in 0..fixed144_count {
             fixed144_list.push(EffectDataD3Block::read_from(data, offset)?);
         }
 
         let nested_count = u32::read_from(data, offset)? as usize;
-        let mut nested_u32_lists = Vec::with_capacity(nested_count);
+        let mut nested_u32_lists = Vec::with_capacity(nested_count.min(1 << 20));
         for _ in 0..nested_count {
             let inner_count = u32::read_from(data, offset)? as usize;
-            let mut inner = Vec::with_capacity(inner_count);
+            let mut inner = Vec::with_capacity(inner_count.min(1 << 20));
             for _ in 0..inner_count { inner.push(u32::read_from(data, offset)?); }
             nested_u32_lists.push(inner);
         }
 
         let map_count = u32::read_from(data, offset)? as usize;
-        let mut inner_map = Vec::with_capacity(map_count);
+        let mut inner_map = Vec::with_capacity(map_count.min(1 << 20));
         for _ in 0..map_count {
             inner_map.push(EffectDataInnerMapEntry::read_from(data, offset)?);
         }

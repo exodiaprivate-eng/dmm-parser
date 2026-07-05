@@ -206,7 +206,7 @@ impl PaattFile {
 
         let info_count = read_u32(data, &mut cursor)? as usize;
 
-        let mut infos = Vec::with_capacity(info_count);
+        let mut infos = Vec::with_capacity(info_count.min(1 << 20));
         for _ in 0..info_count {
             infos.push(read_attack_info(data, &mut cursor)?);
         }
@@ -291,7 +291,7 @@ impl PaattFile {
     pub fn parse_strict(data: &[u8]) -> io::Result<(Self, usize)> {
         let mut cursor = 0usize;
         let info_count = read_u32(data, &mut cursor)? as usize;
-        let mut infos = Vec::with_capacity(info_count);
+        let mut infos = Vec::with_capacity(info_count.min(1 << 20));
         for _ in 0..info_count {
             infos.push(read_attack_info(data, &mut cursor)?);
         }

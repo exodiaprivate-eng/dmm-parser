@@ -339,6 +339,10 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct ItemPriceInfo {
+        // NOTE: despite the ItemKey type, this is the STORE key the price applies to,
+        // not the item's own key. Buy-price resolves as price_list[storeKey].price.price
+        // (verified 1.13 IDA RE, sub_1019688B4 matches store then reads entry+4). To make an
+        // item cheap in a given store, edit the price of the entry whose `key` == that store key.
         pub key: ItemKey,
         pub price: PriceFloor,
     }

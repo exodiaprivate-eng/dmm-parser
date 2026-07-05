@@ -108,7 +108,7 @@ impl<'a> GameExpression<'a> {
                 let receiver = Box::new(Self::read_from(data, offset)?);
                 let method_id = u32::read_from(data, offset)?;
                 let arg_count = u32::read_from(data, offset)? as usize;
-                let mut args = Vec::with_capacity(arg_count);
+                let mut args = Vec::with_capacity(arg_count.min(1 << 20));
                 for _ in 0..arg_count {
                     args.push(Self::read_from(data, offset)?);
                 }

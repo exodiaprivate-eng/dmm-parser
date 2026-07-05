@@ -225,13 +225,13 @@ impl<'a> EffectInfo<'a> {
         // and is no longer needed now that the element reader is complete.)
         let mut cur = *offset;
         let n_effect = u32::read_from(data, &mut cur)? as usize;
-        let mut effect_data = Vec::with_capacity(n_effect);
+        let mut effect_data = Vec::with_capacity(n_effect.min(1 << 20));
         for _ in 0..n_effect {
             effect_data.push(EffectDataElement::read_from(data, &mut cur)?);
         }
 
         let n_mesh = u32::read_from(data, &mut cur)? as usize;
-        let mut mesh_effect_data = Vec::with_capacity(n_mesh);
+        let mut mesh_effect_data = Vec::with_capacity(n_mesh.min(1 << 20));
         for _ in 0..n_mesh {
             mesh_effect_data.push(MeshEffectData::read_from(data, &mut cur)?);
         }
@@ -278,7 +278,7 @@ impl<'a> EffectInfo<'a> {
 
         let effect_data = track_read_with(offset, path, ranges, "effect_data", "Vec<EffectDataElement>", |o| {
             let n_effect = u32::read_from(data, o)? as usize;
-            let mut v = Vec::with_capacity(n_effect);
+            let mut v = Vec::with_capacity(n_effect.min(1 << 20));
             for _ in 0..n_effect {
                 v.push(EffectDataElement::read_from(data, o)?);
             }
@@ -287,7 +287,7 @@ impl<'a> EffectInfo<'a> {
 
         let mesh_effect_data = track_read_with(offset, path, ranges, "mesh_effect_data", "Vec<MeshEffectData>", |o| {
             let n_mesh = u32::read_from(data, o)? as usize;
-            let mut v = Vec::with_capacity(n_mesh);
+            let mut v = Vec::with_capacity(n_mesh.min(1 << 20));
             for _ in 0..n_mesh {
                 v.push(MeshEffectData::read_from(data, o)?);
             }
