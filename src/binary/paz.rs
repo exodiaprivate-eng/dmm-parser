@@ -104,16 +104,29 @@ pub fn process_file(
 ) -> io::Result<(Vec<u8>, u8)> {
     let compressed = compress(data, compression)?;
 
+    // Incompressible-block guard: the game's loader rejects any pack entry whose
+    // compressed_size exceeds its uncompressed_size. LZ4 of already-dense data
+    // (e.g. `.paa` animation strips, `.pabgh` key/offset tables) expands rather
+    // than shrinks, so fall back to storing the file uncompressed — keeping
+    // compressed_size <= uncompressed_size — instead of emitting a rejected entry
+    // that hangs the game on load. Generalizes the per-file `add_file_with_compression`
+    // workaround so every add-file path is covered automatically.
+    let (payload, effective) = if compression != Compression::None && compressed.len() >= data.len() {
+        (data.to_vec(), Compression::None)
+    } else {
+        (compressed, compression)
+    };
+
     let processed = match crypto {
-        CryptoType::ChaCha20 => chacha20::encrypt_pack_entry(&compressed, encrypt_info, file_path),
-        CryptoType::None => compressed,
+        CryptoType::ChaCha20 => chacha20::encrypt_pack_entry(&payload, encrypt_info, file_path),
+        CryptoType::None => payload,
         _ => return Err(io::Error::new(
             io::ErrorKind::Unsupported,
             format!("crypto {:?} not supported for creation", crypto),
         )),
     };
 
-    let flags = compression as u8 | ((crypto as u8) << 4);
+    let flags = effective as u8 | ((crypto as u8) << 4);
     Ok((processed, flags))
 }
 
@@ -706,6 +719,51 @@ mod tests {
         let compressed = compress(data, Compression::Lz4).unwrap();
         let decompressed = decompress(&compressed, Compression::Lz4, data.len()).unwrap();
         assert_eq!(decompressed, data.as_ref());
+    }
+
+    #[test]
+    fn test_incompressible_falls_back_to_uncompressed() {
+        // Regression for the `.paa` infinite-load bug: LZ4 of already-dense data
+        // (animation strips, `.pabgh` key/offset tables) expands rather than shrinks,
+        // and the game's loader rejects any entry whose compressed_size exceeds its
+        // uncompressed_size — hanging the game on load. process_file must fall back
+        // to storing such files uncompressed.
+        let data: Vec<u8> = (0u32..8192)
+            .map(|i| {
+                // Effectively-random bytes (murmur3 finalizer) that LZ4 can't shrink.
+                let mut h = i as u64;
+                h ^= h >> 33;
+                h = h.wrapping_mul(0xff51_afd7_ed55_8ccd);
+                h ^= h >> 33;
+                h = h.wrapping_mul(0xc4ce_b9fe_1a85_ec53);
+                (h >> 32) as u8
+            })
+            .collect();
+        // Sanity: raw LZ4 actually grows this payload.
+        assert!(compress(&data, Compression::Lz4).unwrap().len() >= data.len());
+
+        // process_file (LZ4 group) must fall back to storing it uncompressed.
+        let (out, flags) =
+            process_file(&data, Compression::Lz4, CryptoType::None, &[0, 0, 0], "x.paa").unwrap();
+        assert_eq!(
+            flags & 0x0f,
+            Compression::None as u8,
+            "incompressible file must be stored uncompressed"
+        );
+        assert_eq!(out.len(), data.len(), "stored size must equal uncompressed size");
+        // Roundtrips byte-for-byte.
+        let back = decompress(&out, Compression::None, data.len()).unwrap();
+        assert_eq!(back, data);
+    }
+
+    #[test]
+    fn test_compressible_still_uses_lz4() {
+        // Guard: the fallback must not regress genuinely compressible files.
+        let data = vec![0u8; 8192];
+        let (out, flags) =
+            process_file(&data, Compression::Lz4, CryptoType::None, &[0, 0, 0], "x").unwrap();
+        assert_eq!(flags & 0x0f, Compression::Lz4 as u8, "compressible file stays LZ4");
+        assert!(out.len() < data.len(), "LZ4 should shrink zero-filled data");
     }
 
     #[test]
