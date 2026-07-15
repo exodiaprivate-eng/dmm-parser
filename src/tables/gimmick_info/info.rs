@@ -1934,12 +1934,18 @@ impl<'a> GimmickTail<'a> {
                     Some(b) => b.to_json_value(), None => Value::Null,
                 });
                 m.insert("_post_blob_b64".to_string(), Value::String(B64.encode(post_blob)));
+                // Reward overlay: expose the editable gather-count / friendship
+                // values scanned out of the raw post-body blob (see drop_info_scan).
+                m.insert("drop_info_data_list".to_string(),
+                         super::drop_info_scan::reward_list_json(post_blob));
                 Value::Object(m)
             }
             GimmickTail::Raw(b) => {
                 let mut m = Map::new();
                 m.insert("kind".to_string(), Value::String("Raw".to_string()));
                 m.insert("_b64".to_string(), Value::String(B64.encode(b)));
+                m.insert("drop_info_data_list".to_string(),
+                         super::drop_info_scan::reward_list_json(b));
                 Value::Object(m)
             }
         }
@@ -1988,8 +1994,13 @@ impl<'a> GimmickTail<'a> {
                 let b64 = json_get_field(obj, "_post_blob_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                         "GimmickTail.Decoded._post_blob_b64: expected string"))?;
-                let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                let mut bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
                     format!("GimmickTail.Decoded._post_blob_b64: invalid base64: {}", e)))?;
+                // Apply any reward-overlay edits back into the blob. Unedited
+                // (patch-same-value) is byte-identical, so round-trip is preserved.
+                if let Some(list) = obj.get("drop_info_data_list") {
+                    super::drop_info_scan::patch_blob_from_json(&mut bytes, list);
+                }
                 w.extend_from_slice(&bytes);
                 Ok(())
             }
@@ -1997,8 +2008,11 @@ impl<'a> GimmickTail<'a> {
                 let b64 = json_get_field(obj, "_b64")?.as_str()
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                         "GimmickTail.Raw._b64: expected string"))?;
-                let bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                let mut bytes = B64.decode(b64).map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
                     format!("GimmickTail.Raw._b64: invalid base64: {}", e)))?;
+                if let Some(list) = obj.get("drop_info_data_list") {
+                    super::drop_info_scan::patch_blob_from_json(&mut bytes, list);
+                }
                 w.extend_from_slice(&bytes);
                 Ok(())
             }
