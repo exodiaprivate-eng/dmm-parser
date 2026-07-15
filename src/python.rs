@@ -1405,6 +1405,75 @@ pub fn apply_intents(
     Ok(result.into_any().unbind())
 }
 
+/// Apply string-rebind intents to a single `.prefab` body via the fail-safe
+/// Phase-2 editor (same-length in-place, or differing-length with FILE_LEN +
+/// absolute-offset fixups and structural re-validation; on ANY doubt the edit
+/// is Skipped and the bytes are left untouched — a corrupt prefab is never
+/// emitted).
+///
+/// Args:
+///   body: raw `.prefab` bytes (must be a PA Reflect SceneObject prefab).
+///   intents: list of `{"field": str, "new": str}` dicts. `field` selects the
+///     target string by content shape, and exactly one candidate must match or
+///     the intent is skipped:
+///       - `"name"`               → the single `CD_*` part string
+///       - `"_skinnedMeshFileName"`→ the `.pac` mesh
+///       - `"_socketFileName"`    → the `.sockets.xml`
+///       - `"_attachedSocketName"`→ a `*_Socket` bone (not `*_ChildSocket`)
+///       - `"_pivotSocketName"`   → a `*_ChildSocket` bone
+///
+/// Returns a dict:
+///   `{"body": bytes, "outcomes": [{"status": "applied"|"noop"|"skipped",
+///     "reason"?: str}]}`
+///
+/// Raises `ValueError` if the bytes are not a recognized SceneObject prefab.
+#[pyfunction]
+pub fn apply_prefab_intents(
+    py: Python<'_>,
+    body: &[u8],
+    intents: &Bound<'_, PyList>,
+) -> PyResult<Py<PyAny>> {
+    let mut intent_list: Vec<crate::binary::prefab::PrefabIntent> = Vec::new();
+    for item in intents.iter() {
+        let d = item.downcast::<PyDict>()?;
+        let field: String = d
+            .get_item("field")?
+            .ok_or_else(|| PyValueError::new_err("prefab intent missing 'field'"))?
+            .extract()?;
+        let new: String = d
+            .get_item("new")?
+            .ok_or_else(|| PyValueError::new_err("prefab intent missing 'new'"))?
+            .extract()?;
+        intent_list.push(crate::binary::prefab::PrefabIntent { field, new });
+    }
+
+    let (new_body, outcomes) =
+        crate::binary::prefab::apply_prefab_intents(body, &intent_list)
+            .map_err(PyValueError::new_err)?;
+
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, &new_body))?;
+    let outcome_list = PyList::empty(py);
+    for o in outcomes {
+        let d = PyDict::new(py);
+        match o {
+            crate::binary::prefab::PrefabOutcome::Applied => {
+                d.set_item("status", "applied")?;
+            }
+            crate::binary::prefab::PrefabOutcome::NoOp => {
+                d.set_item("status", "noop")?;
+            }
+            crate::binary::prefab::PrefabOutcome::Skipped(reason) => {
+                d.set_item("status", "skipped")?;
+                d.set_item("reason", reason)?;
+            }
+        }
+        outcome_list.append(d)?;
+    }
+    result.set_item("outcomes", outcome_list)?;
+    Ok(result.into_any().unbind())
+}
+
 /// Resolve a Field-JSON target name (e.g. `characterinfo.pabgb`) to its
 /// canonical dispatch identifier (e.g. `character_info`). Returns `None`
 /// for unrecognized names.
@@ -2146,6 +2215,7 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_table, m)?)?;
     m.add_function(wrap_pyfunction!(write_table_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(apply_intents, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_prefab_intents, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_target_name, m)?)?;
     m.add_function(wrap_pyfunction!(item_paloc_indices, m)?)?;
     m.add_function(wrap_pyfunction!(parse_pastage_bytes, m)?)?;
