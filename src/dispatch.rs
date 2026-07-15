@@ -502,9 +502,23 @@ pub fn apply_intents_to_table_body(
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("apply: {}", e)))?;
 
     if let Some(pabgh_bytes) = pabgh {
-        let (new_body, new_pabgh) =
-            serialize_table_from_json_with_pabgh(table_name, &records, pabgh_bytes)?;
-        Ok((new_body, Some(new_pabgh), outcomes))
+        match serialize_table_from_json_with_pabgh(table_name, &records, pabgh_bytes) {
+            Ok((new_body, new_pabgh)) => Ok((new_body, Some(new_pabgh), outcomes)),
+            // Self-bounded (count-record) tables — e.g. wanted_info, equip_type_info —
+            // have a sister .pabgh on disk but don't use it for record bounds, so the
+            // tracked serializer has no rebuild path and errors. A caller that reads
+            // the pabgh purely because the file exists (DMM's mount path) shouldn't be
+            // penalized: serialize sequentially and pass the pabgh back unchanged (a
+            // same-length field edit leaves any offsets it holds valid).
+            Err(e)
+                if e.kind() == io::ErrorKind::InvalidInput
+                    && e.to_string().contains("not pabgh-bounded") =>
+            {
+                let new_body = serialize_table_from_json(table_name, &records)?;
+                Ok((new_body, Some(pabgh_bytes.to_vec()), outcomes))
+            }
+            Err(e) => Err(e),
+        }
     } else {
         let new_body = serialize_table_from_json(table_name, &records)?;
         Ok((new_body, None, outcomes))
