@@ -484,6 +484,12 @@ py_binary_struct! {
 }
 
 /// `sub_1410F36D0` — StoreStockData (1.0.8: added lookup_c after lookup_b).
+///
+/// ⚠ DO NOT RENAME these placeholder fields. V3 store mods target them by field-path
+/// (e.g. `stock_data_list[N].value.raw_q`, `stock_data_list[N].raw_c`) — GildyBoye's Shop
+/// Editor and hand-authored mods alike. Renaming silently breaks every such mod on apply
+/// ("missing field"). Canonical RE names live in memory dmm_store_buyprice_itemid_1130_RE
+/// (lookup_a=_storeInfo, raw_a=_minPricePercent, raw_c=_maxRefillCount, value=_dropInfoData…).
 #[derive(Debug)]
 pub struct StoreStockData {
     pub lookup_a: u16,                                    // sub_1410FA410 wire u16

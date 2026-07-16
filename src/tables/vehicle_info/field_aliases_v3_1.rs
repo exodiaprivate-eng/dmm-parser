@@ -19,7 +19,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("max_vehicle_seat", "_maxVehicleSeat"),
     ("max_parent_link_attach_count", "_maxParentLinkAttachCount"),
     ("rider_spawn_upper_action", "_riderSpawnUpperAction"),
-    ("rider_spawn_lower_action", "_riderSpawnLowerAction"),
+    // `_riderSpawnLowerAction` REMOVED in game version 14 (2026-07-16) — see
+    // vehicle_info/info.rs (confirmed absent in the 1.14 binary).
     ("vehicle_spawn_upper_action", "_vehicleSpawnUpperAction"),
     ("escape_road_group_type", "_escapeRoadGroupType"),
     ("cargo_seat_index_list", "_cargoSeatIndexList"),

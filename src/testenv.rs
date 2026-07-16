@@ -32,6 +32,23 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 14 — 2026-07-16. paver u16@2: 13 -> 14. papgt 577B (unchanged size,
+    // sha differs) + pathc same size = group structure intact, minimal file additions.
+    // All 264 fixtures extracted 0 missing/0 err. DRIFT: 2 tables.
+    //   • vehicle_info — FIXED: one u32 removed from the rider/vehicle spawn-action
+    //     trio (every record -4B). Byte-exact roundtrip restored; V3 130 OK / 0 FAIL.
+    //   • global_stage_sequencer_info — typed under-read -1B/record, but BLOB-SAFE
+    //     (falls back to opaque blob; no-op dispatch roundtrip byte-exact). NOT
+    //     DMM-blocking; joins the known typed-drift set. Fix the typed struct later.
+    // Roundtrip baseline on v14 = 659 passed / 22 failed (was 661/20 on 1.13 hotfix;
+    // +global_stage_sequencer ×2, -vehicle ×2 after fix).
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-16",
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-7-16",
+    // 1.13.00 HOTFIX — 2026-07-08. paver still v13 (0x1000d). 22 tables changed but DATA-ONLY
+    // (dropsetinfo +3 recs, stringinfo +1, conditioninfo +2B; missioninfo pre-existing 100% blob).
+    // Zero structure drift — V3 all-tables 130 OK / 0 FAIL. No parser change needed.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-8",
+    r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-7-8",
     // 1.13.00 (game version 13) — 2026-07-03. Captured vanilla after the 1.12.2→1.13.00 patch.
     r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-3",
     r"/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-7-3",

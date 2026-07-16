@@ -56,7 +56,7 @@ impl<'a> CharacterChangeInfo<'a> {
         let is_blocked = u8::read_from(data, offset)?;
 
         let name_count = u32::read_from(data, offset)? as usize;
-        let mut name_list = Vec::with_capacity(name_count);
+        let mut name_list = Vec::with_capacity(name_count.min(1 << 20));
         for _ in 0..name_count {
             name_list.push(CString::read_from(data, offset)?);
         }
@@ -102,7 +102,7 @@ impl<'a> CharacterChangeInfo<'a> {
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
         let name_list = track_read_with(offset, path, ranges, "name_list", "Vec<CString>", |o| {
             let n = u32::read_from(data, o)? as usize;
-            let mut v = Vec::with_capacity(n);
+            let mut v = Vec::with_capacity(n.min(1 << 20));
             for _ in 0..n {
                 v.push(CString::read_from(data, o)?);
             }

@@ -24,30 +24,34 @@
 //!                 NormalizedPathA). Non-string values interspersed.
 //! ```
 //!
-//! ## Scope of this module (Phase 1 — same-length string set)
+//! ## Scope of this module
 //!
-//! Full reflect-VM data traversal (with the object-graph preamble's
-//! pointers/offsets) is not decoded. Instead this module does
-//! **byte-faithful, same-length string replacement** keyed by field
-//! name, which is exactly what socket-repositioning prefab mods need
-//! (e.g. Master Sword Patches: every edit is a same-length socket-name
-//! swap, Pelvis_*→Spine2_*). A same-length overwrite changes ZERO
-//! structure — no length prefixes, offsets, preamble file-size field, or
-//! the header id move — so it is safe regardless of the un-decoded
-//! object-graph framing.
+//! **Phase 1 — same-length string set.** A same-length overwrite changes
+//! ZERO structure (no length prefixes, offsets, preamble file-size field,
+//! or the header id move), so it is safe regardless of the un-decoded
+//! object-graph framing (e.g. Master Sword Patches: socket-name swaps
+//! Pelvis_*→Spine2_*). The header 8-byte id is NOT a content checksum
+//! (verified: two different-content prefabs share half of it; the format is
+//! fully self-describing so the engine reads the embedded schema rather than
+//! validating bytes), so a value edit leaves it valid.
 //!
-//! The header 8-byte id is NOT a content checksum (verified: two
-//! different-content prefabs share half of it; the format is fully
-//! self-describing so the engine reads the embedded schema rather than
-//! validating bytes) and is independent of the edited fields, so a
-//! same-length value edit leaves it valid.
+//! **Phase 2 — differing-length string set** (`apply_differing_length`).
+//! A length change shifts every byte after the value. Because the format is
+//! schema-driven (the engine walks fields by their embedded types), the only
+//! position-dependent fields are the whole-file `FILE_LEN` (a u32 == the
+//! buffer length) and child-object pointers stored as absolute byte offsets.
+//! Phase 2 splices the new value, rewrites `FILE_LEN`, and shifts every
+//! DATA-section offset that points past the edit — then RE-VALIDATES (re-
+//! parse to the same schema + identical string set with only the edited
+//! value swapped + coherent `FILE_LEN`). Any structural doubt → the edit is
+//! `Skipped` and the bytes are left untouched, so a mount can never emit a
+//! corrupt prefab. The scan is DATA-section-only: the schema's 8-byte field
+//! descriptors can hold offset-range values that are NOT offsets.
 //!
-//! Differing-length edits are reported `Skipped` (would require decoding
-//! the data object-graph + rewriting size/offset fields — a future
-//! phase). Resolution is content-based (robust against the data section
+//! Field resolution is content-based (robust against the data section
 //! ordering differing from schema order): socket names, `.pac`,
-//! `.sockets.xml`, and the `CD_*` component name each have a distinct
-//! value shape, so the right value is found by pattern, not position.
+//! `.sockets.xml`, and the `CD_*` component name each have a distinct value
+//! shape, so the right value is found by pattern, not position.
 
 /// One prefab edit (op = "set"). `new` is the replacement string value.
 #[derive(Debug, Clone)]
@@ -202,11 +206,14 @@ pub fn apply_prefab_intents(
         ));
     }
 
-    let toks = data_strings(body, data_start);
     let mut out = body.to_vec();
     let mut outcomes = Vec::with_capacity(intents.len());
 
     for intent in intents {
+        // Re-tokenize the CURRENT body each iteration: a prior differing-
+        // length edit shifts every offset after it, so cached tokens would
+        // be stale. The schema is never edited, so `data_start` is stable.
+        let toks = data_strings(&out, data_start);
         let cands = candidates(&intent.field, &toks);
         if cands.len() != 1 {
             outcomes.push(PrefabOutcome::Skipped(format!(
@@ -217,26 +224,137 @@ pub fn apply_prefab_intents(
             continue;
         }
         let (off, len, ref cur) = toks[cands[0]];
-        if intent.new.len() != len {
-            outcomes.push(PrefabOutcome::Skipped(format!(
-                "field '{}': differing-length edit ({}->{} bytes) not yet supported",
-                intent.field,
-                len,
-                intent.new.len()
-            )));
-            continue;
-        }
         if *cur == intent.new {
             outcomes.push(PrefabOutcome::NoOp);
             continue;
         }
-        out[off..off + len].copy_from_slice(intent.new.as_bytes());
-        outcomes.push(PrefabOutcome::Applied);
+        if intent.new.len() == len {
+            // Phase 1: same-length, byte-faithful in-place overwrite.
+            out[off..off + len].copy_from_slice(intent.new.as_bytes());
+            outcomes.push(PrefabOutcome::Applied);
+        } else {
+            // Phase 2: differing-length. Splice the value, fix the FILE_LEN
+            // field + every data-section offset pointing past the edit, then
+            // re-validate. On ANY structural doubt, `apply_differing_length`
+            // returns None and we Skip — a mount NEVER emits a corrupt prefab.
+            match apply_differing_length(&out, data_start, off - 4, len, &intent.new) {
+                Some(nb) => {
+                    out = nb;
+                    outcomes.push(PrefabOutcome::Applied);
+                }
+                None => outcomes.push(PrefabOutcome::Skipped(format!(
+                    "field '{}': differing-length edit ({}->{} bytes) failed structural \
+                     re-validation (left untouched)",
+                    intent.field,
+                    len,
+                    intent.new.len()
+                ))),
+            }
+        }
     }
 
-    // Same-length only: output length must equal input length.
-    debug_assert_eq!(out.len(), body.len());
     Ok((out, outcomes))
+}
+
+/// Rebuild the prefab body with a differing-length string value written at
+/// `sp` (the `[u32 len]` prefix position; the current value's bytes are at
+/// `sp + 4`, length `old_len`).
+///
+/// A length change shifts every byte after the value, so any *absolute
+/// offset* recorded in the data object-graph that points past the edit must
+/// be decremented/incremented by the same delta, and the whole-file
+/// `FILE_LEN` field rewritten. This format is schema-driven (the engine
+/// walks fields by their embedded types), so the only size/offset fields are
+/// (a) the single `FILE_LEN` (a u32 == the buffer length) and (b) child-
+/// object pointers stored as absolute byte offsets. Both are found by
+/// scanning the DATA section (never the schema, whose 8-byte field
+/// descriptors can hold offset-range values that are NOT offsets) for u32s
+/// that are either `== old_len_total` or a valid in-file offset pointing
+/// past the edited value.
+///
+/// Returns `None` (fail-safe → caller Skips) if the spliced result does not
+/// re-parse to the same schema with the same string set (only the edited
+/// value swapped) and a coherent `FILE_LEN` — so a wrong fixup can never
+/// ship a corrupt prefab.
+fn apply_differing_length(
+    body: &[u8],
+    data_start: usize,
+    sp: usize,
+    old_len: usize,
+    new_val: &str,
+) -> Option<Vec<u8>> {
+    let n = body.len();
+    let new_len = new_val.len();
+    let delta: isize = new_len as isize - old_len as isize;
+    let edit_end = sp + 4 + old_len;
+
+    // String content spans — excluded from the offset scan so ASCII payload
+    // bytes are never mistaken for offsets.
+    let toks = data_strings(body, data_start);
+    let str_ranges: Vec<(usize, usize)> = toks.iter().map(|&(o, l, _)| (o, o + l)).collect();
+    let in_str = |p: usize| str_ranges.iter().any(|&(a, b)| a <= p && p < b);
+
+    // Collect fixups on the ORIGINAL body, DATA SECTION ONLY (`>= data_start`).
+    let mut fixups: Vec<(usize, u32)> = Vec::new(); // (orig_pos, new_value)
+    let mut i = data_start;
+    while i + 4 <= n {
+        if in_str(i) {
+            i += 1;
+            continue;
+        }
+        let v = u32(body, i)? as usize;
+        if v == n {
+            // FILE_LEN (or any offset pointing at EOF) → new total length.
+            fixups.push((i, (n as isize + delta) as u32));
+            i += 4;
+        } else if (data_start..=n).contains(&v) && v > edit_end {
+            // Absolute offset into the tail (past the edit) → shift by delta.
+            fixups.push((i, (v as isize + delta) as u32));
+            i += 4;
+        } else {
+            i += 1;
+        }
+    }
+
+    // Splice: prefix..sp | new [u32 len] | new bytes | tail (edit_end..).
+    let mut nb: Vec<u8> = Vec::with_capacity((n as isize + delta) as usize);
+    nb.extend_from_slice(&body[..sp]);
+    nb.extend_from_slice(&(new_len as u32).to_le_bytes());
+    nb.extend_from_slice(new_val.as_bytes());
+    nb.extend_from_slice(&body[edit_end..]);
+
+    // Write each fixup at its POST-splice position (fields after the edit
+    // moved by `delta`; the value itself was already computed with `delta`).
+    for (p, nv) in fixups {
+        let np = if p < sp { p } else { (p as isize + delta) as usize };
+        nb.get_mut(np..np + 4)?.copy_from_slice(&nv.to_le_bytes());
+    }
+
+    // ── Fail-safe re-validation ──
+    if nb.len() as isize != n as isize + delta {
+        return None;
+    }
+    let (ds2, _) = parse_schema(&nb)?;
+    if ds2 != data_start {
+        return None; // schema region must be byte-identical
+    }
+    // The re-tokenized string set must equal the original with ONLY the
+    // edited value swapped, in the SAME order — proves the tail didn't
+    // desync (a wrong offset/length shifts a later string's prefix).
+    let want: Vec<&str> = toks
+        .iter()
+        .map(|&(o, _, ref v)| if o == sp + 4 { new_val } else { v.as_str() })
+        .collect();
+    let got: Vec<String> = data_strings(&nb, ds2).into_iter().map(|(_, _, v)| v).collect();
+    if got.len() != want.len() || got.iter().zip(&want).any(|(g, w)| g != w) {
+        return None;
+    }
+    // A FILE_LEN field equal to the new total must be present.
+    let new_n = nb.len() as u32;
+    if !(0..nb.len().saturating_sub(3)).any(|p| u32(&nb, p) == Some(new_n)) {
+        return None;
+    }
+    Some(nb)
 }
 
 #[cfg(test)]
@@ -306,15 +424,52 @@ mod tests {
         assert_eq!(out, SAMPLE, "no-op: byte-identical");
     }
 
+    const TOWER: &[u8] = include_bytes!("testdata/tower_shield.prefab"); // cd_phm_03_towershield_0098
+
     #[test]
-    fn differing_length_is_skipped_not_corrupting() {
+    fn differing_length_applies_or_skips_never_corrupts() {
+        // Phase 2: a longer socket name (Pelvis_L_Socket 15 -> 20). Must
+        // EITHER apply and re-parse cleanly OR skip leaving bytes untouched —
+        // never a corrupt in-between.
         let intents = vec![PrefabIntent {
             field: "_attachedSocketName".into(),
-            new: "A_Much_Longer_Socket_Name".into(),
+            new: "Spine2_R_Root_Socket".into(),
         }];
         let (out, oc) = apply_prefab_intents(SAMPLE, &intents).unwrap();
-        assert!(matches!(oc[0], PrefabOutcome::Skipped(_)));
-        assert_eq!(out, SAMPLE, "skipped edit leaves bytes untouched");
+        match &oc[0] {
+            PrefabOutcome::Applied => {
+                assert_eq!(out.len(), SAMPLE.len() + 5, "grew by 5 (15 -> 20)");
+                let (ds, _) = parse_schema(&out).expect("re-parses after differing-length edit");
+                let vals: Vec<String> = data_strings(&out, ds).into_iter().map(|t| t.2).collect();
+                assert!(vals.contains(&"Spine2_R_Root_Socket".to_string()));
+                assert!(!vals.contains(&"Pelvis_L_Socket".to_string()));
+            }
+            PrefabOutcome::Skipped(_) => assert_eq!(out, SAMPLE, "skip leaves bytes untouched"),
+            PrefabOutcome::NoOp => panic!("unexpected no-op"),
+        }
+    }
+
+    #[test]
+    fn tower_shield_part_rebind_shrinks_and_revalidates() {
+        // The real use case: rebind the tower shield's render part from
+        // CD_MainWeapon_TowerShield_L (27) -> CD_MainWeapon_Shield_L (22) so
+        // the small-shield combat stance sustains it — keeping the tower mesh.
+        let intents = vec![PrefabIntent {
+            field: "_components.item[0].SkinnedMeshComponent.Parameter.name".into(),
+            new: "CD_MainWeapon_Shield_L".into(),
+        }];
+        let (out, oc) = apply_prefab_intents(TOWER, &intents).unwrap();
+        assert_eq!(oc[0], PrefabOutcome::Applied);
+        assert_eq!(out.len(), TOWER.len() - 5, "shrank by 5 (27 -> 22)");
+        let (ds, _) = parse_schema(&out).expect("re-parses");
+        let vals: Vec<String> = data_strings(&out, ds).into_iter().map(|t| t.2).collect();
+        // part rebound, no TowerShield left, tower MESH preserved
+        assert!(vals.contains(&"CD_MainWeapon_Shield_L".to_string()));
+        assert!(!vals.iter().any(|v| v.contains("TowerShield")));
+        assert!(vals.iter().any(|v| v.ends_with("cd_phm_03_towershield_0098.pac")));
+        // FILE_LEN field now equals the new total length
+        let new_n = out.len() as u32;
+        assert!((0..out.len() - 3).any(|p| u32(&out, p) == Some(new_n)), "FILE_LEN updated");
     }
 
     #[test]
