@@ -93,7 +93,16 @@ py_binary_struct! {
         pub parent_link_attach_data_a: u64,
         pub parent_link_attach_data_b: u64,
         pub rider_spawn_upper_action: u32,
-        pub rider_spawn_lower_action: u32,
+        // GAME VERSION 14 (2026-07-16): `_riderSpawnLowerAction` was REMOVED — every
+        // record shrank by exactly 4 bytes and the drift localizes to this spawn-
+        // action trio (dropping any one of the three consecutive u32s reconciles
+        // the record boundaries; dropping a tail u32 does not). CONFIRMED against
+        // the 1.14 binary (IDA Professional 9.0/1.14/CrimsonDesert.exe md5 1454813b):
+        // the `_riderSpawnLower` reflection name is present in 1.13 and ABSENT in
+        // 1.14, while `_riderSpawnUpper` and `_vehicleSpawnUpper` remain in both.
+        // So the two survivors are rider_spawn_upper_action then
+        // vehicle_spawn_upper_action; byte-exact roundtrip is unchanged by the
+        // rename (same 2×u32 layout).
         pub vehicle_spawn_upper_action: u32,
         pub escape_road_group_type: u8,
         pub cargo_seat_index_list: CArray<u8>,
