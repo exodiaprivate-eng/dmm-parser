@@ -714,3 +714,56 @@ fn blob_census_all() {
     eprintln!("\n=== PRE-EXISTING (already blob before the patch) ===");
     for a in &allblob { eprintln!("   {a}"); }
 }
+
+/// itemuseinfo is 43.8% blob on v16. Its records are a variant family keyed by a
+/// `disc` byte, so census the BLOB rate PER DISCRIMINATOR: the failing variants
+/// name themselves, and the passing ones bound the drift.
+#[test]
+#[ignore]
+fn itemuse_disc_census() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("itemuseinfo.pabgb")).expect("body");
+    let pabgh = std::fs::read(dir.join("itemuseinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("itemuseinfo.pabgb", &body, pabgh.as_deref())
+        .expect("parse");
+    // For blob records the disc is not in the JSON, so read it off the raw bytes:
+    // key u32 + CString(len u32 + bytes) + is_blocked u8 + disc u8.
+    use std::collections::BTreeMap;
+    let mut tally: BTreeMap<u8, (usize, usize)> = BTreeMap::new();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let isblob = o.contains_key("_blob_b64");
+        let disc = if let Some(d) = o.get("disc").and_then(|x| x.as_u64()) {
+            d as u8
+        } else if let Some(b64) = o.get("_blob_b64").and_then(|x| x.as_str()) {
+            // decode just enough of the blob to reach `disc`
+            let raw = b64_decode(b64);
+            if raw.len() < 10 { continue }
+            let ln = u32::from_le_bytes([raw[4], raw[5], raw[6], raw[7]]) as usize;
+            let p = 8 + ln;
+            if p + 1 >= raw.len() { continue }
+            raw[p + 1]
+        } else { continue };
+        let e = tally.entry(disc).or_insert((0, 0));
+        if isblob { e.1 += 1 } else { e.0 += 1 }
+    }
+    eprintln!("{:<6} {:>8} {:>8}  {}", "disc", "typed", "BLOB", "verdict");
+    for (d, (ok, blob)) in &tally {
+        let v = if *blob == 0 { "ok" } else if *ok == 0 { "*** ALL BLOB ***" } else { "mixed" };
+        eprintln!("{:<6} {:>8} {:>8}  {}", d, ok, blob, v);
+    }
+}
+
+fn b64_decode(s: &str) -> Vec<u8> {
+    const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = Vec::new();
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for c in s.bytes() {
+        if c == b'=' { break }
+        let Some(v) = T.iter().position(|&t| t == c) else { continue };
+        acc = (acc << 6) | v as u32;
+        bits += 6;
+        if bits >= 8 { bits -= 8; out.push((acc >> bits) as u8); }
+    }
+    out
+}
