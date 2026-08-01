@@ -304,115 +304,8 @@ fn equipslot_value_sanity_after_apply() {
 /// Does Equip All write prefab_names / etl hashes that no longer EXIST on v16?
 /// The mod was authored on v15 and stores captured hashes; v16 remapped keys
 /// wholesale (confirmed in item_use_info). A dangling reference is a null deref
-/// at the moment the engine builds the item — which no byte-level gate can see.
-#[test]
-#[ignore]
-fn equipall_hashes_exist_on_v16() {
-    let dir = fixture_dir();
-    let body = std::fs::read(dir.join("iteminfo.pabgb")).expect("iteminfo");
-    let pabgh = std::fs::read(dir.join("iteminfo.pabgh")).ok();
-    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, pabgh.as_deref())
-        .expect("parse iteminfo");
-    // every prefab_name hash that EXISTS in vanilla v16
-    let mut live = std::collections::HashSet::new();
-    for r in &arr {
-        let Some(o) = r.as_object() else { continue };
-        let Some(pdl) = o.get("prefab_data_list").and_then(|x| x.as_array()) else { continue };
-        for pd in pdl {
-            let Some(po) = pd.as_object() else { continue };
-            for k in ["prefab_names", "animation_path_list", "tribe_gender_list"] {
-                if let Some(a) = po.get(k).and_then(|x| x.as_array()) {
-                    for v in a { if let Some(n) = v.as_u64() { live.insert(n); } }
-                }
-            }
-        }
-    }
-    eprintln!("vanilla v16 distinct prefab/anim/tribe hashes: {}", live.len());
-
-    let p = PathBuf::from(MODS)
-        .join(r"Equip_Everything_V7_2571_7.2_2026-07-19T02-47Z_XOtFiw9Pm\Equip Everything V7.2.json");
-    let raw: serde_json::Value = serde_json::from_slice(&std::fs::read(&p).expect("mod")).expect("json");
-    let (mut total, mut missing) = (0usize, 0usize);
-    let mut sample = Vec::new();
-    for t in raw["targets"].as_array().into_iter().flatten() {
-        if !t["file"].as_str().unwrap_or("").contains("iteminfo") { continue; }
-        for i in t["intents"].as_array().into_iter().flatten() {
-            for pd in i["new"].as_array().into_iter().flatten() {
-                for k in ["prefab_names", "animation_path_list", "tribe_gender_list"] {
-                    for v in pd[k].as_array().into_iter().flatten() {
-                        let Some(n) = v.as_u64() else { continue };
-                        total += 1;
-                        if !live.contains(&n) {
-                            missing += 1;
-                            if sample.len() < 10 {
-                                sample.push(format!("{} (item {})", n, i["entry"].as_str().unwrap_or("?")));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    eprintln!("Equip All writes {total} hash refs; {missing} DO NOT EXIST in vanilla v16");
-    for s in &sample { eprintln!("   missing: {s}"); }
-}
-
 /// Emit a corrected Equip All: drop any intent whose prefab_data_list references a
 /// hash that does not exist on v16. Those dead refs are what crash the engine.
-/// Everything else applies unchanged.
-#[test]
-#[ignore]
-fn write_fixed_equipall() {
-    let dir = fixture_dir();
-    let body = std::fs::read(dir.join("iteminfo.pabgb")).expect("iteminfo");
-    let pabgh = std::fs::read(dir.join("iteminfo.pabgh")).ok();
-    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, pabgh.as_deref())
-        .expect("parse");
-    let mut live = std::collections::HashSet::new();
-    for r in &arr {
-        let Some(o) = r.as_object() else { continue };
-        for pd in o.get("prefab_data_list").and_then(|x| x.as_array()).into_iter().flatten() {
-            let Some(po) = pd.as_object() else { continue };
-            for k in ["prefab_names", "animation_path_list", "tribe_gender_list"] {
-                for v in po.get(k).and_then(|x| x.as_array()).into_iter().flatten() {
-                    if let Some(n) = v.as_u64() { live.insert(n); }
-                }
-            }
-        }
-    }
-    let p = PathBuf::from(MODS)
-        .join(r"Equip_Everything_V7_2571_7.2_2026-07-19T02-47Z_XOtFiw9Pm\Equip Everything V7.2.json");
-    let mut raw: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&p).expect("mod")).expect("json");
-    let mut dropped: Vec<String> = Vec::new();
-    for t in raw["targets"].as_array_mut().into_iter().flatten() {
-        if !t["file"].as_str().unwrap_or("").contains("iteminfo") { continue; }
-        let name = |i: &serde_json::Value| i["entry"].as_str().unwrap_or("?").to_string();
-        let keep: Vec<serde_json::Value> = t["intents"].as_array().unwrap().iter().filter(|i| {
-            let mut ok = true;
-            for pd in i["new"].as_array().into_iter().flatten() {
-                for k in ["prefab_names", "animation_path_list", "tribe_gender_list"] {
-                    for v in pd[k].as_array().into_iter().flatten() {
-                        if let Some(n) = v.as_u64() { if !live.contains(&n) { ok = false; } }
-                    }
-                }
-            }
-            if !ok { dropped.push(name(i)); }
-            ok
-        }).cloned().collect();
-        t["intents"] = serde_json::Value::Array(keep);
-    }
-    raw["modinfo"]["title"] = serde_json::json!("ZZ TEST EquipAll v16-FIXED");
-    let out_dir = PathBuf::from(MODS).join("ZZ TEST EquipAll v16-FIXED");
-    std::fs::create_dir_all(&out_dir).unwrap();
-    std::fs::write(out_dir.join("ZZ TEST EquipAll v16-FIXED.json"),
-        serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
-    dropped.sort(); dropped.dedup();
-    eprintln!("DROPPED {} item intent(s) with dead v16 refs:", dropped.len());
-    for d in &dropped { eprintln!("   {d}"); }
-    eprintln!("wrote {}", out_dir.display());
-}
-
 /// CORRECTION to `equipall_hashes_exist_on_v16`: prefab_names are StringInfoKey,
 /// which resolve against STRINGINFO -- not against "some other vanilla item's
 /// prefab list". Equip All exists precisely to grant gear no vanilla item
@@ -647,4 +540,87 @@ fn verify_one_mod() {
     assert_eq!(shorter, 0, "mod would truncate v16 prefab lists");
     assert_eq!(skipped, 0);
     assert_eq!(unstable, 0);
+}
+
+/// GENERIC patch-day audit: for every `op:set` whose value is a LIST, compare the
+/// length the mod writes against the length the CURRENT vanilla table has at the
+/// same path. Shorter == the mod deletes what this patch added == the Equip All
+/// V7.2 defect class. Set DMM_AUDIT_MOD to a mod json, or leave unset to sweep
+/// every mod under the mods folder.
+#[test]
+#[ignore]
+fn audit_wholesale_set_lists() {
+    use dmm_parser::intents::get_value_at_path;
+    let dir = fixture_dir();
+    let mut cache: std::collections::HashMap<String, Vec<serde_json::Value>> = Default::default();
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    if let Ok(one) = std::env::var("DMM_AUDIT_MOD") {
+        files.push(one.into());
+    } else {
+        fn walk(d: &Path, out: &mut Vec<PathBuf>) {
+            let Ok(rd) = std::fs::read_dir(d) else { return };
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() { walk(&p, out) }
+                else if p.extension().and_then(|x| x.to_str()) == Some("json") { out.push(p) }
+            }
+        }
+        walk(Path::new(MODS), &mut files);
+        walk(Path::new(r"C:\Users\justi\Desktop\MyMods\mod_sources"), &mut files);
+    }
+
+    let mut findings: Vec<String> = Vec::new();
+    let (mut scanned, mut unreadable, mut compared) = (0usize, 0usize, 0usize);
+    for f in files {
+        // ★ NEVER skip silently: a sweep that quietly reads nothing reports
+        //   "all clear" while having audited nothing at all.
+        let bytes = match std::fs::read(&f) {
+            Ok(b) => b,
+            Err(e) => { unreadable += 1; eprintln!("UNREADABLE {}: {e}", f.display()); continue }
+        };
+        let Ok(doc) = serde_json::from_slice::<serde_json::Value>(&bytes) else { continue };
+        if doc.get("format").and_then(|x| x.as_u64()) != Some(3) { continue }
+        let title = doc["modinfo"]["title"].as_str().unwrap_or("?").to_string();
+        scanned += 1;
+        let Ok(parsed) = IntentDoc::from_slice(&bytes) else { continue };
+        for (target, intents) in parsed.flatten_targets() {
+            let Some(fx) = find_fixture(&dir, &target) else { continue };
+            let recs = cache.entry(target.clone()).or_insert_with(|| {
+                let b = std::fs::read(&fx).unwrap_or_default();
+                let h = std::fs::read(fx.with_extension("pabgh")).ok();
+                dmm_parser::dispatch::parse_table_to_json(&target, &b, h.as_deref()).unwrap_or_default()
+            });
+            let mut short = 0usize;
+            let mut sample = String::new();
+            for i in &intents {
+                if i.op.as_deref().unwrap_or("set") != "set" { continue }
+                let Some(newv) = i.new.as_ref().and_then(|v| v.as_array()) else { continue };
+                let Some(field) = i.field.as_deref() else { continue };
+                let Some(k) = i.key else { continue };
+                let Some(rec) = recs.iter().find(|r| r.get("__key__").or_else(|| r.get("key"))
+                    .and_then(|x| x.as_i64()) == Some(k)) else { continue };
+                let Ok(cur) = get_value_at_path(rec, field) else { continue };
+                let Some(curl) = cur.as_array().map(|a| a.len()) else { continue };
+                compared += 1;
+                if newv.len() < curl {
+                    short += 1;
+                    if sample.is_empty() {
+                        sample = format!("{field} key={k}: mod {} vs vanilla {curl}", newv.len());
+                    }
+                }
+            }
+            if short > 0 {
+                findings.push(format!("{title} -> {target}: {short} list(s) SHORTER than v16   [{sample}]"));
+            }
+        }
+    }
+    eprintln!("AUDIT COVERAGE: {scanned} mod doc(s), {compared} list(s) compared, {unreadable} unreadable");
+    assert!(compared > 0, "audited nothing -- coverage bug, not a clean result");
+    if findings.is_empty() {
+        eprintln!("AUDIT: no mod writes a list shorter than v16 vanilla");
+    } else {
+        eprintln!("AUDIT FINDINGS ({}):", findings.len());
+        for f in &findings { eprintln!("   {f}"); }
+    }
 }
