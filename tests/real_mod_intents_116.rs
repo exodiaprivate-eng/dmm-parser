@@ -1630,3 +1630,236 @@ fn build_bisect() {
         if hi == usize::MAX { "end".into() } else { hi.to_string() });
     eprintln!("wrote {out}");
 }
+
+/// What is prefab_data_type, and does the equip gate only care about ONE type?
+/// Cross-tabulate type against "is the tribe_gender list empty" -- if the open
+/// elements are overwhelmingly one type and the restricted ones another, then the
+/// two are different KINDS of element and must not be treated interchangeably.
+#[test]
+#[ignore]
+fn prefab_type_census() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+    let mut cross: std::collections::BTreeMap<(u64, bool), usize> = Default::default();
+    let mut byidx: std::collections::BTreeMap<(usize, u64), usize> = Default::default();
+    for r in &arr {
+        for (i, e) in r.get("prefab_data_list").and_then(|x| x.as_array()).into_iter().flatten().enumerate() {
+            let t = e["prefab_data_type"].as_u64().unwrap_or(999);
+            let open = e["tribe_gender_list"].as_array().map(|a| a.is_empty()).unwrap_or(false);
+            *cross.entry((t, open)).or_default() += 1;
+            if i < 3 { *byidx.entry((i, t)).or_default() += 1; }
+        }
+    }
+    eprintln!("RESULT (prefab_data_type, tribe_gender_EMPTY) -> count:");
+    for ((t, o), n) in &cross { eprintln!("RESULT    type={t} empty={o}: {n}"); }
+    eprintln!("RESULT (element index, type) -> count:");
+    for ((i, t), n) in &byidx { eprintln!("RESULT    idx={i} type={t}: {n}"); }
+
+    // Restrict the access question to type-0 elements only.
+    const F31: [(&str, u64); 3] = [("Kliff", 4234598676), ("Damiane", 650024735), ("Oongka", 2278589063)];
+    for (who, h) in F31 {
+        let (mut none, mut one, mut many) = (0usize, 0usize, 0usize);
+        for r in &arr {
+            let n = r.get("prefab_data_list").and_then(|x| x.as_array()).into_iter().flatten()
+                .filter(|e| e["prefab_data_type"].as_u64() == Some(0))
+                .filter(|e| {
+                    let l = e["tribe_gender_list"].as_array();
+                    l.map(|a| a.is_empty() || a.iter().any(|x| x.as_u64() == Some(h))).unwrap_or(false)
+                }).count();
+            match n { 0 => none += 1, 1 => one += 1, _ => many += 1 }
+        }
+        eprintln!("RESULT {who:8} type-0 elements matching: none={none} exactly_one={one} multiple={many}");
+    }
+}
+
+/// ★★★ Replicate the ENGINE'S OWN load-time validation. game_launcher.log:
+///   [characterinfo(4)]: 착용할 수 없는 아이템이 세팅됐습니다! ItemKey(Tynion_Giant_TwoHandGiantBastard)
+///   checkValid 중 실패했습니다. InfoManagerType : Character
+///   -> StaticInfoGroup LoadXml 실패 -> 게임데이터 로딩 실패  (hard CTD at launch)
+/// Every item preset in characterinfo.equip_item_info_list MUST remain equippable by
+/// that character: its tribe_gender (characterinfo.f31) must match a type-0
+/// prefab element. A mod that REVOKES access to a preset item bricks the game load.
+/// DMM_VERIFY_MOD (omit to validate vanilla itself).
+#[test]
+#[ignore]
+fn engine_checkvalid_gate() {
+    let dir = fixture_dir();
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let (mut b, mut h) = (ib.clone(), ih.clone());
+    if let Ok(p) = std::env::var("DMM_VERIFY_MOD") {
+        let doc = IntentDoc::from_slice(&std::fs::read(&p).unwrap()).unwrap();
+        for (t, ints) in doc.flatten_targets() {
+            if !t.contains("iteminfo") { continue }
+            let (nb, nh, _) = apply_intents_to_table_body(&t, &b, h.as_deref(), &ints).unwrap();
+            b = nb; h = nh;
+        }
+    }
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+    let mut by_key: std::collections::HashMap<u64, (String, Vec<serde_json::Value>)> = Default::default();
+    for r in &items {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        by_key.insert(k, (o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into(),
+            o.get("prefab_data_list").and_then(|x| x.as_array()).cloned().unwrap_or_default()));
+    }
+    let cb = std::fs::read(dir.join("characterinfo.pabgb")).unwrap();
+    let ch = std::fs::read(dir.join("characterinfo.pabgh")).ok();
+    let chars = dmm_parser::dispatch::parse_table_to_json("characterinfo.pabgb", &cb, ch.as_deref()).unwrap();
+
+    let mut violations = 0usize;
+    let mut checked = 0usize;
+    for r in &chars {
+        let Some(o) = r.as_object() else { continue };
+        let Some(ck) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        let Some(tg) = o.get("f31").and_then(|x| x.as_u64()) else { continue };
+        for e in o.get("equip_item_info_list").and_then(|x| x.as_array()).into_iter().flatten() {
+            let Some(ik) = e.get("equip_item_info").and_then(|x| x.as_u64()) else { continue };
+            if ik == 0 { continue }
+            let Some((nm, els)) = by_key.get(&ik) else { continue };
+            if els.is_empty() { continue }
+            checked += 1;
+            let ok = els.iter()
+                .filter(|el| el["prefab_data_type"].as_u64() == Some(0))
+                .any(|el| el["tribe_gender_list"].as_array()
+                    .map(|a| a.is_empty() || a.iter().any(|x| x.as_u64() == Some(tg)))
+                    .unwrap_or(false));
+            if !ok {
+                violations += 1;
+                if violations <= 15 {
+                    eprintln!("RESULT ✗ characterinfo({ck}) presets {nm} (key={ik}) but tribe_gender {tg} matches NO type-0 element");
+                }
+            }
+        }
+    }
+    eprintln!("RESULT engine checkValid: {checked} preset items checked, {violations} VIOLATIONS");
+    assert_eq!(violations, 0, "mod revokes access to a characterinfo preset item -> game data load FAILS at launch");
+}
+
+/// V7.9 -- the merge rule the engine's checkValid demands.
+/// Per element, given vanilla's tribe_gender list V and the mod's M:
+///   M empty     => write []      (the mod's "anyone may equip this" grant)
+///   M non-empty => write V ∪ M   (widen; NEVER revoke a character's access)
+/// Writing M verbatim (V7.4/7.6/7.7/7.8a) revoked access to items characterinfo
+/// presets on a character -- e.g. Tynion_Giant_TwoHandGiantBastard went from
+/// [650024735(Damiane),590304724,4184612308] to [4234598676(Kliff)], so
+/// characterinfo(4)'s preset became unequippable and the game aborted its data load.
+/// Unioning BOTH cases (V7.3) never revokes but also never grants, which is why
+/// Damiane's armor stayed Unequippable.
+/// Also: out-of-scope (non-player-equippable) items dropped; equip_slot_list never
+/// touched; vanilla open-element envelope respected.
+#[test]
+#[ignore]
+fn rebuild_equipall_v79() {
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+    let eb = std::fs::read(dir.join("equipslotinfo.pabgb")).unwrap();
+    let eh = std::fs::read(dir.join("equipslotinfo.pabgh")).ok();
+    let slots = dmm_parser::dispatch::parse_table_to_json("equipslotinfo.pabgb", &eb, eh.as_deref()).unwrap();
+    let mut player_types: std::collections::HashSet<u64> = Default::default();
+    for r in &slots {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        if !PLAYERS.contains(&k) { continue }
+        for e in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten() {
+            for h in e["etl_hashes"].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
+                player_types.insert(h);
+            }
+        }
+    }
+    let mut van: std::collections::HashMap<u64, serde_json::Value> = Default::default();
+    let mut ity: std::collections::HashMap<u64, u64> = Default::default();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        ity.insert(k, o.get("equip_type_info").and_then(|x| x.as_u64()).unwrap_or(0));
+        if let Some(p) = o.get("prefab_data_list") { van.insert(k, p.clone()); }
+    }
+    let openc = |l: &[serde_json::Value]| l.iter()
+        .filter(|e| e["tribe_gender_list"].as_array().map(|a| a.is_empty()).unwrap_or(false)).count();
+    let key_of = |pd: &serde_json::Value| -> String {
+        pd["prefab_names"].as_array().map(|a| a.iter().filter_map(|x| x.as_u64())
+            .map(|x| x.to_string()).collect::<Vec<_>>().join(",")).unwrap_or_default()
+    };
+    let mut raw: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(std::env::var("DMM_MOD_SRC").unwrap()).unwrap()).unwrap();
+    let (mut granted, mut widened, mut scope, mut held) = (0usize, 0usize, 0usize, 0usize);
+    for t in raw["targets"].as_array_mut().into_iter().flatten() {
+        if !t["file"].as_str().unwrap_or("").contains("iteminfo") { continue }
+        for i in t["intents"].as_array_mut().into_iter().flatten() {
+            let Some(k) = i["key"].as_u64() else { continue };
+            let Some(vlist) = van.get(&k).and_then(|v| v.as_array()).cloned() else { continue };
+            if !ity.get(&k).map(|t| player_types.contains(t)).unwrap_or(false) {
+                scope += 1; i["__drop__"] = serde_json::json!(true); continue;
+            }
+            let mut modmap: std::collections::HashMap<String, serde_json::Value> = Default::default();
+            for pd in i["new"].as_array().into_iter().flatten() { modmap.insert(key_of(pd), pd.clone()); }
+            let mut out = Vec::with_capacity(vlist.len());
+            for vpd in &vlist {
+                let mut e = vpd.clone();
+                if let Some(mpd) = modmap.get(&key_of(vpd)) {
+                    let m: Vec<u64> = mpd["tribe_gender_list"].as_array().into_iter().flatten()
+                        .filter_map(|x| x.as_u64()).collect();
+                    let v: Vec<u64> = vpd["tribe_gender_list"].as_array().into_iter().flatten()
+                        .filter_map(|x| x.as_u64()).collect();
+                    if mpd["tribe_gender_list"].is_null() {
+                        // no opinion
+                    } else if m.is_empty() {
+                        if !v.is_empty() { granted += 1; }
+                        e["tribe_gender_list"] = serde_json::json!([]);
+                    } else if !v.is_empty() {
+                        let mut u = v.clone();
+                        for h in &m { if !u.contains(h) { u.push(*h); } }
+                        if u.len() != v.len() { widened += 1; }
+                        e["tribe_gender_list"] = serde_json::json!(u);
+                    }
+                    // v empty + m non-empty => leave OPEN (never narrow)
+                }
+                out.push(e);
+            }
+            if openc(&out) > openc(&vlist) && openc(&out) > 3 { out = vlist.clone(); held += 1; }
+            if out == vlist { i["__drop__"] = serde_json::json!(true); continue; }
+            i["new"] = serde_json::Value::Array(out);
+        }
+    }
+    for t in raw["targets"].as_array_mut().into_iter().flatten() {
+        if let Some(v) = t["intents"].as_array_mut() {
+            v.retain(|i| !i.get("__drop__").and_then(|x| x.as_bool()).unwrap_or(false));
+        }
+    }
+    let ver = std::env::var("DMM_MOD_VER").unwrap_or_else(|_| "7.9".into());
+    raw["modinfo"]["title"] = serde_json::json!(format!("Equip All V{ver}"));
+    raw["modinfo"]["version"] = serde_json::json!(ver);
+    let counts: Vec<String> = raw["targets"].as_array().unwrap().iter()
+        .map(|t| format!("{}={}", t["file"].as_str().unwrap_or("?"),
+             t["intents"].as_array().map(|a| a.len()).unwrap_or(0))).collect();
+    let out = std::env::var("DMM_MOD_OUT").unwrap();
+    std::fs::write(&out, serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
+    eprintln!("RESULT granted_open={granted} widened_union={widened} scope_dropped={scope} envelope_held={held} intents {counts:?}");
+}
+
+/// List the vpaths inside a standalone-overlay mod's PAZ group. DMM's crash
+/// attribution scans mod folders for FILE NAMES, so a mod that ships its content
+/// inside a .paz (group dir + 0.pamt/0.paz) contributes nothing and can never be
+/// blamed. DMM_PAMT_DIR = the group dir (e.g. "...\Cloak Remover\0036").
+#[test]
+#[ignore]
+fn list_paz_group_contents() {
+    use dmm_parser::binary::pamt::PackMeta;
+    let dir = PathBuf::from(std::env::var("DMM_PAMT_DIR").expect("DMM_PAMT_DIR"));
+    let pamt = PackMeta::parse(&std::fs::read(dir.join("0.pamt")).expect("0.pamt"), None)
+        .expect("parse pamt");
+    let mut n = 0usize;
+    for d in &pamt.directories {
+        for f in &d.files {
+            n += 1;
+            eprintln!("RESULT {}/{}", d.path, f.name);
+        }
+    }
+    eprintln!("RESULT total files in group: {n}");
+}
