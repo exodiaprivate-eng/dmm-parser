@@ -1484,3 +1484,149 @@ fn audit_mod_scope() {
     eprintln!("RESULT mod touches {total} items; NOT player-equippable: {out_of_scope}");
     eprintln!("RESULT e.g. {examples:?}");
 }
+
+/// Exactly WHICH fields does a build change vs vanilla, and at which element index?
+/// No hypothesis -- just the full per-field, per-index delta. DMM_VERIFY_MOD.
+#[test]
+#[ignore]
+fn delta_vs_vanilla() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let van = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+    let doc = IntentDoc::from_slice(&std::fs::read(std::env::var("DMM_VERIFY_MOD").unwrap()).unwrap()).unwrap();
+    let (mut b, mut h) = (body.clone(), ph.clone());
+    for (t, ints) in doc.flatten_targets() {
+        if !t.contains("iteminfo") { continue }
+        let (nb, nh, _) = apply_intents_to_table_body(&t, &b, h.as_deref(), &ints).unwrap();
+        b = nb; h = nh;
+    }
+    let m = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+    let mut byfield: std::collections::BTreeMap<String, usize> = Default::default();
+    let mut byidx: std::collections::BTreeMap<usize, usize> = Default::default();
+    let mut slot_emptied = 0usize;
+    let mut ex: Vec<String> = Vec::new();
+    for (rv, rm) in van.iter().zip(m.iter()) {
+        let (Some(av), Some(am)) = (rv.get("prefab_data_list").and_then(|x| x.as_array()),
+                                    rm.get("prefab_data_list").and_then(|x| x.as_array())) else { continue };
+        if av.len() != am.len() { *byfield.entry("<LIST LENGTH>".into()).or_default() += 1; continue }
+        for (i, (ev, em)) in av.iter().zip(am.iter()).enumerate() {
+            let (Some(ov), Some(om)) = (ev.as_object(), em.as_object()) else { continue };
+            for (f, v) in ov {
+                if om.get(f) != Some(v) {
+                    *byfield.entry(f.clone()).or_default() += 1;
+                    *byidx.entry(i).or_default() += 1;
+                    if f == "equip_slot_list" {
+                        let was = v.as_array().map(|a| a.len()).unwrap_or(0);
+                        let now = om.get(f).and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0);
+                        if was > 0 && now == 0 {
+                            slot_emptied += 1;
+                            if ex.len() < 8 { ex.push(format!("{} elem[{i}] {v} -> {}",
+                                rv.get("string_key").and_then(|x| x.as_str()).unwrap_or("?"),
+                                om.get(f).unwrap())); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    eprintln!("RESULT changed elements by FIELD: {byfield:?}");
+    eprintln!("RESULT changed elements by INDEX: {byidx:?}");
+    eprintln!("RESULT ★ equip_slot_list EMPTIED (had a slot, now none): {slot_emptied}");
+    for e in &ex { eprintln!("RESULT    {e}"); }
+}
+
+/// BISECTION build: apply the mod's tribe_gender grants to a RESTRICTED RANGE of
+/// prefab element indices only, leaving every other element byte-identical to
+/// vanilla. equip_slot_list is never touched (V7.7 emptied 3 items' slot bindings,
+/// which is pure risk and unrelated to the mod's purpose). Scope + envelope guards
+/// still apply. DMM_IDX_MIN / DMM_IDX_MAX (inclusive), DMM_MOD_SRC, DMM_MOD_OUT,
+/// DMM_MOD_VER.
+#[test]
+#[ignore]
+fn build_bisect() {
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    let lo: usize = std::env::var("DMM_IDX_MIN").ok().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let hi: usize = std::env::var("DMM_IDX_MAX").ok().and_then(|s| s.parse().ok()).unwrap_or(usize::MAX);
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+    let eb = std::fs::read(dir.join("equipslotinfo.pabgb")).unwrap();
+    let eh = std::fs::read(dir.join("equipslotinfo.pabgh")).ok();
+    let slots = dmm_parser::dispatch::parse_table_to_json("equipslotinfo.pabgb", &eb, eh.as_deref()).unwrap();
+    let mut player_types: std::collections::HashSet<u64> = Default::default();
+    for r in &slots {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        if !PLAYERS.contains(&k) { continue }
+        for e in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten() {
+            for h in e["etl_hashes"].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
+                player_types.insert(h);
+            }
+        }
+    }
+    let mut van: std::collections::HashMap<u64, serde_json::Value> = Default::default();
+    let mut ity: std::collections::HashMap<u64, u64> = Default::default();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        ity.insert(k, o.get("equip_type_info").and_then(|x| x.as_u64()).unwrap_or(0));
+        if let Some(p) = o.get("prefab_data_list") { van.insert(k, p.clone()); }
+    }
+    let openc = |l: &[serde_json::Value]| l.iter()
+        .filter(|e| e["tribe_gender_list"].as_array().map(|a| a.is_empty()).unwrap_or(false)).count();
+    let key_of = |pd: &serde_json::Value| -> String {
+        pd["prefab_names"].as_array().map(|a| a.iter().filter_map(|x| x.as_u64())
+            .map(|x| x.to_string()).collect::<Vec<_>>().join(",")).unwrap_or_default()
+    };
+    let mut raw: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(std::env::var("DMM_MOD_SRC").unwrap()).unwrap()).unwrap();
+    let (mut changed, mut held, mut scope) = (0usize, 0usize, 0usize);
+    for t in raw["targets"].as_array_mut().into_iter().flatten() {
+        if !t["file"].as_str().unwrap_or("").contains("iteminfo") { continue }
+        for i in t["intents"].as_array_mut().into_iter().flatten() {
+            let Some(k) = i["key"].as_u64() else { continue };
+            let Some(vlist) = van.get(&k).and_then(|v| v.as_array()).cloned() else { continue };
+            if !ity.get(&k).map(|t| player_types.contains(t)).unwrap_or(false) {
+                scope += 1; i["__drop__"] = serde_json::json!(true); continue;
+            }
+            let mut modmap: std::collections::HashMap<String, serde_json::Value> = Default::default();
+            for pd in i["new"].as_array().into_iter().flatten() { modmap.insert(key_of(pd), pd.clone()); }
+            let mut out = Vec::with_capacity(vlist.len());
+            for (n, vpd) in vlist.iter().enumerate() {
+                let mut e = vpd.clone();
+                if n >= lo && n <= hi {
+                    if let Some(mpd) = modmap.get(&key_of(vpd)) {
+                        // tribe_gender ONLY -- never equip_slot_list
+                        if !mpd["tribe_gender_list"].is_null()
+                            && e["tribe_gender_list"] != mpd["tribe_gender_list"] {
+                            e["tribe_gender_list"] = mpd["tribe_gender_list"].clone();
+                            changed += 1;
+                        }
+                    }
+                }
+                out.push(e);
+            }
+            if openc(&out) > openc(&vlist) && openc(&out) > 3 { out = vlist.clone(); held += 1; }
+            if out == vlist { i["__drop__"] = serde_json::json!(true); continue; }
+            i["new"] = serde_json::Value::Array(out);
+        }
+    }
+    for t in raw["targets"].as_array_mut().into_iter().flatten() {
+        if let Some(v) = t["intents"].as_array_mut() {
+            v.retain(|i| !i.get("__drop__").and_then(|x| x.as_bool()).unwrap_or(false));
+        }
+    }
+    let ver = std::env::var("DMM_MOD_VER").unwrap_or_else(|_| "7.8".into());
+    raw["modinfo"]["title"] = serde_json::json!(format!("Equip All V{ver}"));
+    raw["modinfo"]["version"] = serde_json::json!(ver);
+    let counts: Vec<String> = raw["targets"].as_array().unwrap().iter()
+        .map(|t| format!("{}={}", t["file"].as_str().unwrap_or("?"),
+             t["intents"].as_array().map(|a| a.len()).unwrap_or(0))).collect();
+    let out = std::env::var("DMM_MOD_OUT").unwrap();
+    std::fs::write(&out, serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
+    eprintln!("RESULT idx[{lo}..={}] elements_changed={changed} held={held} out_of_scope_dropped={scope} intents {counts:?}",
+        if hi == usize::MAX { "end".into() } else { hi.to_string() });
+    eprintln!("wrote {out}");
+}
