@@ -1345,6 +1345,34 @@ fn rebuild_equipall_v76() {
     let openc = |l: &[serde_json::Value]| l.iter()
         .filter(|e| e["tribe_gender_list"].as_array().map(|a| a.is_empty()).unwrap_or(false)).count();
 
+    // ★ SCOPE: an item whose equip_type no PLAYER class whitelists can never be worn
+    // by the player, so editing it is pure damage. For mount/pet gear the
+    // tribe_gender list encodes SPECIES (one element per breed, each with its own
+    // mesh) -- blanking it makes every breed's armor match every animal. V7.2 was a
+    // blanket "empty every tribe_gender_list" sweep and caught 109 such items.
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    let eb = std::fs::read(dir.join("equipslotinfo.pabgb")).unwrap();
+    let eh = std::fs::read(dir.join("equipslotinfo.pabgh")).ok();
+    let slots = dmm_parser::dispatch::parse_table_to_json("equipslotinfo.pabgb", &eb, eh.as_deref()).unwrap();
+    let mut player_types: std::collections::HashSet<u64> = Default::default();
+    for r in &slots {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        if !PLAYERS.contains(&k) { continue }
+        for e in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten() {
+            for h in e["etl_hashes"].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
+                player_types.insert(h);
+            }
+        }
+    }
+    let mut item_type: std::collections::HashMap<u64, u64> = Default::default();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        item_type.insert(k, o.get("equip_type_info").and_then(|x| x.as_u64()).unwrap_or(0));
+    }
+    let mut skipped_scope = 0usize;
+
     let src = std::env::var("DMM_MOD_SRC").expect("DMM_MOD_SRC");
     let mut raw: serde_json::Value = serde_json::from_slice(&std::fs::read(&src).unwrap()).unwrap();
     let key_of = |pd: &serde_json::Value| -> String {
@@ -1357,6 +1385,14 @@ fn rebuild_equipall_v76() {
         for i in t["intents"].as_array_mut().into_iter().flatten() {
             let Some(k) = i["key"].as_u64() else { continue };
             let Some(vlist) = van.get(&k).and_then(|v| v.as_array()).cloned() else { continue };
+            // Out-of-scope: DROP the intent entirely rather than writing vanilla
+            // back. A no-op `op:set` on a nested list is still a patch-day liability
+            // -- next patch it would silently revert whatever that patch added.
+            if !item_type.get(&k).map(|t| player_types.contains(t)).unwrap_or(false) {
+                skipped_scope += 1;
+                i["__drop__"] = serde_json::json!(true);
+                continue;
+            }
             let mut modmap: std::collections::HashMap<String, serde_json::Value> = Default::default();
             for pd in i["new"].as_array().into_iter().flatten() { modmap.insert(key_of(pd), pd.clone()); }
             let mut out = Vec::with_capacity(vlist.len());
@@ -1381,10 +1417,70 @@ fn rebuild_equipall_v76() {
             rebuilt += 1;
         }
     }
-    raw["modinfo"]["title"] = serde_json::json!("Equip All V7.6");
-    raw["modinfo"]["version"] = serde_json::json!("7.6");
+    for t in raw["targets"].as_array_mut().into_iter().flatten() {
+        if let Some(v) = t["intents"].as_array_mut() {
+            v.retain(|i| !i.get("__drop__").and_then(|x| x.as_bool()).unwrap_or(false));
+        }
+    }
+    let ver = std::env::var("DMM_MOD_VER").unwrap_or_else(|_| "7.7".into());
+    raw["modinfo"]["title"] = serde_json::json!(format!("Equip All V{ver}"));
+    raw["modinfo"]["version"] = serde_json::json!(ver);
     let out = std::env::var("DMM_MOD_OUT").expect("DMM_MOD_OUT");
     std::fs::write(&out, serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
-    eprintln!("RESULT rebuilt={rebuilt} merged_grants={merged} items_held_at_vanilla={held}");
+    eprintln!("RESULT rebuilt={rebuilt} merged_grants={merged} items_held_at_vanilla={held} not_player_equippable_skipped={skipped_scope}");
     eprintln!("wrote {out}");
+}
+
+/// How much of the mod's item scope is NOT player-equippable at all? An item whose
+/// equip_type no PLAYER class (Kliff 1 / Damiane 4 / Oongka 6) whitelists cannot be
+/// worn by the player under any edit -- for mount/pet gear the tribe_gender list
+/// encodes SPECIES, so blanking it destroys breed selection. DMM_VERIFY_MOD.
+#[test]
+#[ignore]
+fn audit_mod_scope() {
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    let dir = fixture_dir();
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let eb = std::fs::read(dir.join("equipslotinfo.pabgb")).unwrap();
+    let eh = std::fs::read(dir.join("equipslotinfo.pabgh")).ok();
+    let slots = dmm_parser::dispatch::parse_table_to_json("equipslotinfo.pabgb", &eb, eh.as_deref()).unwrap();
+    let mut player_types: std::collections::HashSet<u64> = Default::default();
+    for r in &slots {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        if !PLAYERS.contains(&k) { continue }
+        for e in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten() {
+            for h in e["etl_hashes"].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
+                player_types.insert(h);
+            }
+        }
+    }
+    let mut et: std::collections::HashMap<u64, (u64, String)> = Default::default();
+    for r in &items {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        et.insert(k, (o.get("equip_type_info").and_then(|x| x.as_u64()).unwrap_or(0),
+                      o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into()));
+    }
+    let raw: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(std::env::var("DMM_VERIFY_MOD").expect("DMM_VERIFY_MOD")).unwrap()).unwrap();
+    let (mut total, mut out_of_scope) = (0usize, 0usize);
+    let mut examples: Vec<String> = Vec::new();
+    for t in raw["targets"].as_array().into_iter().flatten() {
+        if !t["file"].as_str().unwrap_or("").contains("iteminfo") { continue }
+        for i in t["intents"].as_array().into_iter().flatten() {
+            let Some(k) = i["key"].as_u64() else { continue };
+            total += 1;
+            if let Some((ty, nm)) = et.get(&k) {
+                if !player_types.contains(ty) {
+                    out_of_scope += 1;
+                    if examples.len() < 12 { examples.push(nm.clone()); }
+                }
+            }
+        }
+    }
+    eprintln!("RESULT mod touches {total} items; NOT player-equippable: {out_of_scope}");
+    eprintln!("RESULT e.g. {examples:?}");
 }
