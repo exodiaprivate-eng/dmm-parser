@@ -50,7 +50,27 @@ py_binary_struct! {
         pub raw_g: u32,        // raw u32 at mem +32
         pub raw_h: u32,        // raw u32 at mem +36
         pub raw_i: u32,        // raw u32 at mem +40
-        pub block: [u32; 4],   // sub_14100CAB0 at mem +44 (4× u32)
+        // 1.16.00: +16 bytes per element — four new floats. This is the binary's
+        // `AutoSpawnPartyData` and its field list gained _minWaterDepth /
+        // _maxWaterDepth / _minHeightFromWaterGround / _maxHeightFromWaterGround
+        // between _spawnRate and _color.
+        //
+        // The split is pinned by the values, not by the diff: on spawning-pool
+        // record k=0x1 these read 0.1 / FLT_MAX / 0.0 / 32.0, i.e. a sane
+        // min<max depth pair and a 0..32 height band. Shifting the boundary one
+        // slot earlier (the only other alignment the zero padding allows) would
+        // give maxWaterDepth = 0.1 < minWaterDepth = 0, which is nonsense.
+        //
+        // ⚠ `block: [u32;4]` therefore had to be split into `spawn_rate` +
+        // `block: [u32;3]` so the new fields land between them. Placeholder names
+        // in this struct were never semantic, and the table has no field-level
+        // mod surface, so this is a deliberate accuracy fix rather than churn.
+        pub spawn_rate: u32,   // formerly block[0]
+        pub min_water_depth_116: u32,
+        pub max_water_depth_116: u32,
+        pub min_height_from_water_ground_116: u32,
+        pub max_height_from_water_ground_116: u32,
+        pub block: [u32; 3],   // formerly block[1..4]
         // 1.10: a new 4-byte field was inserted here, after `block` and before
         // `flag_a`. It carries a float (vanilla 0x3f800000 = 1.0f). Without it
         // every PoolSplineEntry was 4 bytes short (81 vs 85 with one inner entry),

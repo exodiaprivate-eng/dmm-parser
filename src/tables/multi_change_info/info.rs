@@ -104,7 +104,10 @@ py_binary_struct! {
         pub need_knowledge_info: u32,
         pub craft_tag_name: CString<'a>,
         pub is_from_item_info: u8,
-        pub is_result_item_for_warehouse: u8,
+        // 1.16.00: `is_result_item_for_warehouse` (u8, `_isResultItemForWarehouse`)
+        // was REMOVED — the binary's field list now runs _isFromItemInfo ->
+        // _isWithSealedItem with nothing between. Matches the wire exactly: every
+        // one of the 18526 records is precisely 1 byte shorter than in v14.
         pub is_with_sealed_item: u8,
         pub is_apply_enchant_level: u8,
         pub is_material_item_only_same_item_no: u8,

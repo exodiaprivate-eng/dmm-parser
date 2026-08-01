@@ -32,6 +32,10 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 16 (1.16.00) — 2026-08-01. paver u16@2: 15 -> 16. Trading/banking
+    // overhaul patch. 264/264 fixtures extracted (0 missing / 0 err) from the
+    // freshly-patched, UNMOUNTED game.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-1",
     // GAME VERSION 14 — 2026-07-16. paver u16@2: 13 -> 14. papgt 577B (unchanged size,
     // sha differs) + pathc same size = group structure intact, minimal file additions.
     // All 264 fixtures extracted 0 missing/0 err. DRIFT: 2 tables.

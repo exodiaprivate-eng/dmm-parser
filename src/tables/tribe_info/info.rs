@@ -152,6 +152,14 @@ py_binary_struct! {
         // 1.0.8: was u32 unk_84 + u64 unk_88, now 16B (2x u64)
         pub unk_80_lo: u64,
         pub unk_80_hi: u64,
+        // 1.16: one new u32 inserted immediately before ref_list. Decisive on the
+        // first 3 records (111/114/121 B) — rec0 is the anchor: it is the only one
+        // with a NON-empty ref_list (count=1, hash 75101), so the inserted u32 and
+        // the count cannot be swapped without breaking the terminator. Per the
+        // binary's 31-field list this sits among _characterPauseType /
+        // _activityPresetInfo / _ignoredReactionInSafeZoneFlag; placeholder name
+        // kept in the existing unk_<ver>_<n> style of this table.
+        pub unk_116_a: u32,
         pub ref_list: CArray<u32>,
     }
 }

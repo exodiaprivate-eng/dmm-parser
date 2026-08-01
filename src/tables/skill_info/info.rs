@@ -251,6 +251,11 @@ pub struct SkillInfo<'a> {
     pub is_learn_use_artifact: u8,
     pub allow_skill_with_low_resource: u8,
     pub is_use_child_pattern_description_buff_data: u8,
+    /// 1.16.00: `_isNoAlert` — new u8 between
+    /// `_isUseChildPatternDescriptionBuffData` and `_damageType` in the
+    /// binary's 35-field SkillInfo list. Accounts for the +1 byte seen on
+    /// 1977 of 2013 skill records.
+    pub is_no_alert: u8,
     pub damage_type: u8,
     pub ui_type: u8,
     pub reserve_slot_info_list: CArray<u32>,
@@ -298,6 +303,7 @@ impl<'a> SkillInfo<'a> {
         let is_learn_use_artifact = u8::read_from(data, offset)?;
         let allow_skill_with_low_resource = u8::read_from(data, offset)?;
         let is_use_child_pattern_description_buff_data = u8::read_from(data, offset)?;
+        let is_no_alert = u8::read_from(data, offset)?;
         let damage_type = u8::read_from(data, offset)?;
         let ui_type = u8::read_from(data, offset)?;
         let reserve_slot_info_list = CArray::<u32>::read_from(data, offset)?;
@@ -349,6 +355,7 @@ impl<'a> SkillInfo<'a> {
             use_resource_stat_list, use_resource_item_list, use_driver_resource_stat_list,
             use_battery_stat, is_ui_use_allowed, is_learn_use_artifact,
             allow_skill_with_low_resource, is_use_child_pattern_description_buff_data,
+            is_no_alert,
             damage_type, ui_type,
             reserve_slot_info_list, max_level, skill_group_key_list,
             buff_sustain_flag, dev_skill_name, dev_skill_desc,
@@ -382,6 +389,7 @@ impl<'a> SkillInfo<'a> {
         self.is_learn_use_artifact.write_to(w)?;
         self.allow_skill_with_low_resource.write_to(w)?;
         self.is_use_child_pattern_description_buff_data.write_to(w)?;
+        self.is_no_alert.write_to(w)?;
         self.damage_type.write_to(w)?;
         self.ui_type.write_to(w)?;
         self.reserve_slot_info_list.write_to(w)?;
@@ -507,6 +515,7 @@ impl<'a> ToJsonValue for SkillInfo<'a> {
             "is_learn_use_artifact": self.is_learn_use_artifact,
             "allow_skill_with_low_resource": self.allow_skill_with_low_resource,
             "is_use_child_pattern_description_buff_data": self.is_use_child_pattern_description_buff_data,
+            "is_no_alert": self.is_no_alert,
             "damage_type": self.damage_type,
             "ui_type": self.ui_type,
             "reserve_slot_info_list": self.reserve_slot_info_list.to_json_value(),
@@ -553,6 +562,7 @@ impl<'a> WriteJsonValue for SkillInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_learn_use_artifact")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "allow_skill_with_low_resource")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_use_child_pattern_description_buff_data")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_no_alert")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "damage_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_type")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reserve_slot_info_list")?)?;

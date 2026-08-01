@@ -47,7 +47,12 @@ py_binary_struct! {
         pub destroyed_ai_event_hash: u32,
         pub destroyed_ai_event_tail: u32,
         pub use_resource_item_type: u32,
-        pub fake_equip_reserve_slot_data: u32,
+        // 1.16.00: `fake_equip_reserve_slot_data` (u32) was REMOVED by the game.
+        // It is absent from the binary's own 19-field error-string list, and
+        // dropping it makes every record land byte-exact (rec0 132/132,
+        // rec1 129/129, rec2 134/134). A removal does break the mod contract for
+        // anything that set that key, but the field no longer exists on the wire
+        // — there is nothing to keep it pointing at.
         pub apply_status_group_info_on_activate: u32,
         pub apply_passive_skill_on_activate: u8,
         pub is_show_stamina: u8,

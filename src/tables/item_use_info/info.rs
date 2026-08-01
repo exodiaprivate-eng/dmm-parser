@@ -73,19 +73,22 @@ use std::io::{self, Write};
 // ─────────────────────────────────────────────────────────────────────────────
 
 py_binary_struct! {
-    pub struct BaseUseDataElem<'a> {
+    pub struct BaseUseDataElem {
         pub key_lookup: u32,
         pub flag: u8,
-        pub label: LocalizableString<'a>,
-        // 1.11 (wirewalk-verified): a trailing u32 after the label. Base-only
-        // variants (disc 9/18/19/20/21) round-trip to residual==0 only with
-        // this present; without it the base CArray under-consumes by 4·count.
+        // game v16: the `label` LocalizableString was REMOVED, 22 -> 9 wire bytes.
+        // Byte-decisive on a disc-0 record with count==1: the element+payload run
+        // is 34 B on v15 and 21 B on v16, and the trailing 12 B (the SkillPayload)
+        // are byte-identical in both — so the element itself went 22 -> 9, i.e.
+        // exactly the 13-byte empty LocalizableString disappeared while
+        // key_lookup(4) + flag(1) + tail_lookup(4) survived.
+        // ⚠ MOD CONTRACT: `label` no longer exists; a mod addressing it will skip.
         pub tail_lookup: u32,
     }
 }
 
 py_binary_struct! {
-    pub struct BaseUseData<'a> {
+    pub struct BaseUseData {
         pub flag_a: u8,
         pub flag_b: u8,
         pub flag_c: u8,
@@ -95,7 +98,7 @@ py_binary_struct! {
         pub flag_e: u8,
         pub flag_f: u8,
         pub group_id: u32,
-        pub elements: CArray<BaseUseDataElem<'a>>,
+        pub elements: CArray<BaseUseDataElem>,
     }
 }
 
@@ -281,29 +284,29 @@ py_binary_struct! {
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum ItemUseDataVariant<'a> {
-    Skill { base: BaseUseData<'a>, payload: SkillPayload },
-    ExpandInventorySlot { base: BaseUseData<'a>, payload: ExpandInventorySlotPayload },
-    RandomBox { base: BaseUseData<'a>, payload: RandomBoxPayload },
-    SummonGimmickWithCatch { base: BaseUseData<'a>, payload: SummonGimmickWithCatchPayload<'a> },
-    ConvertCharacter { base: BaseUseData<'a>, payload: ConvertCharacterPayload },
-    ItemDye { base: BaseUseData<'a>, payload: ItemDyePayload },
-    SubLevelUp { base: BaseUseData<'a>, payload: SubLevelUpPayload },
-    FeedVehicle { base: BaseUseData<'a>, payload: SkillPayload },
-    DestroyOnly { base: BaseUseData<'a> },
-    SealToEquip { base: BaseUseData<'a> },
-    TeleportRevivePoint { base: BaseUseData<'a>, payload: TeleportRevivePointPayload },
-    Projectile { base: BaseUseData<'a>, payload: ProjectilePayload },
-    ExpandFarmSlot { base: BaseUseData<'a>, payload: ConvertCharacterPayload },
-    CustomizeCharacter { base: BaseUseData<'a>, payload: CustomizeCharacterPayload },
-    PlaySequencerOnly { base: BaseUseData<'a>, payload: SequencerStageChartDescPartial<'a> },
-    RegisterReserveSlot { base: BaseUseData<'a>, payload: RegisterReserveSlotPayload },
-    OpenUI { base: BaseUseData<'a>, payload: OpenUIPayload<'a> },
-    Inspect { base: BaseUseData<'a> },
-    InventoryBuff { base: BaseUseData<'a> },
-    SendEventToDockingGimmick { base: BaseUseData<'a> },
-    UseSealed { base: BaseUseData<'a> },
-    UnSealFromEquip { base: BaseUseData<'a> },
-    SpecialMode { base: BaseUseData<'a>, payload: SpecialModePayload },
+    Skill { base: BaseUseData, payload: SkillPayload },
+    ExpandInventorySlot { base: BaseUseData, payload: ExpandInventorySlotPayload },
+    RandomBox { base: BaseUseData, payload: RandomBoxPayload },
+    SummonGimmickWithCatch { base: BaseUseData, payload: SummonGimmickWithCatchPayload<'a> },
+    ConvertCharacter { base: BaseUseData, payload: ConvertCharacterPayload },
+    ItemDye { base: BaseUseData, payload: ItemDyePayload },
+    SubLevelUp { base: BaseUseData, payload: SubLevelUpPayload },
+    FeedVehicle { base: BaseUseData, payload: SkillPayload },
+    DestroyOnly { base: BaseUseData },
+    SealToEquip { base: BaseUseData },
+    TeleportRevivePoint { base: BaseUseData, payload: TeleportRevivePointPayload },
+    Projectile { base: BaseUseData, payload: ProjectilePayload },
+    ExpandFarmSlot { base: BaseUseData, payload: ConvertCharacterPayload },
+    CustomizeCharacter { base: BaseUseData, payload: CustomizeCharacterPayload },
+    PlaySequencerOnly { base: BaseUseData, payload: SequencerStageChartDescPartial<'a> },
+    RegisterReserveSlot { base: BaseUseData, payload: RegisterReserveSlotPayload },
+    OpenUI { base: BaseUseData, payload: OpenUIPayload<'a> },
+    Inspect { base: BaseUseData },
+    InventoryBuff { base: BaseUseData },
+    SendEventToDockingGimmick { base: BaseUseData },
+    UseSealed { base: BaseUseData },
+    UnSealFromEquip { base: BaseUseData },
+    SpecialMode { base: BaseUseData, payload: SpecialModePayload },
 }
 
 impl<'a> ItemUseDataVariant<'a> {
@@ -557,7 +560,7 @@ pub struct ItemUseInfo<'a> {
     pub disc: u8,
     /// Fully-typed shared base (sub_141E44520): flags + group lookups +
     /// CArray<BaseUseDataElem>. Field-addressable for V3 modding.
-    pub base: BaseUseData<'a>,
+    pub base: BaseUseData,
     /// Per-variant payload AFTER the base, carried opaque (entry-bounded).
     /// 1.11's variant layouts drifted heavily from the v1.0.4.x doc map and
     /// several are deep/nested (disc 14/15) or variable, so rather than risk a

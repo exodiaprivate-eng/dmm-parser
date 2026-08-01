@@ -59,7 +59,12 @@ py_binary_struct! {
         pub max_stack_count: u64,
         pub item_name: LocalizableString<'a>,
         pub broken_item_prefix_string: LocalStringInfoKey,
-        pub inventory_info: InventoryKey,
+        // 1.16.00: `inventory_info` (InventoryKey = u16) was REMOVED by the
+        // trading/inventory overhaul. It is absent from the binary's own
+        // 115-field error-string list, and every record's diff vs the v14 fixture
+        // contains exactly one 2-byte deletion at this offset carrying plausible
+        // inventory ids (2, 5, ...). Its role appears to have moved to the
+        // widened push-contents-type block at the record tail (below).
         pub equip_type_info: EquipTypeKey,
         pub occupied_equip_slot_data_list: CArray<OccupiedEquipSlotData>,
         pub item_tag_list: CArray<u32>,
@@ -196,14 +201,35 @@ py_binary_struct! {
         // and _isPreservedOnExtract between _isPreorderItem and _respawnTimeSeconds.
         pub is_has_item_use_data_inventory_buff: u8,
         pub is_preserved_on_extract: u8,
-        pub respawn_time_seconds: i64,
-        // 1.12: NEW u32 inserted between respawn_time_seconds and max_endurance
-        // (always 0 in vanilla). Byte-decisive: 1.11/1.12 iteminfo are byte-identical
-        // except a +4 `00 00 00 00` at this exact field boundary (tracked field map:
-        // respawn_time_seconds ends @622, max_endurance starts @622 — the 4 new bytes
-        // land between them), once per record. Semantic unknown → u32 placeholder so
-        // the record realigns and stays JSON-addressable.
+        // 1.12's `unk_u32_112` sits HERE in 1.16 — before the new region and
+        // before respawn_time_seconds, not after it. Its old placement was
+        // indistinguishable while everything around it was zero; the new region's
+        // count byte makes it observable, and reading it after respawn puts the
+        // count 4 bytes early (observed as a bogus CArray count 0x01000000).
+        // Same 4 bytes, same total record size — only the order moved.
         pub unk_u32_112: u32,
+        // ── 1.16.00: new variable-length region, 10 + 28n bytes ───────────────
+        // The binary's 115-field list gained `_itemEffectInfo`,
+        // `_factionManagementData` and `_useAveragePrice` right here, between
+        // `_isPreservedOnExtract` and `_respawnTimeSeconds`.
+        //
+        // Pinned by aligning every record class at `max_endurance` (reliable on
+        // records whose repair and prefab lists are both empty):
+        //   +24 class -> region 10 B   (count 0)
+        //   +52 class -> region 38 B   (count 1)
+        //   +80 class -> region 66 B   (count 2)
+        // i.e. a fixed 10 B frame plus 28 B per entry. Confirmed on item
+        // 0xf51f0: `01 | 01 00 00 00 | 0d.. 32.. 32.. 33.. | 03 00 00 00 | 00`.
+        //
+        // This also explains the earlier red herring: the items whose bytes here
+        // looked like `ff ff ff ff ff ff ff ff` are NOT this region — that is
+        // `respawn_time_seconds` = -1 (never respawns), which only became visible
+        // once the region was placed on the correct side of it.
+        pub item_effect_info: u8,
+        pub faction_management_data: CArray<FactionManagementData>,
+        pub faction_management_extra: u32,
+        pub use_average_price: u8,
+        pub respawn_time_seconds: i64,
         pub max_endurance: u16,
         pub repair_data_list: CArray<RepairData>,
         // 1.13.00: prefab_data_list moved here (from after drop_default_data),
@@ -211,6 +237,25 @@ py_binary_struct! {
         // gimmick_visual_prefab_data_list entries. Wire-order confirmed via the
         // game's ItemInfo/PrefabData readers (Win 1.13.00) + full-table roundtrip.
         pub prefab_data_list: CArray<PrefabData>,
+        // 1.16.00: +16 bytes here — the record tail went from ONE u16 to NINE.
+        // This is the other half of the inventory overhaul (see the removed
+        // `inventory_info` above): a per-inventory-contents-type block rather
+        // than a single id. Values are small enum-like codes (8, 13, 2, 5, 9, 1)
+        // with 255 = unset.
+        //
+        // The 8 new slots go BEFORE the legacy field, not after: the pre-1.16
+        // value was 255 in ALL 6508 records, and in 1.16 the FIRST slot is never
+        // 255 (2x5272, 5x1116, 13x115, ...) while the LAST is 255 in 6522/6581.
+        // Keeping the legacy field last also matches the binary, where
+        // `_itemPushInventoryContentsType` is the final field.
+        pub push_inventory_type_0_116: u16,
+        pub push_inventory_type_1_116: u16,
+        pub push_inventory_type_2_116: u16,
+        pub push_inventory_type_3_116: u16,
+        pub push_inventory_type_4_116: u16,
+        pub push_inventory_type_5_116: u16,
+        pub push_inventory_type_6_116: u16,
+        pub push_inventory_type_7_116: u16,
         // 1.13.00: 2 trailing bytes after the relocated prefab_data_list. Per the
         // game's ItemInfo reader, item_push_inventory_contents_type follows
         // prefab_data_list; kept as u8 + u8 for bit-exact roundtrip (obs `ff 00`).
@@ -304,6 +349,70 @@ mod tests {
     // #[ignore]d until the 1.13.00 iteminfo record reorg is decoded (SubItem disc 17
     // is handled, but prefab/enchant/gimmick_visual relocated to the record tail —
     // see WORKING_STATE 1.13.00 notes). Run with DMM_PARSER_ITEMINFO_PATH set.
+    /// Per-record diagnostic: walks the pabgh index so every record is checked
+    /// against its OWN declared boundary instead of cascading from a single
+    /// sequential desync. Reports which keys mis-size and by how much.
+    #[test]
+    #[ignore = "diagnostic; run with DMM_PARSER_PABGB_DIR set"]
+    fn diag_per_record_sizes() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let p = crate::testenv::resolve("iteminfo.pabgb");
+        let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: no fixture"); return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy())
+        else { eprintln!("SKIP: no pabgh"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let (mut ok, mut bad) = (0usize, 0usize);
+        let mut deltas = std::collections::BTreeMap::<i64, usize>::new();
+        for (k, s, e) in &ranges {
+            let mut c = *s;
+            match ItemInfo::read_from(&data, &mut c) {
+                Ok(_) if c == *e => ok += 1,
+                Ok(_) => {
+                    bad += 1;
+                    *deltas.entry(c as i64 - *e as i64).or_default() += 1;
+                    if bad <= 6 {
+                        eprintln!("k=0x{:x} consumed {} of {} (delta {})",
+                            k, c - *s, *e - *s, c as i64 - *e as i64);
+                    }
+                }
+                Err(_) => {
+                    bad += 1;
+                    *deltas.entry(i64::MIN).or_default() += 1;
+                    println!("BADKEY {}", k);
+                }
+            }
+        }
+        eprintln!("per-record: OK={} BAD={}  deltas={:?}", ok, bad, deltas);
+    }
+
+    /// Tracked-read one record and print the last fields consumed before the
+    /// desync, so the offending field is named rather than guessed at.
+    #[test]
+    #[ignore = "diagnostic"]
+    fn diag_tracked_one() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let want = u32::from_str_radix(
+            &std::env::var("DIAG_KEY").unwrap_or_else(|_| "38ae".into()), 16).unwrap();
+        let p = crate::testenv::resolve("iteminfo.pabgb");
+        let Ok(data) = std::fs::read(&p) else { return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy())
+        else { return; };
+        for (k, s, e) in entry_ranges(&entries, data.len()) {
+            if k as u32 != want { continue; }
+            let mut c = s;
+            let mut path = String::new();
+            let mut ranges = Vec::new();
+            let r = ItemInfo::read_tracked(&data, &mut c, &mut path, &mut ranges);
+            eprintln!("k=0x{:x} range [{}..{}) len={}  result={:?}  cursor={} (rel {})",
+                k, s, e, e - s, r.as_ref().map(|_| "ok").map_err(|x| x.to_string()),
+                c, c as i64 - s as i64);
+            for f in ranges.iter().rev().take(80).rev() {
+                eprintln!("   rel {:>5}..{:<5} {:<12} {}",
+                    f.start - s, f.end - s, f.ty, f.path);
+            }
+        }
+    }
+
     #[test]
     #[ignore = "1.13.00 iteminfo record reorg not yet decoded"]
     fn test_full_table_roundtrip() {

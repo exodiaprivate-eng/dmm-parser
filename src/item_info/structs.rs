@@ -587,8 +587,13 @@ py_binary_struct! {
         pub is_bag_docking: u8,
         pub enable_collision: u8,
         pub disable_collision_with_other_gimmick: u8,
-        // 1.0.8: new u8 field in DockingChildData (IDA shows 14 u8 reads vs 13 in Rust)
-        pub unk_docking_108: u8,
+        // 1.16.00: the 1.0.8-era `unk_docking_108` (u8) was REMOVED here. The
+        // binary's DockingChildData field list now runs
+        // _disableCollisionWithOtherGimmick -> _dockingSlotKey with nothing
+        // between. This is why exactly the ~390 items that actually CARRY docking
+        // data came out 1 byte short (delta +23 / +25 instead of +24) while the
+        // other 6085 were unaffected — the field only exists when the COptional
+        // is present.
         pub docking_slot_key: CString<'a>,
         pub inherit_summoner: u8,
         pub summon_tag_name_hash: [u32; 4],
@@ -608,6 +613,19 @@ py_binary_struct! {
     pub struct PatternDescriptionData<'a> {
         pub pattern_description_info: u32,
         pub param_string_list: CArray<PatternParamString<'a>>,
+    }
+}
+
+py_binary_struct! {
+    /// 1.16.00 — element of `ItemInfo::faction_management_data`, 28 bytes.
+    /// Observed rows: (13, 50, 50, 51) and (13, 3, 3, 4) — a faction/track id
+    /// plus three magnitudes. Exact semantics unconfirmed; sizes are pinned by
+    /// the +28 B step between the +52 and +80 record classes.
+    pub struct FactionManagementData {
+        pub faction_info: u32,
+        pub value_a: u64,
+        pub value_b: u64,
+        pub value_c: u64,
     }
 }
 

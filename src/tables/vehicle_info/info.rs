@@ -126,10 +126,22 @@ py_binary_struct! {
         // growth came from call_vehicle_voxel_type widening to a CArray (above).
         // Verified via wire-walker: all 34 records byte-exact.
         pub trailing_u32_111: u32,
-        // 1.13.00: one more 4-byte field appended to the fixed tail (always
-        // 0x00000000 in vanilla). Verified via drift_diff_1130: EVERY record =
-        // its 1.12.2 bytes + a trailing `00 00 00 00`, all 34 records byte-exact.
-        pub trailing_u32_113: u32,
+        // The binary's LAST field, `_attachToDockingGimmickTag` — a CString, not
+        // a u32. The 1.13 pass could not tell: it is empty (len 0 → the four
+        // bytes `00 00 00 00`) in every record that existed before 1.16, so a u32
+        // read consumed exactly the same 4 bytes and round-tripped.
+        //
+        // 1.16.00 added the first record that fills it: key 0x424a "Ship", whose
+        // tail is `0a 00 00 00` + "controller". Nothing else in this table drifted
+        // — all 33 pre-existing records are byte-identical to the v14 fixture, so
+        // this one type change is the whole 1.16 delta.
+        //
+        // ⚠ RENAME (deliberate, not silent): `trailing_u32_113` -> this. Changing
+        // u32 -> CString already breaks the JSON contract for that field, so the
+        // name had to move with it rather than keep "u32" in the name of a string
+        // field. Vanilla value was empty everywhere, so nothing could have set it
+        // meaningfully.
+        pub attach_to_docking_gimmick_tag: CString<'a>,
     }
 }
 
