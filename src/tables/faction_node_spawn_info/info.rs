@@ -31,7 +31,7 @@ use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 py_binary_struct! {
-    /// `sub_1413F9BD0` per-element. 65 wire bytes, 68 mem bytes.
+    /// `sub_1413F9BD0` per-element. 65 wire bytes on v15, **66 on v16**.
     pub struct PatrolSplineElement {
         pub vec_a: [f32; 3],   // 12 bytes raw at mem +0
         pub block_a: [u32; 4], // 16 bytes via sub_1410AA0D0 (4× u32) at mem +12
@@ -41,6 +41,13 @@ py_binary_struct! {
         pub vec_c: [f32; 3],   // 12 bytes raw at mem +48
         pub raw_b: f32,        // 4 bytes raw at mem +60
         pub raw_c: u32,        // 4 bytes raw at mem +64
+        // game v16: +1 byte APPENDED per element (observed 0x00).
+        // Byte-decisive: on a record populated in BOTH builds the inserts land
+        // every 65 bytes at elem-relative 87/152/217/282/347..., and elements
+        // start at 22 (header 16 + presence 1 + flag 1 + count 4). Element[0] is
+        // 22..87, so the FIRST insert sits at the END of element[0], not at its
+        // start (which would have been 22). Record delta == element count.
+        pub tail_u8_116: u8,
     }
 }
 
