@@ -436,15 +436,33 @@ fn rebuild_equipall_for_v16() {
     let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, pabgh.as_deref())
         .expect("parse");
     let mut van: std::collections::HashMap<u64, serde_json::Value> = Default::default();
+    // The full v16 prefab-name hash universe + the field set a WELL-FORMED element
+    // has, so a mod-only element can be judged instead of trusted.
+    let mut van_prefabs: std::collections::HashSet<u64> = Default::default();
+    let mut van_fields: Vec<String> = Vec::new();
     for r in &arr {
         let Some(o) = r.as_object() else { continue };
         let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
-        if let Some(p) = o.get("prefab_data_list") { van.insert(k, p.clone()); }
+        if let Some(p) = o.get("prefab_data_list") {
+            for e in p.as_array().into_iter().flatten() {
+                if van_fields.is_empty() {
+                    if let Some(eo) = e.as_object() { van_fields = eo.keys().cloned().collect(); }
+                }
+                for h in e["prefab_names"].as_array().into_iter().flatten() {
+                    if let Some(h) = h.as_u64() { van_prefabs.insert(h); }
+                }
+            }
+            van.insert(k, p.clone());
+        }
     }
-    let p = PathBuf::from(MODS)
-        .join(r"Equip_Everything_V7_2571_7.2_2026-07-19T02-47Z_XOtFiw9Pm\Equip Everything V7.2.json");
+    eprintln!("v16 vanilla: {} distinct prefab hashes; element fields = {van_fields:?}",
+        van_prefabs.len());
+    let (mut dropped, mut partial, mut dangling_ct) = (0usize, 0usize, 0usize);
+    // Read the RELEASE SOURCE, not the installed folder — the mods dir gets
+    // replaced as versions ship, and v7.2 is no longer installed there.
+    let p = PathBuf::from(r"C:\Users\justi\Desktop\MyMods\mod_sources\Equip Everything V7.2.json");
     let mut raw: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&p).expect("mod")).expect("json");
+        serde_json::from_slice(&std::fs::read(&p).expect("v7.2 source")).expect("json");
     let key_of = |pd: &serde_json::Value| -> String {
         pd["prefab_names"].as_array().map(|a| a.iter()
             .filter_map(|x| x.as_u64()).map(|x| x.to_string()).collect::<Vec<_>>().join(","))
@@ -465,29 +483,52 @@ fn rebuild_equipall_for_v16() {
             for vpd in &vlist {
                 let mut e = vpd.clone();
                 if let Some(mpd) = modmap.get(&key_of(vpd)) {
-                    // union the grant lists, keep every other v16 field as-is
+                    // ★ Take the mod's grant lists VERBATIM. Do NOT union them with
+                    // vanilla's. The mod's whole mechanism is that an EMPTY
+                    // tribe_gender_list = unrestricted; a NON-empty one RESTRICTS.
+                    // Unioning re-adds vanilla's gate entries and re-locks the item —
+                    // that is what broke Damiane armor in v7.3. Every other field
+                    // still comes from v16 vanilla, so patch additions survive.
                     for f in ["tribe_gender_list", "equip_slot_list"] {
-                        let mut set: Vec<u64> = e[f].as_array().into_iter().flatten()
-                            .filter_map(|x| x.as_u64()).collect();
-                        for x in mpd[f].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
-                            if !set.contains(&x) { set.push(x); merged += 1; }
-                        }
-                        e[f] = serde_json::json!(set);
+                        if !mpd[f].is_null() { e[f] = mpd[f].clone(); merged += 1; }
                     }
                 }
                 out.push(e);
+            }
+            // ★ DO NOT append elements the mod has that v16 vanilla does not.
+            // v7.4 did, and it CTD'd the game on LAUNCH. Two independent defects:
+            //   1. The mod's elements use the OLD sparse capture schema — they carry
+            //      only equip_slot_list/is_craft_material/prefab_names/tribe_gender_list
+            //      and are MISSING animation_path_list, prefab_data_type, scale and
+            //      use_gimmick_prefab. Writing one back produces a malformed record.
+            //   2. Their prefab_names are v15-era hashes; see the dangling report below.
+            // v7.3 shipped without these 32 and did not crash, so dropping them is the
+            // known-good structure. Grants above are what actually makes the mod work.
+            let vkeys: Vec<String> = vlist.iter().map(|v| key_of(v)).collect();
+            for pd in i["new"].as_array().into_iter().flatten() {
+                if vkeys.contains(&key_of(pd)) { continue; }
+                dropped += 1;
+                let missing: Vec<&str> = van_fields.iter()
+                    .filter(|f| pd.get(*f).is_none()).map(|s| s.as_str()).collect();
+                let dangling: Vec<u64> = pd["prefab_names"].as_array().into_iter().flatten()
+                    .filter_map(|x| x.as_u64()).filter(|h| !van_prefabs.contains(h)).collect();
+                if !missing.is_empty() { partial += 1; }
+                if !dangling.is_empty() { dangling_ct += 1; }
+                eprintln!("DROP key={k} {} missing={missing:?} dangling_prefabs={dangling:?}",
+                    i["entry"].as_str().unwrap_or(""));
             }
             i["new"] = serde_json::Value::Array(out);
             rebuilt += 1;
         }
     }
-    raw["modinfo"]["title"] = serde_json::json!("ZZ TEST EquipAll v16-REBUILT");
-    raw["modinfo"]["version"] = serde_json::json!("7.3-v16");
-    let out_dir = PathBuf::from(MODS).join("ZZ TEST EquipAll v16-REBUILT");
+    raw["modinfo"]["title"] = serde_json::json!("Equip All V7.4");
+    raw["modinfo"]["version"] = serde_json::json!("7.4");
+    let out_dir = PathBuf::from(MODS).join("Equip Everything V7.4");
     std::fs::create_dir_all(&out_dir).unwrap();
-    std::fs::write(out_dir.join("ZZ TEST EquipAll v16-REBUILT.json"),
+    std::fs::write(out_dir.join("Equip Everything V7.4.json"),
         serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
     eprintln!("rebuilt {rebuilt} item intents from v16 vanilla; {merged} grant values merged; {nokey} item(s) not in v16");
+    eprintln!("RESULT mod-only elements dropped={dropped} (schema-incomplete={partial}, with dangling prefab hashes={dangling_ct})");
     eprintln!("wrote {}", out_dir.display());
 }
 
@@ -506,21 +547,61 @@ fn verify_one_mod() {
     let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
     let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
     let mut vlen: std::collections::HashMap<u64, usize> = Default::default();
+    let mut van_prefabs: std::collections::HashSet<u64> = Default::default();
+    let mut van_fields: Vec<String> = Vec::new();
     for r in &arr {
         let Some(o) = r.as_object() else { continue };
         let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
-        vlen.insert(k, o.get("prefab_data_list").and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0));
+        let pl = o.get("prefab_data_list").and_then(|x| x.as_array());
+        for e in pl.into_iter().flatten() {
+            if van_fields.is_empty() {
+                if let Some(eo) = e.as_object() { van_fields = eo.keys().cloned().collect(); }
+            }
+            for h in e["prefab_names"].as_array().into_iter().flatten() {
+                if let Some(h) = h.as_u64() { van_prefabs.insert(h); }
+            }
+        }
+        vlen.insert(k, pl.map(|a| a.len()).unwrap_or(0));
     }
     let raw: serde_json::Value = serde_json::from_slice(&std::fs::read(&modpath).unwrap()).unwrap();
-    let mut shorter = 0usize;
+    let (mut shorter, mut partial, mut dangling) = (0usize, 0usize, 0usize);
     for t in raw["targets"].as_array().into_iter().flatten() {
         if !t["file"].as_str().unwrap_or("").contains("iteminfo") { continue; }
         for i in t["intents"].as_array().into_iter().flatten() {
-            let (Some(k), Some(n)) = (i["key"].as_u64(), i["new"].as_array().map(|a| a.len())) else { continue };
-            if let Some(v) = vlen.get(&k) { if n < *v { shorter += 1; } }
+            let (Some(k), Some(list)) = (i["key"].as_u64(), i["new"].as_array()) else { continue };
+            if let Some(v) = vlen.get(&k) { if list.len() < *v { shorter += 1; } }
+            // ★ Every element the mod writes must be STRUCTURALLY COMPLETE and must
+            // reference prefab hashes this build actually has. v7.4 shipped 32
+            // elements captured under the old sparse schema (no scale /
+            // prefab_data_type / animation_path_list / use_gimmick_prefab) carrying
+            // v15 prefab hashes, and the game CTD'd on LAUNCH. Bytes round-tripped
+            // and every intent applied, so only this check sees it.
+            for e in list {
+                let miss: Vec<&str> = van_fields.iter()
+                    .filter(|f| e.get(*f).is_none()).map(|s| s.as_str()).collect();
+                if !miss.is_empty() {
+                    partial += 1;
+                    if partial <= 10 {
+                        eprintln!("RESULT   PARTIAL key={k} {} missing={miss:?}",
+                            i["entry"].as_str().unwrap_or(""));
+                    }
+                }
+                for h in e["prefab_names"].as_array().into_iter().flatten() {
+                    let Some(h) = h.as_u64() else { continue };
+                    if !van_prefabs.contains(&h) {
+                        dangling += 1;
+                        if dangling <= 10 {
+                            eprintln!("RESULT   DANGLING key={k} {} prefab={h}",
+                                i["entry"].as_str().unwrap_or(""));
+                        }
+                    }
+                }
+            }
         }
     }
     eprintln!("RESULT prefab lists SHORTER than v16 vanilla: {shorter}");
+    eprintln!("RESULT schema-incomplete elements: {partial}");
+    eprintln!("RESULT dangling prefab refs: {dangling}");
 
     let (mut applied, mut skipped, mut unstable) = (0usize, 0usize, 0usize);
     for (target, intents) in doc.flatten_targets() {
@@ -543,6 +624,8 @@ fn verify_one_mod() {
     }
     eprintln!("RESULT applied={applied} skipped={skipped} unstable_tables={unstable}");
     assert_eq!(shorter, 0, "mod would truncate v16 prefab lists");
+    assert_eq!(partial, 0, "mod writes structurally incomplete prefab elements (v7.4 launch-CTD class)");
+    assert_eq!(dangling, 0, "mod references prefab hashes absent from this build");
     assert_eq!(skipped, 0);
     assert_eq!(unstable, 0);
 }
