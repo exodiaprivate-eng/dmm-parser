@@ -1024,3 +1024,113 @@ fn ab_overlay_diff() {
     eprintln!("★ items with ZERO open elements in B but >0 in VANILLA: {starved_vs_vanilla}");
     for s in starved.iter().take(15) { eprintln!("    starved: {} (key={} elems={})", s.1, s.0, s.2); }
 }
+
+/// Audit the equipslotinfo half of an Equip All build against the VALIDATED-SAFE
+/// recipe: a slot_index-matched etl_hashes union over ONLY the 3 player classes
+/// (Kliff 1, Damiane 4, Oongka 6). Unioning across the NPC/BOSS classes is what
+/// broke the mod historically -- their slot_index means something different, so
+/// armor/offhand types leak into weapon slots. DMM_VERIFY_MOD.
+#[test]
+#[ignore]
+fn audit_equipslot_intents() {
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("equipslotinfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("equipslotinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("equipslotinfo.pabgb", &body, ph.as_deref())
+        .expect("parse");
+    // (class_key, slot_position) -> etl set ; and per position the union over players
+    let mut van: std::collections::HashMap<(u64, usize), Vec<u64>> = Default::default();
+    let mut player_pos: std::collections::HashMap<usize, std::collections::HashSet<u64>> = Default::default();
+    let mut classes: Vec<u64> = Vec::new();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        classes.push(k);
+        for (i, e) in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten().enumerate() {
+            let set: Vec<u64> = e["etl_hashes"].as_array().into_iter().flatten()
+                .filter_map(|x| x.as_u64()).collect();
+            if PLAYERS.contains(&k) { player_pos.entry(i).or_default().extend(set.iter().copied()); }
+            van.insert((k, i), set);
+        }
+    }
+    classes.sort();
+    eprintln!("equipslotinfo classes on v16: {classes:?}");
+
+    let modpath = std::env::var("DMM_VERIFY_MOD").expect("DMM_VERIFY_MOD");
+    let raw: serde_json::Value = serde_json::from_slice(&std::fs::read(&modpath).unwrap()).unwrap();
+    let (mut n, mut nonplayer, mut removes, mut foreign) = (0usize, 0usize, 0usize, 0usize);
+    for t in raw["targets"].as_array().into_iter().flatten() {
+        if !t["file"].as_str().unwrap_or("").contains("equipslot") { continue }
+        for i in t["intents"].as_array().into_iter().flatten() {
+            n += 1;
+            let key = i["key"].as_u64().unwrap_or(u64::MAX);
+            let field = i["field"].as_str().unwrap_or("");
+            let pos: usize = field.trim_start_matches("entries[").split(']').next()
+                .and_then(|s| s.parse().ok()).unwrap_or(usize::MAX);
+            let new: Vec<u64> = i["new"].as_array().into_iter().flatten()
+                .filter_map(|x| x.as_u64()).collect();
+            let v = van.get(&(key, pos)).cloned().unwrap_or_default();
+            let added: Vec<u64> = new.iter().filter(|h| !v.contains(h)).copied().collect();
+            let dropped: Vec<u64> = v.iter().filter(|h| !new.contains(h)).copied().collect();
+            let empty = std::collections::HashSet::new();
+            let allowed = player_pos.get(&pos).unwrap_or(&empty);
+            let leak: Vec<u64> = added.iter().filter(|h| !allowed.contains(h)).copied().collect();
+            if !PLAYERS.contains(&key) { nonplayer += 1 }
+            if !dropped.is_empty() { removes += 1 }
+            if !leak.is_empty() { foreign += 1 }
+            eprintln!("RESULT class={key} slot_pos={pos}: vanilla={} -> new={} added={:?}{}{}",
+                v.len(), new.len(), added,
+                if dropped.is_empty() { String::new() } else { format!(" DROPPED={dropped:?}") },
+                if leak.is_empty() { String::new() } else { format!("  ★FOREIGN(not in any player class at this slot)={leak:?}") });
+        }
+    }
+    eprintln!("RESULT equipslot intents={n} targeting_non_player_class={nonplayer} removing_vanilla_types={removes} foreign_type_leaks={foreign}");
+}
+
+/// Repair the equipslotinfo half for v16: keep the SAME (class, slot) targets the
+/// mod already ships -- the validated 3-player slot-matched set -- but union each
+/// with v16 vanilla so a stale `op:set` cannot DELETE an equip type this patch
+/// added. Minimal by construction: the result is a superset of both the mod's
+/// current grants and vanilla, so nothing the mod granted is lost and nothing
+/// vanilla has is dropped. DMM_VERIFY_MOD in, DMM_MOD_OUT out.
+#[test]
+#[ignore]
+fn rebuild_equipslot_for_v16() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("equipslotinfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("equipslotinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("equipslotinfo.pabgb", &body, ph.as_deref())
+        .expect("parse");
+    let mut van: std::collections::HashMap<(u64, usize), Vec<u64>> = Default::default();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        for (i, e) in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten().enumerate() {
+            van.insert((k, i), e["etl_hashes"].as_array().into_iter().flatten()
+                .filter_map(|x| x.as_u64()).collect());
+        }
+    }
+    let modpath = std::env::var("DMM_VERIFY_MOD").expect("DMM_VERIFY_MOD");
+    let mut raw: serde_json::Value = serde_json::from_slice(&std::fs::read(&modpath).unwrap()).unwrap();
+    let mut restored = 0usize;
+    for t in raw["targets"].as_array_mut().into_iter().flatten() {
+        if !t["file"].as_str().unwrap_or("").contains("equipslot") { continue }
+        for i in t["intents"].as_array_mut().into_iter().flatten() {
+            let key = i["key"].as_u64().unwrap_or(u64::MAX);
+            let pos: usize = i["field"].as_str().unwrap_or("").trim_start_matches("entries[")
+                .split(']').next().and_then(|s| s.parse().ok()).unwrap_or(usize::MAX);
+            let mut new: Vec<u64> = i["new"].as_array().into_iter().flatten()
+                .filter_map(|x| x.as_u64()).collect();
+            for h in van.get(&(key, pos)).into_iter().flatten() {
+                if !new.contains(h) { new.push(*h); restored += 1; }
+            }
+            i["new"] = serde_json::Value::Array(
+                new.into_iter().map(|h| serde_json::json!(h)).collect());
+        }
+    }
+    let out = std::env::var("DMM_MOD_OUT").expect("DMM_MOD_OUT");
+    std::fs::write(&out, serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
+    eprintln!("RESULT restored {restored} vanilla equip type(s) the stale op:set would have deleted");
+    eprintln!("wrote {out}");
+}
