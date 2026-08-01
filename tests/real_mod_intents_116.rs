@@ -1134,3 +1134,257 @@ fn rebuild_equipslot_for_v16() {
     eprintln!("RESULT restored {restored} vanilla equip type(s) the stale op:set would have deleted");
     eprintln!("wrote {out}");
 }
+
+/// Print iteminfo records in PARSE ORDER. AutoLoot's gimmick_block.h indexes its
+/// tables by the engine's manager array index, and the generator assumes parse
+/// order == manager index. Verify that assumption differentially against the build
+/// the probes were generated on before regenerating anything.
+#[test]
+#[ignore]
+fn dump_item_order() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref())
+        .expect("parse");
+    eprintln!("RESULT dir={} records={}", dir.display(), arr.len());
+    for (i, r) in arr.iter().take(6).enumerate() {
+        eprintln!("RESULT   idx {i}: {}", r.get("string_key").and_then(|x| x.as_str()).unwrap_or("?"));
+    }
+}
+
+/// Dump v16 gimmick/puzzle item string_keys (item_type == 102) so AutoLoot's
+/// gimmick_block.h can be diffed against the live build. The Visione_Chip_ half of
+/// the filter is a prefix test and needs no regeneration; this explicit list does.
+#[test]
+#[ignore]
+fn dump_gimmick_keys() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+    if let Some(o) = arr.first().and_then(|r| r.as_object()) {
+        let mut ks: Vec<&String> = o.keys().filter(|k| k.contains("type") || k.contains("item")).collect();
+        ks.sort();
+        eprintln!("candidate type fields: {ks:?}");
+    }
+    let field = std::env::var("DMM_TYPE_FIELD").unwrap_or_else(|_| "item_type".into());
+    let mut out: Vec<String> = Vec::new();
+    let mut vis = 0usize;
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        if sk.starts_with("Visione_Chip_") { vis += 1; }
+        if o.get(&field).and_then(|x| x.as_u64()) == Some(102) { out.push(sk.to_string()); }
+    }
+    out.sort();
+    eprintln!("RESULT v16 item_type==102 keys: {}", out.len());
+    eprintln!("RESULT v16 Visione_Chip_* items: {vis}");
+    let dst = PathBuf::from(std::env::var("DMM_DUMP_DIR").unwrap_or_else(|_| ".".into()))
+        .join("v16_gimmick_keys.json");
+    std::fs::write(&dst, serde_json::to_vec(&out).unwrap()).unwrap();
+    eprintln!("wrote {}", dst.display());
+}
+
+/// Diagnose SPECIFIC items the user reports as "Unequippable" in-game: dump their
+/// equip_type, their per-element tribe_gender lists, and which player class/slot
+/// whitelists that equip_type on v16. DMM_ITEMS="Matana,Ashad,Golden_Greed".
+#[test]
+#[ignore]
+fn diagnose_unequippable() {
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    let dir = fixture_dir();
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let eb = std::fs::read(dir.join("equipslotinfo.pabgb")).unwrap();
+    let eh = std::fs::read(dir.join("equipslotinfo.pabgh")).ok();
+    let slots = dmm_parser::dispatch::parse_table_to_json("equipslotinfo.pabgb", &eb, eh.as_deref()).unwrap();
+
+    // equip_type -> list of (class, slot_pos) that whitelist it
+    let mut where_ok: std::collections::HashMap<u64, Vec<(u64, usize)>> = Default::default();
+    for r in &slots {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        for (i, e) in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten().enumerate() {
+            for h in e["etl_hashes"].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
+                where_ok.entry(h).or_default().push((k, i));
+            }
+        }
+    }
+    let pats: Vec<String> = std::env::var("DMM_ITEMS").unwrap_or_default()
+        .split(',').map(|s| s.trim().to_lowercase()).filter(|s| !s.is_empty()).collect();
+    for r in &items {
+        let Some(o) = r.as_object() else { continue };
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        let lo = sk.to_lowercase();
+        if !pats.iter().any(|p| lo.contains(p)) { continue }
+        let et = o.get("equip_type_info").and_then(|x| x.as_u64());
+        eprintln!("RESULT === {sk}  key={:?} equip_type={et:?}",
+            o.get("__key__").or_else(|| o.get("key")));
+        for (i, e) in o.get("prefab_data_list").and_then(|x| x.as_array()).into_iter().flatten().enumerate() {
+            eprintln!("RESULT     elem[{i}] tribe_gender={} equip_slot={} prefab={}",
+                e["tribe_gender_list"], e["equip_slot_list"], e["prefab_names"]);
+        }
+        match et.and_then(|t| where_ok.get(&t)) {
+            None => eprintln!("RESULT     equip_type whitelisted by: NOBODY"),
+            Some(v) => {
+                let players: Vec<String> = v.iter().filter(|(c, _)| PLAYERS.contains(c))
+                    .map(|(c, s)| format!("class{c}/slot{s}")).collect();
+                eprintln!("RESULT     equip_type whitelisted by {} entries; PLAYER classes: {:?}",
+                    v.len(), players);
+            }
+        }
+    }
+}
+
+/// Find which characterinfo field carries the tribe_gender hash, by looking for the
+/// values observed on Damiane-locked vs Kliff-locked gear inside the player records.
+#[test]
+#[ignore]
+fn find_tribe_gender_source() {
+    const DAM: [u64; 5] = [650024735, 590304724, 4184612308, 2348049478, 2885474193];
+    const OTH: [u64; 5] = [4234598676, 2278589063, 3215062603, 335227758, 3500335599];
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("characterinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("characterinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("characterinfo.pabgb", &b, h.as_deref()).unwrap();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        if ![1u64, 2, 4, 6].contains(&k) { continue }
+        let mut hits: Vec<String> = Vec::new();
+        for (f, v) in o {
+            if let Some(n) = v.as_u64() {
+                if DAM.contains(&n) { hits.push(format!("{f}={n} <DAMIANE-set>")); }
+                if OTH.contains(&n) { hits.push(format!("{f}={n} <OTHER-set>")); }
+            }
+        }
+        eprintln!("RESULT char key={k}: {:?}", hits);
+    }
+    // Which items carry each set on elem[0]? Count them.
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let (mut dam, mut oth, mut open, mut other_sets) = (0usize, 0usize, 0usize, 0usize);
+    for r in &items {
+        let Some(e0) = r.get("prefab_data_list").and_then(|x| x.as_array()).and_then(|a| a.first()) else { continue };
+        let l: Vec<u64> = e0["tribe_gender_list"].as_array().into_iter().flatten()
+            .filter_map(|x| x.as_u64()).collect();
+        if l.is_empty() { open += 1 }
+        else if l.iter().any(|h| DAM.contains(h)) { dam += 1 }
+        else if l.iter().any(|h| OTH.contains(h)) { oth += 1 }
+        else { other_sets += 1 }
+    }
+    eprintln!("RESULT elem[0] classification: open={open} damiane_set={dam} other_set={oth} neither={other_sets}");
+}
+
+/// V7.2's format worked on 1.15, so the question is what v16 changed. Compare the
+/// per-item distribution of FULLY OPEN (empty tribe_gender_list) elements between
+/// vanilla and a mod build: a state vanilla never produces is the prime suspect.
+#[test]
+#[ignore]
+fn open_element_distribution() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let count = |a: &Vec<serde_json::Value>, label: &str| {
+        let mut hist: std::collections::BTreeMap<usize, usize> = Default::default();
+        let mut multi: Vec<String> = Vec::new();
+        for r in a {
+            let els = r.get("prefab_data_list").and_then(|x| x.as_array());
+            let n = els.into_iter().flatten()
+                .filter(|e| e["tribe_gender_list"].as_array().map(|l| l.is_empty()).unwrap_or(false))
+                .count();
+            *hist.entry(n).or_default() += 1;
+            if n >= 2 && multi.len() < 6 {
+                multi.push(format!("{} (open={n}/{})",
+                    r.get("string_key").and_then(|x| x.as_str()).unwrap_or("?"),
+                    els.map(|v| v.len()).unwrap_or(0)));
+            }
+        }
+        eprintln!("RESULT {label}: items by #fully-open elements {hist:?}");
+        if !multi.is_empty() { eprintln!("RESULT {label}   e.g. {multi:?}"); }
+    };
+    let van = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+    count(&van, "VANILLA v16");
+    if let Ok(p) = std::env::var("DMM_VERIFY_MOD") {
+        let doc = IntentDoc::from_slice(&std::fs::read(&p).unwrap()).unwrap();
+        let (mut b, mut h) = (body.clone(), ph.clone());
+        for (target, intents) in doc.flatten_targets() {
+            if !target.contains("iteminfo") { continue }
+            let (nb, nh, _) = apply_intents_to_table_body(&target, &b, h.as_deref(), &intents).unwrap();
+            b = nb; h = nh;
+        }
+        let m = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+        count(&m, "MOD        ");
+    }
+}
+
+/// V7.6: keep V7.2's PROVEN format (merge the mod's grants onto v16 vanilla
+/// structure) but never push an item into a state vanilla itself never produces.
+/// v16 vanilla tops out at 3 fully-open prefab elements per item; V7.4 produced 51
+/// items with 4..10 -- all multi-variant pet/mount/ring gear whose elements are
+/// per-species variants. Any item whose open-count would exceed vanilla's own count
+/// for that item is left ENTIRELY at vanilla. DMM_MOD_SRC in, DMM_MOD_OUT out.
+#[test]
+#[ignore]
+fn rebuild_equipall_v76() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+    let mut van: std::collections::HashMap<u64, serde_json::Value> = Default::default();
+    let mut name: std::collections::HashMap<u64, String> = Default::default();
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        name.insert(k, o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into());
+        if let Some(p) = o.get("prefab_data_list") { van.insert(k, p.clone()); }
+    }
+    let openc = |l: &[serde_json::Value]| l.iter()
+        .filter(|e| e["tribe_gender_list"].as_array().map(|a| a.is_empty()).unwrap_or(false)).count();
+
+    let src = std::env::var("DMM_MOD_SRC").expect("DMM_MOD_SRC");
+    let mut raw: serde_json::Value = serde_json::from_slice(&std::fs::read(&src).unwrap()).unwrap();
+    let key_of = |pd: &serde_json::Value| -> String {
+        pd["prefab_names"].as_array().map(|a| a.iter().filter_map(|x| x.as_u64())
+            .map(|x| x.to_string()).collect::<Vec<_>>().join(",")).unwrap_or_default()
+    };
+    let (mut rebuilt, mut held, mut merged) = (0usize, 0usize, 0usize);
+    for t in raw["targets"].as_array_mut().into_iter().flatten() {
+        if !t["file"].as_str().unwrap_or("").contains("iteminfo") { continue }
+        for i in t["intents"].as_array_mut().into_iter().flatten() {
+            let Some(k) = i["key"].as_u64() else { continue };
+            let Some(vlist) = van.get(&k).and_then(|v| v.as_array()).cloned() else { continue };
+            let mut modmap: std::collections::HashMap<String, serde_json::Value> = Default::default();
+            for pd in i["new"].as_array().into_iter().flatten() { modmap.insert(key_of(pd), pd.clone()); }
+            let mut out = Vec::with_capacity(vlist.len());
+            for vpd in &vlist {
+                let mut e = vpd.clone();
+                if let Some(mpd) = modmap.get(&key_of(vpd)) {
+                    for f in ["tribe_gender_list", "equip_slot_list"] {
+                        if !mpd[f].is_null() { e[f] = mpd[f].clone(); merged += 1; }
+                    }
+                }
+                out.push(e);
+            }
+            // ★ Envelope guard: never exceed vanilla's own open-element count.
+            if openc(&out) > openc(&vlist) && openc(&vlist) < out.len() && openc(&out) > 3 {
+                eprintln!("RESULT HOLD {} ({}): would open {} of {} (vanilla opens {})",
+                    name.get(&k).cloned().unwrap_or_default(), k,
+                    openc(&out), out.len(), openc(&vlist));
+                out = vlist.clone();
+                held += 1;
+            }
+            i["new"] = serde_json::Value::Array(out);
+            rebuilt += 1;
+        }
+    }
+    raw["modinfo"]["title"] = serde_json::json!("Equip All V7.6");
+    raw["modinfo"]["version"] = serde_json::json!("7.6");
+    let out = std::env::var("DMM_MOD_OUT").expect("DMM_MOD_OUT");
+    std::fs::write(&out, serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
+    eprintln!("RESULT rebuilt={rebuilt} merged_grants={merged} items_held_at_vanilla={held}");
+    eprintln!("wrote {out}");
+}
