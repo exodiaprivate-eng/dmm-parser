@@ -662,3 +662,55 @@ fn interactioninfo_blob_census() {
         }
     }
 }
+
+/// ★ BLOB CENSUS — the gap the V3 harness structurally cannot see.
+/// A blob-fallback record round-trips BYTE-PERFECTLY, so `v3_all_tables` reports
+/// OK while the table resolves NO field paths and silently drops every intent.
+/// That is how interaction_info sat 100% broken with a green harness.
+/// Compare typed/blob rates OLD vs NEW: a table whose blob rate JUMPS is a
+/// regression that will silently break any mod touching it.
+/// Run: DMM_CENSUS_OLD=<old dir> cargo test --test real_mod_intents_116 blob_census_all -- --ignored --nocapture
+#[test]
+#[ignore]
+fn blob_census_all() {
+    let newdir = fixture_dir();
+    let olddir: PathBuf = std::env::var("DMM_CENSUS_OLD")
+        .unwrap_or_else(|_| r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-16".into()).into();
+
+    let rate = |dir: &Path, file: &str| -> Option<(usize, usize)> {
+        let body = std::fs::read(dir.join(file)).ok()?;
+        let pabgh = std::fs::read(dir.join(file).with_extension("pabgh")).ok();
+        let arr = dmm_parser::dispatch::parse_table_to_json(file, &body, pabgh.as_deref()).ok()?;
+        let blob = arr.iter().filter(|r| r.as_object()
+            .map(|o| o.contains_key("_blob_b64")).unwrap_or(false)).count();
+        Some((arr.len(), blob))
+    };
+
+    let mut files: Vec<String> = std::fs::read_dir(&newdir).expect("fixture dir")
+        .flatten()
+        .filter_map(|e| {
+            let n = e.file_name().to_string_lossy().to_string();
+            if n.ends_with(".pabgb") { Some(n) } else { None }
+        })
+        .collect();
+    files.sort();
+
+    let mut worse = Vec::new();
+    let mut allblob = Vec::new();
+    for f in &files {
+        let (Some((no, bo)), Some((nn, bn))) = (rate(&olddir, f), rate(&newdir, f)) else { continue };
+        if no == 0 || nn == 0 { continue }
+        let po = 100.0 * bo as f64 / no as f64;
+        let pn = 100.0 * bn as f64 / nn as f64;
+        if pn > po + 5.0 {
+            worse.push(format!("{f:<44} blob {po:>5.1}% -> {pn:>5.1}%   ({bn}/{nn} records)"));
+        } else if pn > 95.0 {
+            allblob.push(format!("{f:<44} blob {pn:>5.1}% on BOTH builds (pre-existing)"));
+        }
+    }
+    eprintln!("\n=== REGRESSED (blob rate jumped on the new build) ===");
+    if worse.is_empty() { eprintln!("   none"); }
+    for w in &worse { eprintln!("   {w}"); }
+    eprintln!("\n=== PRE-EXISTING (already blob before the patch) ===");
+    for a in &allblob { eprintln!("   {a}"); }
+}
