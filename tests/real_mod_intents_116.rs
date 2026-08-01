@@ -850,3 +850,177 @@ fn b64_decode(s: &str) -> Vec<u8> {
     }
     out
 }
+
+/// Read the iteminfo overlay the GAME ACTUALLY LOADED (not the mod json, not a
+/// fixture) and report the grant shape. Method rule 1: verify against the artifact
+/// the runtime consumes. Point DMM_LIVE_OVERLAY at e.g.
+/// "D:\SteamLibrary\steamapps\common\Crimson Desert\dmmv3_iteminfo".
+#[test]
+#[ignore]
+fn inspect_live_overlay() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let dirp = std::env::var("DMM_LIVE_OVERLAY")
+        .unwrap_or_else(|_| r"D:\SteamLibrary\steamapps\common\Crimson Desert\dmmv3_iteminfo".into());
+    let group = PathBuf::from(&dirp);
+    let pamt = PackMeta::parse(&std::fs::read(group.join("0.pamt")).expect("0.pamt"), None)
+        .expect("pamt");
+    let mut body: Option<Vec<u8>> = None;
+    let mut pabgh: Option<Vec<u8>> = None;
+    for d in &pamt.directories {
+        for f in &d.files {
+            let raw = paz::extract_file(&group, f, &d.path, &pamt.header.encrypt_info.encrypt_info)
+                .expect("extract");
+            eprintln!("LIVE file: {}/{}  {} B", d.path, f.name, raw.len());
+            if f.name.ends_with(".pabgb") { body = Some(raw); }
+            else if f.name.ends_with(".pabgh") { pabgh = Some(raw); }
+        }
+    }
+    let body = body.expect("no .pabgb in overlay");
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, pabgh.as_deref())
+        .expect("parse live overlay");
+
+    // vanilla for comparison
+    let dir = fixture_dir();
+    let vb = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let vh = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let varr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &vb, vh.as_deref()).unwrap();
+
+    let shape = |a: &Vec<serde_json::Value>| {
+        let (mut elems, mut open, mut prefabs) = (0usize, 0usize, std::collections::HashSet::new());
+        for r in a {
+            for e in r.get("prefab_data_list").and_then(|x| x.as_array()).into_iter().flatten() {
+                elems += 1;
+                if e["tribe_gender_list"].as_array().map(|l| l.is_empty()).unwrap_or(false) { open += 1; }
+                for h in e["prefab_names"].as_array().into_iter().flatten() {
+                    if let Some(h) = h.as_u64() { prefabs.insert(h); }
+                }
+            }
+        }
+        (a.len(), elems, open, prefabs)
+    };
+    let (vr, ve, vo, vp) = shape(&varr);
+    let (lr, le, lo, lp) = shape(&arr);
+    eprintln!("VANILLA v16 : records={vr} elements={ve} open(empty tribe_gender)={vo} distinct_prefabs={}", vp.len());
+    eprintln!("LIVE overlay: records={lr} elements={le} open(empty tribe_gender)={lo} distinct_prefabs={}", lp.len());
+    let dangling: Vec<u64> = lp.difference(&vp).copied().collect();
+    eprintln!("LIVE prefab hashes NOT in v16 vanilla: {} {:?}", dangling.len(),
+        &dangling.iter().take(8).collect::<Vec<_>>());
+    eprintln!("=> extra elements vs vanilla: {}", le as i64 - ve as i64);
+}
+
+/// Dump v16 vanilla + the LIVE overlay prefab_data_list side by side to JSON so the
+/// exact set of elements the mod OPENS can be characterised without re-parsing.
+#[test]
+#[ignore]
+fn dump_prefab_shapes() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let dir = fixture_dir();
+    let grab = |body: &[u8], h: Option<&[u8]>| {
+        dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", body, h).expect("parse")
+    };
+    let vb = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let vh = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let varr = grab(&vb, vh.as_deref());
+
+    let group = PathBuf::from(std::env::var("DMM_LIVE_OVERLAY")
+        .unwrap_or_else(|_| r"D:\SteamLibrary\steamapps\common\Crimson Desert\dmmv3_iteminfo".into()));
+    let pamt = PackMeta::parse(&std::fs::read(group.join("0.pamt")).unwrap(), None).unwrap();
+    let (mut lb, mut lh) = (None, None);
+    for d in &pamt.directories { for f in &d.files {
+        let raw = paz::extract_file(&group, f, &d.path, &pamt.header.encrypt_info.encrypt_info).unwrap();
+        if f.name.ends_with(".pabgb") { lb = Some(raw) } else if f.name.ends_with(".pabgh") { lh = Some(raw) }
+    }}
+    let larr = grab(&lb.unwrap(), lh.as_deref());
+
+    let slim = |a: &Vec<serde_json::Value>| -> serde_json::Value {
+        let mut out = serde_json::Map::new();
+        for r in a {
+            let Some(o) = r.as_object() else { continue };
+            let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+            let els: Vec<serde_json::Value> = o.get("prefab_data_list").and_then(|x| x.as_array())
+                .into_iter().flatten().map(|e| serde_json::json!({
+                    "p": e["prefab_names"], "t": e["tribe_gender_list"],
+                    "s": e["equip_slot_list"], "dt": e["prefab_data_type"],
+                })).collect();
+            out.insert(k.to_string(), serde_json::json!({
+                "name": o.get("string_key").cloned().unwrap_or(serde_json::Value::Null), "e": els }));
+        }
+        serde_json::Value::Object(out)
+    };
+    let dst = PathBuf::from(std::env::var("DMM_DUMP_DIR").unwrap_or_else(|_| ".".into()));
+    std::fs::write(dst.join("vanilla_prefabs.json"), serde_json::to_vec(&slim(&varr)).unwrap()).unwrap();
+    std::fs::write(dst.join("live_prefabs.json"), serde_json::to_vec(&slim(&larr)).unwrap()).unwrap();
+    eprintln!("wrote vanilla_prefabs.json + live_prefabs.json to {}", dst.display());
+}
+
+/// Controlled A/B of two mod versions at the OVERLAY level: apply each mod's
+/// intents to v16 vanilla, then diff the resulting prefab_data_list element states.
+/// The mod json diff is misleading because `op:set` replaces whole lists and the
+/// mod only covers a subset of items — this compares what the ENGINE would read.
+/// DMM_MOD_A / DMM_MOD_B.
+#[test]
+#[ignore]
+fn ab_overlay_diff() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ph = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+
+    let build = |p: &str| -> Vec<serde_json::Value> {
+        let doc = IntentDoc::from_slice(&std::fs::read(p).expect("mod")).expect("doc");
+        let mut b = body.clone();
+        let mut h = ph.clone();
+        for (target, intents) in doc.flatten_targets() {
+            if !target.contains("iteminfo") { continue }
+            let (nb, nh, _) = apply_intents_to_table_body(&target, &b, h.as_deref(), &intents)
+                .expect("apply");
+            b = nb; h = nh;
+        }
+        dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).expect("parse")
+    };
+    let pa = std::env::var("DMM_MOD_A").expect("DMM_MOD_A");
+    let pb = std::env::var("DMM_MOD_B").expect("DMM_MOD_B");
+    // "VANILLA" means: apply nothing, i.e. compare a mod against the stock table.
+    let vanilla_json = || dmm_parser::dispatch::parse_table_to_json(
+        "iteminfo.pabgb", &body, ph.as_deref()).expect("parse");
+    let aa = if pa == "VANILLA" { vanilla_json() } else { build(&pa) };
+    let bb = if pb == "VANILLA" { vanilla_json() } else { build(&pb) };
+    let van = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &body, ph.as_deref()).unwrap();
+
+    let idx = |a: &Vec<serde_json::Value>| {
+        let mut m: std::collections::HashMap<u64, Vec<bool>> = Default::default();
+        let mut n: std::collections::HashMap<u64, String> = Default::default();
+        for r in a {
+            let Some(o) = r.as_object() else { continue };
+            let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+            n.insert(k, o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").to_string());
+            m.insert(k, o.get("prefab_data_list").and_then(|x| x.as_array()).into_iter().flatten()
+                .map(|e| e["tribe_gender_list"].as_array().map(|l| l.is_empty()).unwrap_or(false))
+                .collect());
+        }
+        (m, n)
+    };
+    let ((ma, names), (mb, _), (mv, _)) = (idx(&aa), idx(&bb), idx(&van));
+
+    let (mut a_open_b_shut, mut b_open_a_shut) = (0usize, 0usize);
+    let mut starved: Vec<(u64, String, usize)> = Vec::new();   // B has ZERO open, A has >=1
+    let mut starved_vs_vanilla = 0usize;
+    for (k, va) in &ma {
+        let (Some(vb), Some(vv)) = (mb.get(k), mv.get(k)) else { continue };
+        if va.len() != vb.len() { continue }
+        for (x, y) in va.iter().zip(vb.iter()) {
+            if *x && !*y { a_open_b_shut += 1 }
+            if *y && !*x { b_open_a_shut += 1 }
+        }
+        let (oa, ob, ov) = (va.iter().filter(|b| **b).count(),
+                            vb.iter().filter(|b| **b).count(),
+                            vv.iter().filter(|b| **b).count());
+        if ob == 0 && oa > 0 { starved.push((*k, names[k].clone(), va.len())); }
+        if ob == 0 && ov > 0 { starved_vs_vanilla += 1; }
+    }
+    eprintln!("A = {pa}\nB = {pb}");
+    eprintln!("elements open in A but RESTRICTED in B: {a_open_b_shut}");
+    eprintln!("elements open in B but RESTRICTED in A: {b_open_a_shut}");
+    eprintln!("★ items with ZERO open elements in B but >0 in A      : {}", starved.len());
+    eprintln!("★ items with ZERO open elements in B but >0 in VANILLA: {starved_vs_vanilla}");
+    for s in starved.iter().take(15) { eprintln!("    starved: {} (key={} elems={})", s.1, s.0, s.2); }
+}
