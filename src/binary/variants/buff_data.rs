@@ -640,6 +640,17 @@ py_binary_struct! {
     pub struct ChangeMaterialKeyBuffDataPayload {
         pub f00: u32,
         pub f01: u8,
+        // 1.16.00: +5 trailing bytes. This is the OTHER buff_info change, separate
+        // from the discriminant shift: only the 7 records that carry a
+        // ChangeMaterialKeyBuffData element changed size (+5 each, +10 for the one
+        // holding two). Verified on key 0xf4251 — f00 (0x27d12646) and f01 (1) are
+        // byte-identical to v14 and the five new bytes sit after them, with the
+        // BuffInfo tail beyond unchanged.
+        //
+        // Split mirrors f00/f01 (a second key+flag pair); it is provisional but
+        // roundtrip-exact, since vanilla has these zero everywhere so far.
+        pub f02: u32,
+        pub f03: u8,
     }
 }
 
@@ -706,11 +717,22 @@ py_binary_struct! {
     }
 }
 
-py_binary_struct! {
-    pub struct PlaySequencerBuffDataPayload<'a> {
-        pub f00: CString<'a>,
-    }
-}
+// 1.16.00: `PlaySequencerBuffData` (old discriminant 36) was REMOVED from the
+// game's BuffData family, and EVERY discriminant above it shifted down by one.
+//
+// Three independent sources agree:
+//   • DATA — diffing buffinfo.pabgb v14 vs v16 over the 281 same-size records
+//     yields 1523 single-byte changes and every one is exactly -1, with 37->36
+//     the lowest (nothing below 37 moved). See the disc-remap table in
+//     memory/daily/2026-08-01.md.
+//   • CODE — the 1.16 factory `sub_1018533F8` (reached from the BuffData
+//     deserializer `sub_1018598E0`, itself found via the `_buffDataList` Korean
+//     error string) now has exactly 120 cases, 0..119, where we had 121.
+//   • STRINGS — the tail-merged fragment "SequencerBuffData" present in the 1.15
+//     binary is gone in 1.16, which is what deleting PlaySequencerBuffData does
+//     to the shared string pool.
+//
+// Its payload struct is deleted with it.
 
 /// Immune payload — entries body width depends on header_tag:
 /// 0=>1, 1/2/3=>4, 4=>0, 5=>8 bytes per entry.
@@ -1433,7 +1455,6 @@ pub enum BuffDataVariant<'a> {
     BuffedActionRestrictionBuffData(BuffedActionRestrictionBuffDataPayload),
     BuffedActionRestrictionPassiveBuffData(BuffedActionRestrictionPassiveBuffDataPayload),
     ReleaseBuffedActionRestrictionBuffData(ReleaseBuffedActionRestrictionBuffDataPayload),
-    PlaySequencerBuffData(PlaySequencerBuffDataPayload<'a>),
     ImmuneBuffData(ImmuneBuffDataPayload),
     ApplyPhysicsImpulseBuffData(ApplyPhysicsImpulseBuffDataPayload),
     ChangeAllyGroupBuffData(ChangeAllyGroupBuffDataPayload),
@@ -1559,91 +1580,90 @@ impl<'a> BuffDataVariant<'a> {
             Self::BuffedActionRestrictionBuffData(_) => 33,
             Self::BuffedActionRestrictionPassiveBuffData(_) => 34,
             Self::ReleaseBuffedActionRestrictionBuffData(_) => 35,
-            Self::PlaySequencerBuffData(_) => 36,
-            Self::ImmuneBuffData(_) => 37,
-            Self::ApplyPhysicsImpulseBuffData(_) => 38,
-            Self::ChangeAllyGroupBuffData(_) => 39,
-            Self::PlayerAllyBuffData => 40,
-            Self::DisableObstacleBuffData => 41,
-            Self::RideLimitBuffData => 42,
-            Self::ChangeFactionBuffData(_) => 43,
-            Self::SetGimmickComponentParameterBoolBuffData(_) => 44,
-            Self::SummonGimmickBuffData(_) => 45,
-            Self::SendGimmickEventBuffData(_) => 46,
-            Self::DetachEquipItemBuffData(_) => 47,
-            Self::DisableThrowEquipItemBuffData => 48,
-            Self::VaryEquipItemEnduranceBuffData(_) => 49,
-            Self::VaryDataDefinedStatRateBuffData(_) => 50,
-            Self::InstantDeathBuffData(_) => 51,
-            Self::DeadReasonBuffData(_) => 52,
-            Self::VaryDataDefinedStatOtherDataDefineStatBuffData(_) => 53,
-            Self::VarySkillDamagePercentStatBuffData(_) => 54,
-            Self::VaryStatOverMaxValueBuffData(_) => 55,
-            Self::VaryDataDefinedStatOverMaxValueBuffData(_) => 56,
-            Self::DecreaseEquipItemEnduranceByPercentBuffData(_) => 57,
-            Self::SetStatRateBuffData(_) => 58,
-            Self::SetStatMinRateBuffData(_) => 59,
-            Self::ChangeWeatherBuffData(_) => 60,
-            Self::PlaySoundBuffData(_) => 61,
-            Self::ChangeCombinationBuffData(_) => 62,
-            Self::RegisterConditionSkillBuffData(_) => 63,
-            Self::DetectPenaltyBuffData(_) => 64,
-            Self::StealthBuffData(_) => 65,
-            Self::SwitchSpecialModeBuffData(_) => 66,
-            Self::AddExperienceBuffData(_) => 67,
-            Self::RelationConvertBuffData(_) => 68,
-            Self::WarningSensorBuffData => 69,
-            Self::DampMovementBuffData(_) => 70,
-            Self::ChangeDetectReactionBuffData(_) => 71,
-            Self::ChangeBattleOrderTypeBuffData(_) => 72,
-            Self::VaryForceFieldStatBuffData(_) => 73,
-            Self::PlayerSensibleBuffData => 74,
-            Self::AddSubLevelBuffData(_) => 75,
-            Self::ChangeElementalMaterialBuffData(_) => 76,
-            Self::DisableDetectingBuffData => 77,
-            Self::ChangeDetectDistanceBuffData(_) => 78,
-            Self::ViewerDetectPenaltyBuffData(_) => 79,
-            Self::ChangeBuffLevelBuffData(_) => 80,
-            Self::SkinnedDecalBuffData(_) => 81,
-            Self::ChangeAnimationSpeedBuffData(_) => 82,
-            Self::ActivateUpdateFuelBuffData(_) => 83,
-            Self::LimitBuffLevelBuffData(_) => 84,
-            Self::BlockCrimeBuffData(_) => 85,
-            Self::BlockCrimeNPCBuffData => 86,
-            Self::GameAudioEffectBuffData(_) => 87,
-            Self::MeditationKnowledgeBuffData(_) => 88,
-            Self::ClimbSlipBuffData(_) => 89,
-            Self::DetectBrightnessBuffData(_) => 90,
-            Self::ChangeEquipItemEnduranceBuffData(_) => 91,
-            Self::HackingBuffData => 92,
-            Self::VaryMaxExpandInventorySlotBuffData(_) => 93,
-            Self::BlockRegenerateStatBuffData(_) => 94,
-            Self::ProjectileBuffData(_) => 95,
-            Self::ConsumeSpawnerMercenaryBuffData(_) => 96,
-            Self::RegisterQuickSlotSkillBuffData(_) => 97,
-            Self::VaryStatMaxValueRateBuffData(_) => 98,
-            Self::TriggerVolumeBuffData(_) => 99,
-            Self::RegisterItemSellPriceRateBuffData(_) => 100,
-            Self::RegisterCrimePriceRateBuffData(_) => 101,
-            Self::RegisterFactionOperationRewardRateBuffData(_) => 102,
-            Self::LogoutTimeDropSetKeyBuffData(_) => 103,
-            Self::AddPercentInGameContentsBuffData(_) => 104,
-            Self::VaryCustomIntInGameContentsBuffData(_) => 105,
-            Self::TribeAdditionalDamageRateBuffData(_) => 106,
-            Self::AdditionalBreakingImpulseDamageBuffData(_) => 107,
-            Self::UpdateShareValueBuffData(_) => 108,
-            Self::AddDamageBonusFromComboBuffData(_) => 109,
-            Self::ConvertOtherStatBuffData(_) => 110,
-            Self::IgnoreUseResourceStatBuffData(_) => 111,
-            Self::BlockAbilityBuffData => 112,
-            Self::DisableMinimapIconBuffData(_) => 113,
-            Self::UseGroggyBuffData(_) => 114,
-            Self::AdditionalUseResourceStatBuffData(_) => 115,
-            Self::AddCritiacalRateByMaterialKeyBuffData(_) => 116,
-            Self::BlockDeadBodyGarbageCollectionBuffData => 117,
-            Self::DecreaseMercenaryCooltimeBuffData(_) => 118,
-            Self::DetectReactionOverrideBuffData(_) => 119,
-            Self::EmpoweredOverlayColorBuffData => 120,
+            Self::ImmuneBuffData(_) => 36,
+            Self::ApplyPhysicsImpulseBuffData(_) => 37,
+            Self::ChangeAllyGroupBuffData(_) => 38,
+            Self::PlayerAllyBuffData => 39,
+            Self::DisableObstacleBuffData => 40,
+            Self::RideLimitBuffData => 41,
+            Self::ChangeFactionBuffData(_) => 42,
+            Self::SetGimmickComponentParameterBoolBuffData(_) => 43,
+            Self::SummonGimmickBuffData(_) => 44,
+            Self::SendGimmickEventBuffData(_) => 45,
+            Self::DetachEquipItemBuffData(_) => 46,
+            Self::DisableThrowEquipItemBuffData => 47,
+            Self::VaryEquipItemEnduranceBuffData(_) => 48,
+            Self::VaryDataDefinedStatRateBuffData(_) => 49,
+            Self::InstantDeathBuffData(_) => 50,
+            Self::DeadReasonBuffData(_) => 51,
+            Self::VaryDataDefinedStatOtherDataDefineStatBuffData(_) => 52,
+            Self::VarySkillDamagePercentStatBuffData(_) => 53,
+            Self::VaryStatOverMaxValueBuffData(_) => 54,
+            Self::VaryDataDefinedStatOverMaxValueBuffData(_) => 55,
+            Self::DecreaseEquipItemEnduranceByPercentBuffData(_) => 56,
+            Self::SetStatRateBuffData(_) => 57,
+            Self::SetStatMinRateBuffData(_) => 58,
+            Self::ChangeWeatherBuffData(_) => 59,
+            Self::PlaySoundBuffData(_) => 60,
+            Self::ChangeCombinationBuffData(_) => 61,
+            Self::RegisterConditionSkillBuffData(_) => 62,
+            Self::DetectPenaltyBuffData(_) => 63,
+            Self::StealthBuffData(_) => 64,
+            Self::SwitchSpecialModeBuffData(_) => 65,
+            Self::AddExperienceBuffData(_) => 66,
+            Self::RelationConvertBuffData(_) => 67,
+            Self::WarningSensorBuffData => 68,
+            Self::DampMovementBuffData(_) => 69,
+            Self::ChangeDetectReactionBuffData(_) => 70,
+            Self::ChangeBattleOrderTypeBuffData(_) => 71,
+            Self::VaryForceFieldStatBuffData(_) => 72,
+            Self::PlayerSensibleBuffData => 73,
+            Self::AddSubLevelBuffData(_) => 74,
+            Self::ChangeElementalMaterialBuffData(_) => 75,
+            Self::DisableDetectingBuffData => 76,
+            Self::ChangeDetectDistanceBuffData(_) => 77,
+            Self::ViewerDetectPenaltyBuffData(_) => 78,
+            Self::ChangeBuffLevelBuffData(_) => 79,
+            Self::SkinnedDecalBuffData(_) => 80,
+            Self::ChangeAnimationSpeedBuffData(_) => 81,
+            Self::ActivateUpdateFuelBuffData(_) => 82,
+            Self::LimitBuffLevelBuffData(_) => 83,
+            Self::BlockCrimeBuffData(_) => 84,
+            Self::BlockCrimeNPCBuffData => 85,
+            Self::GameAudioEffectBuffData(_) => 86,
+            Self::MeditationKnowledgeBuffData(_) => 87,
+            Self::ClimbSlipBuffData(_) => 88,
+            Self::DetectBrightnessBuffData(_) => 89,
+            Self::ChangeEquipItemEnduranceBuffData(_) => 90,
+            Self::HackingBuffData => 91,
+            Self::VaryMaxExpandInventorySlotBuffData(_) => 92,
+            Self::BlockRegenerateStatBuffData(_) => 93,
+            Self::ProjectileBuffData(_) => 94,
+            Self::ConsumeSpawnerMercenaryBuffData(_) => 95,
+            Self::RegisterQuickSlotSkillBuffData(_) => 96,
+            Self::VaryStatMaxValueRateBuffData(_) => 97,
+            Self::TriggerVolumeBuffData(_) => 98,
+            Self::RegisterItemSellPriceRateBuffData(_) => 99,
+            Self::RegisterCrimePriceRateBuffData(_) => 100,
+            Self::RegisterFactionOperationRewardRateBuffData(_) => 101,
+            Self::LogoutTimeDropSetKeyBuffData(_) => 102,
+            Self::AddPercentInGameContentsBuffData(_) => 103,
+            Self::VaryCustomIntInGameContentsBuffData(_) => 104,
+            Self::TribeAdditionalDamageRateBuffData(_) => 105,
+            Self::AdditionalBreakingImpulseDamageBuffData(_) => 106,
+            Self::UpdateShareValueBuffData(_) => 107,
+            Self::AddDamageBonusFromComboBuffData(_) => 108,
+            Self::ConvertOtherStatBuffData(_) => 109,
+            Self::IgnoreUseResourceStatBuffData(_) => 110,
+            Self::BlockAbilityBuffData => 111,
+            Self::DisableMinimapIconBuffData(_) => 112,
+            Self::UseGroggyBuffData(_) => 113,
+            Self::AdditionalUseResourceStatBuffData(_) => 114,
+            Self::AddCritiacalRateByMaterialKeyBuffData(_) => 115,
+            Self::BlockDeadBodyGarbageCollectionBuffData => 116,
+            Self::DecreaseMercenaryCooltimeBuffData(_) => 117,
+            Self::DetectReactionOverrideBuffData(_) => 118,
+            Self::EmpoweredOverlayColorBuffData => 119,
         }
     }
 
@@ -1686,7 +1706,6 @@ impl<'a> BuffDataVariant<'a> {
             Self::BuffedActionRestrictionBuffData(_) => "BuffedActionRestrictionBuffData",
             Self::BuffedActionRestrictionPassiveBuffData(_) => "BuffedActionRestrictionPassiveBuffData",
             Self::ReleaseBuffedActionRestrictionBuffData(_) => "ReleaseBuffedActionRestrictionBuffData",
-            Self::PlaySequencerBuffData(_) => "PlaySequencerBuffData",
             Self::ImmuneBuffData(_) => "ImmuneBuffData",
             Self::ApplyPhysicsImpulseBuffData(_) => "ApplyPhysicsImpulseBuffData",
             Self::ChangeAllyGroupBuffData(_) => "ChangeAllyGroupBuffData",
@@ -1816,7 +1835,6 @@ impl<'a> BuffDataVariant<'a> {
             Self::BuffedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::BuffedActionRestrictionPassiveBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ReleaseBuffedActionRestrictionBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::PlaySequencerBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ImmuneBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ApplyPhysicsImpulseBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ChangeAllyGroupBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -1952,91 +1970,90 @@ impl<'a> BuffDataVariant<'a> {
             33 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BuffedActionRestrictionBuffData: missing body object"))?; BuffedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
             34 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BuffedActionRestrictionPassiveBuffData: missing body object"))?; BuffedActionRestrictionPassiveBuffDataPayload::write_from_json_dict(w, body)?; }
             35 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ReleaseBuffedActionRestrictionBuffData: missing body object"))?; ReleaseBuffedActionRestrictionBuffDataPayload::write_from_json_dict(w, body)?; }
-            36 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "PlaySequencerBuffData: missing body object"))?; PlaySequencerBuffDataPayload::write_from_json_dict(w, body)?; }
-            37 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ImmuneBuffData: missing body object"))?; ImmuneBuffDataPayload::write_from_json_dict(w, body)?; }
-            38 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ApplyPhysicsImpulseBuffData: missing body object"))?; ApplyPhysicsImpulseBuffDataPayload::write_from_json_dict(w, body)?; }
-            39 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAllyGroupBuffData: missing body object"))?; ChangeAllyGroupBuffDataPayload::write_from_json_dict(w, body)?; }
+            36 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ImmuneBuffData: missing body object"))?; ImmuneBuffDataPayload::write_from_json_dict(w, body)?; }
+            37 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ApplyPhysicsImpulseBuffData: missing body object"))?; ApplyPhysicsImpulseBuffDataPayload::write_from_json_dict(w, body)?; }
+            38 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAllyGroupBuffData: missing body object"))?; ChangeAllyGroupBuffDataPayload::write_from_json_dict(w, body)?; }
+            39 => {}
             40 => {}
             41 => {}
-            42 => {}
-            43 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeFactionBuffData: missing body object"))?; ChangeFactionBuffDataPayload::write_from_json_dict(w, body)?; }
-            44 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetGimmickComponentParameterBoolBuffData: missing body object"))?; SetGimmickComponentParameterBoolBuffDataPayload::write_from_json_dict(w, body)?; }
-            45 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SummonGimmickBuffData: missing body object"))?; SummonGimmickBuffDataPayload::write_from_json_dict(w, body)?; }
-            46 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SendGimmickEventBuffData: missing body object"))?; SendGimmickEventBuffDataPayload::write_from_json_dict(w, body)?; }
-            47 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetachEquipItemBuffData: missing body object"))?; DetachEquipItemBuffDataPayload::write_from_json_dict(w, body)?; }
-            48 => {}
-            49 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryEquipItemEnduranceBuffData: missing body object"))?; VaryEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
-            50 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatRateBuffData: missing body object"))?; VaryDataDefinedStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            51 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "InstantDeathBuffData: missing body object"))?; InstantDeathBuffDataPayload::write_from_json_dict(w, body)?; }
-            52 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DeadReasonBuffData: missing body object"))?; DeadReasonBuffDataPayload::write_from_json_dict(w, body)?; }
-            53 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOtherDataDefineStatBuffData: missing body object"))?; VaryDataDefinedStatOtherDataDefineStatBuffDataPayload::write_from_json_dict(w, body)?; }
-            54 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VarySkillDamagePercentStatBuffData: missing body object"))?; VarySkillDamagePercentStatBuffDataPayload::write_from_json_dict(w, body)?; }
-            55 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatOverMaxValueBuffData: missing body object"))?; VaryStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
-            56 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOverMaxValueBuffData: missing body object"))?; VaryDataDefinedStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
-            57 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseEquipItemEnduranceByPercentBuffData: missing body object"))?; DecreaseEquipItemEnduranceByPercentBuffDataPayload::write_from_json_dict(w, body)?; }
-            58 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatRateBuffData: missing body object"))?; SetStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            59 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatMinRateBuffData: missing body object"))?; SetStatMinRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            60 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeWeatherBuffData: missing body object"))?; ChangeWeatherBuffDataPayload::write_from_json_dict(w, body)?; }
-            61 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "PlaySoundBuffData: missing body object"))?; PlaySoundBuffDataPayload::write_from_json_dict(w, body)?; }
-            62 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeCombinationBuffData: missing body object"))?; ChangeCombinationBuffDataPayload::write_from_json_dict(w, body)?; }
-            63 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterConditionSkillBuffData: missing body object"))?; RegisterConditionSkillBuffDataPayload::write_from_json_dict(w, body)?; }
-            64 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectPenaltyBuffData: missing body object"))?; DetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
-            65 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "StealthBuffData: missing body object"))?; StealthBuffDataPayload::write_from_json_dict(w, body)?; }
-            66 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SwitchSpecialModeBuffData: missing body object"))?; SwitchSpecialModeBuffDataPayload::write_from_json_dict(w, body)?; }
-            67 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddExperienceBuffData: missing body object"))?; AddExperienceBuffDataPayload::write_from_json_dict(w, body)?; }
-            68 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RelationConvertBuffData: missing body object"))?; RelationConvertBuffDataPayload::write_from_json_dict(w, body)?; }
-            69 => {}
-            70 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DampMovementBuffData: missing body object"))?; DampMovementBuffDataPayload::write_from_json_dict(w, body)?; }
-            71 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectReactionBuffData: missing body object"))?; ChangeDetectReactionBuffDataPayload::write_from_json_dict(w, body)?; }
-            72 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBattleOrderTypeBuffData: missing body object"))?; ChangeBattleOrderTypeBuffDataPayload::write_from_json_dict(w, body)?; }
-            73 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryForceFieldStatBuffData: missing body object"))?; VaryForceFieldStatBuffDataPayload::write_from_json_dict(w, body)?; }
-            74 => {}
-            75 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddSubLevelBuffData: missing body object"))?; AddSubLevelBuffDataPayload::write_from_json_dict(w, body)?; }
-            76 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeElementalMaterialBuffData: missing body object"))?; ChangeElementalMaterialBuffDataPayload::write_from_json_dict(w, body)?; }
-            77 => {}
-            78 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectDistanceBuffData: missing body object"))?; ChangeDetectDistanceBuffDataPayload::write_from_json_dict(w, body)?; }
-            79 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ViewerDetectPenaltyBuffData: missing body object"))?; ViewerDetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
-            80 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBuffLevelBuffData: missing body object"))?; ChangeBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
-            81 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SkinnedDecalBuffData: missing body object"))?; SkinnedDecalBuffDataPayload::write_from_json_dict(w, body)?; }
-            82 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAnimationSpeedBuffData: missing body object"))?; ChangeAnimationSpeedBuffDataPayload::write_from_json_dict(w, body)?; }
-            83 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ActivateUpdateFuelBuffData: missing body object"))?; ActivateUpdateFuelBuffDataPayload::write_from_json_dict(w, body)?; }
-            84 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LimitBuffLevelBuffData: missing body object"))?; LimitBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
-            85 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockCrimeBuffData: missing body object"))?; BlockCrimeBuffDataPayload::write_from_json_dict(w, body)?; }
-            86 => {}
-            87 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "GameAudioEffectBuffData: missing body object"))?; GameAudioEffectBuffDataPayload::write_from_json_dict(w, body)?; }
-            88 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "MeditationKnowledgeBuffData: missing body object"))?; MeditationKnowledgeBuffDataPayload::write_from_json_dict(w, body)?; }
-            89 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ClimbSlipBuffData: missing body object"))?; ClimbSlipBuffDataPayload::write_from_json_dict(w, body)?; }
-            90 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectBrightnessBuffData: missing body object"))?; DetectBrightnessBuffDataPayload::write_from_json_dict(w, body)?; }
-            91 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeEquipItemEnduranceBuffData: missing body object"))?; ChangeEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
-            92 => {}
-            93 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryMaxExpandInventorySlotBuffData: missing body object"))?; VaryMaxExpandInventorySlotBuffDataPayload::write_from_json_dict(w, body)?; }
-            94 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockRegenerateStatBuffData: missing body object"))?; BlockRegenerateStatBuffDataPayload::write_from_json_dict(w, body)?; }
-            95 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ProjectileBuffData: missing body object"))?; ProjectileBuffDataPayload::write_from_json_dict(w, body)?; }
-            96 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConsumeSpawnerMercenaryBuffData: missing body object"))?; ConsumeSpawnerMercenaryBuffDataPayload::write_from_json_dict(w, body)?; }
-            97 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterQuickSlotSkillBuffData: missing body object"))?; RegisterQuickSlotSkillBuffDataPayload::write_from_json_dict(w, body)?; }
-            98 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatMaxValueRateBuffData: missing body object"))?; VaryStatMaxValueRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            99 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TriggerVolumeBuffData: missing body object"))?; TriggerVolumeBuffDataPayload::write_from_json_dict(w, body)?; }
-            100 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterItemSellPriceRateBuffData: missing body object"))?; RegisterItemSellPriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            101 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterCrimePriceRateBuffData: missing body object"))?; RegisterCrimePriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            102 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterFactionOperationRewardRateBuffData: missing body object"))?; RegisterFactionOperationRewardRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            103 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LogoutTimeDropSetKeyBuffData: missing body object"))?; LogoutTimeDropSetKeyBuffDataPayload::write_from_json_dict(w, body)?; }
-            104 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddPercentInGameContentsBuffData: missing body object"))?; AddPercentInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
-            105 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryCustomIntInGameContentsBuffData: missing body object"))?; VaryCustomIntInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
-            106 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TribeAdditionalDamageRateBuffData: missing body object"))?; TribeAdditionalDamageRateBuffDataPayload::write_from_json_dict(w, body)?; }
-            107 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalBreakingImpulseDamageBuffData: missing body object"))?; AdditionalBreakingImpulseDamageBuffDataPayload::write_from_json_dict(w, body)?; }
-            108 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UpdateShareValueBuffData: missing body object"))?; UpdateShareValueBuffDataPayload::write_from_json_dict(w, body)?; }
-            109 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddDamageBonusFromComboBuffData: missing body object"))?; AddDamageBonusFromComboBuffDataPayload::write_from_json_dict(w, body)?; }
-            110 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConvertOtherStatBuffData: missing body object"))?; ConvertOtherStatBuffDataPayload::write_from_json_dict(w, body)?; }
-            111 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "IgnoreUseResourceStatBuffData: missing body object"))?; IgnoreUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
-            112 => {}
-            113 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DisableMinimapIconBuffData: missing body object"))?; DisableMinimapIconBuffDataPayload::write_from_json_dict(w, body)?; }
-            114 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UseGroggyBuffData: missing body object"))?; UseGroggyBuffDataPayload::write_from_json_dict(w, body)?; }
-            115 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalUseResourceStatBuffData: missing body object"))?; AdditionalUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
-            116 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddCritiacalRateByMaterialKeyBuffData: missing body object"))?; AddCritiacalRateByMaterialKeyBuffDataPayload::write_from_json_dict(w, body)?; }
-            117 => {}
-            118 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseMercenaryCooltimeBuffData: missing body object"))?; DecreaseMercenaryCooltimeBuffDataPayload::write_from_json_dict(w, body)?; }
-            119 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectReactionOverrideBuffData: missing body object"))?; DetectReactionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
-            120 => {}
+            42 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeFactionBuffData: missing body object"))?; ChangeFactionBuffDataPayload::write_from_json_dict(w, body)?; }
+            43 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetGimmickComponentParameterBoolBuffData: missing body object"))?; SetGimmickComponentParameterBoolBuffDataPayload::write_from_json_dict(w, body)?; }
+            44 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SummonGimmickBuffData: missing body object"))?; SummonGimmickBuffDataPayload::write_from_json_dict(w, body)?; }
+            45 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SendGimmickEventBuffData: missing body object"))?; SendGimmickEventBuffDataPayload::write_from_json_dict(w, body)?; }
+            46 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetachEquipItemBuffData: missing body object"))?; DetachEquipItemBuffDataPayload::write_from_json_dict(w, body)?; }
+            47 => {}
+            48 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryEquipItemEnduranceBuffData: missing body object"))?; VaryEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
+            49 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatRateBuffData: missing body object"))?; VaryDataDefinedStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            50 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "InstantDeathBuffData: missing body object"))?; InstantDeathBuffDataPayload::write_from_json_dict(w, body)?; }
+            51 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DeadReasonBuffData: missing body object"))?; DeadReasonBuffDataPayload::write_from_json_dict(w, body)?; }
+            52 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOtherDataDefineStatBuffData: missing body object"))?; VaryDataDefinedStatOtherDataDefineStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            53 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VarySkillDamagePercentStatBuffData: missing body object"))?; VarySkillDamagePercentStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            54 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatOverMaxValueBuffData: missing body object"))?; VaryStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            55 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryDataDefinedStatOverMaxValueBuffData: missing body object"))?; VaryDataDefinedStatOverMaxValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            56 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseEquipItemEnduranceByPercentBuffData: missing body object"))?; DecreaseEquipItemEnduranceByPercentBuffDataPayload::write_from_json_dict(w, body)?; }
+            57 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatRateBuffData: missing body object"))?; SetStatRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            58 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SetStatMinRateBuffData: missing body object"))?; SetStatMinRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            59 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeWeatherBuffData: missing body object"))?; ChangeWeatherBuffDataPayload::write_from_json_dict(w, body)?; }
+            60 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "PlaySoundBuffData: missing body object"))?; PlaySoundBuffDataPayload::write_from_json_dict(w, body)?; }
+            61 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeCombinationBuffData: missing body object"))?; ChangeCombinationBuffDataPayload::write_from_json_dict(w, body)?; }
+            62 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterConditionSkillBuffData: missing body object"))?; RegisterConditionSkillBuffDataPayload::write_from_json_dict(w, body)?; }
+            63 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectPenaltyBuffData: missing body object"))?; DetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
+            64 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "StealthBuffData: missing body object"))?; StealthBuffDataPayload::write_from_json_dict(w, body)?; }
+            65 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SwitchSpecialModeBuffData: missing body object"))?; SwitchSpecialModeBuffDataPayload::write_from_json_dict(w, body)?; }
+            66 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddExperienceBuffData: missing body object"))?; AddExperienceBuffDataPayload::write_from_json_dict(w, body)?; }
+            67 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RelationConvertBuffData: missing body object"))?; RelationConvertBuffDataPayload::write_from_json_dict(w, body)?; }
+            68 => {}
+            69 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DampMovementBuffData: missing body object"))?; DampMovementBuffDataPayload::write_from_json_dict(w, body)?; }
+            70 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectReactionBuffData: missing body object"))?; ChangeDetectReactionBuffDataPayload::write_from_json_dict(w, body)?; }
+            71 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBattleOrderTypeBuffData: missing body object"))?; ChangeBattleOrderTypeBuffDataPayload::write_from_json_dict(w, body)?; }
+            72 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryForceFieldStatBuffData: missing body object"))?; VaryForceFieldStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            73 => {}
+            74 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddSubLevelBuffData: missing body object"))?; AddSubLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            75 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeElementalMaterialBuffData: missing body object"))?; ChangeElementalMaterialBuffDataPayload::write_from_json_dict(w, body)?; }
+            76 => {}
+            77 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectDistanceBuffData: missing body object"))?; ChangeDetectDistanceBuffDataPayload::write_from_json_dict(w, body)?; }
+            78 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ViewerDetectPenaltyBuffData: missing body object"))?; ViewerDetectPenaltyBuffDataPayload::write_from_json_dict(w, body)?; }
+            79 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeBuffLevelBuffData: missing body object"))?; ChangeBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            80 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "SkinnedDecalBuffData: missing body object"))?; SkinnedDecalBuffDataPayload::write_from_json_dict(w, body)?; }
+            81 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeAnimationSpeedBuffData: missing body object"))?; ChangeAnimationSpeedBuffDataPayload::write_from_json_dict(w, body)?; }
+            82 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ActivateUpdateFuelBuffData: missing body object"))?; ActivateUpdateFuelBuffDataPayload::write_from_json_dict(w, body)?; }
+            83 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LimitBuffLevelBuffData: missing body object"))?; LimitBuffLevelBuffDataPayload::write_from_json_dict(w, body)?; }
+            84 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockCrimeBuffData: missing body object"))?; BlockCrimeBuffDataPayload::write_from_json_dict(w, body)?; }
+            85 => {}
+            86 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "GameAudioEffectBuffData: missing body object"))?; GameAudioEffectBuffDataPayload::write_from_json_dict(w, body)?; }
+            87 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "MeditationKnowledgeBuffData: missing body object"))?; MeditationKnowledgeBuffDataPayload::write_from_json_dict(w, body)?; }
+            88 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ClimbSlipBuffData: missing body object"))?; ClimbSlipBuffDataPayload::write_from_json_dict(w, body)?; }
+            89 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectBrightnessBuffData: missing body object"))?; DetectBrightnessBuffDataPayload::write_from_json_dict(w, body)?; }
+            90 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeEquipItemEnduranceBuffData: missing body object"))?; ChangeEquipItemEnduranceBuffDataPayload::write_from_json_dict(w, body)?; }
+            91 => {}
+            92 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryMaxExpandInventorySlotBuffData: missing body object"))?; VaryMaxExpandInventorySlotBuffDataPayload::write_from_json_dict(w, body)?; }
+            93 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockRegenerateStatBuffData: missing body object"))?; BlockRegenerateStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            94 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ProjectileBuffData: missing body object"))?; ProjectileBuffDataPayload::write_from_json_dict(w, body)?; }
+            95 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConsumeSpawnerMercenaryBuffData: missing body object"))?; ConsumeSpawnerMercenaryBuffDataPayload::write_from_json_dict(w, body)?; }
+            96 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterQuickSlotSkillBuffData: missing body object"))?; RegisterQuickSlotSkillBuffDataPayload::write_from_json_dict(w, body)?; }
+            97 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryStatMaxValueRateBuffData: missing body object"))?; VaryStatMaxValueRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            98 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TriggerVolumeBuffData: missing body object"))?; TriggerVolumeBuffDataPayload::write_from_json_dict(w, body)?; }
+            99 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterItemSellPriceRateBuffData: missing body object"))?; RegisterItemSellPriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            100 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterCrimePriceRateBuffData: missing body object"))?; RegisterCrimePriceRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            101 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RegisterFactionOperationRewardRateBuffData: missing body object"))?; RegisterFactionOperationRewardRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            102 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "LogoutTimeDropSetKeyBuffData: missing body object"))?; LogoutTimeDropSetKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            103 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddPercentInGameContentsBuffData: missing body object"))?; AddPercentInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
+            104 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "VaryCustomIntInGameContentsBuffData: missing body object"))?; VaryCustomIntInGameContentsBuffDataPayload::write_from_json_dict(w, body)?; }
+            105 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "TribeAdditionalDamageRateBuffData: missing body object"))?; TribeAdditionalDamageRateBuffDataPayload::write_from_json_dict(w, body)?; }
+            106 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalBreakingImpulseDamageBuffData: missing body object"))?; AdditionalBreakingImpulseDamageBuffDataPayload::write_from_json_dict(w, body)?; }
+            107 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UpdateShareValueBuffData: missing body object"))?; UpdateShareValueBuffDataPayload::write_from_json_dict(w, body)?; }
+            108 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddDamageBonusFromComboBuffData: missing body object"))?; AddDamageBonusFromComboBuffDataPayload::write_from_json_dict(w, body)?; }
+            109 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConvertOtherStatBuffData: missing body object"))?; ConvertOtherStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            110 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "IgnoreUseResourceStatBuffData: missing body object"))?; IgnoreUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            111 => {}
+            112 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DisableMinimapIconBuffData: missing body object"))?; DisableMinimapIconBuffDataPayload::write_from_json_dict(w, body)?; }
+            113 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UseGroggyBuffData: missing body object"))?; UseGroggyBuffDataPayload::write_from_json_dict(w, body)?; }
+            114 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalUseResourceStatBuffData: missing body object"))?; AdditionalUseResourceStatBuffDataPayload::write_from_json_dict(w, body)?; }
+            115 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AddCritiacalRateByMaterialKeyBuffData: missing body object"))?; AddCritiacalRateByMaterialKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            116 => {}
+            117 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseMercenaryCooltimeBuffData: missing body object"))?; DecreaseMercenaryCooltimeBuffDataPayload::write_from_json_dict(w, body)?; }
+            118 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectReactionOverrideBuffData: missing body object"))?; DetectReactionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
+            119 => {}
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("BuffDataVariant: unknown disc {}", other))),
         }
@@ -2083,91 +2100,90 @@ impl<'a> BuffDataVariant<'a> {
             33 => Self::BuffedActionRestrictionBuffData(BuffedActionRestrictionBuffDataPayload::read_from(data, offset)?),
             34 => Self::BuffedActionRestrictionPassiveBuffData(BuffedActionRestrictionPassiveBuffDataPayload::read_from(data, offset)?),
             35 => Self::ReleaseBuffedActionRestrictionBuffData(ReleaseBuffedActionRestrictionBuffDataPayload::read_from(data, offset)?),
-            36 => Self::PlaySequencerBuffData(PlaySequencerBuffDataPayload::read_from(data, offset)?),
-            37 => Self::ImmuneBuffData(ImmuneBuffDataPayload::read_from(data, offset)?),
-            38 => Self::ApplyPhysicsImpulseBuffData(ApplyPhysicsImpulseBuffDataPayload::read_from(data, offset)?),
-            39 => Self::ChangeAllyGroupBuffData(ChangeAllyGroupBuffDataPayload::read_from(data, offset)?),
-            40 => Self::PlayerAllyBuffData,
-            41 => Self::DisableObstacleBuffData,
-            42 => Self::RideLimitBuffData,
-            43 => Self::ChangeFactionBuffData(ChangeFactionBuffDataPayload::read_from(data, offset)?),
-            44 => Self::SetGimmickComponentParameterBoolBuffData(SetGimmickComponentParameterBoolBuffDataPayload::read_from(data, offset)?),
-            45 => Self::SummonGimmickBuffData(SummonGimmickBuffDataPayload::read_from(data, offset)?),
-            46 => Self::SendGimmickEventBuffData(SendGimmickEventBuffDataPayload::read_from(data, offset)?),
-            47 => Self::DetachEquipItemBuffData(DetachEquipItemBuffDataPayload::read_from(data, offset)?),
-            48 => Self::DisableThrowEquipItemBuffData,
-            49 => Self::VaryEquipItemEnduranceBuffData(VaryEquipItemEnduranceBuffDataPayload::read_from(data, offset)?),
-            50 => Self::VaryDataDefinedStatRateBuffData(VaryDataDefinedStatRateBuffDataPayload::read_from(data, offset)?),
-            51 => Self::InstantDeathBuffData(InstantDeathBuffDataPayload::read_from(data, offset)?),
-            52 => Self::DeadReasonBuffData(DeadReasonBuffDataPayload::read_from(data, offset)?),
-            53 => Self::VaryDataDefinedStatOtherDataDefineStatBuffData(VaryDataDefinedStatOtherDataDefineStatBuffDataPayload::read_from(data, offset)?),
-            54 => Self::VarySkillDamagePercentStatBuffData(VarySkillDamagePercentStatBuffDataPayload::read_from(data, offset)?),
-            55 => Self::VaryStatOverMaxValueBuffData(VaryStatOverMaxValueBuffDataPayload::read_from(data, offset)?),
-            56 => Self::VaryDataDefinedStatOverMaxValueBuffData(VaryDataDefinedStatOverMaxValueBuffDataPayload::read_from(data, offset)?),
-            57 => Self::DecreaseEquipItemEnduranceByPercentBuffData(DecreaseEquipItemEnduranceByPercentBuffDataPayload::read_from(data, offset)?),
-            58 => Self::SetStatRateBuffData(SetStatRateBuffDataPayload::read_from(data, offset)?),
-            59 => Self::SetStatMinRateBuffData(SetStatMinRateBuffDataPayload::read_from(data, offset)?),
-            60 => Self::ChangeWeatherBuffData(ChangeWeatherBuffDataPayload::read_from(data, offset)?),
-            61 => Self::PlaySoundBuffData(PlaySoundBuffDataPayload::read_from(data, offset)?),
-            62 => Self::ChangeCombinationBuffData(ChangeCombinationBuffDataPayload::read_from(data, offset)?),
-            63 => Self::RegisterConditionSkillBuffData(RegisterConditionSkillBuffDataPayload::read_from(data, offset)?),
-            64 => Self::DetectPenaltyBuffData(DetectPenaltyBuffDataPayload::read_from(data, offset)?),
-            65 => Self::StealthBuffData(StealthBuffDataPayload::read_from(data, offset)?),
-            66 => Self::SwitchSpecialModeBuffData(SwitchSpecialModeBuffDataPayload::read_from(data, offset)?),
-            67 => Self::AddExperienceBuffData(AddExperienceBuffDataPayload::read_from(data, offset)?),
-            68 => Self::RelationConvertBuffData(RelationConvertBuffDataPayload::read_from(data, offset)?),
-            69 => Self::WarningSensorBuffData,
-            70 => Self::DampMovementBuffData(DampMovementBuffDataPayload::read_from(data, offset)?),
-            71 => Self::ChangeDetectReactionBuffData(ChangeDetectReactionBuffDataPayload::read_from(data, offset)?),
-            72 => Self::ChangeBattleOrderTypeBuffData(ChangeBattleOrderTypeBuffDataPayload::read_from(data, offset)?),
-            73 => Self::VaryForceFieldStatBuffData(VaryForceFieldStatBuffDataPayload::read_from(data, offset)?),
-            74 => Self::PlayerSensibleBuffData,
-            75 => Self::AddSubLevelBuffData(AddSubLevelBuffDataPayload::read_from(data, offset)?),
-            76 => Self::ChangeElementalMaterialBuffData(ChangeElementalMaterialBuffDataPayload::read_from(data, offset)?),
-            77 => Self::DisableDetectingBuffData,
-            78 => Self::ChangeDetectDistanceBuffData(ChangeDetectDistanceBuffDataPayload::read_from(data, offset)?),
-            79 => Self::ViewerDetectPenaltyBuffData(ViewerDetectPenaltyBuffDataPayload::read_from(data, offset)?),
-            80 => Self::ChangeBuffLevelBuffData(ChangeBuffLevelBuffDataPayload::read_from(data, offset)?),
-            81 => Self::SkinnedDecalBuffData(SkinnedDecalBuffDataPayload::read_from(data, offset)?),
-            82 => Self::ChangeAnimationSpeedBuffData(ChangeAnimationSpeedBuffDataPayload::read_from(data, offset)?),
-            83 => Self::ActivateUpdateFuelBuffData(ActivateUpdateFuelBuffDataPayload::read_from(data, offset)?),
-            84 => Self::LimitBuffLevelBuffData(LimitBuffLevelBuffDataPayload::read_from(data, offset)?),
-            85 => Self::BlockCrimeBuffData(BlockCrimeBuffDataPayload::read_from(data, offset)?),
-            86 => Self::BlockCrimeNPCBuffData,
-            87 => Self::GameAudioEffectBuffData(GameAudioEffectBuffDataPayload::read_from(data, offset)?),
-            88 => Self::MeditationKnowledgeBuffData(MeditationKnowledgeBuffDataPayload::read_from(data, offset)?),
-            89 => Self::ClimbSlipBuffData(ClimbSlipBuffDataPayload::read_from(data, offset)?),
-            90 => Self::DetectBrightnessBuffData(DetectBrightnessBuffDataPayload::read_from(data, offset)?),
-            91 => Self::ChangeEquipItemEnduranceBuffData(ChangeEquipItemEnduranceBuffDataPayload::read_from(data, offset)?),
-            92 => Self::HackingBuffData,
-            93 => Self::VaryMaxExpandInventorySlotBuffData(VaryMaxExpandInventorySlotBuffDataPayload::read_from(data, offset)?),
-            94 => Self::BlockRegenerateStatBuffData(BlockRegenerateStatBuffDataPayload::read_from(data, offset)?),
-            95 => Self::ProjectileBuffData(ProjectileBuffDataPayload::read_from(data, offset)?),
-            96 => Self::ConsumeSpawnerMercenaryBuffData(ConsumeSpawnerMercenaryBuffDataPayload::read_from(data, offset)?),
-            97 => Self::RegisterQuickSlotSkillBuffData(RegisterQuickSlotSkillBuffDataPayload::read_from(data, offset)?),
-            98 => Self::VaryStatMaxValueRateBuffData(VaryStatMaxValueRateBuffDataPayload::read_from(data, offset)?),
-            99 => Self::TriggerVolumeBuffData(TriggerVolumeBuffDataPayload::read_from(data, offset)?),
-            100 => Self::RegisterItemSellPriceRateBuffData(RegisterItemSellPriceRateBuffDataPayload::read_from(data, offset)?),
-            101 => Self::RegisterCrimePriceRateBuffData(RegisterCrimePriceRateBuffDataPayload::read_from(data, offset)?),
-            102 => Self::RegisterFactionOperationRewardRateBuffData(RegisterFactionOperationRewardRateBuffDataPayload::read_from(data, offset)?),
-            103 => Self::LogoutTimeDropSetKeyBuffData(LogoutTimeDropSetKeyBuffDataPayload::read_from(data, offset)?),
-            104 => Self::AddPercentInGameContentsBuffData(AddPercentInGameContentsBuffDataPayload::read_from(data, offset)?),
-            105 => Self::VaryCustomIntInGameContentsBuffData(VaryCustomIntInGameContentsBuffDataPayload::read_from(data, offset)?),
-            106 => Self::TribeAdditionalDamageRateBuffData(TribeAdditionalDamageRateBuffDataPayload::read_from(data, offset)?),
-            107 => Self::AdditionalBreakingImpulseDamageBuffData(AdditionalBreakingImpulseDamageBuffDataPayload::read_from(data, offset)?),
-            108 => Self::UpdateShareValueBuffData(UpdateShareValueBuffDataPayload::read_from(data, offset)?),
-            109 => Self::AddDamageBonusFromComboBuffData(AddDamageBonusFromComboBuffDataPayload::read_from(data, offset)?),
-            110 => Self::ConvertOtherStatBuffData(ConvertOtherStatBuffDataPayload::read_from(data, offset)?),
-            111 => Self::IgnoreUseResourceStatBuffData(IgnoreUseResourceStatBuffDataPayload::read_from(data, offset)?),
-            112 => Self::BlockAbilityBuffData,
-            113 => Self::DisableMinimapIconBuffData(DisableMinimapIconBuffDataPayload::read_from(data, offset)?),
-            114 => Self::UseGroggyBuffData(UseGroggyBuffDataPayload::read_from(data, offset)?),
-            115 => Self::AdditionalUseResourceStatBuffData(AdditionalUseResourceStatBuffDataPayload::read_from(data, offset)?),
-            116 => Self::AddCritiacalRateByMaterialKeyBuffData(AddCritiacalRateByMaterialKeyBuffDataPayload::read_from(data, offset)?),
-            117 => Self::BlockDeadBodyGarbageCollectionBuffData,
-            118 => Self::DecreaseMercenaryCooltimeBuffData(DecreaseMercenaryCooltimeBuffDataPayload::read_from(data, offset)?),
-            119 => Self::DetectReactionOverrideBuffData(DetectReactionOverrideBuffDataPayload::read_from(data, offset)?),
-            120 => Self::EmpoweredOverlayColorBuffData,
+            36 => Self::ImmuneBuffData(ImmuneBuffDataPayload::read_from(data, offset)?),
+            37 => Self::ApplyPhysicsImpulseBuffData(ApplyPhysicsImpulseBuffDataPayload::read_from(data, offset)?),
+            38 => Self::ChangeAllyGroupBuffData(ChangeAllyGroupBuffDataPayload::read_from(data, offset)?),
+            39 => Self::PlayerAllyBuffData,
+            40 => Self::DisableObstacleBuffData,
+            41 => Self::RideLimitBuffData,
+            42 => Self::ChangeFactionBuffData(ChangeFactionBuffDataPayload::read_from(data, offset)?),
+            43 => Self::SetGimmickComponentParameterBoolBuffData(SetGimmickComponentParameterBoolBuffDataPayload::read_from(data, offset)?),
+            44 => Self::SummonGimmickBuffData(SummonGimmickBuffDataPayload::read_from(data, offset)?),
+            45 => Self::SendGimmickEventBuffData(SendGimmickEventBuffDataPayload::read_from(data, offset)?),
+            46 => Self::DetachEquipItemBuffData(DetachEquipItemBuffDataPayload::read_from(data, offset)?),
+            47 => Self::DisableThrowEquipItemBuffData,
+            48 => Self::VaryEquipItemEnduranceBuffData(VaryEquipItemEnduranceBuffDataPayload::read_from(data, offset)?),
+            49 => Self::VaryDataDefinedStatRateBuffData(VaryDataDefinedStatRateBuffDataPayload::read_from(data, offset)?),
+            50 => Self::InstantDeathBuffData(InstantDeathBuffDataPayload::read_from(data, offset)?),
+            51 => Self::DeadReasonBuffData(DeadReasonBuffDataPayload::read_from(data, offset)?),
+            52 => Self::VaryDataDefinedStatOtherDataDefineStatBuffData(VaryDataDefinedStatOtherDataDefineStatBuffDataPayload::read_from(data, offset)?),
+            53 => Self::VarySkillDamagePercentStatBuffData(VarySkillDamagePercentStatBuffDataPayload::read_from(data, offset)?),
+            54 => Self::VaryStatOverMaxValueBuffData(VaryStatOverMaxValueBuffDataPayload::read_from(data, offset)?),
+            55 => Self::VaryDataDefinedStatOverMaxValueBuffData(VaryDataDefinedStatOverMaxValueBuffDataPayload::read_from(data, offset)?),
+            56 => Self::DecreaseEquipItemEnduranceByPercentBuffData(DecreaseEquipItemEnduranceByPercentBuffDataPayload::read_from(data, offset)?),
+            57 => Self::SetStatRateBuffData(SetStatRateBuffDataPayload::read_from(data, offset)?),
+            58 => Self::SetStatMinRateBuffData(SetStatMinRateBuffDataPayload::read_from(data, offset)?),
+            59 => Self::ChangeWeatherBuffData(ChangeWeatherBuffDataPayload::read_from(data, offset)?),
+            60 => Self::PlaySoundBuffData(PlaySoundBuffDataPayload::read_from(data, offset)?),
+            61 => Self::ChangeCombinationBuffData(ChangeCombinationBuffDataPayload::read_from(data, offset)?),
+            62 => Self::RegisterConditionSkillBuffData(RegisterConditionSkillBuffDataPayload::read_from(data, offset)?),
+            63 => Self::DetectPenaltyBuffData(DetectPenaltyBuffDataPayload::read_from(data, offset)?),
+            64 => Self::StealthBuffData(StealthBuffDataPayload::read_from(data, offset)?),
+            65 => Self::SwitchSpecialModeBuffData(SwitchSpecialModeBuffDataPayload::read_from(data, offset)?),
+            66 => Self::AddExperienceBuffData(AddExperienceBuffDataPayload::read_from(data, offset)?),
+            67 => Self::RelationConvertBuffData(RelationConvertBuffDataPayload::read_from(data, offset)?),
+            68 => Self::WarningSensorBuffData,
+            69 => Self::DampMovementBuffData(DampMovementBuffDataPayload::read_from(data, offset)?),
+            70 => Self::ChangeDetectReactionBuffData(ChangeDetectReactionBuffDataPayload::read_from(data, offset)?),
+            71 => Self::ChangeBattleOrderTypeBuffData(ChangeBattleOrderTypeBuffDataPayload::read_from(data, offset)?),
+            72 => Self::VaryForceFieldStatBuffData(VaryForceFieldStatBuffDataPayload::read_from(data, offset)?),
+            73 => Self::PlayerSensibleBuffData,
+            74 => Self::AddSubLevelBuffData(AddSubLevelBuffDataPayload::read_from(data, offset)?),
+            75 => Self::ChangeElementalMaterialBuffData(ChangeElementalMaterialBuffDataPayload::read_from(data, offset)?),
+            76 => Self::DisableDetectingBuffData,
+            77 => Self::ChangeDetectDistanceBuffData(ChangeDetectDistanceBuffDataPayload::read_from(data, offset)?),
+            78 => Self::ViewerDetectPenaltyBuffData(ViewerDetectPenaltyBuffDataPayload::read_from(data, offset)?),
+            79 => Self::ChangeBuffLevelBuffData(ChangeBuffLevelBuffDataPayload::read_from(data, offset)?),
+            80 => Self::SkinnedDecalBuffData(SkinnedDecalBuffDataPayload::read_from(data, offset)?),
+            81 => Self::ChangeAnimationSpeedBuffData(ChangeAnimationSpeedBuffDataPayload::read_from(data, offset)?),
+            82 => Self::ActivateUpdateFuelBuffData(ActivateUpdateFuelBuffDataPayload::read_from(data, offset)?),
+            83 => Self::LimitBuffLevelBuffData(LimitBuffLevelBuffDataPayload::read_from(data, offset)?),
+            84 => Self::BlockCrimeBuffData(BlockCrimeBuffDataPayload::read_from(data, offset)?),
+            85 => Self::BlockCrimeNPCBuffData,
+            86 => Self::GameAudioEffectBuffData(GameAudioEffectBuffDataPayload::read_from(data, offset)?),
+            87 => Self::MeditationKnowledgeBuffData(MeditationKnowledgeBuffDataPayload::read_from(data, offset)?),
+            88 => Self::ClimbSlipBuffData(ClimbSlipBuffDataPayload::read_from(data, offset)?),
+            89 => Self::DetectBrightnessBuffData(DetectBrightnessBuffDataPayload::read_from(data, offset)?),
+            90 => Self::ChangeEquipItemEnduranceBuffData(ChangeEquipItemEnduranceBuffDataPayload::read_from(data, offset)?),
+            91 => Self::HackingBuffData,
+            92 => Self::VaryMaxExpandInventorySlotBuffData(VaryMaxExpandInventorySlotBuffDataPayload::read_from(data, offset)?),
+            93 => Self::BlockRegenerateStatBuffData(BlockRegenerateStatBuffDataPayload::read_from(data, offset)?),
+            94 => Self::ProjectileBuffData(ProjectileBuffDataPayload::read_from(data, offset)?),
+            95 => Self::ConsumeSpawnerMercenaryBuffData(ConsumeSpawnerMercenaryBuffDataPayload::read_from(data, offset)?),
+            96 => Self::RegisterQuickSlotSkillBuffData(RegisterQuickSlotSkillBuffDataPayload::read_from(data, offset)?),
+            97 => Self::VaryStatMaxValueRateBuffData(VaryStatMaxValueRateBuffDataPayload::read_from(data, offset)?),
+            98 => Self::TriggerVolumeBuffData(TriggerVolumeBuffDataPayload::read_from(data, offset)?),
+            99 => Self::RegisterItemSellPriceRateBuffData(RegisterItemSellPriceRateBuffDataPayload::read_from(data, offset)?),
+            100 => Self::RegisterCrimePriceRateBuffData(RegisterCrimePriceRateBuffDataPayload::read_from(data, offset)?),
+            101 => Self::RegisterFactionOperationRewardRateBuffData(RegisterFactionOperationRewardRateBuffDataPayload::read_from(data, offset)?),
+            102 => Self::LogoutTimeDropSetKeyBuffData(LogoutTimeDropSetKeyBuffDataPayload::read_from(data, offset)?),
+            103 => Self::AddPercentInGameContentsBuffData(AddPercentInGameContentsBuffDataPayload::read_from(data, offset)?),
+            104 => Self::VaryCustomIntInGameContentsBuffData(VaryCustomIntInGameContentsBuffDataPayload::read_from(data, offset)?),
+            105 => Self::TribeAdditionalDamageRateBuffData(TribeAdditionalDamageRateBuffDataPayload::read_from(data, offset)?),
+            106 => Self::AdditionalBreakingImpulseDamageBuffData(AdditionalBreakingImpulseDamageBuffDataPayload::read_from(data, offset)?),
+            107 => Self::UpdateShareValueBuffData(UpdateShareValueBuffDataPayload::read_from(data, offset)?),
+            108 => Self::AddDamageBonusFromComboBuffData(AddDamageBonusFromComboBuffDataPayload::read_from(data, offset)?),
+            109 => Self::ConvertOtherStatBuffData(ConvertOtherStatBuffDataPayload::read_from(data, offset)?),
+            110 => Self::IgnoreUseResourceStatBuffData(IgnoreUseResourceStatBuffDataPayload::read_from(data, offset)?),
+            111 => Self::BlockAbilityBuffData,
+            112 => Self::DisableMinimapIconBuffData(DisableMinimapIconBuffDataPayload::read_from(data, offset)?),
+            113 => Self::UseGroggyBuffData(UseGroggyBuffDataPayload::read_from(data, offset)?),
+            114 => Self::AdditionalUseResourceStatBuffData(AdditionalUseResourceStatBuffDataPayload::read_from(data, offset)?),
+            115 => Self::AddCritiacalRateByMaterialKeyBuffData(AddCritiacalRateByMaterialKeyBuffDataPayload::read_from(data, offset)?),
+            116 => Self::BlockDeadBodyGarbageCollectionBuffData,
+            117 => Self::DecreaseMercenaryCooltimeBuffData(DecreaseMercenaryCooltimeBuffDataPayload::read_from(data, offset)?),
+            118 => Self::DetectReactionOverrideBuffData(DetectReactionOverrideBuffDataPayload::read_from(data, offset)?),
+            119 => Self::EmpoweredOverlayColorBuffData,
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown BuffData disc: {}", disc))),
         })
     }
@@ -2210,7 +2226,6 @@ impl<'a> BuffDataVariant<'a> {
             Self::BuffedActionRestrictionBuffData(p) => p.write_to(w),
             Self::BuffedActionRestrictionPassiveBuffData(p) => p.write_to(w),
             Self::ReleaseBuffedActionRestrictionBuffData(p) => p.write_to(w),
-            Self::PlaySequencerBuffData(p) => p.write_to(w),
             Self::ImmuneBuffData(p) => p.write_to(w),
             Self::ApplyPhysicsImpulseBuffData(p) => p.write_to(w),
             Self::ChangeAllyGroupBuffData(p) => p.write_to(w),

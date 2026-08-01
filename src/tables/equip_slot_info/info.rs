@@ -112,6 +112,13 @@ pub struct EquipInfoData {
     /// tail_byte_1] (e4=[01 0b], e16=[01 0a]… match exactly). Remaining tail =
     /// tail_pad_u32 + 5× u8 flags (tail_byte_6..10).
     pub tail_pad_u32: u32,
+    // 1.16.00: +4 bytes per entry, a hash-shaped u32 (e.g. 0x332160af,
+    // 0x431523eb; 0 where unset). Position is not a guess: diffing each entry
+    // against the v14 bytes puts the insertion exactly 16 B from the entry end
+    // in every entry whose value is non-zero, i.e. after tail_pad_u32 and before
+    // dyeing_field_a_113 — and entry 1 of record k=1 carries a NON-zero
+    // dyeing_field_a_113 (= 1) right after it, so the two cannot be transposed.
+    pub slot_name_hash_116: u32,
     // 1.13.00: +7 bytes (u32 + u16 + u8) — the u8 = _isHideEquipInDyeingProcess.
     pub dyeing_field_a_113: u32,
     pub dyeing_field_b_113: u16,
@@ -137,6 +144,8 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         let complex_blob = CArray::<u8>::read_from(data, offset)?;
         // 1.12: tail_byte_0 + tail_byte_1 removed here.
         let tail_pad_u32 = u32::read_from(data, offset)?;
+        // 1.16.00: +4 bytes inserted here (see struct comment).
+        let slot_name_hash_116 = u32::read_from(data, offset)?;
         // 1.13.00: +7 bytes inserted here (u32 + u16 + u8) once per EquipInfoData.
         // Byte-diff decisive: every entry grew +7 at exactly this offset (after
         // tail_pad_u32, before tail_byte_6). The trailing u8 is the game's new
@@ -155,6 +164,7 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
             field_u64, name_hash_2, fields_u32, complex_u8, complex_u64,
             complex_blob,
             tail_pad_u32,
+            slot_name_hash_116,
             dyeing_field_a_113, dyeing_field_b_113, is_hide_equip_in_dyeing_process_113,
             tail_byte_6, tail_byte_7, tail_byte_8, tail_byte_9, tail_byte_10,
         })
@@ -173,6 +183,7 @@ impl BinaryWrite for EquipInfoData {
         self.complex_u64.write_to(w)?;
         self.complex_blob.write_to(w)?;
         self.tail_pad_u32.write_to(w)?;
+        self.slot_name_hash_116.write_to(w)?;
         self.dyeing_field_a_113.write_to(w)?;
         self.dyeing_field_b_113.write_to(w)?;
         self.is_hide_equip_in_dyeing_process_113.write_to(w)?;
@@ -198,6 +209,7 @@ impl ToJsonValue for EquipInfoData {
             "complex_u64": self.complex_u64,
             "complex_blob": self.complex_blob.to_json_value(),
             "tail_pad_u32": self.tail_pad_u32,
+            "slot_name_hash_116": self.slot_name_hash_116,
             "dyeing_field_a_113": self.dyeing_field_a_113,
             "dyeing_field_b_113": self.dyeing_field_b_113,
             "is_hide_equip_in_dyeing_process_113": self.is_hide_equip_in_dyeing_process_113,
@@ -224,6 +236,7 @@ impl WriteJsonValue for EquipInfoData {
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_u64")?)?;
         <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "complex_blob")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_pad_u32")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "slot_name_hash_116")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dyeing_field_a_113")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dyeing_field_b_113")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_hide_equip_in_dyeing_process_113")?)?;

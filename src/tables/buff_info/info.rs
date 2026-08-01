@@ -364,3 +364,47 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod diag_1_16 {
+    use super::*;
+    use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+
+    /// Per-BuffData-element trace for one record: prints each element's
+    /// discriminant and byte span so a payload-size drift can be attributed to a
+    /// specific variant instead of guessed at.
+    #[test]
+    #[ignore = "diagnostic; DIAG_BUFF_KEY=<hex>"]
+    fn diag_element_spans() {
+        let want = u32::from_str_radix(
+            &std::env::var("DIAG_BUFF_KEY").unwrap_or_else(|_| "f4251".into()), 16).unwrap();
+        let p = crate::testenv::resolve("buffinfo.pabgb");
+        let Ok(data) = std::fs::read(&p) else { return };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy())
+        else { return };
+        for (k, s, e) in entry_ranges(&entries, data.len()) {
+            if k as u32 != want { continue; }
+            let mut c = s;
+            let _key = u32::read_from(&data, &mut c).unwrap();
+            let _sk = CString::read_from(&data, &mut c).unwrap();
+            let _ib = u8::read_from(&data, &mut c).unwrap();
+            let n = u32::read_from(&data, &mut c).unwrap();
+            eprintln!("k=0x{:x} span [{}..{}) len={}  buff_data_list count={}", k, s, e, e - s, n);
+            for i in 0..n {
+                let st = c;
+                let _ll = u32::read_from(&data, &mut c).unwrap();
+                let absent = u8::read_from(&data, &mut c).unwrap();
+                let disc = if absent == 0 { data.get(c).copied() } else { None };
+                match BuffData::read_from(&data, &mut c) {
+                    Ok(_) => eprintln!("  [{:2}] absent={} disc={:?} rel {}..{} ({} B)",
+                        i, absent, disc, st - s, c - s, c - st),
+                    Err(err) => {
+                        eprintln!("  [{:2}] absent={} disc={:?} rel {} ERR: {}", i, absent, disc, st - s, err);
+                        return;
+                    }
+                }
+            }
+            eprintln!("  consumed to rel {} of {}", c - s, e - s);
+        }
+    }
+}

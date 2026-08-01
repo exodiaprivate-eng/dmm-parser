@@ -198,6 +198,22 @@ impl<'a> InteractionTail<'a> {
 
     pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize) -> io::Result<Self> {
         let tail_start = *offset;
+        // A layout change can leave the cursor PAST the pabgh-declared entry end
+        // (seen on game 1.16: tail_start 4825 vs entry_end 2071). Slicing that
+        // range panics, which escapes the Err(_) blob fallback below and takes the
+        // whole parse down instead of degrading. Fail cleanly so the caller's
+        // blob-fallback path can handle it.
+        if tail_start > entry_end || entry_end > data.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "interaction_info: tail range out of bounds (start {} > end {} or end > len {})",
+                    tail_start,
+                    entry_end,
+                    data.len()
+                ),
+            ));
+        }
         let mut probe = tail_start;
         match Self::try_read_decoded(data, &mut probe, entry_end) {
             Ok(d) => {

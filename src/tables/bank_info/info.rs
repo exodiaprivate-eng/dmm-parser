@@ -38,15 +38,28 @@ py_binary_struct! {
         pub use_bank_condition: u32,
         pub min_investment_amount: u64,
         pub max_amount_for_interest: u64,
+        // 1.16.00: RESOLVED against the binary's own per-field error strings
+        // ("BankInfo의 _<field>를 읽어들이는데 실패했다" — NattKh method). The real
+        // 1.16 field list is 16 fields and reads:
+        //   … _minInvestmentAmount, _maxAmountForInterest,
+        //     _maxAmountForInterestResult, _bankPassItemInfo,
+        //     _bankLicenseKnowledgeInfo, _bankName, _fixInterestRateOnInvestment,
+        //     _bankInterestRate
+        // i.e. the 1.13 guess (9 provisional scalar bytes AFTER
+        // _bankLicenseKnowledgeInfo) was wrong: it is ONE u64
+        // `_maxAmountForInterestResult` placed BEFORE _bankPassItemInfo (17 → 16
+        // scalar bytes, the -1B that desynced 1.16 at 0x51).
+        pub max_amount_for_interest_result: u64,
         pub bank_pass_item_info: u32,
         pub bank_license_knowledge_info: u32,
-        // 1.13.00: new field block inserted here (+27 B once per record).
-        // Byte-diff decisive (single bank record 16960): 9 fixed scalar bytes
-        // followed by a CString (len-prefixed; "72842645340992" = 14 chars) then
-        // the old fix_interest_rate/interest-rate list resume verbatim. Field
-        // split within the 9 scalar bytes is roundtrip-equivalent; semantics
-        // unconfirmed (a u32 read the low bytes 0x340 as a bogus CArray count =
-        // the pre-fix V3 desync). Names are provisional.
+        // These four ARE the binary's `_bankName` — a LocalizableString
+        // (u8 category + u64 index + CString), which is byte-identical to the
+        // u32+u32+u8+CString split the 1.13 pass guessed. So the 1.13 model was
+        // right and only the +8 above was missing. Verified on the single bank
+        // record (key 16960): category@0x4C, index@0x4D..0x54, len(14)@0x55,
+        // "72842645340992"@0x59.
+        // Names kept as-is: parser field names are a MOD CONTRACT — renaming
+        // silently skips any mod referencing them.
         pub bank_new_a_113: u32,
         pub bank_new_b_113: u32,
         pub bank_new_c_113: u8,

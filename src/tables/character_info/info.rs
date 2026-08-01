@@ -837,7 +837,6 @@ py_binary_struct! {
         pub summon_tag_hash_b: u32,
         pub summon_tag_hash_c: u32,
         pub summon_tag_hash_d: u32,
-        pub has_bag_docking_data: u8,
     }
 }
 
@@ -1238,7 +1237,12 @@ pabgh_typed_blob_table! {
         pub path_find_table_name: u32,                // 137 sub_100D39278
         pub docking_child_data_list: CArray<DockingChildData<'a>>, // 138 sub_101FE76A8
         pub docking_child_event_list: CArray<DockingChildEvent>, // 139 sub_101FE79A0
-        pub bag_docking_data: DockingChildData<'a>,  // 140 single — sub_101E03750
+        // 140 — game v16: was an unconditional DockingChildData; the engine now
+        // writes a u8 presence flag and only emits the body when set. The
+        // element's old trailing `has_bag_docking_data` byte is gone with it
+        // (docking_child_data_list elements shrank by 1 each), which is why the
+        // record delta is exactly `-len(docking_child_data_list) + 19`.
+        pub bag_docking_data: COptional<DockingChildData<'a>>,
         pub character_interaction_override_data_list: GimmickInteractionOverrideCArray<'a>, // 141 sub_101AB3118
         pub character_collision_type: u8,            // 142 sub_101378594
         pub bump_type_hash: u32,                     // 143 sub_100D39278
@@ -1265,6 +1269,7 @@ pabgh_typed_blob_table! {
         pub camp_guest_data: CampGuestData,          // 164 sub_101FAF2F0
         pub talk_tree_info: u16,                     // 165 TalkTreeKey — sub_101F89C3C
         pub base_material_key_override: u32,         // 166 sub_100D39278
+        pub armor_material_key_override: u32,        // game v16 — _armorMaterialKeyOverride (sub_100DDB838, 4B)
         pub is_farm_animal: u8,                      // 167 sub_100D391B8
         pub use_level_inheritance: u8,               // 168 sub_100D391B8
         pub catch_spawn_data: CatchSpawnData,        // 169 sub_101FAFC28
@@ -1277,6 +1282,12 @@ pabgh_typed_blob_table! {
         pub empowered_overlay_color_ratio: u32,      // 176 sub_100D392D8
         pub buff_overlay_color_data_map: CArray<BuffOverlayColorEntry>, // 177 sub_101FE86DC
         pub wall_hit_rebound: u8,                    // 178 sub_100D391B8
+        // game v16 — four new fields between _wallHitRebound and
+        // _balanceDifficultyLevel (Korean field oracle + reader widths):
+        pub activity_preset_info: u32,               // _activityPresetInfo   sub_101FEA2BC (int)
+        pub daily_routine_info: u32,                 // _dailyRoutineInfo     sub_1020001F0 (int)
+        pub zone_info: u16,                          // _zoneInfo             sub_101DE7F18 (ZoneKey, u16)
+        pub sub_zone_tag_list: CArray<u32>,          // _subZoneTagList       sub_10111CDFC (count + 4*n)
         pub balance_difficulty_level: u32,           // 179 sub_100D39258
         pub is_apply_stat_control_data: u8,          // 180 sub_100D391B8
         pub apply_stat_balace_data: ApplyStatBalance,     // 181 sub_101FB185C
@@ -1319,6 +1330,44 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "characterinfo roundtrip mismatch");
+    }
+
+    /// Diagnostic: name the field a failing record dies on. `read_tracked_with_size`
+    /// fills `ranges` as it walks, and the caller keeps them when it returns Err,
+    /// so the tail of that vec is the last field read before the failure.
+    #[test]
+    #[ignore]
+    fn diag_first_failure() {
+        let Ok(data) = std::fs::read(pabgb_path()) else { return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { return; };
+        let ranges_all = entry_ranges(&entries, data.len());
+        let mut shown = 0;
+        for (i, (k, s, e)) in ranges_all.iter().enumerate() {
+            let mut c = *s;
+            if CharacterInfo::read_with_size(&data, &mut c, e - s).is_ok() { continue; }
+            let mut cur = *s;
+            let mut path = String::new();
+            let mut fr = Vec::new();
+            let err = CharacterInfo::read_tracked_with_size(&data, &mut cur, e - s, &mut path, &mut fr)
+                .err().map(|x| x.to_string()).unwrap_or_default();
+            eprintln!("--- e{} k=0x{:x} size={} err={}", i, k, e - s, err);
+            for r in fr.iter().rev().take(12).rev() {
+                eprintln!("      {:>6}..{:<6} {}", r.start, r.end, r.path);
+            }
+            shown += 1;
+            if shown >= 3 { break; }
+        }
+        let mut fails = 0usize;
+        let mut first = None;
+        for (i, (k, s, e)) in ranges_all.iter().enumerate() {
+            let mut c = *s;
+            if CharacterInfo::read_with_size(&data, &mut c, e - s).is_err() {
+                fails += 1;
+                if first.is_none() { first = Some((i, *k)); }
+            }
+        }
+        eprintln!("(showed {} failing records) TOTAL {} / {} fail; first={:?}",
+            shown, fails, ranges_all.len(), first);
     }
 
     #[test]
