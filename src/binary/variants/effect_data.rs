@@ -60,6 +60,14 @@ py_binary_struct! {
         pub field_108: u32,
         pub vec4_a: [u32; 4],
         pub field_128: u32,
+        // game v16: +4 bytes inserted HERE (D3-relative offset 132), default
+        // 0xFFFFFFFF. Byte-decisive: the record delta is exactly 4 x (number of
+        // EffectDataD3Block instances) — 1 for core_block.d3 plus one per
+        // fixed144_list entry — which is why 2087/2225 records grew by exactly
+        // +4 and the rest by 8/12/16/... The trailing field_NNN names below now
+        // under-state their offset by 4; NOT renamed, because those names are a
+        // mod contract.
+        pub field_132_116: u32,
         pub field_132: u32,
         pub byte_136: u8,
         pub byte_137: u8,
