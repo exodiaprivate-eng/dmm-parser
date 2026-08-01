@@ -530,6 +530,11 @@ fn verify_one_mod() {
         let (nb, nh, out) = apply_intents_to_table_body(&target, &b, h.as_deref(), &intents).expect("apply");
         applied += out.iter().filter(|o| matches!(o.status, ApplyStatus::Applied)).count();
         skipped += out.iter().filter(|o| !matches!(o.status, ApplyStatus::Applied)).count();
+        for o in &out {
+            if let ApplyStatus::Skipped(why) = &o.status {
+                eprintln!("RESULT   SKIP [{}] {}", o.op, why);
+            }
+        }
         match apply_intents_to_table_body(&target, &nb, nh.as_deref(), &[]) {
             Ok((again, _, _)) if again == nb => {}
             _ => unstable += 1,
@@ -622,5 +627,38 @@ fn audit_wholesale_set_lists() {
     } else {
         eprintln!("AUDIT FINDINGS ({}):", findings.len());
         for f in &findings { eprintln!("   {f}"); }
+    }
+}
+
+/// How broken is interaction_info on v16, and do the records "Fast Pickup" targets
+/// (Gimmick_PickUp key 1000004, Gimmick_Collect key 10028) parse or blob-fall-back?
+#[test]
+#[ignore]
+fn interactioninfo_blob_census() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("interactioninfo.pabgb")).expect("body");
+    let pabgh = std::fs::read(dir.join("interactioninfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("interactioninfo.pabgb", &body, pabgh.as_deref())
+        .expect("parse");
+    let (mut blob, mut ok) = (0usize, 0usize);
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        if o.contains_key("_blob_b64") { blob += 1 } else { ok += 1 }
+    }
+    eprintln!("CENSUS interactioninfo: {} records, {} typed, {} BLOB ({:.1}% blob)",
+        arr.len(), ok, blob, 100.0 * blob as f64 / arr.len().max(1) as f64);
+    for want in [1000004u64, 10028] {
+        let hit = arr.iter().find(|r| r.as_object()
+            .and_then(|o| o.get("__key__").or_else(|| o.get("key")))
+            .and_then(|k| k.as_u64()) == Some(want));
+        match hit {
+            Some(r) => {
+                let o = r.as_object().unwrap();
+                let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("?");
+                eprintln!("CENSUS key {want}: {}  string_key={sk}",
+                    if o.contains_key("_blob_b64") { "BLOB  <-- intents cannot resolve" } else { "typed OK" });
+            }
+            None => eprintln!("CENSUS key {want}: NOT FOUND in v16"),
+        }
     }
 }

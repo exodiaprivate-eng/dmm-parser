@@ -110,7 +110,11 @@ use std::io::{self, Write};
 
 py_binary_struct! {
     pub struct InteractionPivotData<'a> {
-        pub key: u32,
+        // game v16: the leading u32 `key` hash was REPLACED by the pivot's key
+        // NAME as a CString (e.g. "gimmick_collect", "TempPivotKey_<X>_On_1").
+        // Byte-decisive on k=10028: OLD `0d 3a 9c 6a` (4 B) -> NEW `0f 00 00 00`
+        // + "gimmick_collect" (19 B), and the record delta is exactly +15.
+        pub pivot_key_name_116: CString<'a>,
         pub tag_a: CString<'a>,
         pub vec_a: [f32; 3],
         pub tag_b: CString<'a>,
@@ -327,8 +331,9 @@ pub struct InteractionInfo<'a> {
     pub interaction_type: u8,
     pub interaction_show_ui_type: u8,
     pub preemption_type: u8,
-    pub interaction_name: LocalizableString<'a>,
+    // game v16: _pivotSelectionType now precedes _interactionName (was after).
     pub pivot_selection_target: u8,
+    pub interaction_name: LocalizableString<'a>,
     pub interaction_pivot_list: CArray<InteractionPivotData<'a>>,
     pub tail: InteractionTail<'a>,
 }
@@ -348,8 +353,8 @@ impl<'a> InteractionInfo<'a> {
         let interaction_type = u8::read_from(data, offset)?;
         let interaction_show_ui_type = u8::read_from(data, offset)?;
         let preemption_type = u8::read_from(data, offset)?;
-        let interaction_name = LocalizableString::read_from(data, offset)?;
         let pivot_selection_target = u8::read_from(data, offset)?;
+        let interaction_name = LocalizableString::read_from(data, offset)?;
         let interaction_pivot_list = CArray::<InteractionPivotData>::read_from(data, offset)?;
         let tail = InteractionTail::read_with_size(data, offset, entry_end)?;
 
@@ -375,8 +380,8 @@ impl<'a> InteractionInfo<'a> {
         let interaction_type = track_read_field::<u8>(data, offset, path, ranges, "interaction_type", "u8")?;
         let interaction_show_ui_type = track_read_field::<u8>(data, offset, path, ranges, "interaction_show_ui_type", "u8")?;
         let preemption_type = track_read_field::<u8>(data, offset, path, ranges, "preemption_type", "u8")?;
-        let interaction_name = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "interaction_name", "LocalizableString")?;
         let pivot_selection_target = track_read_field::<u8>(data, offset, path, ranges, "pivot_selection_target", "u8")?;
+        let interaction_name = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "interaction_name", "LocalizableString")?;
         let interaction_pivot_list = track_read_field::<CArray<InteractionPivotData<'a>>>(data, offset, path, ranges, "interaction_pivot_list", "CArray<InteractionPivotData>")?;
         let tail = track_read_with(offset, path, ranges, "tail", "InteractionTail", |o| {
             InteractionTail::read_with_size(data, o, entry_end)
@@ -395,8 +400,8 @@ impl<'a> InteractionInfo<'a> {
         self.interaction_type.write_to(w)?;
         self.interaction_show_ui_type.write_to(w)?;
         self.preemption_type.write_to(w)?;
-        self.interaction_name.write_to(w)?;
         self.pivot_selection_target.write_to(w)?;
+        self.interaction_name.write_to(w)?;
         self.interaction_pivot_list.write_to(w)?;
         self.tail.write_to(w)?;
         Ok(())
@@ -424,8 +429,8 @@ impl<'a> InteractionInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_show_ui_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "preemption_type")?)?;
-        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pivot_selection_target")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
         <CArray<InteractionPivotData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_pivot_list")?)?;
         InteractionTail::write_from_json(w, json_get_field(obj, "tail")?)?;
         Ok(())
