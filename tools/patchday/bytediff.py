@@ -44,6 +44,14 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import rec  # noqa: E402  (same-dir helper: pabgh header autodetect + offset sort)
 
+# Windows consoles default to cp1252 and die on any non-latin-1 output. The
+# toolkit README flags this for Korean decompiler text; it bites here too, on a
+# single star in a heading -- and it crashed the run mid-report. Force UTF-8.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):
+    pass
+
 OLD_DEFAULT = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-16"
 NEW_DEFAULT = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-1"
 
