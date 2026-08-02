@@ -32,6 +32,10 @@ out/
 /tools/patchday/*
 !/tools/patchday/*.py
 !/tools/patchday/README.md
+# Same category, different folder: this is the patch-day "what changed" step.
+# Its hashes_*.json BASELINES stay ignored -- those are machine/build data, not
+# process, and they are regenerated at every release close.
+!/tools/game_hash_snapshot.py
 node_modules/
 package.json
 package-lock.json
