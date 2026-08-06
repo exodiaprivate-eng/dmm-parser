@@ -32,6 +32,12 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 16 (1.16.04) — 2026-08-05 hotfix. paver 1.16.00 -> 1.16.04 (patch
+    // component only). 270 files / 135 tables extracted, 0 missing / 0 err, from the
+    // freshly-verified UNMOUNTED game. Table count 132 -> 135, so this hotfix ADDED
+    // three tables. Steam applied it mid-session over a live mount, which is what
+    // produced the engine's "problem with the game installation" dialog.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-5",
     // GAME VERSION 16 (1.16.00) — 2026-08-01. paver u16@2: 15 -> 16. Trading/banking
     // overhaul patch. 264/264 fixtures extracted (0 missing / 0 err) from the
     // freshly-patched, UNMOUNTED game.

@@ -32,13 +32,13 @@ macro_rules! check {
         };
         let dicts = match parse_typed_blob_table_to_json_with_pabgh(&body, &pabgh, |d, o, s| {
             Ok(<$T>::read_with_size(d, o, s)?.to_json_dict())
-        }) {
+        }, |_d, _s, _z| ::serde_json::Map::new()) {
             Ok(d) => d,
             Err(e) => { println!("  ❌ {} parse: {}", $pabgb, e); return; }
         };
         let out = match serialize_typed_blob_table_from_json(&dicts, |w, obj| {
             <$T>::write_from_json_dict(w, obj)
-        }) {
+        }, |_w, _m, _n| Ok(())) {
             Ok(o) => o,
             Err(e) => { println!("  ❌ {} serialize: {}", $pabgb, e); return; }
         };

@@ -1330,31 +1330,102 @@ py_binary_struct! {
     }
 }
 
-/// AdditionalUseResourceStat — f01 is a length-prefixed Vec of
-/// 22-byte fixed-size records.
+/// One `AdditionalUseResourceStat` entry — a fixed 22-byte record.
+///
+/// This is the PASSIVE resource drain carried by `BuffLevel_Passive_*` (abyssal
+/// weapon passives). Verified against live 1.16 buffinfo: 36 entries, every one
+/// exactly 22 bytes, `kind` always 3, `resource_stat` 18x spirit (1000027) and
+/// 18x stamina (1000026), `d` = -5000 / -10000.
+///
+/// `d` follows the SAME sign convention as the skill-side `use_resource_stat_list[*].d`:
+/// NEGATIVE = a cost/drain, POSITIVE = regen. Anything scaling it must skip
+/// positives (`guard_max: 0.0`) or it will invert passive regen.
+///
+/// Was previously exposed as an opaque `[u8; 22]`, which is why Mod Builder's
+/// percentage reductions could not reach it — there was no numeric field for a
+/// `scale` intent to address, so abyssal passives kept draining at full rate
+/// while the skill-side costs were reduced.
+#[derive(Debug)]
+pub struct AdditionalUseResourceStatEntry {
+    pub kind: u8,
+    pub resource_stat: u32,
+    pub flag: u8,
+    pub d: i64,
+    pub lookup_a: u32,
+    pub lookup_b: u32,
+}
+
+impl AdditionalUseResourceStatEntry {
+    fn from_bytes(b: &[u8; 22]) -> Self {
+        let u32_at = |i: usize| u32::from_le_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]);
+        let mut d = [0u8; 8];
+        d.copy_from_slice(&b[6..14]);
+        Self {
+            kind: b[0],
+            resource_stat: u32_at(1),
+            flag: b[5],
+            d: i64::from_le_bytes(d),
+            lookup_a: u32_at(14),
+            lookup_b: u32_at(18),
+        }
+    }
+    fn to_bytes(&self) -> [u8; 22] {
+        let mut b = [0u8; 22];
+        b[0] = self.kind;
+        b[1..5].copy_from_slice(&self.resource_stat.to_le_bytes());
+        b[5] = self.flag;
+        b[6..14].copy_from_slice(&self.d.to_le_bytes());
+        b[14..18].copy_from_slice(&self.lookup_a.to_le_bytes());
+        b[18..22].copy_from_slice(&self.lookup_b.to_le_bytes());
+        b
+    }
+    fn to_json_dict(&self) -> Map<String, Value> {
+        let mut m = Map::new();
+        m.insert("kind".into(), Value::from(self.kind as u64));
+        m.insert("resource_stat".into(), Value::from(self.resource_stat as u64));
+        m.insert("flag".into(), Value::from(self.flag as u64));
+        m.insert("d".into(), Value::from(self.d));
+        m.insert("lookup_a".into(), Value::from(self.lookup_a as u64));
+        m.insert("lookup_b".into(), Value::from(self.lookup_b as u64));
+        m
+    }
+}
+
+/// AdditionalUseResourceStat — f01 is a length-prefixed Vec of 22-byte records.
 #[derive(Debug)]
 pub struct AdditionalUseResourceStatBuffDataPayload {
     pub f00: CArray<u32>,
-    pub f01: Vec<[u8; 22]>,
+    pub f01: Vec<AdditionalUseResourceStatEntry>,
 }
 impl AdditionalUseResourceStatBuffDataPayload {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let f00 = CArray::<u32>::read_from(data, offset)?;
-        let f01 = { let count = u32::read_from(data, offset)? as usize; let remaining = data.len().saturating_sub(*offset); if count > remaining { return Err(io::Error::new(io::ErrorKind::InvalidData, format!("AdditionalUseResourceStatBuffDataPayload f01 count {} exceeds remaining {} at offset {}", count, remaining, *offset))); } let mut v = Vec::with_capacity(count.min(1 << 20)); for _ in 0..count { let mut b = [0u8; 22]; for x in &mut b { *x = u8::read_from(data, offset)?; } v.push(b); } v };
+        let count = u32::read_from(data, offset)? as usize;
+        let remaining = data.len().saturating_sub(*offset);
+        if count > remaining {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                "AdditionalUseResourceStatBuffDataPayload f01 count {} exceeds remaining {} at offset {}",
+                count, remaining, *offset)));
+        }
+        let mut f01 = Vec::with_capacity(count.min(1 << 20));
+        for _ in 0..count {
+            let mut b = [0u8; 22];
+            for x in &mut b { *x = u8::read_from(data, offset)?; }
+            f01.push(AdditionalUseResourceStatEntry::from_bytes(&b));
+        }
         Ok(Self { f00, f01 })
     }
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         self.f00.write_to(w)?;
-        { (self.f01.len() as u32).write_to(w)?; for it in &self.f01 { w.write_all(it)?; } }
+        (self.f01.len() as u32).write_to(w)?;
+        for it in &self.f01 { w.write_all(&it.to_bytes())?; }
         Ok(())
     }
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
         m.insert("f00".into(), self.f00.to_json_value());
-        // Each entry is a 22-byte fixed-size opaque record exposed as an
-        // array of 22 u8 integers — fully byte-addressable through JSON.
         let entries: Vec<Value> = self.f01.iter()
-            .map(|b| Value::Array(b.iter().map(|&x| Value::from(x as u64)).collect()))
+            .map(|e| Value::Object(e.to_json_dict()))
             .collect();
         m.insert("f01_entries".into(), Value::Array(entries));
         m
@@ -1367,9 +1438,31 @@ impl AdditionalUseResourceStatBuffDataPayload {
                 "AdditionalUseResourceStat.f01_entries: expected array"))?;
         (arr.len() as u32).write_to(w)?;
         for (i, item) in arr.iter().enumerate() {
+            // Named-object form (current). LEGACY 22-u8 array form is still
+            // accepted so mods written against the old opaque shape keep working.
+            if let Some(o) = item.as_object() {
+                let gu = |k: &str| -> io::Result<u64> {
+                    json_get_field(o, k)?.as_u64().ok_or_else(|| io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("AdditionalUseResourceStat.f01_entries[{}].{}: expected integer", i, k)))
+                };
+                let d = json_get_field(o, "d")?.as_i64().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("AdditionalUseResourceStat.f01_entries[{}].d: expected i64", i)))?;
+                let e = AdditionalUseResourceStatEntry {
+                    kind: gu("kind")? as u8,
+                    resource_stat: gu("resource_stat")? as u32,
+                    flag: gu("flag")? as u8,
+                    d,
+                    lookup_a: gu("lookup_a")? as u32,
+                    lookup_b: gu("lookup_b")? as u32,
+                };
+                w.extend_from_slice(&e.to_bytes());
+                continue;
+            }
             let inner = item.as_array().ok_or_else(|| io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("AdditionalUseResourceStat.f01_entries[{}]: expected array of 22 u8", i),
+                format!("AdditionalUseResourceStat.f01_entries[{}]: expected object or array of 22 u8", i),
             ))?;
             if inner.len() != 22 {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
