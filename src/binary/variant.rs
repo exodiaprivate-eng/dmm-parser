@@ -193,6 +193,68 @@ macro_rules! pabgh_blob_table {
                 w.write_all(&self.$blob)?;
                 Ok(())
             }
+
+            /// Best-effort prefix decode when `read_with_size` fails. See the
+            /// fuller note on the same method in `pabgh_typed_blob_table!`.
+            /// STRICTLY READ-ONLY — never drives a write.
+            pub fn read_partial_json(
+                data: &'a [u8],
+                entry_start: usize,
+                entry_size: usize,
+            ) -> ::serde_json::Map<String, ::serde_json::Value> {
+                use $crate::binary::BinaryRead;
+                use $crate::json_traits::ToJsonValue;
+                let mut m = ::serde_json::Map::new();
+                let entry_end = match entry_start.checked_add(entry_size) {
+                    Some(e) if e <= data.len() => e,
+                    _ => return m,
+                };
+                let slice = &data[entry_start..entry_end];
+                let mut o = 0usize;
+                let mut fields_ok = 0usize;
+                loop {
+                    let b = o;
+                    match <$key_ty as BinaryRead>::read_from(slice, &mut o) {
+                        Ok(v) => { m.insert("key".to_string(), v.to_json_value()); fields_ok += 1; }
+                        Err(_) => { o = b; break; }
+                    }
+                    let b = o;
+                    match $crate::binary::CString::read_from(slice, &mut o) {
+                        Ok(v) => { m.insert("string_key".to_string(), v.to_json_value()); fields_ok += 1; }
+                        Err(_) => { o = b; break; }
+                    }
+                    let b = o;
+                    match u8::read_from(slice, &mut o) {
+                        Ok(v) => { m.insert("is_blocked".to_string(), v.to_json_value()); fields_ok += 1; }
+                        Err(_) => { o = b; break; }
+                    }
+                    break;
+                }
+                m.insert("_partial_fields".to_string(), ::serde_json::Value::from(fields_ok));
+                m.insert("_partial_prefix_len".to_string(), ::serde_json::Value::from(o));
+                m
+            }
+
+            /// Re-serialise the first `n_fields` prefix fields. See the fuller
+            /// note on the same method in `pabgh_typed_blob_table!`.
+            pub fn write_partial_prefix(
+                w: &mut Vec<u8>,
+                obj: &::serde_json::Map<String, ::serde_json::Value>,
+                n_fields: usize,
+            ) -> std::io::Result<()> {
+                use $crate::json_traits::{WriteJsonValue, get_field as json_get_field};
+                if n_fields > 0 {
+                    <$key_ty as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+                }
+                if n_fields > 1 {
+                    <$crate::binary::CString as WriteJsonValue>::write_from_json(
+                        w, json_get_field(obj, "string_key")?)?;
+                }
+                if n_fields > 2 {
+                    <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+                }
+                Ok(())
+            }
         }
     };
 }
@@ -348,6 +410,96 @@ macro_rules! pabgh_typed_blob_table {
                     m.insert("_tail_b64".to_string(), ::serde_json::Value::String(B64.encode(&self.$tail)));
                 }
                 m
+            }
+
+            /// Best-effort prefix decode for a record that FAILS `read_with_size`.
+            ///
+            /// Reads fields in declaration order and stops at the first that
+            /// does not parse, returning everything decoded up to that point.
+            /// A record whose schema breaks at field 153 still yields fields
+            /// 0..152 — which is usually every field anyone actually wants.
+            ///
+            /// WHY: a single unmodelled field used to discard the WHOLE record.
+            /// In live 1.16 characterinfo that hid 232 records, including all
+            /// the pet cats and dogs and the kakapo bird, behind an opaque
+            /// blob — even though their `name`, `desc`, `lookup_22` and `f38`
+            /// sit far earlier in the struct and parse perfectly.
+            ///
+            /// STRICTLY READ-ONLY. The caller keeps `_blob_b64` alongside these
+            /// fields and `write_from_json_dict` is never driven from them, so
+            /// a partially-decoded record can never be re-serialised from
+            /// incomplete data. Byte-roundtrip is unaffected.
+            pub fn read_partial_json(
+                data: &'a [u8],
+                entry_start: usize,
+                entry_size: usize,
+            ) -> ::serde_json::Map<String, ::serde_json::Value> {
+                use $crate::binary::BinaryRead;
+                use $crate::json_traits::ToJsonValue;
+                let mut m = ::serde_json::Map::new();
+                let entry_end = match entry_start.checked_add(entry_size) {
+                    Some(e) if e <= data.len() => e,
+                    _ => return m,
+                };
+                let entry_slice = &data[entry_start..entry_end];
+                let mut local_offset = 0usize;
+                let mut fields_ok = 0usize;
+                loop {
+                    $(
+                        {
+                            // Snapshot: a failing BinaryRead may have advanced the
+                            // cursor part-way. The splice offset must be the last
+                            // byte we FULLY decoded, or the rewrite corrupts.
+                            let __before = local_offset;
+                            match <$ty as BinaryRead>::read_from(entry_slice, &mut local_offset) {
+                                Ok(v) => {
+                                    m.insert(stringify!($field).to_string(), v.to_json_value());
+                                    fields_ok += 1;
+                                }
+                                Err(_) => { local_offset = __before; break; }
+                            }
+                        }
+                    )*
+                    break;
+                }
+                // How much of the record the prefix covers. `write_partial_prefix`
+                // rewrites exactly these fields and the caller splices the ORIGINAL
+                // bytes from `_partial_prefix_len` onward, so an edit to a decoded
+                // field lands while the undecoded remainder stays byte-identical.
+                m.insert("_partial_fields".to_string(), ::serde_json::Value::from(fields_ok));
+                m.insert("_partial_prefix_len".to_string(), ::serde_json::Value::from(local_offset));
+                m
+            }
+
+            /// Re-serialise the FIRST `n_fields` typed prefix fields from a JSON
+            /// dict produced by `read_partial_json`. Pairs with the caller
+            /// splicing the original bytes from `_partial_prefix_len` onward.
+            ///
+            /// Only meaningful for a `_blob_fallback` record: without this a v3
+            /// intent that edits a decoded field is silently discarded, because
+            /// the fallback writer emits `_blob_b64` verbatim (that is why the
+            /// 1.5.9 cat/dog swaps applied and changed nothing).
+            pub fn write_partial_prefix(
+                w: &mut Vec<u8>,
+                obj: &::serde_json::Map<String, ::serde_json::Value>,
+                n_fields: usize,
+            ) -> std::io::Result<()> {
+                use $crate::json_traits::{WriteJsonValue, get_field as json_get_field};
+                let mut i = 0usize;
+                $(
+                    if i < n_fields {
+                        <$ty as WriteJsonValue>::write_from_json(
+                            w, json_get_field(obj, stringify!($field))?)?;
+                        i += 1;
+                    }
+                )*
+                if i != n_fields {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!("{}: partial prefix wanted {} fields, wrote {}",
+                                stringify!($name), n_fields, i)));
+                }
+                Ok(())
             }
 
             /// Write a JSON dict (as produced by `to_json_dict` and possibly

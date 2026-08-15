@@ -120,6 +120,11 @@ py_binary_struct! {
         // within the fixed-width tail). Verified via wire-walker: reconciles
         // all 34 records (byte-exact roundtrip).
         pub trailing_u32_110: u32,
+        // ── 1.18.00: `_contactImpulseEvent`, one u8 immediately before the
+        // FLT_MAX float below. Pinned by key 0x424A "Ship", whose tail is
+        // `… 00 | ff ff 7f 7f | 0a 00 00 00 "controller" | 01` — the new byte
+        // brackets the float on the left, and `isPlatformVehicle` on the right.
+        pub contact_impulse_event: u8,
         // 1.11: one new 4-byte field appended to the fixed tail (a float —
         // 0x7f7fffff = FLT_MAX default, or real values e.g. 0x44a8c000 = 1350.0);
         // kept as u32 for bit-exact roundtrip. The other +4 bytes of the 1.11
@@ -142,6 +147,11 @@ py_binary_struct! {
         // field. Vanilla value was empty everywhere, so nothing could have set it
         // meaningfully.
         pub attach_to_docking_gimmick_tag: CString<'a>,
+        // ── 1.18.00: `_isPlatformVehicle`, one u8 appended after the docking
+        // tag string. 0 in 33 records and **1 in key 0x424A "Ship"** — the one
+        // vehicle you can walk around on. Semantic confirmation, not just a
+        // width that happens to fit.
+        pub is_platform_vehicle: u8,
     }
 }
 

@@ -21,7 +21,21 @@ out/
 
 # Tools / game files (top-level only — Phase T mod-author CLIs live at
 # python/dmm_parser/tools/ and SHOULD be tracked)
-/tools/
+# NB: exclude the CONTENTS, not the directory -- git cannot re-include a file
+# whose parent DIRECTORY is excluded, so `/tools/` + `!/tools/patchday/` silently
+# does nothing.
+/tools/*
+# ...EXCEPT the patch-day toolkit, which must survive a reclone: it IS the
+# process for responding to a game update. Game files, hash baselines and
+# scratch dumps under /tools/ stay ignored.
+!/tools/patchday/
+/tools/patchday/*
+!/tools/patchday/*.py
+!/tools/patchday/README.md
+# Same category, different folder: this is the patch-day "what changed" step.
+# Its hashes_*.json BASELINES stay ignored -- those are machine/build data, not
+# process, and they are regenerated at every release close.
+!/tools/game_hash_snapshot.py
 node_modules/
 package.json
 package-lock.json

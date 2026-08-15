@@ -558,6 +558,26 @@ py_binary_struct! {
         pub animation_path_list: CArray<StringInfoKey>,
         pub equip_slot_list: CArray<u16>,
         pub tribe_gender_list: CArray<StringInfoKey>,
+        // ── 1.18.00: `_dockingPrefabSwitchName`, one u32 name-hash per entry ──
+        // Proven by size arithmetic before it was placed: across 6572 shared
+        // records the delta is EXACTLY `4 * prefab_data_list.len()` —
+        //   0 prefabs -> +0 (822 records)   1 -> +4 (198)   2 -> +8 (4679)
+        //   3 -> +12 (744)   4 -> +16   5 -> +20   6 -> +24
+        // so it is a single fixed u32 inside PrefabData, not a field on ItemInfo
+        // and not a CArray (an empty CArray would also add 4, but the inserted
+        // value is 0xEAC5E173, not 0).
+        //
+        // 0xEAC5E173 is the hash of the empty/default path: in 1.17 the same
+        // value already sits in `item_icon_list[*].highlight_icon_path` and
+        // `map_icon_path` in essentially every record. A "…Name" field carrying
+        // it is an unset name, which is why it is uniform across the table.
+        //
+        // Placed immediately before `use_gimmick_prefab` because the binary's own
+        // field list orders it `scale, dockingPrefabSwitchName, useGimmickPrefab`.
+        // ⚠ That oracle's ADDRESS order does not otherwise match our field order,
+        // so only the immediate neighbour is trusted here — the roundtrip test is
+        // what confirms it.
+        pub docking_prefab_switch_name: StringInfoKey,
         pub use_gimmick_prefab: u8,
         pub is_craft_material: u8,
         pub prefab_data_type: u8,
@@ -1087,8 +1107,12 @@ mod tests {
         <PrefabData as WriteJsonValue>::write_from_json(&mut out, &old_shape)
             .expect("old-shape PrefabData must serialize (not abort on null scale)");
         // Wire = scale[12] + prefab_names(4+4) + anim(4=0) + equip(4=0) + tribe(4=0)
-        //        + use_gimmick(1) + is_craft(1) + prefab_data_type(1) = 35 bytes.
-        assert_eq!(out.len(), 35, "unexpected PrefabData wire size");
+        //        + docking_prefab_switch_name(4) + use_gimmick(1) + is_craft(1)
+        //        + prefab_data_type(1) = 39 bytes.
+        // 1.18.00 added docking_prefab_switch_name (+4). That this old-shape
+        // JSON — which has no key for it — still serializes is the point of
+        // this test: pre-1.18 mods must not abort on the new field.
+        assert_eq!(out.len(), 39, "unexpected PrefabData wire size");
         // scale defaulted to identity [1.0, 1.0, 1.0].
         let one = 1.0f32.to_le_bytes();
         assert_eq!(&out[0..4], &one, "scale.x should default to 1.0");

@@ -113,6 +113,24 @@ pub struct NpcInfo<'a> {
     /// absence left every record exactly 4 bytes short (record 0 read 144 of
     /// 148). 4-byte wire, same shape as `icon_path`.
     pub store_icon_texture: u32,
+    /// NEW 1.18.00: `_storeTitle` + `_storeGroupTitle`, two LocalizableStrings
+    /// sitting between `_storeIconTexture` and `_contributionSubLevelInfo`.
+    ///
+    /// ⚠ The obvious reading was wrong and is worth remembering: 14 records
+    /// change by a single clean insert of 26 bytes "at the very end", which
+    /// looks like an append. It is not — 26 = 2 x 13, a LocalizableString with
+    /// an EMPTY default string, and those bytes are all zero, so difflib slid
+    /// them past the three empty trailing CArrays to the end of the record.
+    ///
+    /// Record 0xF4240 is the one that settles it, because its titles are
+    /// POPULATED: 62 bytes land at offset 128 as
+    ///   u32 storeIconTexture | 0x0e + u64 + "4294967296000228"
+    ///                        | 0x0e + u64 + "4294967296000229"
+    /// i.e. 4 + 29 + 29. Non-empty data pins the position; empty data cannot.
+    /// (The oracle lists both before `_interactionName`; its address order is
+    /// not field order, and the bytes win.)
+    pub store_title: LocalizableString<'a>,
+    pub store_group_title: LocalizableString<'a>,
     /// NEW 1.10: `_contributionSubLevelInfo` (Mac sub_1018F889C @a2+68, reader
     /// sub_1007805D0 — 4-byte wire SubLevelInfo key). Inserted between
     /// `_interactionName` and `_dyeColorGroupDataList`.
@@ -156,6 +174,8 @@ impl<'a> NpcInfo<'a> {
         let shop_name = LocalizableString::read_from(data, offset)?;
         let interaction_name = LocalizableString::read_from(data, offset)?;
         let store_icon_texture = u32::read_from(data, offset)?;
+        let store_title = LocalizableString::read_from(data, offset)?;
+        let store_group_title = LocalizableString::read_from(data, offset)?;
         let contribution_sub_level_info = u32::read_from(data, offset)?;
         let dye_color_group_data_list = CArray::<DyeColorGroupData>::read_from(data, offset)?;
         let dye_texture_set_data_list = CArray::<DyeTextureSetData>::read_from(data, offset)?;
@@ -166,7 +186,7 @@ impl<'a> NpcInfo<'a> {
             exchange_group_key, exchange_button_text, shop_name, interaction_name,
             store_icon_texture,
             contribution_sub_level_info,
-            dye_color_group_data_list, dye_texture_set_data_list, bank_info_list,
+            dye_color_group_data_list, dye_texture_set_data_list, bank_info_list, store_title, store_group_title,
         })
     }
 
@@ -185,6 +205,8 @@ impl<'a> NpcInfo<'a> {
         self.shop_name.write_to(w)?;
         self.interaction_name.write_to(w)?;
         self.store_icon_texture.write_to(w)?;
+        self.store_title.write_to(w)?;
+        self.store_group_title.write_to(w)?;
         self.contribution_sub_level_info.write_to(w)?;
         self.dye_color_group_data_list.write_to(w)?;
         self.dye_texture_set_data_list.write_to(w)?;
@@ -212,6 +234,8 @@ impl<'a> NpcInfo<'a> {
         m.insert("dye_color_group_data_list".to_string(), self.dye_color_group_data_list.to_json_value());
         m.insert("dye_texture_set_data_list".to_string(), self.dye_texture_set_data_list.to_json_value());
         m.insert("bank_info_list".to_string(), self.bank_info_list.to_json_value());
+        m.insert("store_title".to_string(), self.store_title.to_json_value());
+        m.insert("store_group_title".to_string(), self.store_group_title.to_json_value());
         m
     }
 
@@ -230,6 +254,11 @@ impl<'a> NpcInfo<'a> {
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shop_name")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_icon_texture")?)?;
+        // Null-tolerant: pre-1.18 V3 mods carry no key for these.
+        <LocalizableString as WriteJsonValue>::write_from_json(
+            w, obj.get("store_title").unwrap_or(&Value::Null))?;
+        <LocalizableString as WriteJsonValue>::write_from_json(
+            w, obj.get("store_group_title").unwrap_or(&Value::Null))?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contribution_sub_level_info")?)?;
         <CArray<DyeColorGroupData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_color_group_data_list")?)?;
         <CArray<DyeTextureSetData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_texture_set_data_list")?)?;

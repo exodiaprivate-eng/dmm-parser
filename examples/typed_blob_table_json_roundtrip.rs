@@ -33,7 +33,7 @@ fn main() {
     // Decode → JSON dicts.
     let dicts = parse_typed_blob_table_to_json_with_pabgh(&body, &pabgh, |data, off, size| {
         Ok(SubLevelInfo::read_with_size(data, off, size)?.to_json_dict())
-    }).expect("parse to json");
+    }, |_d, _s, _z| ::serde_json::Map::new()).expect("parse to json");
     println!("parsed {} sub_level_info entries to JSON", dicts.len());
 
     // Show one sample so we can see what the typed prefix exposes.
@@ -45,7 +45,7 @@ fn main() {
     // Re-serialize.
     let out = serialize_typed_blob_table_from_json(&dicts, |w, obj| {
         SubLevelInfo::write_from_json_dict(w, obj)
-    }).expect("serialize from json");
+    }, |_w, _m, _n| Ok(())).expect("serialize from json");
     println!("\nre-serialized: {} bytes (vanilla {} bytes)", out.len(), body.len());
 
     if out == body {

@@ -66,9 +66,41 @@ pub fn parse_table_to_json(
         ($ty:path) => {{
             let ph = pabgh.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
                 format!("table '{}' requires a pabgh file", table_name)))?;
-            parse_typed_blob_table_to_json_with_pabgh(pabgb, ph, |data, offset, size| {
-                <$ty>::read_with_size(data, offset, size).map(|t| t.to_json_dict())
-            })?
+            parse_typed_blob_table_to_json_with_pabgh(
+                pabgb,
+                ph,
+                |data, offset, size| {
+                    <$ty>::read_with_size(data, offset, size).map(|t| t.to_json_dict())
+                },
+                // No partial salvage for this table — a failed record keeps only
+                // its key and `_blob_b64`, as before. Opt in with `pp!`.
+                |_data, _start, _size| ::serde_json::Map::new(),
+            )?
+        }};
+    }
+
+    /// Like `p!` but SALVAGES the typed prefix when a record fails to decode.
+    ///
+    /// Use for tables where a late unmodelled field would otherwise hide fields
+    /// that parse perfectly. characterinfo is the motivating case: a break at
+    /// field 153 buried 232 records — every pet cat and dog, and the kakapo —
+    /// whose name/desc/lookup_22/f38 live at fields 3/4/24/42.
+    ///
+    /// Requires `read_partial_json` on the type (emitted by the blob-table
+    /// macros). The salvaged fields are READ-ONLY: `_blob_fallback` still routes
+    /// the record to the verbatim blob writer, so roundtrip is untouched.
+    macro_rules! pp {
+        ($ty:path) => {{
+            let ph = pabgh.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
+                format!("table '{}' requires a pabgh file", table_name)))?;
+            parse_typed_blob_table_to_json_with_pabgh(
+                pabgb,
+                ph,
+                |data, offset, size| {
+                    <$ty>::read_with_size(data, offset, size).map(|t| t.to_json_dict())
+                },
+                |data, start, size| <$ty>::read_partial_json(data, start, size),
+            )?
         }};
     }
 
@@ -94,7 +126,7 @@ pub fn parse_table_to_json(
         "bitmap_position_info"           => p!(crate::tables::bitmap_position_info::BitmapPositionInfo),
         "buff_info"                      => p!(crate::tables::buff_info::BuffInfo),
         "character_change_info"          => p!(crate::tables::character_change_info::CharacterChangeInfo),
-        "character_info"                 => p!(crate::tables::character_info::CharacterInfo),
+        "character_info"                 => pp!(crate::tables::character_info::CharacterInfo),
         "condition_info"                 => p!(crate::tables::condition_info::ConditionInfo),
         "drop_set_info"                  => p!(crate::tables::drop_set_info::DropSetInfo),
         "effect_info"                    => p!(crate::tables::effect_info::EffectInfo),
@@ -276,9 +308,24 @@ pub fn serialize_table_from_json(
 
     macro_rules! d {
         ($ty:path) => {
-            serialize_typed_blob_table_from_json(json_items, |w, map| {
-                <$ty>::write_from_json_dict(w, map)
-            })?
+            serialize_typed_blob_table_from_json(
+                json_items,
+                |w, map| <$ty>::write_from_json_dict(w, map),
+                |_w, _map, _n| Err(io::Error::new(
+                    io::ErrorKind::Unsupported, "no partial writer for this table")),
+            )?
+        };
+    }
+
+    /// Like `d!` but lets an edit to a SALVAGED prefix field land on a
+    /// blob-fallback record (see `pp!` on the parse side). Opt-in per table.
+    macro_rules! dp {
+        ($ty:path) => {
+            serialize_typed_blob_table_from_json(
+                json_items,
+                |w, map| <$ty>::write_from_json_dict(w, map),
+                |w, map, n| <$ty>::write_partial_prefix(w, map, n),
+            )?
         };
     }
 
@@ -290,7 +337,7 @@ pub fn serialize_table_from_json(
         "bitmap_position_info"           => d!(crate::tables::bitmap_position_info::BitmapPositionInfo),
         "buff_info"                      => d!(crate::tables::buff_info::BuffInfo),
         "character_change_info"          => d!(crate::tables::character_change_info::CharacterChangeInfo),
-        "character_info"                 => d!(crate::tables::character_info::CharacterInfo),
+        "character_info"                 => dp!(crate::tables::character_info::CharacterInfo),
         "condition_info"                 => d!(crate::tables::condition_info::ConditionInfo),
         "drop_set_info"                  => d!(crate::tables::drop_set_info::DropSetInfo),
         "effect_info"                    => d!(crate::tables::effect_info::EffectInfo),
@@ -581,9 +628,23 @@ fn serialize_table_from_json_tracked(
 
     macro_rules! dt {
         ($ty:path) => {
-            serialize_typed_blob_table_from_json_tracked(items, |w, map| {
-                <$ty>::write_from_json_dict(w, map)
-            })?
+            serialize_typed_blob_table_from_json_tracked(
+                items,
+                |w, map| <$ty>::write_from_json_dict(w, map),
+                |_w, _map, _n| Err(io::Error::new(
+                    io::ErrorKind::Unsupported, "no partial writer for this table")),
+            )?
+        };
+    }
+
+    /// Tracked sister of `dp!` — THIS is the path the v3 apply pipeline uses.
+    macro_rules! dtp {
+        ($ty:path) => {
+            serialize_typed_blob_table_from_json_tracked(
+                items,
+                |w, map| <$ty>::write_from_json_dict(w, map),
+                |w, map, n| <$ty>::write_partial_prefix(w, map, n),
+            )?
         };
     }
 
@@ -592,7 +653,7 @@ fn serialize_table_from_json_tracked(
         "bitmap_position_info"           => dt!(crate::tables::bitmap_position_info::BitmapPositionInfo),
         "buff_info"                      => dt!(crate::tables::buff_info::BuffInfo),
         "character_change_info"          => dt!(crate::tables::character_change_info::CharacterChangeInfo),
-        "character_info"                 => dt!(crate::tables::character_info::CharacterInfo),
+        "character_info"                 => dtp!(crate::tables::character_info::CharacterInfo),
         "condition_info"                 => dt!(crate::tables::condition_info::ConditionInfo),
         "drop_set_info"                  => dt!(crate::tables::drop_set_info::DropSetInfo),
         "effect_info"                    => dt!(crate::tables::effect_info::EffectInfo),

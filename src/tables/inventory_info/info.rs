@@ -94,6 +94,14 @@ py_binary_struct! {
         pub to_item_info: u32,
         pub lookup_extra: u32,
         pub flag: u8,
+        // ── 1.18.00: the exe's `ItemMoveData` went 4 → 5 fields, gaining
+        // `_playerCondition`. Missing it made every element 4 bytes short, which
+        // desynced the `move_condition` GameCondition read that follows the list
+        // and surfaced as a bogus "unknown GameCondition case_tag: 72/75" — the
+        // node tag is only ever 0..8, so those were misalignment garbage, NOT a
+        // new tag. That silently blob-fell-back inventory key 0x2 "Character"
+        // and cost the "I Like Space" mod 3 of its 13 intents.
+        pub player_condition: u32,
     }
 }
 

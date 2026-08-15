@@ -77,11 +77,35 @@ use std::io::{self, Write};
 py_binary_struct! {
     /// Inner element of `PatrolElement.nested` (sub_1411037E0 →
     /// sub_1410DEF10). 12 wire bytes; runtime stride 10.
+    /// ── 1.18.00: this is the exe's `FactionPatrolCharacterData`, which went
+    /// **6 → 11 fields**; the element grew 14 → 28 bytes.
+    ///
+    /// The width is proven, not guessed: walking all 131 records with the
+    /// element size as an unknown reconciles every one at exactly +14 (and at
+    /// +1 for the enclosing PatrolPartyData) and at no other value.
+    ///
+    /// The two insert points are proven too. 93 element pairs carry a non-zero
+    /// `field_d`, and they pin the split as **9 bytes at offset 10** then
+    /// **5 bytes at offset 12** — the 536 all-zero pairs merely let difflib
+    /// merge those into one 14-byte run, which is why the zero cases must not
+    /// be trusted on their own.
+    ///
+    /// ⚠ The 9/5 split into names is the one inferred step: 9 = u32+u32+u8 and
+    /// 5 = u32+u8, matched to the oracle's five new names by the symmetry
+    /// (main gets reason + action-point tag + disable, sub gets reason +
+    /// disable). Existing fields keep their placeholder names deliberately —
+    /// renaming them would break the mod contract for anything already keyed
+    /// on `field_a`..`flag_b`.
     pub struct PatrolNestedElement {
         pub field_a: u32,
         pub field_b: u16,
         pub field_c: u32,
+        pub spawn_reason: u32,
+        pub spawn_action_point_tag_hash: u32,
+        pub disable_patrol: u8,
         pub field_d: u16,
+        pub sub_spawn_reason: u32,
+        pub sub_disable_patrol: u8,
         pub flag_a: u8,
         pub flag_b: u8,
     }
@@ -98,6 +122,10 @@ py_binary_struct! {
         pub field_d_hash: u32,
         pub field_e: u32,
         pub field_f: u32,
+        // ── 1.18.00: `_isPlatformParty` (the exe's `PatrolPartyData`, 8 → 9
+        // fields). Position is pinned, not assumed: 369 elements carry
+        // `flag = 01`, and the new byte lands before it in every one.
+        pub is_platform_party: u8,
         pub flag: u8,
     }
 }
@@ -157,6 +185,17 @@ pub struct FactionSpawnDataInfo<'a> {
     pub gimmick_spawn_data_list: CArray<GimmickElement<'a>>,
     pub schedule_spawn_info: COptional<CArray<FactionScheduleSpawnData>>,
     pub sequencer_spawn_info: COptional<CArray<u32>>,
+    // ── 1.18.00: `_zoneSpawnDataList`, appended after the sequencer list.
+    // All 131 records grew by exactly 4 bytes at the very end, and those 4
+    // bytes are zero in every one — a CArray with count 0.
+    // ⚠ The ELEMENT type is a placeholder. The 1.18 exe declares the real
+    // element as `FactionZoneSpawnInfo` with two fields — `dailyRotuinePartData`
+    // (sic, the game's own typo) and `routineZoneList` — so it is a struct, NOT
+    // a u32. Vanilla never populates the list, so there is no wire evidence for
+    // the widths and no way to model it correctly yet. u32 is chosen only
+    // because count is 0 everywhere and any element type round-trips byte-exact
+    // today. Model it properly the moment a build ships a populated record.
+    pub zone_spawn_data_list: CArray<u32>,
 }
 
 impl<'a> FactionSpawnDataInfo<'a> {
@@ -175,6 +214,7 @@ impl<'a> FactionSpawnDataInfo<'a> {
         let gimmick_spawn_data_list = CArray::<GimmickElement>::read_from(data, offset)?;
         let schedule_spawn_info = COptional::<CArray<FactionScheduleSpawnData>>::read_from(data, offset)?;
         let sequencer_spawn_info = COptional::<CArray<u32>>::read_from(data, offset)?;
+        let zone_spawn_data_list = CArray::<u32>::read_from(data, offset)?;
 
         if *offset != entry_end {
             return Err(io::Error::new(
@@ -189,7 +229,7 @@ impl<'a> FactionSpawnDataInfo<'a> {
         Ok(Self {
             key, string_key, is_blocked,
             patrol_spawn_data, gimmick_spawn_data_list,
-            schedule_spawn_info, sequencer_spawn_info,
+            schedule_spawn_info, sequencer_spawn_info, zone_spawn_data_list,
         })
     }
 
@@ -201,6 +241,7 @@ impl<'a> FactionSpawnDataInfo<'a> {
         self.gimmick_spawn_data_list.write_to(w)?;
         self.schedule_spawn_info.write_to(w)?;
         self.sequencer_spawn_info.write_to(w)?;
+        self.zone_spawn_data_list.write_to(w)?;
         Ok(())
     }
 
@@ -213,6 +254,7 @@ impl<'a> FactionSpawnDataInfo<'a> {
         m.insert("gimmick_spawn_data_list".to_string(), self.gimmick_spawn_data_list.to_json_value());
         m.insert("schedule_spawn_info".to_string(), self.schedule_spawn_info.to_json_value());
         m.insert("sequencer_spawn_info".to_string(), self.sequencer_spawn_info.to_json_value());
+        m.insert("zone_spawn_data_list".to_string(), self.zone_spawn_data_list.to_json_value());
         m
     }
 
@@ -231,6 +273,13 @@ impl<'a> FactionSpawnDataInfo<'a> {
         )?;
         <COptional<CArray<u32>> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "sequencer_spawn_info")?,
+        )?;
+        // Null-tolerant on purpose (the store_info::low_price_threshold_count_116
+        // idiom): a V3 mod authored before 1.18 carries no key for this field,
+        // and must keep applying rather than aborting the whole overlay.
+        // CArray's WriteJsonValue turns Null into count 0.
+        <CArray<u32> as WriteJsonValue>::write_from_json(
+            w, obj.get("zone_spawn_data_list").unwrap_or(&Value::Null),
         )?;
         Ok(())
     }

@@ -125,6 +125,13 @@ py_binary_struct! {
         // 1.12: new u8 (observed 0) between unk_29 and unk_30. Decisive via
         // non-zero-anchored record 0x8d1578a0 (unk_30's value 0x01 shifts +1).
         pub unk_112_a: u8,
+        // ── 1.18.00: `_factionPatrolSpawnDistanceType`, one u8 immediately
+        // before unk_30. This sits in a long zero run, so most records let the
+        // insert slide left (212 land on unk_28, 90 on unk_29, 42 on unk_24);
+        // the one record whose inserted byte is NON-zero pins it here, and
+        // every slide is leftward from this point, which is what a true
+        // position of "before unk_30" predicts.
+        pub faction_patrol_spawn_distance_type: u8,
         pub unk_30: u8,
         pub unk_31: u8,
         pub unk_32: u8,
@@ -150,7 +157,20 @@ py_binary_struct! {
         pub unk_73: u8,
         pub unk_76: u32,
         // 1.0.8: was u32 unk_84 + u64 unk_88, now 16B (2x u64)
-        pub unk_80_lo: u64,
+        //
+        // ── 1.18.00: that "2x u64" was always a guess — nothing had ever forced
+        // a boundary inside the first 8 bytes. 1.18 forces one: 322 of 364
+        // records place the new byte exactly 4 bytes into unk_80_lo, and 4 of
+        // those carry a non-zero `01`, so it cannot be a zero-run artifact.
+        // unk_80_lo is therefore split u32 + u32 with the new field between.
+        // The name is kept on the low half rather than retired, since parser
+        // field names are the mod contract.
+        pub unk_80_lo: u32,
+        // `_isSteeringMovement`. The oracle lists it immediately after
+        // `_isVehicle`, which is consistent with unk_80_lo (or its last byte)
+        // holding the vehicle flag.
+        pub is_steering_movement: u8,
+        pub unk_80_lo_b: u32,
         pub unk_80_hi: u64,
         // 1.16: one new u32 inserted immediately before ref_list. Decisive on the
         // first 3 records (111/114/121 B) — rec0 is the anchor: it is the only one

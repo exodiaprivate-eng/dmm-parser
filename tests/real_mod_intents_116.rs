@@ -1863,3 +1863,1924 @@ fn list_paz_group_contents() {
     }
     eprintln!("RESULT total files in group: {n}");
 }
+
+/// Is storeinfo's Store_Dev (key 999) readable as TYPED fields on the current
+/// build, or does it fall back to an opaque blob? The two "at Grocer" store mods
+/// replace that whole record with a captured byte blob, which dies whenever the
+/// table's layout drifts. If it parses typed, they can be rebuilt as field
+/// intents instead and stop breaking every patch.
+#[test]
+#[ignore]
+fn storeinfo_999_shape() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &b, h.as_deref())
+        .expect("parse storeinfo");
+    let blob = arr.iter().filter(|r| r.get("_blob_fallback").and_then(|x| x.as_bool()).unwrap_or(false)).count();
+    eprintln!("RESULT storeinfo records={} blob_fallback={blob}", arr.len());
+    for r in &arr {
+        let Some(o) = r.as_object() else { continue };
+        let k = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64());
+        if k != Some(999) { continue }
+        eprintln!("RESULT key=999 string_key={:?} blob_fallback={:?}",
+            o.get("string_key").and_then(|x| x.as_str()),
+            o.get("_blob_fallback"));
+        let mut ks: Vec<&String> = o.keys().collect();
+        ks.sort();
+        eprintln!("RESULT fields: {ks:?}");
+        for f in ["stock_list", "stock_data_list", "exchange_item_info_for_buy"] {
+            if let Some(v) = o.get(f) {
+                eprintln!("RESULT   {f}: {} entries", v.as_array().map(|a| a.len()).unwrap_or(0));
+            }
+        }
+    }
+}
+
+/// Learn the shape of a REAL stocked store so the "at Grocer" mods can be
+/// rebuilt as typed field intents instead of a captured byte blob.
+#[test]
+#[ignore]
+fn storeinfo_stock_shape() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &b, h.as_deref()).unwrap();
+    // biggest stock_data_list = the most representative example
+    let mut best: Option<(&serde_json::Value, usize)> = None;
+    let mut hist: std::collections::BTreeMap<usize, usize> = Default::default();
+    for r in &arr {
+        let n = r.get("stock_data_list").and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0);
+        *hist.entry(if n == 0 { 0 } else if n < 10 { 1 } else if n < 100 { 10 } else { 100 }).or_default() += 1;
+        if best.map(|(_, m)| n > m).unwrap_or(true) { best = Some((r, n)); }
+    }
+    eprintln!("RESULT stock_data_list size buckets (0 / 1-9 / 10-99 / 100+): {hist:?}");
+    if let Some((r, n)) = best {
+        let o = r.as_object().unwrap();
+        eprintln!("RESULT largest store: key={:?} string_key={:?} stock={n}",
+            o.get("__key__").or_else(|| o.get("key")), o.get("string_key"));
+        if let Some(e) = o.get("stock_data_list").and_then(|x| x.as_array()).and_then(|a| a.first()) {
+            eprintln!("RESULT stock element[0]:\n{}", serde_json::to_string_pretty(e).unwrap());
+        }
+    }
+    // what Store_Dev currently has
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        if o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) != Some(999) { continue }
+        eprintln!("RESULT Store_Dev stock_data_list:\n{}",
+            serde_json::to_string_pretty(o.get("stock_data_list").unwrap()).unwrap());
+    }
+}
+
+/// WHICH field of a stock element is the ITEM? Memory (1.13-era) says `lookup_a`
+/// is `_storeInfo` (the item), but on v16 `lookup_a` equals the store's own key on
+/// the sample inspected -- so verify from data before writing item ids anywhere.
+/// A field is item-like if its values VARY across a store's stock AND resolve
+/// against iteminfo keys.
+#[test]
+#[ignore]
+fn storeinfo_which_field_is_the_item() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &b, h.as_deref()).unwrap();
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let mut ikeys: std::collections::HashSet<u64> = Default::default();
+    let mut iname: std::collections::HashMap<u64, String> = Default::default();
+    for r in &items {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) {
+            ikeys.insert(k);
+            iname.insert(k, o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into());
+        }
+    }
+    // candidate scalar paths inside a stock element
+    let paths = ["lookup_a", "lookup_b", "lookup_c", "raw_c", "raw_d", "raw_e",
+                 "sub_data.lookup_a", "value.raw_q", "value.payload.body"];
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        let key = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()).unwrap_or(0);
+        let Some(st) = o.get("stock_data_list").and_then(|x| x.as_array()) else { continue };
+        if st.len() < 50 { continue }
+        eprintln!("RESULT === {sk} (key={key}) stock={}", st.len());
+        for p in paths {
+            let vals: Vec<u64> = st.iter().filter_map(|e| {
+                let mut cur = e;
+                for seg in p.split('.') { cur = cur.get(seg)?; }
+                cur.as_u64()
+            }).collect();
+            if vals.is_empty() { continue }
+            let uniq: std::collections::HashSet<u64> = vals.iter().copied().collect();
+            let hits = uniq.iter().filter(|v| ikeys.contains(v)).count();
+            let sample: Vec<String> = uniq.iter().take(3)
+                .map(|v| format!("{v}{}", iname.get(v).map(|n| format!("({n})")).unwrap_or_default()))
+                .collect();
+            eprintln!("RESULT   {p:<22} distinct={:<5} resolve_as_item={}/{}  {sample:?}",
+                uniq.len(), hits, uniq.len());
+        }
+        break;
+    }
+}
+
+/// Dump whole stock elements with their variant disc, and score EVERY scalar
+/// path in the element for "looks like an item key" against iteminfo.
+#[test]
+#[ignore]
+fn storeinfo_find_item_field() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &b, h.as_deref()).unwrap();
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let mut iname: std::collections::HashMap<u64, String> = Default::default();
+    for r in &items {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) {
+            iname.insert(k, o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into());
+        }
+    }
+    fn walk(v: &serde_json::Value, prefix: String, out: &mut Vec<(String, u64)>) {
+        match v {
+            serde_json::Value::Object(m) => for (k, vv) in m {
+                walk(vv, if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") }, out)
+            },
+            serde_json::Value::Array(a) => for (i, vv) in a.iter().enumerate() {
+                walk(vv, format!("{prefix}[{i}]"), out)
+            },
+            serde_json::Value::Number(n) => { if let Some(u) = n.as_u64() { out.push((prefix, u)); } },
+            _ => {}
+        }
+    }
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        if !sk.contains("Her_Leather") { continue }
+        let st = o.get("stock_data_list").and_then(|x| x.as_array()).unwrap();
+        eprintln!("RESULT store {sk} stock={}", st.len());
+        let mut discs: std::collections::BTreeMap<u64, usize> = Default::default();
+        for e in st { *discs.entry(e["value"]["disc"].as_u64().unwrap_or(9999)).or_default() += 1; }
+        eprintln!("RESULT value.disc histogram: {discs:?}");
+        // score every path
+        let mut score: std::collections::BTreeMap<String, (usize, usize)> = Default::default();
+        for e in st {
+            let mut fields = Vec::new();
+            walk(e, String::new(), &mut fields);
+            for (p, v) in fields {
+                let ent = score.entry(p).or_insert((0, 0));
+                ent.1 += 1;
+                if iname.contains_key(&v) && v > 1000 { ent.0 += 1; }
+            }
+        }
+        eprintln!("RESULT paths where >80% of values are real item keys:");
+        for (p, (hit, tot)) in &score {
+            if *tot >= st.len() / 2 && *hit * 100 / tot.max(&1) >= 80 {
+                eprintln!("RESULT   {p:<28} {hit}/{tot}");
+            }
+        }
+        eprintln!("RESULT first 2 elements:\n{}", serde_json::to_string(&st[0]).unwrap());
+        eprintln!("{}", serde_json::to_string(&st[1]).unwrap());
+        break;
+    }
+}
+
+/// Print one stock element per variant disc, with any value that resolves to an
+/// iteminfo key annotated with its name. The item carrier should be obvious.
+#[test]
+#[ignore]
+fn storeinfo_disc_samples() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &b, h.as_deref()).unwrap();
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let mut iname: std::collections::HashMap<u64, String> = Default::default();
+    for r in &items {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) {
+            iname.insert(k, o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into());
+        }
+    }
+    let annotate = |v: &serde_json::Value| -> String {
+        let s = serde_json::to_string(v).unwrap();
+        let mut out = s.clone();
+        for (k, n) in iname.iter() {
+            if n.is_empty() || *k < 1000 { continue }
+            let pat = format!(":{k},");
+            if s.contains(&pat) { out = out.replace(&pat, &format!(":{k}/*{n}*/,")); }
+            let pat2 = format!(":{k}}}");
+            if s.contains(&pat2) { out = out.replace(&pat2, &format!(":{k}/*{n}*/}}")); }
+        }
+        out
+    };
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        if !sk.contains("Her_Leather") { continue }
+        let st = o.get("stock_data_list").and_then(|x| x.as_array()).unwrap();
+        let mut seen: std::collections::BTreeSet<u64> = Default::default();
+        for e in st {
+            let d = e["value"]["disc"].as_u64().unwrap_or(9999);
+            if !seen.insert(d) { continue }
+            eprintln!("RESULT --- disc {d} ---\n{}", annotate(e));
+        }
+        break;
+    }
+}
+
+/// Apply a Grocer mod's storeinfo blob to CURRENT vanilla, then parse the result
+/// and inspect record 999. Two answers in one run:
+///   1. does the captured blob still parse under the v16 layout at all?
+///   2. which field carries the item -- the mod stocks ~thousands of armors, so
+///      whichever path holds thousands of iteminfo keys IS the item field.
+/// DMM_VERIFY_MOD = the mod json.
+#[test]
+#[ignore]
+fn grocer_blob_probe() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let doc = IntentDoc::from_slice(
+        &std::fs::read(std::env::var("DMM_VERIFY_MOD").expect("DMM_VERIFY_MOD")).unwrap()).unwrap();
+    let (mut nb, mut nh) = (b.clone(), h.clone());
+    for (t, ints) in doc.flatten_targets() {
+        if !t.contains("storeinfo") { continue }
+        match apply_intents_to_table_body(&t, &nb, nh.as_deref(), &ints) {
+            Ok((x, y, out)) => {
+                nb = x; nh = y;
+                for o in &out { eprintln!("RESULT apply [{}] {:?}", o.op, o.status); }
+            }
+            Err(e) => { eprintln!("RESULT apply FAILED: {e}"); return }
+        }
+    }
+    eprintln!("RESULT storeinfo {} B -> {} B", b.len(), nb.len());
+    let arr = match dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &nb, nh.as_deref()) {
+        Ok(a) => a,
+        Err(e) => { eprintln!("RESULT ★ APPLIED TABLE DOES NOT PARSE: {e}"); return }
+    };
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let items = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let mut ikeys: std::collections::HashSet<u64> = Default::default();
+    for r in &items {
+        if let Some(k) = r.get("__key__").or_else(|| r.get("key")).and_then(|x| x.as_u64()) { ikeys.insert(k); }
+    }
+    fn walk(v: &serde_json::Value, p: String, out: &mut Vec<(String, u64)>) {
+        match v {
+            serde_json::Value::Object(m) => for (k, vv) in m {
+                walk(vv, if p.is_empty() { k.clone() } else { format!("{p}.{k}") }, out) },
+            serde_json::Value::Array(a) => for vv in a { walk(vv, p.clone(), out) },
+            serde_json::Value::Number(n) => { if let Some(u) = n.as_u64() { out.push((p, u)); } },
+            _ => {}
+        }
+    }
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        if o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) != Some(999) { continue }
+        eprintln!("RESULT key=999 blob_fallback={:?} stock={}",
+            o.get("_blob_fallback"),
+            o.get("stock_data_list").and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0));
+        let Some(st) = o.get("stock_data_list") else { continue };
+        let mut f = Vec::new();
+        walk(st, String::new(), &mut f);
+        let mut agg: std::collections::BTreeMap<String, (usize, std::collections::HashSet<u64>)> = Default::default();
+        for (p, v) in f {
+            let e = agg.entry(p).or_default();
+            if ikeys.contains(&v) && v > 1000 { e.0 += 1; }
+            e.1.insert(v);
+        }
+        eprintln!("RESULT item-key density per path (hits / distinct):");
+        let mut rows: Vec<_> = agg.into_iter().collect();
+        rows.sort_by_key(|(_, (h, _))| std::cmp::Reverse(*h));
+        for (p, (hits, d)) in rows.into_iter().take(8) {
+            eprintln!("RESULT   {p:<30} item_hits={hits:<6} distinct={}", d.len());
+        }
+    }
+}
+
+/// Parse a Grocer mod's captured blob AS A STANDALONE storeinfo record with the
+/// current typed reader. The blob is a 1.15-era Store_Dev record; if v16 only
+/// appended a field, the earlier fields (incl. stock_data_list) still parse, which
+/// recovers BOTH the mod's intended item list and which field carries the item.
+/// DMM_VERIFY_MOD = mod json.
+#[test]
+#[ignore]
+fn grocer_blob_decode() {
+    use base64::Engine;
+    let raw: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(std::env::var("DMM_VERIFY_MOD").expect("DMM_VERIFY_MOD")).unwrap()).unwrap();
+    let mut blob: Option<Vec<u8>> = None;
+    for t in raw["targets"].as_array().into_iter().flatten() {
+        if !t["file"].as_str().unwrap_or("").contains("storeinfo") { continue }
+        for i in t["intents"].as_array().into_iter().flatten() {
+            if i["field"].as_str() == Some("_blob_b64") {
+                if let Some(s) = i["new"].as_str() {
+                    blob = base64::engine::general_purpose::STANDARD.decode(s).ok();
+                }
+            }
+        }
+    }
+    let blob = blob.expect("no _blob_b64 storeinfo intent");
+    eprintln!("RESULT blob {} bytes", blob.len());
+    // synthesize a 1-record pabgh: u16 count, then (u32 key, u32 offset)
+    let mut hdr = Vec::new();
+    hdr.extend_from_slice(&1u16.to_le_bytes());
+    hdr.extend_from_slice(&999u32.to_le_bytes());
+    hdr.extend_from_slice(&0u32.to_le_bytes());
+    match dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &blob, Some(&hdr)) {
+        Err(e) => eprintln!("RESULT ★ blob does NOT parse under the v16 layout: {e}"),
+        Ok(arr) => {
+            eprintln!("RESULT parsed {} record(s)", arr.len());
+            for r in &arr {
+                let o = r.as_object().unwrap();
+                eprintln!("RESULT string_key={:?} blob_fallback={:?}",
+                    o.get("string_key").and_then(|x| x.as_str()), o.get("_blob_fallback"));
+                let st = o.get("stock_data_list").and_then(|x| x.as_array());
+                eprintln!("RESULT stock_data_list = {} entries", st.map(|a| a.len()).unwrap_or(0));
+                if let Some(st) = st {
+                    for e in st.iter().take(2) {
+                        eprintln!("RESULT   {}", serde_json::to_string(e).unwrap());
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Record-level store fields: do stores sell by ITEM TYPE rather than by item?
+/// If so, "All Armors at Grocer" is a type-list edit, not a stock-list edit --
+/// far simpler and far more patch-durable than a captured blob.
+#[test]
+#[ignore]
+fn storeinfo_record_level_lists() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &b, h.as_deref()).unwrap();
+    for want in ["Store_Her_Leather", "Store_Dev", "Store_Vellua_Leather"] {
+        for r in &arr {
+            let o = r.as_object().unwrap();
+            if o.get("string_key").and_then(|x| x.as_str()) != Some(want) { continue }
+            eprintln!("RESULT === {want} (key={:?}) store_type={:?} sellable_type={:?}",
+                o.get("__key__").or_else(|| o.get("key")),
+                o.get("store_type"), o.get("sellable_type"));
+            for f in ["sale_item_type_list", "not_sale_item_type_list",
+                      "exchange_item_info_list_for_sell", "exchange_item_info_for_buy",
+                      "price_increase_percent_list", "sell_percents"] {
+                let v = o.get(f);
+                let n = v.and_then(|x| x.as_array()).map(|a| a.len());
+                let s = v.map(|x| serde_json::to_string(x).unwrap()).unwrap_or_default();
+                eprintln!("RESULT   {f:<34} len={:?}  {}", n, &s[..s.len().min(140)]);
+            }
+        }
+    }
+}
+
+/// Do stock entries reference DROPSETS rather than items directly? Test
+/// value.payload.body against dropsetinfo keys.
+#[test]
+#[ignore]
+fn storeinfo_stock_vs_dropset() {
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let stores = load("storeinfo");
+    let mut keysets: std::collections::HashMap<&str, std::collections::HashSet<u64>> = Default::default();
+    for t in ["dropsetinfo", "iteminfo", "equiptypeinfo"] {
+        let a = load(t);
+        keysets.insert(t, a.iter()
+            .filter_map(|r| r.get("__key__").or_else(|| r.get("key")).and_then(|x| x.as_u64()))
+            .collect());
+        eprintln!("RESULT {t}: {} keys", keysets[t].len());
+    }
+    for r in &stores {
+        let o = r.as_object().unwrap();
+        if o.get("string_key").and_then(|x| x.as_str()) != Some("Store_Her_Leather") { continue }
+        let st = o.get("stock_data_list").and_then(|x| x.as_array()).unwrap();
+        let bodies: Vec<u64> = st.iter().filter_map(|e| e["value"]["payload"]["body"].as_u64()).collect();
+        eprintln!("RESULT Store_Her_Leather stock={} bodies sampled={}", st.len(), bodies.len());
+        for (t, ks) in &keysets {
+            let hit = bodies.iter().filter(|b| ks.contains(b)).count();
+            eprintln!("RESULT   value.payload.body resolves as {t}: {hit}/{}", bodies.len());
+        }
+        // also test raw_q and the disc-3 subset specifically
+        let d3: Vec<u64> = st.iter().filter(|e| e["value"]["disc"].as_u64() == Some(3))
+            .filter_map(|e| e["value"]["payload"]["body"].as_u64()).collect();
+        for (t, ks) in &keysets {
+            let hit = d3.iter().filter(|b| ks.contains(b)).count();
+            eprintln!("RESULT   disc3 body resolves as {t}: {hit}/{}", d3.len());
+        }
+    }
+}
+
+/// StockData._dropInfoData is a DropInfoData: field 1 `_keyRaw` (parser
+/// value.payload.body / value.raw_q), field 2 `_dropResultType` (parser
+/// value.disc). Which _dropResultType means "sell this literal ITEM"?
+/// Resolve _keyRaw against iteminfo/dropsetinfo per disc, over ALL stores.
+#[test]
+#[ignore]
+fn storeinfo_dropresulttype_semantics() {
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let keys = |a: &Vec<serde_json::Value>| -> std::collections::HashSet<u64> {
+        a.iter().filter_map(|r| r.get("__key__").or_else(|| r.get("key")).and_then(|x| x.as_u64())).collect()
+    };
+    let stores = load("storeinfo");
+    let items = keys(&load("iteminfo"));
+    let drops = keys(&load("dropsetinfo"));
+    // disc -> (count, item_hits, dropset_hits)
+    let mut agg: std::collections::BTreeMap<u64, (usize, usize, usize)> = Default::default();
+    for r in &stores {
+        for e in r.get("stock_data_list").and_then(|x| x.as_array()).into_iter().flatten() {
+            let d = e["value"]["disc"].as_u64().unwrap_or(9999);
+            let Some(k) = e["value"]["payload"]["body"].as_u64() else { continue };
+            let a = agg.entry(d).or_default();
+            a.0 += 1;
+            if items.contains(&k) { a.1 += 1; }
+            if drops.contains(&k) { a.2 += 1; }
+        }
+    }
+    eprintln!("RESULT _dropResultType semantics across ALL stores:");
+    for (d, (n, it, ds)) in &agg {
+        eprintln!("RESULT   disc {d:<5} n={n:<6} keyRaw is item: {:>5.1}%   is dropset: {:>5.1}%",
+            100.0 * *it as f64 / *n as f64, 100.0 * *ds as f64 / *n as f64);
+    }
+}
+
+/// (a) what a price_list entry looks like, (b) how to tell an ARMOR item from a
+/// WEAPON item: classify equip_type_info by which PLAYER slot whitelists it.
+#[test]
+#[ignore]
+fn grocer_build_recon() {
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    // armour slots vs weapon slots, from the Equip All work: 3 helm, 4 armor,
+    // 5 gloves, 6 boots, 16 cloak; weapons live in 0/1/2/13/14.
+    const ARMOR_SLOTS: [usize; 5] = [3, 4, 5, 6, 16];
+    const WEAPON_SLOTS: [usize; 5] = [0, 1, 2, 13, 14];
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let slots = load("equipslotinfo");
+    let (mut armor_t, mut weapon_t) = (std::collections::HashSet::new(), std::collections::HashSet::new());
+    for r in &slots {
+        let o = r.as_object().unwrap();
+        let k = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()).unwrap_or(0);
+        if !PLAYERS.contains(&k) { continue }
+        for (i, e) in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten().enumerate() {
+            for h in e["etl_hashes"].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
+                if ARMOR_SLOTS.contains(&i) { armor_t.insert(h); }
+                if WEAPON_SLOTS.contains(&i) { weapon_t.insert(h); }
+            }
+        }
+    }
+    let both = armor_t.intersection(&weapon_t).count();
+    eprintln!("RESULT equip types: armor-slot={} weapon-slot={} overlap={both}", armor_t.len(), weapon_t.len());
+
+    let items = load("iteminfo");
+    let (mut na, mut nw) = (0usize, 0usize);
+    let mut sample_price: Option<String> = None;
+    for r in &items {
+        let o = r.as_object().unwrap();
+        let Some(t) = o.get("equip_type_info").and_then(|x| x.as_u64()) else { continue };
+        if armor_t.contains(&t) && !weapon_t.contains(&t) { na += 1; }
+        if weapon_t.contains(&t) && !armor_t.contains(&t) { nw += 1; }
+        if sample_price.is_none() {
+            if let Some(pl) = o.get("price_list").and_then(|x| x.as_array()) {
+                if !pl.is_empty() {
+                    sample_price = Some(format!("{} entries, [0] = {}",
+                        pl.len(), serde_json::to_string(&pl[0]).unwrap()));
+                }
+            }
+        }
+    }
+    eprintln!("RESULT items: armor-only={na}  weapon-only={nw}");
+    eprintln!("RESULT price_list sample: {}", sample_price.unwrap_or_else(|| "none".into()));
+}
+
+/// Which characterinfo records reference store 999 (Store_Dev)? That decides
+/// whether the Grocer mods still need their characterinfo new_record 990001, or
+/// whether an existing vanilla NPC already opens that store.
+#[test]
+#[ignore]
+fn who_uses_store_999() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("characterinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("characterinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("characterinfo.pabgb", &b, h.as_deref()).unwrap();
+    let blob = arr.iter().filter(|r| r.get("_blob_fallback").and_then(|x| x.as_bool()).unwrap_or(false)).count();
+    eprintln!("RESULT characterinfo records={} blob_fallback={blob}", arr.len());
+    fn walk(v: &serde_json::Value, p: String, out: &mut Vec<(String, u64)>) {
+        match v {
+            serde_json::Value::Object(m) => for (k, vv) in m {
+                walk(vv, if p.is_empty() { k.clone() } else { format!("{p}.{k}") }, out) },
+            serde_json::Value::Array(a) => for vv in a { walk(vv, p.clone(), out) },
+            serde_json::Value::Number(n) => { if let Some(u) = n.as_u64() { out.push((p, u)); } },
+            _ => {}
+        }
+    }
+    let mut hits = 0;
+    let mut paths: std::collections::BTreeMap<String, usize> = Default::default();
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let mut f = Vec::new();
+        walk(r, String::new(), &mut f);
+        if let Some((p, _)) = f.iter().find(|(_, v)| *v == 999) {
+            hits += 1;
+            *paths.entry(p.clone()).or_default() += 1;
+            if hits <= 6 {
+                eprintln!("RESULT   key={:?} string_key={:?} via {p}",
+                    o.get("__key__").or_else(|| o.get("key")),
+                    o.get("string_key").and_then(|x| x.as_str()));
+            }
+        }
+    }
+    eprintln!("RESULT records referencing 999: {hits}  paths={paths:?}");
+    // does 990001 already exist?
+    let exists = arr.iter().any(|r| r.get("__key__").or_else(|| r.get("key")).and_then(|x| x.as_u64()) == Some(990001));
+    eprintln!("RESULT characterinfo key 990001 exists in vanilla: {exists}");
+}
+
+/// NpcInfo carries `_storeInfo` -- so NPC->store linkage lives there, not in
+/// characterinfo. Which NPCs point at Store_Dev (999)? If one already does, the
+/// Grocer mods only need the storeinfo stock and their characterinfo record is
+/// vestigial.
+#[test]
+#[ignore]
+fn npcinfo_store_links() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("npcinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("npcinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("npcinfo.pabgb", &b, h.as_deref()).unwrap();
+    let blob = arr.iter().filter(|r| r.get("_blob_fallback").and_then(|x| x.as_bool()).unwrap_or(false)).count();
+    eprintln!("RESULT npcinfo records={} blob_fallback={blob}", arr.len());
+    if let Some(r) = arr.first() {
+        let mut ks: Vec<&String> = r.as_object().unwrap().keys().collect();
+        ks.sort();
+        eprintln!("RESULT npcinfo fields: {ks:?}");
+    }
+    fn walk(v: &serde_json::Value, p: String, out: &mut Vec<(String, u64)>) {
+        match v {
+            serde_json::Value::Object(m) => for (k, vv) in m {
+                walk(vv, if p.is_empty() { k.clone() } else { format!("{p}.{k}") }, out) },
+            serde_json::Value::Array(a) => for vv in a { walk(vv, p.clone(), out) },
+            serde_json::Value::Number(n) => { if let Some(u) = n.as_u64() { out.push((p, u)); } },
+            _ => {}
+        }
+    }
+    let mut hits = 0usize;
+    let mut paths: std::collections::BTreeMap<String, usize> = Default::default();
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let mut f = Vec::new();
+        walk(r, String::new(), &mut f);
+        for (p, v) in &f {
+            if *v == 999 {
+                hits += 1;
+                *paths.entry(p.clone()).or_default() += 1;
+                if hits <= 8 {
+                    eprintln!("RESULT   npc key={:?} string_key={:?} via {p}",
+                        o.get("__key__").or_else(|| o.get("key")),
+                        o.get("string_key").and_then(|x| x.as_str()));
+                }
+            }
+        }
+    }
+    eprintln!("RESULT npcinfo refs to 999: {hits} paths={paths:?}");
+    // and any NPC whose name says grocery
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        if sk.to_lowercase().contains("grocer") {
+            eprintln!("RESULT grocery npc: key={:?} {sk}", o.get("__key__").or_else(|| o.get("key")));
+        }
+    }
+}
+
+/// Which store do the Grocery NPCs use, and how big is it? That is the store the
+/// "at Grocer" mods should stock.
+#[test]
+#[ignore]
+fn grocer_store_target() {
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let npcs = load("npcinfo");
+    let stores = load("storeinfo");
+    let mut stock_of: std::collections::HashMap<u64, (String, usize)> = Default::default();
+    for r in &stores {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) {
+            stock_of.insert(k, (
+                o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into(),
+                o.get("stock_data_list").and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0)));
+        }
+    }
+    // every NPC that has a store, sorted by store
+    let mut by_store: std::collections::BTreeMap<u64, Vec<String>> = Default::default();
+    for r in &npcs {
+        let o = r.as_object().unwrap();
+        let Some(s) = o.get("store_info").and_then(|x| x.as_u64()) else { continue };
+        if s == 0 { continue }
+        by_store.entry(s).or_default()
+            .push(o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").to_string());
+    }
+    eprintln!("RESULT NPCs with a store: {} distinct stores", by_store.len());
+    for (s, npcs_) in &by_store {
+        let named = npcs_.iter().any(|n| n.to_lowercase().contains("grocer"));
+        if named || *s == 999 {
+            let (sk, n) = stock_of.get(s).cloned().unwrap_or_default();
+            eprintln!("RESULT   store {s} ({sk}) stock={n}  <- NPCs: {npcs_:?}");
+        }
+    }
+}
+
+/// Does an item stocked at store S carry a price_list entry keyed by S? Decides
+/// whether the Grocer rebuild must also add price entries for store 999.
+#[test]
+#[ignore]
+fn store_stock_needs_price_entry() {
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let stores = load("storeinfo");
+    let items = load("iteminfo");
+    let mut price_keys: std::collections::HashMap<u64, Vec<u64>> = Default::default();
+    for r in &items {
+        let o = r.as_object().unwrap();
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        price_keys.insert(k, o.get("price_list").and_then(|x| x.as_array()).into_iter().flatten()
+            .filter_map(|p| p["key"].as_u64()).collect());
+    }
+    let (mut checked, mut has_own) = (0usize, 0usize);
+    for r in &stores {
+        let o = r.as_object().unwrap();
+        let sk = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()).unwrap_or(0);
+        for e in o.get("stock_data_list").and_then(|x| x.as_array()).into_iter().flatten() {
+            if e["value"]["disc"].as_u64() != Some(0) { continue }
+            let Some(item) = e["value"]["payload"]["body"].as_u64() else { continue };
+            let Some(pk) = price_keys.get(&item) else { continue };
+            checked += 1;
+            if pk.contains(&sk) { has_own += 1; }
+        }
+    }
+    eprintln!("RESULT disc-0 stock entries checked: {checked}");
+    eprintln!("RESULT ...whose item has a price_list entry for THAT store: {has_own} ({:.1}%)",
+        100.0 * has_own as f64 / checked.max(1) as f64);
+    // what store 999's single vanilla stock item looks like
+    for r in &stores {
+        let o = r.as_object().unwrap();
+        if o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) != Some(999) { continue }
+        for e in o.get("stock_data_list").and_then(|x| x.as_array()).into_iter().flatten() {
+            let item = e["value"]["payload"]["body"].as_u64().unwrap_or(0);
+            eprintln!("RESULT store 999 stocks item {item}, its price_list keys = {:?}",
+                price_keys.get(&item));
+        }
+    }
+}
+
+/// Rebuild the "at Grocer" store mods as TYPED intents (no `_blob_b64`).
+///
+/// Why this shape:
+///  * `_blob_b64` only writes when the record is in blob-fallback; storeinfo went
+///    293/293 blob on 1.15 -> 0/432 on 1.16, so the old mods are silent no-ops.
+///  * NPC->store linkage is `npcinfo.store_info`, NOT characterinfo. FIVE vanilla
+///    merchants already point at store 999, so stocking 999 is sufficient and the
+///    old characterinfo new_record (a stale 1.15 blob, and characterinfo changed
+///    on 1.16) is dropped entirely.
+///  * Only 0.8% of vanilla stock entries have a price_list entry for their own
+///    store, so no iteminfo edit is needed.
+/// Every stock entry is CLONED from store 999's own vanilla entry, so fields whose
+/// meaning we have not established keep vanilla values; only the item, the stock
+/// index and the buy/sell flags are set.
+/// DMM_GROCER_KIND = armor | weapon ; DMM_MOD_OUT = output json.
+#[test]
+#[ignore]
+fn build_grocer_mod() {
+    const PLAYERS: [u64; 3] = [1, 4, 6];
+    const ARMOR_SLOTS: [usize; 5] = [3, 4, 5, 6, 16];
+    const WEAPON_SLOTS: [usize; 5] = [0, 1, 2, 13, 14];
+    // ★ ALL grocery stores, not one. The first rebuild stocked only 999
+    // (Store_Dev) because five merchants use it -- but NONE of them is a grocer,
+    // so an in-game check at Delkin (Hernand Grocer's Shop -> store 701) showed
+    // pure vanilla stock. A mod called "at Grocer" has to target the stores the
+    // grocer NPCs are actually bound to via npcinfo.store_info.
+    const STORES: [u64; 11] = [701, 702, 721, 722, 723, 741, 761, 763, 782, 794, 6400];
+    let kind = std::env::var("DMM_GROCER_KIND").unwrap_or_else(|_| "armor".into());
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    // equip types reachable from player ARMOUR vs WEAPON slots
+    let slots = load("equipslotinfo");
+    let (mut armor_t, mut weapon_t) = (std::collections::HashSet::new(), std::collections::HashSet::new());
+    for r in &slots {
+        let o = r.as_object().unwrap();
+        let k = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()).unwrap_or(0);
+        if !PLAYERS.contains(&k) { continue }
+        for (i, e) in o.get("entries").and_then(|x| x.as_array()).into_iter().flatten().enumerate() {
+            for hh in e["etl_hashes"].as_array().into_iter().flatten().filter_map(|x| x.as_u64()) {
+                if ARMOR_SLOTS.contains(&i) { armor_t.insert(hh); }
+                if WEAPON_SLOTS.contains(&i) { weapon_t.insert(hh); }
+            }
+        }
+    }
+    let (want, other) = if kind == "weapon" { (&weapon_t, &armor_t) } else { (&armor_t, &weapon_t) };
+
+    let items = load("iteminfo");
+    let mut picked: Vec<u64> = Vec::new();
+    for r in &items {
+        let o = r.as_object().unwrap();
+        let Some(t) = o.get("equip_type_info").and_then(|x| x.as_u64()) else { continue };
+        let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+        if want.contains(&t) && !other.contains(&t) { picked.push(k); }
+    }
+    picked.sort_unstable();
+    picked.dedup();
+
+    let stores = load("storeinfo");
+    let mut intents: Vec<serde_json::Value> = Vec::new();
+    let mut summary: Vec<String> = Vec::new();
+    for store in STORES {
+        let rec = match stores.iter().find(|r| r.get("__key__").or_else(|| r.get("key"))
+            .and_then(|x| x.as_u64()) == Some(store)) {
+            Some(r) => r,
+            None => { eprintln!("RESULT   store {store} MISSING on this build - skipped"); continue }
+        };
+        // Template from THIS store's own vanilla entry, so per-store fields we do
+        // not model (conditions, order data) stay whatever that store had.
+        let vanilla_stock = rec.get("stock_data_list").and_then(|x| x.as_array()).cloned().unwrap_or_default();
+        let Some(template) = vanilla_stock.first().cloned() else {
+            eprintln!("RESULT   store {store} has no stock to template from - skipped"); continue };
+        let mut out = vanilla_stock.clone();
+        for (n, item) in picked.iter().enumerate() {
+            let mut e = template.clone();
+            e["lookup_a"] = serde_json::json!(store);
+            e["raw_a"] = serde_json::json!(1000000);   // _minPricePercent = 100%
+            e["raw_b"] = serde_json::json!(1000000);   // _maxPricePercent
+            // _isStockSellable: LEAVE the template's value. Setting it to 1 was my
+            // invention -- vanilla grocery stores set it on 0 of their entries
+            // (701/702/721/741/6400 all 0/n), and deviating from the store's own
+            // convention is not something a "stock these items" mod should do.
+            e["flag_c"] = serde_json::json!(1);        // _isStockBuyable
+            e["raw_d"] = serde_json::json!(vanilla_stock.len() + n);  // _stockIndex, unique
+            // ★ THE BUG THAT MADE THIS MOD NEVER WORK. `_importantSaveIndex` was
+            // never assigned, so every cloned entry inherited the TEMPLATE's value
+            // -- 576 entries all claiming save index 0. Vanilla makes it DISTINCT
+            // per entry within a store, mirroring _stockIndex exactly (verified on
+            // 701/702/721/741/6400: both run 0..n-1, distinct == n). The intents
+            // applied and the list grew, which is why this looked like a mounting
+            // problem for months; the data was simply not something the game could
+            // hold. Assign it the same way _stockIndex is assigned.
+            e["raw_e"] = serde_json::json!(vanilla_stock.len() + n);  // _importantSaveIndex, unique
+            e["value"]["disc"] = serde_json::json!(0);               // literal item
+            e["value"]["payload"]["body"] = serde_json::json!(item); // _keyRaw
+            e["value"]["raw_q"] = serde_json::json!(item);
+            out.push(e);
+        }
+        summary.push(format!("{store}:{}->{}", vanilla_stock.len(), out.len()));
+        intents.push(serde_json::json!({
+            "op": "set", "key": store, "entry": "", "field": "stock_data_list", "new": out
+        }));
+    }
+    let title = if kind == "weapon" { "All Weapons at Grocer" } else { "All Armors at Grocer" };
+    let doc = serde_json::json!({
+        "format": 3, "format_minor": 1,
+        "modinfo": { "title": title, "version": "2.0",
+                     "description": format!("Stocks every {kind} at all 11 grocery stores (the ones grocer NPCs are actually bound to via npcinfo.store_info). Typed intents - no byte blob.") },
+        "targets": [ { "file": "storeinfo.pabgb", "intents": intents }]
+    });
+    let path = std::env::var("DMM_MOD_OUT").expect("DMM_MOD_OUT");
+    std::fs::write(&path, serde_json::to_vec_pretty(&doc).unwrap()).unwrap();
+    eprintln!("RESULT kind={kind} equip_types={} items={} stores={} [{}]",
+        want.len(), picked.len(), summary.len(), summary.join(" "));
+    eprintln!("RESULT wrote {path}");
+}
+
+/// "Unfold my Greatsword" sets iteminfo.gimmick_info = 1008474 on 5 greatswords.
+/// All 5 intents APPLY on v16, so the failure is not the field or the keys --
+/// check the VALUE: does gimmick 1008474 still exist, and what did those items
+/// point at before? DMM_CENSUS_OLD = a previous fixture dir for the differential.
+#[test]
+#[ignore]
+fn greatsword_gimmick_probe() {
+    let items = [1002102u64, 1002103, 1002104, 1002105, 1002106];
+    const WANT: u64 = 1008474;
+    let dirs: Vec<(String, PathBuf)> = vec![
+        ("v16-hotfix".into(), fixture_dir()),
+        ("prev".into(), PathBuf::from(std::env::var("DMM_CENSUS_OLD")
+            .unwrap_or_else(|_| r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-16".into()))),
+    ];
+    for (label, dir) in dirs {
+        if !dir.join("gimmickinfo.pabgb").exists() { eprintln!("RESULT {label}: no fixture"); continue }
+        let gb = std::fs::read(dir.join("gimmickinfo.pabgb")).unwrap();
+        let gh = std::fs::read(dir.join("gimmickinfo.pabgh")).ok();
+        let gk: std::collections::HashSet<u64> = match dmm_parser::dispatch::parse_table_to_json(
+            "gimmickinfo.pabgb", &gb, gh.as_deref()) {
+            Ok(a) => a.iter().filter_map(|r| r.get("__key__").or_else(|| r.get("key")).and_then(|x| x.as_u64())).collect(),
+            Err(e) => { eprintln!("RESULT {label}: gimmickinfo parse failed: {e}"); Default::default() }
+        };
+        eprintln!("RESULT {label}: gimmickinfo keys={}  contains {WANT}: {}", gk.len(), gk.contains(&WANT));
+        let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+        let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+        match dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()) {
+            Err(e) => eprintln!("RESULT {label}: iteminfo parse failed: {e}"),
+            Ok(arr) => for r in &arr {
+                let o = r.as_object().unwrap();
+                let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+                if !items.contains(&k) { continue }
+                let g = o.get("gimmick_info").and_then(|x| x.as_u64());
+                eprintln!("RESULT {label}:   {} key={k} gimmick_info={:?} (exists: {:?})",
+                    o.get("string_key").and_then(|x| x.as_str()).unwrap_or("?"), g,
+                    g.map(|v| gk.contains(&v)));
+            }
+        }
+    }
+}
+
+/// Read the LIVE mounted iteminfo overlay and report gimmick_info for the five
+/// greatswords "Unfold my Greatsword" targets, next to vanilla. Verifies what the
+/// RUNTIME actually loads, not what the mod json says.
+#[test]
+#[ignore]
+fn live_greatsword_check() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let items = [1002102u64, 1002103, 1002104, 1002105, 1002106];
+    let group = PathBuf::from(std::env::var("DMM_LIVE_OVERLAY")
+        .unwrap_or_else(|_| r"D:\SteamLibrary\steamapps\common\Crimson Desert\dmmv3_iteminfo".into()));
+    let pamt = PackMeta::parse(&std::fs::read(group.join("0.pamt")).expect("0.pamt"), None).unwrap();
+    let (mut lb, mut lh) = (None, None);
+    for d in &pamt.directories { for f in &d.files {
+        let raw = paz::extract_file(&group, f, &d.path, &pamt.header.encrypt_info.encrypt_info).unwrap();
+        if f.name.ends_with(".pabgb") { lb = Some(raw) } else if f.name.ends_with(".pabgh") { lh = Some(raw) }
+    }}
+    let live = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &lb.expect("no pabgb"), lh.as_deref())
+        .expect("parse live overlay");
+    let dir = fixture_dir();
+    let vb = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let vh = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let van = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &vb, vh.as_deref()).unwrap();
+    let pick = |a: &Vec<serde_json::Value>| -> std::collections::HashMap<u64, (String, Option<u64>)> {
+        let mut m = std::collections::HashMap::new();
+        for r in a {
+            let o = r.as_object().unwrap();
+            let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) else { continue };
+            if !items.contains(&k) { continue }
+            m.insert(k, (o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into(),
+                         o.get("gimmick_info").and_then(|x| x.as_u64())));
+        }
+        m
+    };
+    let (l, v) = (pick(&live), pick(&van));
+    eprintln!("RESULT live overlay records={} vanilla={}", live.len(), van.len());
+    let mut applied = 0;
+    for k in items {
+        let (n, lg) = l.get(&k).cloned().unwrap_or_default();
+        let (_, vg) = v.get(&k).cloned().unwrap_or_default();
+        let ok = lg == Some(1008474);
+        if ok { applied += 1; }
+        eprintln!("RESULT   {n:<36} vanilla={vg:?} -> live={lg:?}  {}",
+            if ok { "APPLIED" } else { "NOT APPLIED" });
+    }
+    eprintln!("RESULT greatswords carrying the mod value: {applied}/5");
+}
+
+/// Which store does a named NPC use? DMM_NPC = substring of the npc string_key.
+/// Also lists every store whose NPC set looks like a grocer/shop.
+#[test]
+#[ignore]
+fn find_npc_store() {
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let npcs = load("npcinfo");
+    let stores = load("storeinfo");
+    let mut sinfo: std::collections::HashMap<u64, (String, usize)> = Default::default();
+    for r in &stores {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) {
+            sinfo.insert(k, (o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into(),
+                o.get("stock_data_list").and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0)));
+        }
+    }
+    let pat = std::env::var("DMM_NPC").unwrap_or_else(|_| "grocer".into()).to_lowercase();
+    for r in &npcs {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        let shop = o.get("shop_name").map(|v| serde_json::to_string(v).unwrap()).unwrap_or_default();
+        let hay = format!("{sk} {shop}").to_lowercase();
+        if !hay.contains(&pat) { continue }
+        let s = o.get("store_info").and_then(|x| x.as_u64()).unwrap_or(0);
+        let (nm, n) = sinfo.get(&s).cloned().unwrap_or_default();
+        eprintln!("RESULT npc={:<42} store={s} ({nm}) stock={n}", sk);
+    }
+}
+
+/// Every store that a GROCER-type NPC actually uses. The rebuilt mod must target
+/// all of them -- stocking one store (999) only reaches the NPCs bound to it, and
+/// the grocers are bound elsewhere (Delkin -> 701 Store_Her_Grocery).
+#[test]
+#[ignore]
+fn list_grocery_stores() {
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let npcs = load("npcinfo");
+    let stores = load("storeinfo");
+    let mut sname: std::collections::HashMap<u64, (String, usize)> = Default::default();
+    for r in &stores {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) {
+            sname.insert(k, (o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into(),
+                o.get("stock_data_list").and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0)));
+        }
+    }
+    // stores named *Grocery*, plus any store used by an NPC whose store is one of those
+    let mut targets: std::collections::BTreeMap<u64, (String, usize, Vec<String>)> = Default::default();
+    for (k, (nm, n)) in &sname {
+        if nm.to_lowercase().contains("grocery") {
+            targets.insert(*k, (nm.clone(), *n, Vec::new()));
+        }
+    }
+    for r in &npcs {
+        let o = r.as_object().unwrap();
+        let Some(s) = o.get("store_info").and_then(|x| x.as_u64()) else { continue };
+        if let Some(t) = targets.get_mut(&s) {
+            t.2.push(o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").to_string());
+        }
+    }
+    let mut total = 0usize;
+    eprintln!("RESULT grocery stores: {}", targets.len());
+    for (k, (nm, n, npcs_)) in &targets {
+        total += n;
+        eprintln!("RESULT   {k:<6} {nm:<30} stock={n:<4} npcs={}", npcs_.len());
+    }
+    eprintln!("RESULT total vanilla grocery stock entries: {total}");
+    let keys: Vec<String> = targets.keys().map(|k| k.to_string()).collect();
+    eprintln!("RESULT STORE_KEYS={}", keys.join(","));
+}
+
+/// Apply a Grocer mod and report every grocery store's resulting stock, so the
+/// store an in-game tester will actually visit can be confirmed.
+#[test]
+#[ignore]
+fn grocer_result_per_store() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("storeinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("storeinfo.pabgh")).ok();
+    let doc = IntentDoc::from_slice(&std::fs::read(std::env::var("DMM_VERIFY_MOD").unwrap()).unwrap()).unwrap();
+    let (mut nb, mut nh) = (b.clone(), h.clone());
+    for (t, ints) in doc.flatten_targets() {
+        if !t.contains("storeinfo") { continue }
+        let (x, y, _) = apply_intents_to_table_body(&t, &nb, nh.as_deref(), &ints).unwrap();
+        nb = x; nh = y;
+    }
+    let arr = dmm_parser::dispatch::parse_table_to_json("storeinfo.pabgb", &nb, nh.as_deref())
+        .expect("applied storeinfo must re-parse");
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let nm = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        if !nm.to_lowercase().contains("grocery") { continue }
+        let st = o.get("stock_data_list").and_then(|x| x.as_array());
+        let n = st.map(|a| a.len()).unwrap_or(0);
+        let buyable = st.map(|a| a.iter().filter(|e| e["flag_c"].as_u64() == Some(1)).count()).unwrap_or(0);
+        eprintln!("RESULT {:<6} {nm:<28} stock={n:<5} buyable={buyable}",
+            o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()).unwrap_or(0));
+    }
+}
+
+/// What gimmick_info do OTHER two-handed weapons use? The Giant swords fold; if a
+/// non-folding two-hander exists, its gimmick is the thing to copy -- far better
+/// than guessing keys by name.
+#[test]
+#[ignore]
+fn twohand_gimmick_survey() {
+    use std::collections::BTreeMap;
+    let dir = fixture_dir();
+    let load = |n: &str| {
+        let b = std::fs::read(dir.join(format!("{n}.pabgb"))).unwrap();
+        let h = std::fs::read(dir.join(format!("{n}.pabgh"))).ok();
+        dmm_parser::dispatch::parse_table_to_json(&format!("{n}.pabgb"), &b, h.as_deref()).unwrap()
+    };
+    let items = load("iteminfo");
+    let gim = load("gimmickinfo");
+    let mut gname: std::collections::HashMap<u64, String> = Default::default();
+    for r in &gim {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()) {
+            gname.insert(k, o.get("string_key").and_then(|x| x.as_str()).unwrap_or("").into());
+        }
+    }
+    // group weapon-ish items by gimmick, keeping example names
+    let mut by_g: BTreeMap<u64, (usize, Vec<String>)> = BTreeMap::new();
+    for r in &items {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        let low = sk.to_lowercase();
+        if !(low.contains("twohand") || low.contains("giant")) { continue }
+        let Some(g) = o.get("gimmick_info").and_then(|x| x.as_u64()) else { continue };
+        let e = by_g.entry(g).or_insert((0, Vec::new()));
+        e.0 += 1;
+        if e.1.len() < 3 { e.1.push(sk.to_string()); }
+    }
+    eprintln!("RESULT gimmick usage across two-hand / giant weapons:");
+    let mut rows: Vec<_> = by_g.into_iter().collect();
+    rows.sort_by_key(|(_, (n, _))| std::cmp::Reverse(*n));
+    for (g, (n, ex)) in rows.iter().take(14) {
+        eprintln!("RESULT   {g:<10} {:<40} n={n:<4} e.g. {:?}",
+            gname.get(g).cloned().unwrap_or_else(|| "<missing>".into()), ex);
+    }
+}
+
+/// Field-by-field diff of a folding Giant sword vs a normal two-hander that uses
+/// the SAME gimmick the mod targets. Whatever else differs is the real fold lever.
+#[test]
+#[ignore]
+fn giant_vs_normal_twohander() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+    let get = |name: &str| -> Option<serde_json::Map<String, serde_json::Value>> {
+        arr.iter().find(|r| r.get("string_key").and_then(|x| x.as_str()) == Some(name))
+            .and_then(|r| r.as_object().cloned())
+    };
+    let giant = get("Serdin_Giant_TwoHandGiantBastard").expect("giant");
+    let norm = get("Verheim_TwoHandSword").expect("normal");
+    eprintln!("RESULT comparing Serdin_Giant_TwoHandGiantBastard vs Verheim_TwoHandSword");
+    let mut keys: Vec<&String> = giant.keys().chain(norm.keys()).collect();
+    keys.sort(); keys.dedup();
+    for k in keys {
+        let (a, b) = (giant.get(k), norm.get(k));
+        if a == b { continue }
+        let fmt = |v: Option<&serde_json::Value>| {
+            let s = v.map(|x| serde_json::to_string(x).unwrap()).unwrap_or_else(|| "<absent>".into());
+            if s.len() > 96 { format!("{}… ({} chars)", &s[..96], s.len()) } else { s }
+        };
+        eprintln!("RESULT   {k}\n           giant : {}\n           normal: {}", fmt(a), fmt(b));
+    }
+}
+
+/// Is `docking_child_data` the thing that marks a greatsword as FOLDED?
+///
+/// "Unfold my Greatsword" only repoints `gimmick_info` (1001472 -> 1008474, the
+/// normal two-hander's gimmick) and that verifiably reaches the live overlay
+/// 5/5 — yet the sword still renders folded. The giant's own `item_memo` reads
+/// "데미안_접이식 대검" (접이식 = folding), and the one structural field the normal
+/// sword does NOT have is `docking_child_data`. Census every two-hander to see
+/// whether non-null docking lines up with the folding variants.
+#[test]
+#[ignore]
+fn greatsword_fold_field_census() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+
+    let mut docked = 0usize;
+    let mut plain = 0usize;
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let Some(sk) = o.get("string_key").and_then(|x| x.as_str()) else { continue };
+        if !sk.contains("TwoHand") { continue }
+        let has_dock = o.get("docking_child_data").map(|v| !v.is_null()).unwrap_or(false);
+        if has_dock { docked += 1 } else { plain += 1 }
+        let memo = o.get("item_memo").and_then(|x| x.as_str()).unwrap_or("");
+        let folding = memo.contains("접이식");
+        eprintln!(
+            "RESULT {:<40} gimmick={:<10} dock={:<5} memo_says_folding={}",
+            sk,
+            o.get("gimmick_info").and_then(|x| x.as_u64()).unwrap_or(0),
+            has_dock,
+            folding
+        );
+    }
+    eprintln!("RESULT ---- two-handers: {docked} with docking_child_data, {plain} without");
+
+    // Full structure of one folding sword's docking payload.
+    if let Some(g) = arr.iter().find(|r| {
+        r.get("string_key").and_then(|x| x.as_str()) == Some("Serdin_Giant_TwoHandGiantBastard")
+    }) {
+        eprintln!(
+            "RESULT docking_child_data =\n{}",
+            serde_json::to_string_pretty(&g["docking_child_data"]).unwrap()
+        );
+    }
+}
+
+/// Did 1.16 CHANGE the folding greatswords out from under the mod? The author
+/// says "Unfold my Greatsword" worked before the patch and stopped after. Its
+/// only edit is `gimmick_info`, which still reaches the live overlay 5/5, so if
+/// the mod used to work the render must once have followed that field.
+/// Compare the six folding swords across the 1.15 and 1.16 dumps.
+#[test]
+#[ignore]
+fn greatsword_fold_across_patches() {
+    let dirs: Vec<(String, PathBuf)> = vec![
+        ("1.15  (2026-7-16)".into(), PathBuf::from(std::env::var("DMM_CENSUS_OLD")
+            .unwrap_or_else(|_| r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-7-16".into()))),
+        ("1.16  (2026-8-1b)".into(), fixture_dir()),
+    ];
+    for (label, dir) in dirs {
+        let Ok(b) = std::fs::read(dir.join("iteminfo.pabgb")) else {
+            eprintln!("RESULT {label}: no fixture"); continue };
+        let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+        let arr = match dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()) {
+            Ok(a) => a, Err(e) => { eprintln!("RESULT {label}: parse failed: {e}"); continue } };
+        eprintln!("RESULT === {label} ===");
+        for r in &arr {
+            let o = r.as_object().unwrap();
+            let Some(sk) = o.get("string_key").and_then(|x| x.as_str()) else { continue };
+            if !sk.contains("Giant_TwoHandGiantBastard") { continue }
+            let dock = o.get("docking_child_data");
+            let dock_gimmick = dock.and_then(|d| d.get("gimmick_info_key")).and_then(|x| x.as_u64());
+            eprintln!(
+                "RESULT   {:<38} key={:<8} gimmick_info={:<9} docking={} docking.gimmick_info_key={:?}",
+                sk,
+                o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()).unwrap_or(0),
+                o.get("gimmick_info").and_then(|x| x.as_u64()).unwrap_or(0),
+                if dock.map(|d| d.is_null()).unwrap_or(true) { "NULL" } else { "present" },
+                dock_gimmick
+            );
+        }
+    }
+}
+
+/// Clearing `docking_child_data` made the sword ALWAYS folded (it no longer
+/// unfolds when drawn), so the docking child is the EQUIPPED/unfolded model,
+/// not the folded one — the opposite of what I assumed. The fold/unfold state
+/// must therefore live inside the gimmick. Dump gimmickinfo 1001472 (folding
+/// greatsword) next to 1008474 (ordinary two-hander) and list their fields.
+#[test]
+#[ignore]
+fn greatsword_gimmick_structure() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("gimmickinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("gimmickinfo.pabgh")).ok();
+    let arr = match dmm_parser::dispatch::parse_table_to_json("gimmickinfo.pabgb", &b, h.as_deref()) {
+        Ok(a) => a,
+        Err(e) => { eprintln!("RESULT gimmickinfo parse failed: {e}"); return }
+    };
+    eprintln!("RESULT gimmickinfo records: {}", arr.len());
+    for want in [1001472u64, 1008474] {
+        let Some(r) = arr.iter().find(|r| {
+            r.get("__key__").or_else(|| r.get("key")).and_then(|x| x.as_u64()) == Some(want)
+        }) else { eprintln!("RESULT {want}: NOT FOUND"); continue };
+        let o = r.as_object().unwrap();
+        eprintln!("RESULT === gimmick {want} — {} fields ===", o.len());
+        for (k, v) in o {
+            let s = serde_json::to_string(v).unwrap_or_default();
+            // Skip the huge uninteresting blobs but say how big they were.
+            if s.len() > 220 {
+                eprintln!("RESULT   {k}: <{} chars> {}", s.len(), &s[..200.min(s.len())]);
+            } else {
+                eprintln!("RESULT   {k}: {s}");
+            }
+        }
+    }
+}
+
+/// Find every gimmick related to the giant/great sword, by string_key or prefab
+/// path. Looking for an already-existing UNFOLDED variant to point the item at,
+/// which would be far cheaper than editing the prefab.
+#[test]
+#[ignore]
+fn giantsword_gimmick_variants() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("gimmickinfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("gimmickinfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("gimmickinfo.pabgb", &b, h.as_deref()).unwrap();
+    let needles = ["giantsword", "greatsword", "bastard", "giant_sword", "fold"];
+    let mut n = 0;
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("");
+        let pp = o.get("prefab_path").and_then(|x| x.as_str()).unwrap_or("");
+        let hay = format!("{} {}", sk.to_lowercase(), pp.to_lowercase());
+        if !needles.iter().any(|nd| hay.contains(nd)) { continue }
+        n += 1;
+        eprintln!("RESULT key={:<10} {:<38} {}",
+            o.get("__key__").or_else(|| o.get("key")).and_then(|x| x.as_u64()).unwrap_or(0), sk, pp);
+    }
+    eprintln!("RESULT ---- {n} matching gimmicks");
+}
+
+/// gimmickinfo has exactly ONE giantsword gimmick (1001472) — there is no
+/// "unfolded" variant to repoint the item at, so the fold has to live inside
+/// gimmick_equip_giantsword.prefab. Pull it out of the live install and dump
+/// its readable strings to judge whether a prefab edit is tractable.
+#[test]
+#[ignore]
+fn extract_giantsword_prefab() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let game = PathBuf::from(std::env::var("DMM_GAME_DIR")
+        .unwrap_or_else(|_| r"D:\SteamLibrary\steamapps\common\Crimson Desert".into()));
+    let want = "gimmick_equip_giantsword";
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(&game).unwrap().filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.is_dir() && p.file_name().map(|n| {
+            n.to_string_lossy().chars().all(|c| c.is_ascii_digit())
+        }).unwrap_or(false))
+        .collect();
+    dirs.sort();
+    for d in &dirs {
+        let Ok(raw) = std::fs::read(d.join("0.pamt")) else { continue };
+        let Ok(pamt) = PackMeta::parse(&raw, None) else { continue };
+        for dir in &pamt.directories {
+            for f in &dir.files {
+                if !f.name.to_lowercase().contains(want) { continue }
+                eprintln!("RESULT FOUND {}/{}{}",
+                    d.file_name().unwrap().to_string_lossy(), dir.path, f.name);
+                match paz::extract_file(d, f, &dir.path, &pamt.header.encrypt_info.encrypt_info) {
+                    Err(e) => eprintln!("RESULT   extract failed: {e}"),
+                    Ok(bytes) => {
+                        eprintln!("RESULT   extracted {} bytes", bytes.len());
+                        // Readable ASCII runs >= 6 chars — prefab component/field names.
+                        let mut cur = String::new();
+                        let mut hits: Vec<String> = Vec::new();
+                        for &b in &bytes {
+                            if (0x20..0x7f).contains(&b) { cur.push(b as char) }
+                            else { if cur.len() >= 6 { hits.push(cur.clone()) } cur.clear() }
+                        }
+                        if cur.len() >= 6 { hits.push(cur) }
+                        eprintln!("RESULT   {} strings; showing all:", hits.len());
+                        for s in hits.iter() { eprintln!("RESULT     {s}"); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Ship-gate for the v4 greatsword mod: "applied=12" only says the intents ran.
+/// Apply them for real, re-parse, and assert the value that actually drives the
+/// render — docking_child_data.gimmick_info_key — is 1008474 on all SIX swords.
+#[test]
+#[ignore]
+fn verify_greatsword_v4_outcome() {
+    let path = std::env::var("DMM_VERIFY_MOD").unwrap_or_else(|_|
+        r"C:\Users\justi\Desktop\MyMods\mod_sources\Unfold_my_Greatsword_v4_1.16.field.json".into());
+    let doc = IntentDoc::from_slice(&std::fs::read(&path).expect("mod")).expect("doc");
+    let intents: Vec<_> = doc.flatten_targets().into_iter()
+        .filter(|(t, _)| t.contains("iteminfo"))
+        .flat_map(|(_, v)| v)
+        .collect();
+
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let (nb, nh, _out) =
+        apply_intents_to_table_body("iteminfo.pabgb", &b, h.as_deref(), &intents).expect("apply");
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &nb, nh.as_deref()).unwrap();
+
+    let mut ok = 0;
+    let mut bad = 0;
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let Some(sk) = o.get("string_key").and_then(|x| x.as_str()) else { continue };
+        if !sk.contains("Giant_TwoHandGiantBastard") { continue }
+        let top = o.get("gimmick_info").and_then(|x| x.as_u64());
+        let dock = o.get("docking_child_data");
+        let dock_g = dock.and_then(|d| d.get("gimmick_info_key")).and_then(|x| x.as_u64());
+        let dock_present = dock.map(|d| !d.is_null()).unwrap_or(false);
+        let good = top == Some(1008474) && dock_g == Some(1008474) && dock_present;
+        if good { ok += 1 } else { bad += 1 }
+        eprintln!("RESULT {:<38} gimmick_info={:?} docking={} docking.gimmick_info_key={:?}  {}",
+            sk, top, if dock_present { "present" } else { "NULL" }, dock_g,
+            if good { "OK" } else { "WRONG" });
+    }
+    eprintln!("RESULT ---- {ok} correct, {bad} wrong");
+    assert_eq!(bad, 0, "some swords did not take the new docking gimmick");
+    assert_eq!(ok, 6, "expected all SIX folding swords to be covered, got {ok}");
+}
+
+/// Read the LIVE mounted overlay and report BOTH greatsword fields. The harness
+/// ship-gate drives the parser's apply directly and so cannot prove DMM's V3
+/// layer did the same thing — notably whether it honours a dotted nested path
+/// like `docking_child_data.gimmick_info_key`. This reads what the RUNTIME loads.
+#[test]
+#[ignore]
+fn live_greatsword_docking_check() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let group = PathBuf::from(std::env::var("DMM_LIVE_OVERLAY")
+        .unwrap_or_else(|_| r"D:\SteamLibrary\steamapps\common\Crimson Desert\dmmv3_iteminfo".into()));
+    let pamt = PackMeta::parse(&std::fs::read(group.join("0.pamt")).expect("0.pamt"), None).unwrap();
+    let (mut lb, mut lh) = (None, None);
+    for d in &pamt.directories { for f in &d.files {
+        let raw = paz::extract_file(&group, f, &d.path, &pamt.header.encrypt_info.encrypt_info).unwrap();
+        if f.name.ends_with(".pabgb") { lb = Some(raw) } else if f.name.ends_with(".pabgh") { lh = Some(raw) }
+    }}
+    let arr = dmm_parser::dispatch::parse_table_to_json(
+        "iteminfo.pabgb", &lb.expect("live pabgb"), lh.as_deref()).unwrap();
+    eprintln!("RESULT live overlay records={}", arr.len());
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let Some(sk) = o.get("string_key").and_then(|x| x.as_str()) else { continue };
+        if !sk.contains("Giant_TwoHandGiantBastard") { continue }
+        let dock = o.get("docking_child_data");
+        eprintln!("RESULT   {:<38} gimmick_info={:?} docking={} docking.gimmick_info_key={:?}",
+            sk,
+            o.get("gimmick_info").and_then(|x| x.as_u64()),
+            if dock.map(|d| !d.is_null()).unwrap_or(false) { "present" } else { "NULL" },
+            dock.and_then(|d| d.get("gimmick_info_key")).and_then(|x| x.as_u64()));
+    }
+}
+
+/// [LOCAL PROBE — never committed] 1.5.8 Item Buffs design.
+/// The "gimmick function" field cluster the CrimsonGameMods ItemBuffs mods write
+/// as one package: gimmick_info + docking_child_data + equip_passive_skill_list +
+/// item_charge_type + cooltime.{a,b,c} + max_charged_useable_count.{a,b,c}.
+/// Question: is a non-null/non-zero gimmick_info a reliable proxy for "this item
+/// already HAS a function that overwriting would break" (lantern, axiom bracelet)?
+#[test]
+#[ignore]
+fn itembuff_occupancy_survey() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+
+    let mut with_gimmick = 0usize;
+    let mut with_dock = 0usize;
+    let mut with_passive = 0usize;
+    let mut total = 0usize;
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        total += 1;
+        let g = o.get("gimmick_info").and_then(|x| x.as_u64()).unwrap_or(0);
+        if g != 0 { with_gimmick += 1 }
+        if o.get("docking_child_data").map(|d| !d.is_null()).unwrap_or(false) { with_dock += 1 }
+        if o.get("equip_passive_skill_list").and_then(|x| x.as_array())
+            .map(|a| !a.is_empty()).unwrap_or(false) { with_passive += 1 }
+    }
+    eprintln!("RESULT of {total} items: gimmick_info!=0 -> {with_gimmick}, docking -> {with_dock}, passive_skills -> {with_passive}");
+
+    // The items the user named as breaking when a gimmick is written over them.
+    for needle in ["antern", "xiom", "racelet", "Crow", "Hound"] {
+        let mut n = 0;
+        for r in &arr {
+            let o = r.as_object().unwrap();
+            let Some(sk) = o.get("string_key").and_then(|x| x.as_str()) else { continue };
+            if !sk.contains(needle) { continue }
+            n += 1;
+            if n > 4 { continue }
+            eprintln!("RESULT  [{needle}] {:<44} gimmick={:<9} dock={} passive={}",
+                sk,
+                o.get("gimmick_info").and_then(|x| x.as_u64()).unwrap_or(0),
+                o.get("docking_child_data").map(|d| !d.is_null()).unwrap_or(false),
+                o.get("equip_passive_skill_list").and_then(|x| x.as_array()).map(|a| a.len()).unwrap_or(0));
+        }
+        eprintln!("RESULT  [{needle}] total matches: {n}");
+    }
+}
+
+/// [LOCAL PROBE — never committed] 1.5.8 Item Buffs: build the DONOR CATALOGUE.
+/// The clean weapon-effect mods only ever write two fields, so the catalogue is:
+///   attack effect  = equip_passive_skill_list  -> [{skill, level}]
+///   visual effect  = docking_child_data        -> {gimmick_info_key, socket, ...}
+/// Every entry needs a VERIFIED vanilla donor and the equip_type it is proven on.
+#[test]
+#[ignore]
+fn itembuff_donor_catalogue() {
+    use std::collections::BTreeMap;
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+
+    // skill -> (count, equip_types seen, sample donors)
+    let mut skills: BTreeMap<u64, (usize, std::collections::BTreeSet<u64>, Vec<String>)> = BTreeMap::new();
+    // docking gimmick -> (count, equip_types, sample donors)
+    let mut docks: BTreeMap<u64, (usize, std::collections::BTreeSet<u64>, Vec<String>)> = BTreeMap::new();
+
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("?").to_string();
+        let et = o.get("equip_type_info").and_then(|x| x.as_u64()).unwrap_or(0);
+        if let Some(list) = o.get("equip_passive_skill_list").and_then(|x| x.as_array()) {
+            for e in list {
+                if let Some(s) = e.get("skill").and_then(|x| x.as_u64()) {
+                    let ent = skills.entry(s).or_insert((0, Default::default(), Vec::new()));
+                    ent.0 += 1; ent.1.insert(et);
+                    if ent.2.len() < 3 { ent.2.push(sk.clone()) }
+                }
+            }
+        }
+        if let Some(d) = o.get("docking_child_data") {
+            if !d.is_null() {
+                if let Some(g) = d.get("gimmick_info_key").and_then(|x| x.as_u64()) {
+                    let ent = docks.entry(g).or_insert((0, Default::default(), Vec::new()));
+                    ent.0 += 1; ent.1.insert(et);
+                    if ent.2.len() < 3 { ent.2.push(sk.clone()) }
+                }
+            }
+        }
+    }
+    eprintln!("RESULT ===== ATTACK EFFECTS (equip_passive_skill_list) — {} distinct skills =====", skills.len());
+    for (s, (n, ets, ex)) in &skills {
+        eprintln!("RESULT  skill {:<9} items={:<4} equip_types={:<28} e.g. {}",
+            s, n, format!("{:?}", ets), ex.join(", "));
+    }
+    eprintln!("RESULT ===== VISUAL EFFECTS (docking_child_data.gimmick_info_key) — {} distinct =====", docks.len());
+    for (g, (n, ets, ex)) in &docks {
+        eprintln!("RESULT  gimmick {:<9} items={:<4} equip_types={:<28} e.g. {}",
+            g, n, format!("{:?}", ets), ex.join(", "));
+    }
+}
+
+/// [LOCAL PROBE — never committed] 1.5.8: shape of the two MAIN surfaces —
+/// enchant STATS (enchant_data_list[N].enchant_stat_data.max_stat_list) and
+/// enchant BUFFS (enchant_data_list[N].equip_buffs).
+#[test]
+#[ignore]
+fn itembuff_enchant_shape() {
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+
+    // How many items carry enchants at all, and how long is the list?
+    let mut with_enchants = 0usize;
+    let mut len_hist: std::collections::BTreeMap<usize, usize> = Default::default();
+    let mut sample_printed = false;
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let Some(el) = o.get("enchant_data_list").and_then(|x| x.as_array()) else { continue };
+        if el.is_empty() { continue }
+        with_enchants += 1;
+        *len_hist.entry(el.len()).or_insert(0) += 1;
+        if !sample_printed {
+            if let Some(e0) = el.first() {
+                eprintln!("RESULT sample item = {}", o.get("string_key").and_then(|x| x.as_str()).unwrap_or("?"));
+                eprintln!("RESULT enchant_data_list[0] keys = {:?}",
+                    e0.as_object().map(|m| m.keys().collect::<Vec<_>>()));
+                eprintln!("RESULT enchant[0] = {}",
+                    serde_json::to_string(e0).unwrap_or_default().chars().take(1200).collect::<String>());
+                eprintln!("RESULT stat_data = {}",
+                    serde_json::to_string(&e0["enchant_stat_data"]).unwrap_or_default().chars().take(900).collect::<String>());
+                eprintln!("RESULT equip_buffs = {}",
+                    serde_json::to_string(&e0["equip_buffs"]).unwrap_or_default().chars().take(700).collect::<String>());
+                sample_printed = true;
+            }
+        }
+    }
+    eprintln!("RESULT items with enchant_data_list: {with_enchants} / {}", arr.len());
+    eprintln!("RESULT list-length histogram: {:?}", len_hist);
+}
+
+/// [LOCAL PROBE — never committed] 1.5.8 MAIN-FEATURE catalogue: which of the four
+/// enchant_stat_data lists are actually used, which stat keys exist, and what an
+/// equip_buffs entry looks like. This is the content the tab offers.
+#[test]
+#[ignore]
+fn itembuff_stat_buff_catalogue() {
+    use std::collections::BTreeMap;
+    let dir = fixture_dir();
+    let b = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let arr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &b, h.as_deref()).unwrap();
+
+    let lists = ["max_stat_list", "regen_stat_list", "stat_list_static", "stat_list_static_level"];
+    let mut list_use: BTreeMap<&str, usize> = Default::default();
+    // stat key -> (occurrences, distinct change_mb sample, which list, sample donor)
+    let mut stats: BTreeMap<u64, (usize, Vec<i64>, String, String)> = Default::default();
+    let mut buffs: BTreeMap<String, (usize, Vec<String>)> = Default::default();
+    let mut buff_shape_printed = false;
+
+    for r in &arr {
+        let o = r.as_object().unwrap();
+        let sk = o.get("string_key").and_then(|x| x.as_str()).unwrap_or("?").to_string();
+        let Some(el) = o.get("enchant_data_list").and_then(|x| x.as_array()) else { continue };
+        for e in el {
+            if let Some(sd) = e.get("enchant_stat_data") {
+                for ln in lists {
+                    if let Some(a) = sd.get(ln).and_then(|x| x.as_array()) {
+                        if a.is_empty() { continue }
+                        *list_use.entry(ln).or_insert(0) += 1;
+                        for s in a {
+                            if let Some(k) = s.get("stat").and_then(|x| x.as_u64()) {
+                                let ent = stats.entry(k).or_insert((0, Vec::new(), ln.to_string(), sk.clone()));
+                                ent.0 += 1;
+                                if let Some(v) = s.get("change_mb").and_then(|x| x.as_i64()) {
+                                    if ent.1.len() < 4 && !ent.1.contains(&v) { ent.1.push(v) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some(eb) = e.get("equip_buffs").and_then(|x| x.as_array()) {
+                for bf in eb {
+                    if !buff_shape_printed {
+                        eprintln!("RESULT equip_buffs ENTRY SHAPE = {}", serde_json::to_string(bf).unwrap_or_default());
+                        buff_shape_printed = true;
+                    }
+                    let key = bf.as_object()
+                        .and_then(|m| m.values().next().cloned())
+                        .map(|v| v.to_string()).unwrap_or_default();
+                    let ent = buffs.entry(key).or_insert((0, Vec::new()));
+                    ent.0 += 1;
+                    if ent.1.len() < 3 { ent.1.push(sk.clone()) }
+                }
+            }
+        }
+    }
+    eprintln!("RESULT which stat lists are USED (non-empty occurrences): {:?}", list_use);
+    eprintln!("RESULT distinct stat keys: {}", stats.len());
+    for (k, (n, vals, ln, donor)) in stats.iter().take(40) {
+        eprintln!("RESULT   stat {:<10} n={:<6} list={:<22} vals={:?} e.g. {}", k, n, ln, vals, donor);
+    }
+    eprintln!("RESULT distinct equip_buffs entries: {}", buffs.len());
+    for (k, (n, ex)) in buffs.iter().take(25) {
+        eprintln!("RESULT   buff {:<14} n={:<5} e.g. {}", k, n, ex.join(", "));
+    }
+}
+
+/// [LOCAL PROBE — never committed] 1.5.8 UX: can we show HUMAN-READABLE names?
+/// Mod Tools' core usability complaint is raw numeric keys. Check what
+/// equiptypeinfo / buffinfo / skill carry for the keys our catalogue uses.
+#[test]
+#[ignore]
+fn itembuff_name_resolution() {
+    let dir = fixture_dir();
+    let probe = |table: &str, wanted: &[u64]| {
+        let stem = table.trim_end_matches(".pabgb");
+        let Ok(b) = std::fs::read(dir.join(table)) else { eprintln!("RESULT {stem}: no fixture"); return };
+        let h = std::fs::read(dir.join(format!("{stem}.pabgh"))).ok();
+        let arr = match dmm_parser::dispatch::parse_table_to_json(table, &b, h.as_deref()) {
+            Ok(a) => a, Err(e) => { eprintln!("RESULT {stem}: PARSE FAIL {e}"); return }
+        };
+        eprintln!("RESULT === {stem}: {} records ===", arr.len());
+        if let Some(first) = arr.first() {
+            eprintln!("RESULT   fields: {:?}", first.as_object().map(|m| m.keys().collect::<Vec<_>>()));
+        }
+        for w in wanted {
+            if let Some(r) = arr.iter().find(|r| {
+                r.get("__key__").or_else(|| r.get("key")).and_then(|x| x.as_u64()) == Some(*w)
+            }) {
+                let s = serde_json::to_string(r).unwrap_or_default();
+                eprintln!("RESULT   key {w} -> {}", s.chars().take(320).collect::<String>());
+            } else {
+                eprintln!("RESULT   key {w} -> NOT FOUND");
+            }
+        }
+    };
+    // equip types seen in the catalogue; buffs + skills from real mods
+    probe("equiptypeinfo.pabgb", &[1963713749, 1086980073, 2914941932]);
+    probe("buffinfo.pabgb", &[1000096, 1000134, 1000138]);
+    probe("skill.pabgb", &[91101, 91105]);
+}
+
+/// [LOCAL PROBE — never committed] 1.5.8: does a skill DECLARE its compatible
+/// equip types? skill 91101's buff base carries carray_u16 = equip-type hashes
+/// matching the items that actually have it. If that holds, the compatibility
+/// gate is the game's own data, not our inference from donors.
+#[test]
+#[ignore]
+fn itembuff_skill_declares_equip_types() {
+    use std::collections::{BTreeMap, BTreeSet};
+    let dir = fixture_dir();
+    // equip type hash -> readable name
+    let eb = std::fs::read(dir.join("equiptypeinfo.pabgb")).unwrap();
+    let eh = std::fs::read(dir.join("equiptypeinfo.pabgh")).ok();
+    let earr = dmm_parser::dispatch::parse_table_to_json("equiptypeinfo.pabgb", &eb, eh.as_deref()).unwrap();
+    let mut names: BTreeMap<u64, String> = Default::default();
+    for r in &earr {
+        let o = r.as_object().unwrap();
+        if let Some(k) = o.get("key").and_then(|x| x.as_u64()) {
+            let n = o.get("string_key").and_then(|x| x.as_str())
+                .or_else(|| o.get("equip_type_name").and_then(|x| x.as_str()))
+                .unwrap_or("?").to_string();
+            names.insert(k, n);
+        }
+    }
+    eprintln!("RESULT equiptypeinfo names resolved: {}", names.len());
+
+    // which equip types actually carry each passive skill (ground truth)
+    let ib = std::fs::read(dir.join("iteminfo.pabgb")).unwrap();
+    let ih = std::fs::read(dir.join("iteminfo.pabgh")).ok();
+    let iarr = dmm_parser::dispatch::parse_table_to_json("iteminfo.pabgb", &ib, ih.as_deref()).unwrap();
+    let mut actual: BTreeMap<u64, BTreeSet<u64>> = Default::default();
+    for r in &iarr {
+        let o = r.as_object().unwrap();
+        let et = o.get("equip_type_info").and_then(|x| x.as_u64()).unwrap_or(0);
+        if let Some(l) = o.get("equip_passive_skill_list").and_then(|x| x.as_array()) {
+            for e in l {
+                if let Some(s) = e.get("skill").and_then(|x| x.as_u64()) {
+                    actual.entry(s).or_default().insert(et);
+                }
+            }
+        }
+    }
+
+    // what the skill DECLARES
+    let sb = std::fs::read(dir.join("skill.pabgb")).unwrap();
+    let sh = std::fs::read(dir.join("skill.pabgh")).ok();
+    let sarr = dmm_parser::dispatch::parse_table_to_json("skill.pabgb", &sb, sh.as_deref()).unwrap();
+    let declared = |rec: &serde_json::Value| -> BTreeSet<u64> {
+        let mut out = BTreeSet::new();
+        if let Some(bl) = rec.get("buff_level_list").and_then(|x| x.as_array()) {
+            for lvl in bl {
+                if let Some(items) = lvl.as_array() {
+                    for it in items {
+                        if let Some(a) = it.pointer("/base/carray_u16").and_then(|x| x.as_array()) {
+                            for v in a { if let Some(n) = v.as_u64() { out.insert(n); } }
+                        }
+                    }
+                }
+            }
+        }
+        out
+    };
+    let mut agree = 0; let mut subset = 0; let mut mismatch = 0; let mut nodecl = 0;
+    for (skill, real_types) in actual.iter() {
+        let Some(rec) = sarr.iter().find(|r| {
+            r.get("key").and_then(|x| x.as_u64()) == Some(*skill)
+        }) else { continue };
+        let dec = declared(rec);
+        if dec.is_empty() { nodecl += 1; continue }
+        let real: BTreeSet<u64> = real_types.iter().copied().filter(|t| *t != 0).collect();
+        if real.is_empty() { continue }
+        let covered = real.iter().all(|t| dec.contains(t));
+        if covered && dec.len() == real.len() { agree += 1 }
+        else if covered { subset += 1 }
+        else {
+            mismatch += 1;
+            if mismatch <= 6 {
+                let nm = |s: &BTreeSet<u64>| s.iter().map(|t| names.get(t).cloned()
+                    .unwrap_or_else(|| t.to_string())).collect::<Vec<_>>().join(",");
+                eprintln!("RESULT  MISMATCH skill {skill}: real=[{}] declared=[{}]", nm(&real), nm(&dec));
+            }
+        }
+    }
+    eprintln!("RESULT skills where declared ⊇ real: exact={agree} superset={subset} MISMATCH={mismatch} no-declaration={nodecl}");
+    for s in [91101u64, 91105] {
+        if let Some(rec) = sarr.iter().find(|r| r.get("key").and_then(|x| x.as_u64()) == Some(s)) {
+            let dec = declared(rec);
+            eprintln!("RESULT  skill {s} declares: {:?}",
+                dec.iter().map(|t| names.get(t).cloned().unwrap_or_else(|| t.to_string())).collect::<Vec<_>>());
+            eprintln!("RESULT    dev_skill_name={:?} icon={:?}",
+                rec.get("dev_skill_name"), rec.get("icon_path"));
+        }
+    }
+}
+
+/// [LOCAL PROBE — never committed] Garber crash: the game reports
+/// `[MissionInfo]의 _stringKey를 읽어들이는데 실패했다` ×3328. DMM correctly DROPPED
+/// the mod's incoherent byte patches, yet still emitted missioninfo into the overlay.
+/// That is only safe if parse->serialize is byte-identical. Test exactly that.
+#[test]
+#[ignore]
+fn missioninfo_roundtrip_116() {
+    let dir = fixture_dir();
+    for table in ["missioninfo.pabgb", "gimmickinfo.pabgb"] {
+        let stem = table.trim_end_matches(".pabgb");
+        let Ok(body) = std::fs::read(dir.join(table)) else { eprintln!("RESULT {stem}: no fixture"); continue };
+        let h = std::fs::read(dir.join(format!("{stem}.pabgh"))).ok();
+        // apply ZERO intents — pure parse -> serialize round trip, which is what DMM
+        // emits when every one of a mod's patches for the file has been dropped.
+        match apply_intents_to_table_body(table, &body, h.as_deref(), &[]) {
+            Err(e) => eprintln!("RESULT {stem}: APPLY FAILED: {e}"),
+            Ok((nb, _nh, _)) => {
+                let same = nb == body;
+                eprintln!("RESULT {stem}: vanilla {} B -> reserialized {} B  delta {:+}  BYTE-IDENTICAL={}",
+                    body.len(), nb.len(), nb.len() as i64 - body.len() as i64, same);
+                if !same {
+                    let n = body.len().min(nb.len());
+                    let first = (0..n).find(|i| body[*i] != nb[*i]);
+                    eprintln!("RESULT   first differing byte at {:?}", first);
+                    if let Some(o) = first {
+                        let s = o.saturating_sub(8);
+                        eprintln!("RESULT   vanilla[{s}..]={:02X?}", &body[s..(s+24).min(body.len())]);
+                        eprintln!("RESULT   ours   [{s}..]={:02X?}", &nb[s..(s+24).min(nb.len())]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// [LOCAL PROBE — never committed] Garber: DMM's "all-or-nothing" guard dropped 276
+/// relocating patches from a build-stale mod, then still applied ONE declared-offset
+/// patch: `@ 0x1219E2: 00000000 -> 01000000`. Does that single 4-byte write break
+/// missioninfo the way the game reports (3328 _stringKey read failures)?
+#[test]
+#[ignore]
+fn missioninfo_single_stale_write_cascade() {
+    let dir = fixture_dir();
+    let body = std::fs::read(dir.join("missioninfo.pabgb")).unwrap();
+    let h = std::fs::read(dir.join("missioninfo.pabgh")).ok();
+
+    let base = dmm_parser::dispatch::parse_table_to_json("missioninfo.pabgb", &body, h.as_deref());
+    eprintln!("RESULT vanilla parse: {}", match &base {
+        Ok(a) => format!("OK, {} records", a.len()), Err(e) => format!("FAIL {e}") });
+
+    let off = 0x1219E2usize;
+    eprintln!("RESULT bytes at 0x{:X} in OUR 1.16 vanilla = {:02X?}", off, &body[off..off+4]);
+
+    let mut patched = body.clone();
+    patched[off..off + 4].copy_from_slice(&[0x01, 0x00, 0x00, 0x00]);
+    match dmm_parser::dispatch::parse_table_to_json("missioninfo.pabgb", &patched, h.as_deref()) {
+        Ok(a) => eprintln!("RESULT after the stale write: parse OK, {} records (vanilla had {})",
+            a.len(), base.as_ref().map(|x| x.len()).unwrap_or(0)),
+        Err(e) => eprintln!("RESULT after the stale write: PARSE FAILED -> {e}"),
+    }
+}
+
+/// [LOCAL PROBE — never committed] Case 1785694167: the game refuses to load with
+/// "<TargetPartPrefab>에 정의된 cd_phw_00_hel_00_0167은 존재하지 않습니다" and then
+/// "게임데이터 로딩에 실패했습니다". Does that part prefab exist in the user's data?
+/// PAMT paths are trie-compressed, so grep is invalid — parse them.
+#[test]
+#[ignore]
+fn case_missing_part_prefab() {
+    use dmm_parser::binary::pamt::PackMeta;
+    let dir = PathBuf::from(std::env::var("DMM_BUNDLE").unwrap_or_else(|_|
+        r"C:\Users\justi\AppData\Local\Temp\claude\C--Users-justi-Desktop-Project-dmm-parser\9a3fec6d-f3bf-4ba6-85e5-15b3959903b6\scratchpad\case3".into()));
+    let needle = std::env::var("DMM_NEEDLE").unwrap_or_else(|_| "hel_00_0167".into());
+    for f in ["backup_0009_0.pamt.original", "live_0009_0.pamt",
+              "live_dmmgen_0.pamt", "live_0012_0.pamt", "live_0006_0.pamt"] {
+        let Ok(raw) = std::fs::read(dir.join(f)) else { eprintln!("RESULT {f}: absent"); continue };
+        let Ok(p) = PackMeta::parse(&raw, None) else { eprintln!("RESULT {f}: parse fail"); continue };
+        let mut total = 0usize;
+        let mut hits: Vec<String> = Vec::new();
+        let mut family: Vec<String> = Vec::new();
+        for d in &p.directories {
+            for fl in &d.files {
+                total += 1;
+                let full = format!("{}{}", d.path, fl.name);
+                if full.contains(&needle) { hits.push(full.clone()) }
+                if full.contains("phw_00_hel_00_01") { family.push(fl.name.clone()) }
+            }
+        }
+        family.sort(); family.dedup();
+        eprintln!("RESULT {:<28} files={:<6} '{}' hits={}  phw_hel_01xx present: {}",
+            f, total, needle, hits.len(),
+            if family.is_empty() { "(none)".into() } else { family.join(", ") });
+        for h in hits.iter().take(4) { eprintln!("RESULT      -> {h}"); }
+    }
+}
+
+/// [LOCAL PROBE — never committed] Which Female Armor Module ships a
+/// <TargetPartPrefab> naming cd_phw_00_hel_00_0167? Vanilla only has the _d
+/// variant, so a plain reference is dangling and the game refuses to load.
+#[test]
+#[ignore]
+fn case_find_dangling_targetpartprefab() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let root = PathBuf::from(r"C:\Users\justi\Desktop\DMM\mods");
+    let Ok(rd) = std::fs::read_dir(&root) else { eprintln!("RESULT no mods dir"); return };
+    for e in rd.filter_map(|e| e.ok()) {
+        let g = e.path().join("0036");
+        if !g.join("0.pamt").exists() { continue }
+        let Ok(raw) = std::fs::read(g.join("0.pamt")) else { continue };
+        let Ok(p) = PackMeta::parse(&raw, None) else { continue };
+        for d in &p.directories {
+            for f in &d.files {
+                if !f.name.ends_with(".xml") { continue }
+                let Ok(bytes) = paz::extract_file(&g, f, &d.path, &p.header.encrypt_info.encrypt_info) else { continue };
+                let text = String::from_utf8_lossy(&bytes);
+                let mut bad: Vec<&str> = Vec::new();
+                for line in text.lines() {
+                    if line.contains("TargetPartPrefab") && line.contains("cd_phw_00_hel_00_0167") {
+                        bad.push(line.trim());
+                    }
+                }
+                if !bad.is_empty() {
+                    eprintln!("RESULT MOD '{}' -> {}{}",
+                        e.file_name().to_string_lossy(), d.path, f.name);
+                    for b in bad.iter().take(4) { eprintln!("RESULT     {}", &b[..b.len().min(160)]); }
+                }
+            }
+        }
+    }
+}
+
+/// [LOCAL PROBE — never committed] Does the BASE "Female Armor Module" provide the
+/// part prefabs the sub-modules reference? The crashing user has Boots+Helmets,
+/// Chest+Gloves and Mask enabled but NOT the base module; the working user has it.
+#[test]
+#[ignore]
+fn case_female_armor_module_payloads() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let root = PathBuf::from(r"C:\Users\justi\Desktop\DMM\mods");
+    let Ok(rd) = std::fs::read_dir(&root) else { return };
+    let mut mods: Vec<_> = rd.filter_map(|e| e.ok())
+        .filter(|e| e.file_name().to_string_lossy().starts_with("Female Armor Module"))
+        .collect();
+    mods.sort_by_key(|e| e.file_name());
+    for e in mods {
+        let name = e.file_name().to_string_lossy().to_string();
+        let g = e.path().join("0036");
+        if !g.join("0.pamt").exists() { eprintln!("RESULT {name}: no 0036"); continue }
+        let Ok(raw) = std::fs::read(g.join("0.pamt")) else { continue };
+        let Ok(p) = PackMeta::parse(&raw, None) else { continue };
+        let mut prefabs = 0; let mut xmls = 0; let mut other = 0;
+        let mut has_0167 = false;
+        for d in &p.directories { for f in &d.files {
+            if f.name.ends_with(".prefab") { prefabs += 1 }
+            else if f.name.ends_with(".xml") { xmls += 1 } else { other += 1 }
+            if f.name.contains("hel_00_0167") { has_0167 = true }
+        }}
+        eprintln!("RESULT {:<44} prefabs={:<4} xml={:<3} other={:<4} ships_0167={}",
+            name, prefabs, xmls, other, has_0167);
+        // What part prefabs does each XML DECLARE vs reference?
+        for d in &p.directories { for f in &d.files {
+            if !f.name.ends_with(".xml") { continue }
+            let Ok(b) = paz::extract_file(&g, f, &d.path, &p.header.encrypt_info.encrypt_info) else { continue };
+            let t = String::from_utf8_lossy(&b);
+            let refs = t.matches("TargetPartPrefab=").count();
+            let groups = t.matches("MatchPartPrefabGroup=").count();
+            eprintln!("RESULT     {:<46} TargetPartPrefab={} MatchPartPrefabGroup={}", f.name, refs, groups);
+        }}
+    }
+}
+
+/// [LOCAL PROBE — never committed] Does the VANILLA phw description register
+/// cd_phw_00_hel_00_0167? The plain .prefab FILE does not exist on either machine,
+/// so "exists" must be defined by the character-description XML, not the archive.
+#[test]
+#[ignore]
+fn case_phw_description_registers_0167() {
+    use dmm_parser::binary::{pamt::PackMeta, paz};
+    let game = PathBuf::from(std::env::var("DMM_GAME_DIR")
+        .unwrap_or_else(|_| r"D:\SteamLibrary\steamapps\common\Crimson Desert".into()));
+    for grp in ["0009"] {
+        let g = game.join(grp);
+        let Ok(raw) = std::fs::read(g.join("0.pamt")) else { continue };
+        let Ok(p) = PackMeta::parse(&raw, None) else { continue };
+        for d in &p.directories {
+            for f in &d.files {
+                if f.name != "phw_description_player_001.xml" { continue }
+                let Ok(b) = paz::extract_file(&g, f, &d.path, &p.header.encrypt_info.encrypt_info) else {
+                    eprintln!("RESULT extract failed"); continue };
+                let t = String::from_utf8_lossy(&b);
+                eprintln!("RESULT {}{} -> {} bytes", d.path, f.name, b.len());
+                let plain = t.matches("cd_phw_00_hel_00_0167\"").count()
+                          + t.matches("cd_phw_00_hel_00_0167<").count();
+                let dvar = t.matches("cd_phw_00_hel_00_0167_d").count();
+                eprintln!("RESULT   registers plain 0167: {plain}   registers 0167_d: {dvar}");
+                // what element registers a part prefab?
+                for line in t.lines() {
+                    if line.contains("cd_phw_00_hel_00_0167") {
+                        eprintln!("RESULT   {}", line.trim().chars().take(180).collect::<String>());
+                    }
+                }
+                let total = t.matches("PartPrefab").count();
+                eprintln!("RESULT   'PartPrefab' occurrences in descriptor: {total}");
+            }
+        }
+    }
+}
+
+/// [LOCAL PROBE — never committed] What does Highheel 3206's standalone overlay
+/// actually contain? His mount injected phw_description_player_001.xml; ours never
+/// does. Same mod, byte-identical payload — so does the overlay carry that file?
+#[test]
+#[ignore]
+fn case_highheel_overlay_contents() {
+    use dmm_parser::binary::pamt::PackMeta;
+    let g = PathBuf::from(r"C:\Users\justi\Desktop\DMM\mods\Highheel_3206_1_2026-07-26T17-25Z_HdJfoBwP8\0052");
+    let Ok(raw) = std::fs::read(g.join("0.pamt")) else { eprintln!("RESULT no pamt"); return };
+    let Ok(p) = PackMeta::parse(&raw, None) else { eprintln!("RESULT parse fail"); return };
+    let mut n = 0;
+    let mut desc = 0;
+    for d in &p.directories {
+        for f in &d.files {
+            n += 1;
+            let full = format!("{}{}", d.path, f.name);
+            if full.contains("description") || full.contains("descriptor") { desc += 1 }
+            if n <= 40 { eprintln!("RESULT  {full}") }
+        }
+    }
+    eprintln!("RESULT ---- {n} files, {desc} descriptor-ish");
+}

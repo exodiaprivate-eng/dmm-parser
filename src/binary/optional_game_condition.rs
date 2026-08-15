@@ -44,14 +44,25 @@ pub struct GameConditionWrapper<'a> {
 
 impl<'a> OptionalGameCondition<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        let _ogc_start = *offset;
         let presence = u8::read_from(data, offset)?;
         let inner = if presence != 0 {
             let tree = GameConditionNode::read_from(data, offset)?;
+            let _ogc_after_tree = *offset;
             let tail_a = u8::read_from(data, offset)?;
             let tail_b = u8::read_from(data, offset)?;
             let tail_c = u8::read_from(data, offset)?;
+            if std::env::var_os("OGCTRACE").is_some() {
+                eprintln!(
+                    "OGC start={} presence={} tree_end={} end={} tail={},{},{}",
+                    _ogc_start, presence, _ogc_after_tree, *offset, tail_a, tail_b, tail_c
+                );
+            }
             Some(GameConditionWrapper { tree, tail_a, tail_b, tail_c })
         } else {
+            if std::env::var_os("OGCTRACE").is_some() {
+                eprintln!("OGC start={} presence=0 end={}", _ogc_start, *offset);
+            }
             None
         };
         Ok(Self { inner })

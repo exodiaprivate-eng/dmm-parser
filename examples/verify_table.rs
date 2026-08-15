@@ -9,6 +9,12 @@ use std::path::PathBuf;
 
 const DIR: &str = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\live_full";
 
+/// Fixture dir, overridable with `DMM_PARSER_PABGB_DIR` so a freshly-extracted
+/// patch dump can be verified without editing this file.
+fn dir() -> String {
+    std::env::var("DMM_PARSER_PABGB_DIR").unwrap_or_else(|_| DIR.to_string())
+}
+
 fn has_b64(v: &Value) -> bool {
     match v {
         Value::Object(m) => m.iter().any(|(k, val)|
@@ -23,8 +29,8 @@ fn main() {
     let canon = normalize_target_name(&stem)
         .or_else(|| normalize_target_name(&format!("{}info", stem)))
         .unwrap_or_else(|| panic!("unknown table for stem {:?}", stem));
-    let b = PathBuf::from(DIR).join(format!("{}.pabgb", stem));
-    let h = PathBuf::from(DIR).join(format!("{}.pabgh", stem));
+    let b = PathBuf::from(dir()).join(format!("{}.pabgb", stem));
+    let h = PathBuf::from(dir()).join(format!("{}.pabgh", stem));
     let data = std::fs::read(&b).unwrap();
     let hd = std::fs::read(&h).ok();
     let shape = JsonShape::from_str("").unwrap();

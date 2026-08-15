@@ -46,6 +46,17 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// 1.18 `_battleOverrideReactionList` element — 2 wire bytes.
+    /// The 1.18 exe declares `BattleOverrideReaction` as a new 2-field type
+    /// with exactly these names in this order, which matches the 2-byte
+    /// element width: one u8 each.
+    pub struct BattleOverrideReaction {
+        pub target_ally_type: u8,
+        pub relation_reaction_type: u8,
+    }
+}
+
+py_binary_struct! {
     pub struct RelationInfo<'a> {
         pub key: u8,
         pub string_key: CString<'a>,
@@ -58,6 +69,13 @@ py_binary_struct! {
         pub detect_value_ratio: f32,
         pub is_detect_event_only: u8,
         pub gimmick_tag_data_list: CArray<RelationGimmickTagData>,
+        // ── 1.18.00: `_battleOverrideReactionList`, appended after the gimmick
+        // tag list. 51 of 52 records grew by exactly 4 (count=0); record 0x16
+        // grew by 6 — count=1 plus a 2-byte element, which fixes the element
+        // width at 2.
+        // The element split is not a guess: the 1.18 exe declares a new
+        // `BattleOverrideReaction` type with exactly 2 fields, so 2 bytes = 2×u8.
+        pub battle_override_reaction_list: CArray<BattleOverrideReaction>,
     }
 }
 

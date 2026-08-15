@@ -22,4 +22,5 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("detect_value_ratio", "_detectValueRatio"),
     ("is_detect_event_only", "_isDetectEventOnly"),
     ("gimmick_tag_data_list", "_gimmickTagDataList"),
+    ("battle_override_reaction_list", "_battleOverrideReactionList"),
 ];

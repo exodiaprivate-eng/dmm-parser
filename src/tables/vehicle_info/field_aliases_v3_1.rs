@@ -31,4 +31,6 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("send_damage_to", "_sendDamageTo"),
     ("character_switchable", "_characterSwitchable"),
     ("max_allowable_height", "_maxAllowableHeight"),
+    ("contact_impulse_event", "_contactImpulseEvent"),
+    ("is_platform_vehicle", "_isPlatformVehicle"),
 ];

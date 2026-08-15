@@ -16,4 +16,10 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("house_name", "_houseName"),
     ("unlock_condition_info", "_unlockConditionInfo"),
     ("house_region_data_list", "_houseRegionDataList"),
+    // unk_f32_112 is `_floorHeight` per the 1.18 oracle; not aliased here
+    // because the struct field keeps its placeholder name (mod contract).
+    ("placement_system_type", "_placementSystemType"),
+    ("usable_placement_type_flag", "_usablePlacementTypeFlag"),
+    ("housing_pivot_level_gimmick_scene_object_info",
+     "_housingPivotLevelGimmickSceneObjectInfo"),
 ];

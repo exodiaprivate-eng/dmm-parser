@@ -75,6 +75,12 @@ py_binary_struct! {
         pub key: u32,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
+        // ── 1.18.00: `_physicsMaterialKey`, one u32 between is_blocked and the
+        // preset list. Unambiguous: the inserted bytes sit between a CString's
+        // terminator region and the preset count, and one record carries a real
+        // value (0x6963DF0E) while the other twelve hold the 0xFFFFFFFF unset
+        // sentinel — so it is a key, not padding.
+        pub physics_material_key: u32,
         pub preset_list: CArray<PresetEntry<'a>>,
     }
 }

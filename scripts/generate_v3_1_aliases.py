@@ -27,9 +27,17 @@ import os
 import sys
 from pathlib import Path
 
-REPO = Path(r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser")
+# Resolve from this file, not from an absolute home directory — the original
+# paths were another machine's and made the generator unrunnable here.
+# Env overrides are honoured so a different checkout can still point elsewhere.
+# ⚠ item_info lives outside src/tables (it predates the generic table system),
+# so this script never sees it. Its alias table is real and IS indexed in
+# src/json_shape_table_registry.rs under the key "iteminfo" — preserve that
+# entry by hand if this script ever rewrites the registry.
+REPO = Path(os.environ.get("DMM_PARSER_REPO") or Path(__file__).resolve().parents[1])
 TABLES_DIR = REPO / "src" / "tables"
-SCHEMA_PATH = Path(r"C:\Users\corin\Desktop\CD DUMPING TOOLS\_research_cache\pabgb_complete_schema.json")
+SCHEMA_PATH = Path(os.environ.get("DMM_PABGB_SCHEMA")
+                   or REPO / "_research_cache" / "pabgb_complete_schema.json")
 
 # Manual overrides where Rust struct field name doesn't mechanically translate
 # to the schema's canonical name. Format: {(table_dispatch_name, rust_snake): canonical_camel}

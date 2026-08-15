@@ -292,7 +292,22 @@ pub struct StoreStockDataValue {
     pub lookup_c: u32,    // sub_1410FF430
     pub raw_a: u32,
     pub raw_b: u64,
-    pub raw_c: u32,
+    // ── 1.18.00: the u32 that used to sit here (`raw_c`) was REMOVED.
+    // This struct is the engine's `DropInfoData` — the same shape as
+    // DropTargetData in binary/variants/drop_target.rs. The Mac 1.18 reader
+    // sub_10184CEAC lays it out as: dropTagNameHash u32 @+12, percent u64 @+16,
+    // subPercent u64 @+24, minValue u64 @+32, maxValue u64 @+40,
+    // enchantLevel @+48.
+    // 1.18 bytes fit that exactly (percent=1000000, subPercent=0, min=50,
+    // max=50); 1.17 only fits with ONE extra u32 between subPercent and
+    // minValue — without it minValue reads 214748364800 instead of 50.
+    // That extra field emits no error string, so the field-name oracle reports
+    // DropInfoData unchanged: deletions AND string-less fields are both
+    // invisible to it. Only the bytes + the reader can find this.
+    //
+    // ⚠ The remaining names are one slot off from the engine's: raw_b IS
+    // `_percent`, and raw_d/raw_e/raw_f are subPercent/minValue/maxValue.
+    // Left alone because parser field names are the mod contract.
     pub raw_d: u64,
     pub raw_e: u64,
     pub raw_f: u64,
@@ -309,7 +324,6 @@ impl StoreStockDataValue {
         let lookup_c = u32::read_from(data, offset)?;
         let raw_a = u32::read_from(data, offset)?;
         let raw_b = u64::read_from(data, offset)?;
-        let raw_c = u32::read_from(data, offset)?;
         let raw_d = u64::read_from(data, offset)?;
         let raw_e = u64::read_from(data, offset)?;
         let raw_f = u64::read_from(data, offset)?;
@@ -317,7 +331,7 @@ impl StoreStockDataValue {
         let payload = StoreStockDataValuePayload::read_from(disc, data, offset)?;
         Ok(Self {
             raw_q, disc, lookup_a, lookup_b, lookup_c,
-            raw_a, raw_b, raw_c, raw_d, raw_e, raw_f, raw_g, payload,
+            raw_a, raw_b, raw_d, raw_e, raw_f, raw_g, payload,
         })
     }
 
@@ -329,7 +343,6 @@ impl StoreStockDataValue {
         self.lookup_c.write_to(w)?;
         self.raw_a.write_to(w)?;
         self.raw_b.write_to(w)?;
-        self.raw_c.write_to(w)?;
         self.raw_d.write_to(w)?;
         self.raw_e.write_to(w)?;
         self.raw_f.write_to(w)?;
@@ -346,7 +359,6 @@ impl StoreStockDataValue {
         m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
         m.insert("raw_a".to_string(), self.raw_a.to_json_value());
         m.insert("raw_b".to_string(), self.raw_b.to_json_value());
-        m.insert("raw_c".to_string(), self.raw_c.to_json_value());
         m.insert("raw_d".to_string(), self.raw_d.to_json_value());
         m.insert("raw_e".to_string(), self.raw_e.to_json_value());
         m.insert("raw_f".to_string(), self.raw_f.to_json_value());
@@ -369,7 +381,6 @@ impl StoreStockDataValue {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_c")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_d")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_e")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_f")?)?;

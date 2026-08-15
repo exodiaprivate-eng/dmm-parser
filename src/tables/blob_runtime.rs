@@ -259,13 +259,15 @@ pub fn serialize_blob_table_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
 /// runtime fully generic without monomorphising one copy per table inside
 /// dmm-parser — DMM and other consumers can reuse it for any pabgh_typed_blob_table
 /// table.
-pub fn parse_typed_blob_table_to_json_with_pabgh<F>(
+pub fn parse_typed_blob_table_to_json_with_pabgh<F, G>(
     data: &[u8],
     pabgh: &[u8],
     mut read_one: F,
+    mut read_partial: G,
 ) -> io::Result<Vec<Value>>
 where
     F: FnMut(&[u8], &mut usize, usize) -> io::Result<serde_json::Map<String, Value>>,
+    G: FnMut(&[u8], usize, usize) -> serde_json::Map<String, Value>,
 {
     let entries = load_pabgh_offsets_from_bytes(pabgh).ok_or_else(|| io::Error::new(
         io::ErrorKind::InvalidData, "typed_blob_table: pabgh parse failed"))?;
@@ -281,7 +283,12 @@ where
                 out.push(Value::Object(dict));
             }
             Err(_err) => {
-                if out.len() < 3 {
+                // First 3 by default so a broken table is obvious without
+                // drowning the log. `DMM_BLOB_VERBOSE=1` reports every failure —
+                // needed when the failures start deep in a large table
+                // (characterinfo's begin around index 6266, so the first-3 rule
+                // hid them entirely).
+                if out.len() < 3 || std::env::var_os("DMM_BLOB_VERBOSE").is_some() {
                     eprintln!("BLOB_FALLBACK k=0x{:x} size={}: {}", k, e - s, _err);
                 }
                 // Typed parse failed for this entry — fall back to raw blob.
@@ -290,7 +297,19 @@ where
                 let entry = &data[s..e];
 
                 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
-                let mut dict = serde_json::Map::new();
+                // PARTIAL DECODE: keep the fields that DID parse instead of
+                // discarding the whole record. One unmodelled field near the end
+                // of a 205-field struct used to hide everything before it — in
+                // live 1.16 characterinfo that buried 232 records (all the pet
+                // cats and dogs, the kakapo) whose name/desc/lookup_22/f38 parse
+                // perfectly and sit far earlier in the struct.
+                //
+                // The blob stays authoritative: `_blob_fallback` still routes
+                // this record to `write_blob_fallback_entry`, which writes ONLY
+                // `_blob_b64` verbatim. These fields are read-only and can never
+                // feed a re-serialisation, so byte-roundtrip is unchanged.
+                let mut dict = read_partial(data, s, e - s);
+                // pabgh's key wins over any partially-read one.
                 dict.insert("key".into(), Value::Number(k.into()));
                 dict.insert("_blob_b64".into(), Value::String(B64.encode(entry)));
                 dict.insert("_blob_fallback".into(), Value::Bool(true));
@@ -308,12 +327,14 @@ where
 /// caller rebuilds the sister pabgh separately — every record's tail size
 /// is preserved verbatim, so for replace-only edits the vanilla pabgh
 /// stays valid byte-for-byte.
-pub fn serialize_typed_blob_table_from_json<F>(
+pub fn serialize_typed_blob_table_from_json<F, G>(
     items: &[Value],
     mut write_one: F,
+    mut write_partial: G,
 ) -> io::Result<Vec<u8>>
 where
     F: FnMut(&mut Vec<u8>, &serde_json::Map<String, Value>) -> io::Result<()>,
+    G: FnMut(&mut Vec<u8>, &serde_json::Map<String, Value>, usize) -> io::Result<()>,
 {
     let mut out = Vec::with_capacity(items.len() * 256);
     for (i, v) in items.iter().enumerate() {
@@ -321,7 +342,7 @@ where
             io::ErrorKind::InvalidData,
             format!("typed_blob_table[{}]: expected object, got {}", i, type_name(v))))?;
         if obj.contains_key("_blob_fallback") {
-            write_blob_fallback_entry(&mut out, obj)?;
+            write_blob_fallback_entry_partial(&mut out, obj, &mut write_partial)?;
         } else {
             write_one(&mut out, obj).map_err(|e| io::Error::new(
                 e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;
@@ -341,6 +362,53 @@ fn write_blob_fallback_entry(out: &mut Vec<u8>, obj: &serde_json::Map<String, Va
     Ok(())
 }
 
+/// Blob-fallback writer that lets an EDIT to a partially-decoded prefix land.
+///
+/// `read_partial_json` salvages the fields that decoded before the schema broke
+/// and records `_partial_fields` / `_partial_prefix_len`. Writing `_blob_b64`
+/// verbatim (as `write_blob_fallback_entry` does) silently discards any edit to
+/// those fields — that is why the 1.5.9 cat/dog swaps applied and changed
+/// nothing. Here we instead:
+///   1. re-serialise the `_partial_fields` decoded fields from the JSON, and
+///   2. append the ORIGINAL entry bytes from `_partial_prefix_len` onward.
+/// The undecoded remainder is preserved byte-for-byte, so an untouched record
+/// still round-trips exactly while `lookup_22` (or any decoded field) can change.
+///
+/// Falls back to the verbatim write whenever anything is missing or the
+/// re-serialised prefix would not line up — never guess with a binary format.
+fn write_blob_fallback_entry_partial<G>(
+    out: &mut Vec<u8>,
+    obj: &serde_json::Map<String, Value>,
+    write_partial: &mut G,
+) -> io::Result<()>
+where
+    G: FnMut(&mut Vec<u8>, &serde_json::Map<String, Value>, usize) -> io::Result<()>,
+{
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let Some(blob_v) = obj.get("_blob_b64").and_then(|v| v.as_str()) else {
+        return Ok(());
+    };
+    let blob = B64.decode(blob_v).map_err(|e| io::Error::new(
+        io::ErrorKind::InvalidData, format!("blob fallback decode: {}", e)))?;
+
+    let n = obj.get("_partial_fields").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let plen = obj.get("_partial_prefix_len").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    if n == 0 || plen == 0 || plen > blob.len() {
+        out.extend_from_slice(&blob);
+        return Ok(());
+    }
+
+    let mut prefix = Vec::with_capacity(plen);
+    if write_partial(&mut prefix, obj, n).is_err() {
+        // Could not rebuild the prefix — emit the original untouched.
+        out.extend_from_slice(&blob);
+        return Ok(());
+    }
+    out.extend_from_slice(&prefix);
+    out.extend_from_slice(&blob[plen..]);
+    Ok(())
+}
+
 /// Same as [`serialize_typed_blob_table_from_json`] but also returns the
 /// `(key, byte_offset)` pair for each record. Used by the apply-intents
 /// pipeline to rebuild the sister `pabgh` index when records are added,
@@ -349,12 +417,14 @@ fn write_blob_fallback_entry(out: &mut Vec<u8>, obj: &serde_json::Map<String, Va
 /// The key is extracted permissively from each record's JSON via
 /// [`extract_record_key`] — accepts both scalar `key: <int>` and the
 /// iteminfo-style `key: {"value": <int>}` wrapper shape.
-pub fn serialize_typed_blob_table_from_json_tracked<F>(
+pub fn serialize_typed_blob_table_from_json_tracked<F, G>(
     items: &[Value],
     mut write_one: F,
+    mut write_partial: G,
 ) -> io::Result<(Vec<u8>, Vec<(u32, u32)>)>
 where
     F: FnMut(&mut Vec<u8>, &serde_json::Map<String, Value>) -> io::Result<()>,
+    G: FnMut(&mut Vec<u8>, &serde_json::Map<String, Value>, usize) -> io::Result<()>,
 {
     let mut out = Vec::with_capacity(items.len() * 256);
     let mut offsets = Vec::with_capacity(items.len());
@@ -370,7 +440,10 @@ where
             format!("typed_blob_table[{}]: body offset {} exceeds u32 range", i, out.len())))?;
         offsets.push((key, offset));
         if obj.contains_key("_blob_fallback") {
-            write_blob_fallback_entry(&mut out, obj)?;
+            // Same partial-splice as the untracked path — THIS is the function the
+            // v3 apply pipeline uses, so without it every mod edit to a salvaged
+            // field is silently dropped.
+            write_blob_fallback_entry_partial(&mut out, obj, &mut write_partial)?;
         } else {
             write_one(&mut out, obj).map_err(|e| io::Error::new(
                 e.kind(), format!("typed_blob_table[{}]: {}", i, e)))?;

@@ -17,11 +17,26 @@ use dmm_parser::binary::paz;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-const GAME_DIR: &str = r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert";
-const PAPGT_PATH: &str =
-    r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert\meta\0.papgt";
-const VANILLA_DUMPS: &str =
-    r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07";
+// Patch-day fixture extractor.
+//
+//   DMM_GAME_DIR=<install> DMM_DUMP_DIR=<out> cargo run --release --example extract_all_pabgb
+//
+// These were three hardcoded constants pointing at a Program Files install and a
+// dump directory on someone else's machine, so every patch started by editing this
+// file (and it failed with PermissionDenied if you forgot). Defaults are the live
+// paths; override per patch with the env vars.
+// ⚠ The game must be UNMOUNTED — a mounted install yields INJECTED bytes, not
+// vanilla, which silently invalidates every downstream byte comparison.
+const GAME_DIR_DEFAULT: &str = r"D:\SteamLibrary\steamapps\common\Crimson Desert";
+const DUMP_DIR_DEFAULT: &str = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\latest";
+
+fn game_dir_path() -> PathBuf {
+    PathBuf::from(std::env::var("DMM_GAME_DIR").unwrap_or_else(|_| GAME_DIR_DEFAULT.into()))
+}
+
+fn dump_dir_path() -> PathBuf {
+    PathBuf::from(std::env::var("DMM_DUMP_DIR").unwrap_or_else(|_| DUMP_DIR_DEFAULT.into()))
+}
 
 fn existing_dump_basenames(dump_dir: &Path) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
@@ -36,14 +51,17 @@ fn existing_dump_basenames(dump_dir: &Path) -> BTreeSet<String> {
 }
 
 fn main() {
-    let dump_dir = PathBuf::from(VANILLA_DUMPS);
+    let dump_dir = dump_dir_path();
     std::fs::create_dir_all(&dump_dir).expect("create dump dir");
     let existing = existing_dump_basenames(&dump_dir);
     println!("Already in vanilla_dumps: {} files (~{} tables)",
         existing.len(), existing.len() / 2);
 
-    let game_dir = Path::new(GAME_DIR);
-    let papgt_data = std::fs::read(PAPGT_PATH).expect("read PAPGT");
+    let game_owned = game_dir_path();
+    let game_dir = game_owned.as_path();
+    println!("game: {}\ndump: {}", game_dir.display(), dump_dir.display());
+    let papgt_data =
+        std::fs::read(game_dir.join("meta").join("0.papgt")).expect("read PAPGT");
     let papgt = PackGroupTreeMeta::parse(&papgt_data).expect("parse PAPGT");
 
     let mut found_pabgb = 0usize;
