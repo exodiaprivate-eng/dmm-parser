@@ -21,12 +21,35 @@
 //! `_dropInfoDataList` = u32 count + count × { present:u8 [+DropInfoData] + u32 }.
 //! `DropInfoData` = 63-byte header + a `_typeTag`-selected union body.
 
-/// `DropInfoData` fixed-header size, in bytes.
-const HEADER: usize = 63;
-/// Byte offset of `_minValue` (i64) inside a `DropInfoData` record.
-const OFF_MIN: usize = 45;
-/// Byte offset of `_maxValue` (i64) inside a `DropInfoData` record.
-const OFF_MAX: usize = 53;
+/// One `DropInfoData` header layout. The header shrank by 4 bytes in game
+/// 1.18.00 (63 -> 59, moving `_minValue` 45 -> 41 and `_maxValue` 53 -> 49),
+/// which silently emptied every reward list: the scanner read 4 bytes past the
+/// real values, failed the item-key guard, and rejected the whole list. Nothing
+/// errored — the Gathering preset just stopped matching anything.
+///
+/// So the layout is no longer a constant. We score EVERY known layout against
+/// each blob and keep the best. That is safe because the acceptance test is
+/// already strong (every item-tag key must resolve in iteminfo, min/max must be
+/// a plausible small range, at least one key must resolve): a wrong layout
+/// scores near zero. Measured on the real tables — 1.17: 552 lists with the old
+/// layout vs 8 with the new; 1.18: 9 vs 551. The winner is never ambiguous.
+///
+/// ⇒ When a future patch moves it again, ADD a row; do not edit one.
+#[derive(Clone, Copy)]
+struct Layout {
+    /// `DropInfoData` fixed-header size, in bytes.
+    header: usize,
+    /// Byte offset of `_minValue` (i64) inside a `DropInfoData` record.
+    off_min: usize,
+    /// Byte offset of `_maxValue` (i64) inside a `DropInfoData` record.
+    off_max: usize,
+}
+
+/// Known layouts, newest first.
+const LAYOUTS: &[Layout] = &[
+    Layout { header: 59, off_min: 41, off_max: 49 }, // game 1.18.00+
+    Layout { header: 63, off_min: 45, off_max: 53 }, // game <= 1.17
+];
 /// Byte offset of `_typeTag` (u8) inside a `DropInfoData` record.
 const OFF_TYPE_TAG: usize = 8;
 /// Byte offset of `_varyFriendly` (i64) inside the tag-7/8/15 friendship body,
@@ -93,18 +116,18 @@ fn rd_i64(b: &[u8], o: usize) -> Option<i64> {
 
 /// Parse a single `DropInfoData` at `off`. Returns the entry + the offset just
 /// past it, or `None` if the bytes don't form a valid record.
-fn read_drop_info(b: &[u8], off: usize) -> Option<(RewardEntry, usize)> {
+fn read_drop_info(b: &[u8], off: usize, ly: Layout) -> Option<(RewardEntry, usize)> {
     let tag = *b.get(off + OFF_TYPE_TAG)?;
     let cs = case_size(tag)?;
-    let end = off + HEADER + cs;
+    let end = off + ly.header + cs;
     if end > b.len() {
         return None;
     }
     let key_raw = rd_i64(b, off)?;
-    let min_value = rd_i64(b, off + OFF_MIN)?;
-    let max_value = rd_i64(b, off + OFF_MAX)?;
+    let min_value = rd_i64(b, off + ly.off_min)?;
+    let max_value = rd_i64(b, off + ly.off_max)?;
     let (vary_friendly, off_vary) = if matches!(tag, 7 | 8 | 15) {
-        let vo = off + HEADER + OFF_VARY_IN_BODY;
+        let vo = off + ly.header + OFF_VARY_IN_BODY;
         (Some(rd_i64(b, vo)?), Some(vo))
     } else {
         (None, None)
@@ -116,8 +139,8 @@ fn read_drop_info(b: &[u8], off: usize) -> Option<(RewardEntry, usize)> {
             min_value,
             max_value,
             vary_friendly,
-            off_min: off + OFF_MIN,
-            off_max: off + OFF_MAX,
+            off_min: off + ly.off_min,
+            off_max: off + ly.off_max,
             off_vary,
         },
         end,
@@ -130,6 +153,7 @@ fn read_drop_info(b: &[u8], off: usize) -> Option<(RewardEntry, usize)> {
 fn try_read_list(
     b: &[u8],
     off: usize,
+    ly: Layout,
     is_real_item: &dyn Fn(u32) -> bool,
 ) -> Option<(RewardList, usize)> {
     let count = rd_u32(b, off)?;
@@ -146,7 +170,7 @@ fn try_read_list(
         }
         p += 1;
         if present == 1 {
-            let (e, next) = read_drop_info(b, p)?;
+            let (e, next) = read_drop_info(b, p, ly)?;
             // Value-plausibility guard: a real reward's min/max count is a small
             // non-negative range. Garbage byte runs decode to wild i64s — reject
             // them so a spurious "list" can't be exposed (and then mis-edited).
@@ -181,10 +205,33 @@ fn try_read_list(
 /// Genuine records normally yield 1 (just `_dropInfoDataList`) or 2 (plus
 /// `_buyableDropItem`); the item-key guard rejects spurious matches.
 pub fn scan_reward_lists(b: &[u8], is_real_item: &dyn Fn(u32) -> bool) -> Vec<RewardList> {
+    // Score every known header layout and keep whichever finds the most reward
+    // entries. A wrong layout scores ~0 against the item-key guard, so this is a
+    // decisive pick rather than a guess — and it means a header move in a future
+    // patch degrades to "add a LAYOUTS row" instead of a silent dead preset.
+    let mut best: Vec<RewardList> = Vec::new();
+    let mut best_entries = 0usize;
+    for &ly in LAYOUTS {
+        let found = scan_with_layout(b, ly, is_real_item);
+        let n: usize = found.iter().map(|l| l.entries.len()).sum();
+        if n > best_entries {
+            best_entries = n;
+            best = found;
+        }
+    }
+    best
+}
+
+/// Scan `b` for validated reward lists using ONE header layout.
+fn scan_with_layout(
+    b: &[u8],
+    ly: Layout,
+    is_real_item: &dyn Fn(u32) -> bool,
+) -> Vec<RewardList> {
     let mut out = Vec::new();
     let mut o = 0usize;
     while o + 4 <= b.len() {
-        if let Some((list, end)) = try_read_list(b, o, is_real_item) {
+        if let Some((list, end)) = try_read_list(b, o, ly, is_real_item) {
             out.push(list);
             o = end;
         } else {
@@ -299,11 +346,12 @@ mod tests {
         b.extend_from_slice(&1u32.to_le_bytes()); // count
         b.push(1); // present
         let start = b.len();
-        b.resize(start + HEADER + 4, 0); // header + tag-0 body(4)
+        let ly = LAYOUTS[0];
+        b.resize(start + ly.header + 4, 0); // header + tag-0 body(4)
         b[start..start + 8].copy_from_slice(&(item_key as i64).to_le_bytes()); // _keyRaw
         b[start + OFF_TYPE_TAG] = 0; // _typeTag
-        b[start + OFF_MIN..start + OFF_MIN + 8].copy_from_slice(&min.to_le_bytes());
-        b[start + OFF_MAX..start + OFF_MAX + 8].copy_from_slice(&max.to_le_bytes());
+        b[start + ly.off_min..start + ly.off_min + 8].copy_from_slice(&min.to_le_bytes());
+        b[start + ly.off_max..start + ly.off_max + 8].copy_from_slice(&max.to_le_bytes());
         b.extend_from_slice(&0u32.to_le_bytes()); // trailing u32
         b
     }
@@ -347,14 +395,15 @@ mod tests {
         b.extend_from_slice(&1u32.to_le_bytes());
         b.push(1);
         let start = b.len();
-        b.resize(start + HEADER + 32, 0);
+        let ly = LAYOUTS[0];
+        b.resize(start + ly.header + 32, 0);
         b[start + OFF_TYPE_TAG] = 7;
-        let vo = start + HEADER + OFF_VARY_IN_BODY;
+        let vo = start + ly.header + OFF_VARY_IN_BODY;
         b[vo..vo + 8].copy_from_slice(&5i64.to_le_bytes()); // +5 friendship
         b.extend_from_slice(&0u32.to_le_bytes());
         // friendship tags carry no item key, so this list needs an item entry to
         // pass the guard in the real scanner; here we assert the low-level reader.
-        let (e, _) = read_drop_info(&b, start).unwrap();
+        let (e, _) = read_drop_info(&b, start, LAYOUTS[0]).unwrap();
         assert_eq!(e.type_tag, 7);
         assert_eq!(e.vary_friendly, Some(5));
     }
