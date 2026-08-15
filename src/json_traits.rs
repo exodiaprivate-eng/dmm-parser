@@ -231,14 +231,40 @@ impl WriteJsonValue for i64 {
     }
 }
 
+/// Prefix for the lossless non-finite f32 encoding. See `ToJsonValue for f32`.
+pub const F32_BITS_PREFIX: &str = "f32bits:";
+
 impl ToJsonValue for f32 {
     fn to_json_value(&self) -> Value {
-        Value::from(*self as f64)
+        // ⚠ JSON has no NaN/Infinity: `Value::from(f64::NAN)` is `Value::Null`,
+        // and the writer below turns Null into 0.0 — so a non-finite float used
+        // to be SILENTLY DESTROYED by any read→write JSON round-trip. That is
+        // real data loss for a V3 mod that merely touches such a record.
+        // (Found on 1.18 interaction_info, whose pivot vec3s contain 0xFFFFFFFF,
+        // but the bug was general and version-independent.)
+        //
+        // Finite values stay plain JSON numbers — the common case and the mod
+        // contract are unchanged. Only values that were previously lost get the
+        // "f32bits:0x…" string form, so nothing that worked before can break.
+        if self.is_finite() {
+            Value::from(*self as f64)
+        } else {
+            Value::String(format!("{}{:#010x}", F32_BITS_PREFIX, self.to_bits()))
+        }
     }
 }
 impl WriteJsonValue for f32 {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         if v.is_null() { w.extend_from_slice(&0f32.to_le_bytes()); return Ok(()); }
+        // Accept the lossless non-finite form emitted above.
+        if let Some(hex) = v.as_str().and_then(|t| t.strip_prefix(F32_BITS_PREFIX)) {
+            let digits = hex.strip_prefix("0x").unwrap_or(hex);
+            let bits = u32::from_str_radix(digits, 16).map_err(|_| io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("bad {}{} value", F32_BITS_PREFIX, hex)))?;
+            w.extend_from_slice(&f32::from_bits(bits).to_le_bytes());
+            return Ok(());
+        }
         let f = v
             .as_f64()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -270,7 +296,7 @@ impl WriteJsonValue for f64 {
 
 impl ToJsonValue for [f32; 2] {
     fn to_json_value(&self) -> Value {
-        Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
+        Value::Array(self.iter().map(|x| x.to_json_value()).collect())
     }
 }
 impl WriteJsonValue for [f32; 2] {
@@ -289,7 +315,7 @@ impl WriteJsonValue for [f32; 2] {
 
 impl ToJsonValue for [f32; 3] {
     fn to_json_value(&self) -> Value {
-        Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
+        Value::Array(self.iter().map(|x| x.to_json_value()).collect())
     }
 }
 impl WriteJsonValue for [f32; 3] {
@@ -308,7 +334,7 @@ impl WriteJsonValue for [f32; 3] {
 
 impl ToJsonValue for [f32; 4] {
     fn to_json_value(&self) -> Value {
-        Value::Array(self.iter().map(|x| Value::from(*x as f64)).collect())
+        Value::Array(self.iter().map(|x| x.to_json_value()).collect())
     }
 }
 impl WriteJsonValue for [f32; 4] {

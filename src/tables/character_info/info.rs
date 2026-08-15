@@ -1286,7 +1286,23 @@ pabgh_typed_blob_table! {
         // _balanceDifficultyLevel (Korean field oracle + reader widths):
         pub activity_preset_info: u32,               // _activityPresetInfo   sub_101FEA2BC (int)
         pub daily_routine_info: u32,                 // _dailyRoutineInfo     sub_1020001F0 (int)
-        pub zone_info: u16,                          // _zoneInfo             sub_101DE7F18 (ZoneKey, u16)
+        // ── 1.18.00: `_zoneInfo` (u16 ZoneKey) was REMOVED and replaced here by
+        // `_gamePlayTriggerZone`, a CArray<u32>. The whole `zoneinfo` TABLE was
+        // deleted in 1.18 — which is also why `zoneinfo.pabgb` disappeared from
+        // the fixture set — so the key it referenced no longer exists.
+        //
+        // Proven by arithmetic over all 7,226 shared records: every per-record
+        // delta fits `-2 + 4 + 4n` (= 2 + 4n) exactly —
+        //   +2  x1800 (empty list)   +6 x5349 (1)   +10 (2)
+        //   +34 (8)   +50 (12)   +70 (17)
+        // i.e. lose the u16, gain a count plus n u32 entries. No other shape fits.
+        //
+        // ⚠ This one break made EVERY characterinfo record fall to blob-fallback
+        // on 1.18 (7226/7226 opaque, vs 232 on 1.17), which silently killed every
+        // characterinfo mod — Random Boss Encounters Reborn applied 4 of 1061
+        // intents. Byte round-trip stayed true throughout, so nothing corrupted;
+        // the records just stopped being addressable.
+        pub game_play_trigger_zone: CArray<u32>,     // _gamePlayTriggerZone  (1.18)
         pub sub_zone_tag_list: CArray<u32>,          // _subZoneTagList       sub_10111CDFC (count + 4*n)
         pub balance_difficulty_level: u32,           // 179 sub_100D39258
         pub is_apply_stat_control_data: u8,          // 180 sub_100D391B8

@@ -74,6 +74,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("apply_drop_stat_type", "_applyDropStatType"),
     ("drop_default_data", "_dropDefaultData"),
     ("prefab_data_list", "_prefabDataList"),
+    // 1.18.00 addition inside PrefabData.
+    ("docking_prefab_switch_name", "_dockingPrefabSwitchName"),
     ("enchant_data_list", "_enchantDataList"),
     ("gimmick_visual_prefab_data_list", "_gimmickVisualPrefabDataList"),
     ("price_list", "_priceList"),

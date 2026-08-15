@@ -20,6 +20,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("unk_24", "_bumpTypeHash"),
     ("unk_28", "_wantedCrimeType"),
     ("unk_29", "_interactionUIDistanceLv"),
+    ("faction_patrol_spawn_distance_type", "_factionPatrolSpawnDistanceType"),
     ("unk_30", "_ignoreWaterFall"),
     ("unk_31", "_isBird"),
     ("unk_32", "_isHumanoid"),
@@ -35,8 +36,15 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("unk_68", "_activityWaterDepth"),
     ("unk_72", "_weaponMaterialKey"),
     ("unk_76", "_armorMaterialKey"),
+    // ⚠ These four predate the 1.0.8 restructure and no longer match any
+    // struct field (the region became unk_80_lo / unk_80_hi). Kept because
+    // they record the canonical names for that byte range — and 1.18 confirms
+    // the shape: the new byte lands exactly 4 bytes into unk_80_lo, i.e. on
+    // the boundary these names imply (u8 _escapePlatform, u8
+    // _ignoreOverlapPush, … then u32 _baseMaterialKey at +4).
     ("unk_80", "_escapePlatform"),
     ("unk_81", "_ignoreOverlapPush"),
+    ("is_steering_movement", "_isSteeringMovement"),
     ("unk_84", "_baseMaterialKey"),
     ("unk_88", "_parentTribeInfo"),
     ("ref_list", "_tamedSkillList"),

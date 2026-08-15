@@ -18,6 +18,7 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("aimove_speed_info", crate::tables::aimove_speed_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("ally_group_info", crate::tables::ally_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("auto_spawn_filter_info", crate::tables::auto_spawn_filter_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("bank_info", crate::tables::bank_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("bitmap_position_info", crate::tables::bitmap_position_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("board_info", crate::tables::board_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("breakable_object_info", crate::tables::breakable_object_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -29,6 +30,7 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("character_group_info", crate::tables::character_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("character_info", crate::tables::character_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("condition_info", crate::tables::condition_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("contents_phase_info", crate::tables::contents_phase_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("craft_tool_group_info", crate::tables::craft_tool_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("craft_tool_info", crate::tables::craft_tool_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("detect_detail_info", crate::tables::detect_detail_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -46,6 +48,7 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("faction_info", crate::tables::faction_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("faction_node_info", crate::tables::faction_node_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("faction_node_spawn_info", crate::tables::faction_node_spawn_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("faction_reblockading_info", crate::tables::faction_reblockading_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("faction_relation_group_info", crate::tables::faction_relation_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("faction_spawn_data_info", crate::tables::faction_spawn_data_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("faction_waypoint_info", crate::tables::faction_waypoint_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -62,6 +65,7 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("game_level_info", crate::tables::game_level_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("game_play_trigger_info", crate::tables::game_play_trigger_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("game_play_variable_info", crate::tables::game_play_variable_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("game_start_info", crate::tables::game_start_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("game_version_data_info", crate::tables::game_version_data_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("gimmick_event_table_info", crate::tables::gimmick_event_table_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("gimmick_gate_connection_info", crate::tables::gimmick_gate_connection_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -74,6 +78,13 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("house_info", crate::tables::house_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("interaction_info", crate::tables::interaction_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("inventory_info", crate::tables::inventory_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    // ⚠ Hand-added, and the generator CANNOT produce this line: it walks
+    // `src/tables/*` only, and item_info lives at `src/item_info/` (it predates
+    // the generic table system). The alias table itself has existed all along —
+    // it was simply never indexed here, so `lookup_table_aliases_v3_1("iteminfo")`
+    // returned None and v3.1 emit silently fell back to snake_case for the one
+    // table nearly every mod edits. Keep this entry when regenerating.
+    ("iteminfo", crate::item_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("item_group_info", crate::tables::item_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("item_use_info", crate::tables::item_use_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("job_info", crate::tables::job_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -88,11 +99,11 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("material_relation_info", crate::tables::material_relation_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mercenary_group_info", crate::tables::mercenary_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mercenary_info", crate::tables::mercenary_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
-    ("npc_activity_group_info", crate::tables::npc_activity_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
-    ("npc_activity_info", crate::tables::npc_activity_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mini_game_data_info", crate::tables::mini_game_data_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("mission_info", crate::tables::mission_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("multi_change_info", crate::tables::multi_change_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("npc_activity_group_info", crate::tables::npc_activity_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("npc_activity_info", crate::tables::npc_activity_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("npc_info", crate::tables::npc_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("paac", crate::tables::paac::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("paatt", crate::tables::paatt::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -106,6 +117,7 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("quest_gauge_info", crate::tables::quest_gauge_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("quest_group_info", crate::tables::quest_group_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("quest_info", crate::tables::quest_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("quick_slot_info", crate::tables::quick_slot_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("quick_time_event_info", crate::tables::quick_time_event_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("region_info", crate::tables::region_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("relation_info", crate::tables::relation_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -126,6 +138,7 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("store_info", crate::tables::store_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("string_info", crate::tables::string_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("sub_level_info", crate::tables::sub_level_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("talk_tree_info", crate::tables::talk_tree_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("terrain_region_auto_spawn_info", crate::tables::terrain_region_auto_spawn_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("terrain_region_navi_info", crate::tables::terrain_region_navi_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("tribe_info", crate::tables::tribe_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
@@ -137,9 +150,5 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
     ("vehicle_info", crate::tables::vehicle_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("vibrate_pattern_info", crate::tables::vibrate_pattern_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
     ("wanted_info", crate::tables::wanted_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
-    // iteminfo lives in src/item_info/ (legacy module, separate from
-    // src/tables/). Wired manually iter 165 (2026-05-11) per user request.
-    // First iteminfo v3.1 alias support — DMM can now apply intents
-    // using PA canonical names like _prefabDataList[0].whatever.
-    ("iteminfo", crate::item_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
+    ("zone_info", crate::tables::zone_info::field_aliases_v3_1::FIELD_ALIASES_V3_1),
 ];

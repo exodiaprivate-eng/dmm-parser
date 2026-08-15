@@ -32,9 +32,11 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("is_select_mercenary_spawn", "_isSelectMercenarySpawn"),
     ("unspawn_on_focus_actor_changed", "_unspawnOnFocusActorChanged"),
     ("is_main_dischargeable", "_isMainDischargeable"),
+    ("is_loss_inventory_item", "_isLossInventoryItem"),
     ("spawn_position_type", "_spawnPositionType"),
     ("summon_owner_option", "_summonOwnerOption"),
     ("parent_mercenary_group_info", "_parentMercenaryGroupInfo"),
     ("shared_summon_count_tag", "_sharedSummonCountTag"),
     ("hired_skill_info_list", "_hiredSkillInfoList"),
+    ("camera_preset_hash", "_cameraPresetHash"),
 ];

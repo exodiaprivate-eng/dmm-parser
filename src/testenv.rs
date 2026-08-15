@@ -32,6 +32,26 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 18 (1.18.00) — 2026-08-15 FULL PATCH. paver u16@2: 17 -> 18 (major
+    // bump). exe 361,664,408 -> 367,943,576 bytes, new sha256 9A102A9F…
+    // 268/270 extracted from the UNMOUNTED game (Steam's own update had just replaced
+    // the tree, so it is vanilla by construction).
+    // ⚠ zoneinfo.pabgb / zoneinfo.pabgh are GONE — removed or renamed in 1.18.
+    // bytediff vs 2026-8-7: 126 tables drifted, 142 unchanged — far broader than the
+    // 1.17 patch's 9. Biggest movers: stageinfo +157K, gimmickinfo +145K, missioninfo
+    // +102K, actionpointinfo -66K, dropsetinfo -54K, iteminfo +51K, npcinfo +30K,
+    // characterinfo -19K. aimovespeedinfo went 2,005 -> 22,974 (11x) so it is
+    // structural, not content. Ours specifically: factionspawndatainfo +9,771 (the
+    // 1.6.2 fort-garrison preset), skill +4,538, buffinfo +2,353 (SummonBuffData),
+    // knowledgeinfo +4,105 (the new "Quests" category from the patch notes).
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-15",
+    // GAME VERSION 17 — 2026-08-07 FULL PATCH. paver u16@2: 16 -> 17 (major bump, not a
+    // hotfix). 270 files / 135 tables from the UNMOUNTED game (the patch itself reverted
+    // the install to vanilla — no overlay groups present, only stock 0000-0035).
+    // bytediff vs 2026-8-5: only 9 tables drifted, 123 unchanged. iteminfo lost 9 records
+    // and shows ENUM RENUMBER (9 diffs of -1, lowest 104 -> 103); itemuseinfo and
+    // gimmickinfo are STRUCTURAL; gimmickgroupinfo has a variable-length field drift.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-7",
     // GAME VERSION 16 (1.16.04) — 2026-08-05 hotfix. paver 1.16.00 -> 1.16.04 (patch
     // component only). 270 files / 135 tables extracted, 0 missing / 0 err, from the
     // freshly-verified UNMOUNTED game. Table count 132 -> 135, so this hotfix ADDED

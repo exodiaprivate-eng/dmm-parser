@@ -38,6 +38,19 @@ py_binary_struct! {
         pub gimmick_info: u32,                      // GimmickInfoKey
         pub item_info: u32,                         // ItemKey
         pub parent_spawning_pool_auto_spawn_info: u32,
+        // ── 1.18.00: `_prefabPath`, 4 bytes per ELEMENT, right after
+        // parentSpawningPoolAutoSpawnInfo (oracle idx 3).
+        // Per-record deltas are all multiples of 4 (0 x14, 4 x22, 8 x13, 12 x10, …)
+        // = 4 bytes per list element — and the 14 zero-delta records are exactly
+        // the ones that still decoded, which is what pinned it to the element.
+        //
+        // Modelled as CString rather than u32: the observed bytes are
+        // `00 00 00 00` everywhere, so an empty string and a zero hash are
+        // indistinguishable HERE — but if it turns out to be a hash, a non-zero
+        // value makes CString fail LOUDLY (absurd length -> blob fallback) instead
+        // of a u32 silently desyncing the rest of the element. This table already
+        // uses CString for `level_name` / `gimmick_alias_name`.
+        pub prefab_path: CString<'a>,
         pub level_name: CString<'a>,                // placement/area key (Shop_Hernand_0001_Phase00_05_sub_1_0)
         pub related_game_level_info: u32,           // GameLevelKey
         pub level_name_controlled_by_game_level_info: u32, // StringInfoKey

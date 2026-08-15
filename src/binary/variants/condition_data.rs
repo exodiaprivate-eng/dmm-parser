@@ -5255,10 +5255,31 @@ impl<'a> ConditionData<'a> {
         ConditionDataBase::write_from_json_dict(w, base_obj)?;
         let variant_v = json_get_field(obj, "variant")?;
         ConditionDataVariant::write_from_json(tag as u16, w, variant_v)?;
+        // Whether an option block follows is decided by the TAG, not by the caller.
+        // Writing the wrong shape does not fail here — it silently produces a byte
+        // stream we cannot read back, because the reader consumes the following
+        // trailer as `option_present` and every subsequent field shifts. That is how
+        // a hand-authored `ConditionData_IsInSafeZone` reported "applied" and then
+        // came back as `_blob_fallback`. Reject the mismatch instead.
+        let skips = variant_skips_option_block(tag as u16);
         let opt_v = json_get_field(obj, "option_block")?;
         match opt_v {
-            Value::Null => {}
+            Value::Null => {
+                if !skips {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                        "ConditionData.option_block: tag {tag} requires an option block, \
+                         got null. Use {{\"option_present\": 0, \"option_data\": null}} \
+                         for a tag with no option data."
+                    )));
+                }
+            }
             Value::Object(opt_obj) => {
+                if skips {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                        "ConditionData.option_block: tag {tag} does not carry an option \
+                         block, but one was supplied. Use null."
+                    )));
+                }
                 ConditionDataOptionBlock::write_from_json_dict(w, opt_obj)?;
             }
             _ => return Err(io::Error::new(
@@ -5267,5 +5288,56 @@ impl<'a> ConditionData<'a> {
             )),
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod option_block_guard_tests {
+    use super::*;
+    use serde_json::json;
+
+    /// Whether a ConditionData carries an option block is decided by its TAG, not by
+    /// the caller. Getting it wrong does not corrupt loudly — the reader consumes the
+    /// following byte as `option_present` and every later field shifts, so the record
+    /// comes back as blob-fallback. That is exactly how a hand-authored
+    /// `ConditionData_IsInSafeZone` (tag 132) reported "applied" and then failed to
+    /// re-parse. Both directions must be rejected at write time.
+    #[test]
+    fn option_block_shape_is_enforced() {
+        // tag 132 (IsInSafeZone) is NOT in the skip list -> a block is required.
+        assert!(!variant_skips_option_block(132));
+        let missing = json!({
+            "base": { "tag": 132 },
+            "variant": { "type": "ConditionData_IsInSafeZone" },
+            "option_block": null
+        });
+        let mut w = Vec::new();
+        let err = ConditionData::write_from_json_dict(&mut w, missing.as_object().unwrap())
+            .expect_err("null option_block must be rejected for a tag that requires one");
+        assert!(err.to_string().contains("requires an option block"), "{err}");
+
+        // The same shape WITH the block is accepted, and is what callers should author.
+        let ok = json!({
+            "base": { "tag": 132 },
+            "variant": { "type": "ConditionData_IsInSafeZone" },
+            "option_block": { "option_present": 0, "option_data": null }
+        });
+        let mut w2 = Vec::new();
+        ConditionData::write_from_json_dict(&mut w2, ok.as_object().unwrap())
+            .expect("a well-formed option block must be accepted");
+        // tag(2) + option_present(1); IsInSafeZone is a pure discriminator, no body.
+        assert_eq!(w2, vec![132, 0, 0], "unexpected byte layout: {w2:?}");
+
+        // And the converse: a skip-tag must refuse a supplied block.
+        assert!(variant_skips_option_block(2));
+        let extra = json!({
+            "base": { "tag": 2 },
+            "variant": { "type": "ConditionData_CheckNone" },
+            "option_block": { "option_present": 0, "option_data": null }
+        });
+        let mut w3 = Vec::new();
+        let err3 = ConditionData::write_from_json_dict(&mut w3, extra.as_object().unwrap())
+            .expect_err("a skip-tag must reject a supplied option block");
+        assert!(err3.to_string().contains("does not carry an option block"), "{err3}");
     }
 }

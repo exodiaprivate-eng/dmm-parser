@@ -496,6 +496,21 @@ pub struct SequencerStageChartDescPartial<'a> {
     pub flag_f: u8,
     pub flag_g: u8,
     pub flag_h: u8,
+    /// ⛔ LONG-STANDING BUG (pre-1.17), fixed 2026-08-15: this run was 8 bytes,
+    /// but the engine reads **9**. Every SequencerStageChartDesc was 1 byte
+    /// short, which desynced whatever followed it.
+    ///
+    /// Mac 1.18 element reader `sub_101BFD724` has SIX reads in this region,
+    /// not eight: `sub_100EA7B3C` -> mem +49 (4 bytes), then five 1-byte
+    /// `sub_100E26380` reads -> mem +52..+56. So the true shape is
+    /// **u32 + 5x u8 = 9**, i.e. flag_a..flag_d ARE the u32's bytes and
+    /// flag_e..flag_i are the five bools.
+    ///
+    /// Added at the END rather than re-typed as u32 + 5x u8: that is
+    /// byte-identical, and re-typing would rename fields that are the mod
+    /// contract. Round-trip over all 72 global_stage_sequencer records confirms
+    /// the width.
+    pub flag_i: u8,
     /// u32 wire / u16 mem hash (sub_141106210 → qword_145F113B8).
     pub lookup_a: u32,
     /// `OptionalGameCondition` (sub_141103B30 — u8 presence + optional
@@ -578,6 +593,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         let flag_f = u8::read_from(data, offset)?;
         let flag_g = u8::read_from(data, offset)?;
         let flag_h = u8::read_from(data, offset)?;
+        let flag_i = u8::read_from(data, offset)?;
         let lookup_a = u32::read_from(data, offset)?;
         let cond_a = OptionalGameCondition::read_from(data, offset)?;
         let cstring_a = CString::read_from(data, offset)?;
@@ -606,7 +622,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
 
         Ok(Self {
             name, raw_a, prefab_path, position, raw_b,
-            flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h,
+            flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h, flag_i,
             lookup_a, cond_a, cstring_a, cstring_b, string_pair_list,
             track_change_list, spawn_data_lists,
             list_a, list_b, list_c, list_d, list_e, list_f,
@@ -628,6 +644,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         self.flag_f.write_to(w)?;
         self.flag_g.write_to(w)?;
         self.flag_h.write_to(w)?;
+        self.flag_i.write_to(w)?;
         self.lookup_a.write_to(w)?;
         self.cond_a.write_to(w)?;
         self.cstring_a.write_to(w)?;
@@ -660,6 +677,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         m.insert("flag_f".to_string(), self.flag_f.to_json_value());
         m.insert("flag_g".to_string(), self.flag_g.to_json_value());
         m.insert("flag_h".to_string(), self.flag_h.to_json_value());
+        m.insert("flag_i".to_string(), self.flag_i.to_json_value());
         m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
         m.insert("cond_a".to_string(), self.cond_a.to_json_value());
         m.insert("cstring_a".to_string(), self.cstring_a.to_json_value());
@@ -695,6 +713,8 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_f")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_g")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_h")?)?;
+        // Null-tolerant: pre-fix mods carry no key for this.
+        <u8 as WriteJsonValue>::write_from_json(w, obj.get("flag_i").unwrap_or(&Value::Null))?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
         OptionalGameCondition::write_from_json(w, json_get_field(obj, "cond_a")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cstring_a")?)?;
@@ -750,6 +770,7 @@ impl<'a> BinaryRead<'a> for SequencerStageChartDescPartial<'a> {
             flag_f: u8::read_from(data, offset)?,
             flag_g: u8::read_from(data, offset)?,
             flag_h: u8::read_from(data, offset)?,
+            flag_i: u8::read_from(data, offset)?,
             lookup_a: u32::read_from(data, offset)?,
             cond_a: OptionalGameCondition::read_from(data, offset)?,
             cstring_a: CString::read_from(data, offset)?,

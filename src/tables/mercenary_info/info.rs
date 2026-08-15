@@ -107,6 +107,11 @@ py_binary_struct! {
         pub is_select_mercenary_spawn: u8,       // _isSelectMercenarySpawn
         pub unspawn_on_focus_actor_changed: u8,  // _unspawnOnFocusActorChanged
         pub is_main_dischargeable: u8,           // _isMainDischargeable
+        // ── 1.18.00: `_isLossInventoryItem`, one u8 in the u8 block. Position
+        // is exact, not a zero-run guess: in keys 0x4E and 0x42 the inserted
+        // byte is `01` while the old byte at that offset is `00`, so it cannot
+        // slide — it lands between is_main_dischargeable and spawn_position_type.
+        pub is_loss_inventory_item: u8,          // _isLossInventoryItem
         pub spawn_position_type: u8,             // _spawnPositionType
         pub summon_owner_option: u8,             // _summonOwnerOption (was u32, now u8 in-block)
         pub parent_mercenary_group_info: u8,     // _parentMercenaryGroupInfo (sub_1410FD230: 1B)
@@ -126,6 +131,11 @@ py_binary_struct! {
         pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo (name-hash)
         pub tail_u32_110: u32,
         pub hired_skill_info_list: CArray<HiredSkillData>,  // _hiredSkillInfoList (1.11 re-add)
+        // ── 1.18.00: `_cameraPresetHash`, one u32 appended after the hired
+        // skill list. Present in all 21 records; 5 carry real hashes
+        // (0xBEE0C77B, 0x221089D6, 0x54473E0C, 0x5CB92E95, 0x70ED6590), the
+        // rest are 0. A name-hash, consistent with the canonical name.
+        pub camera_preset_hash: u32,             // _cameraPresetHash
     }
 }
 

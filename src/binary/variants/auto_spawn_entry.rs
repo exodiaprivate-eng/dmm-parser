@@ -26,12 +26,26 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    /// `sub_1410F9DF0` per inner element. 14 wire bytes / 10 mem bytes.
+    /// `sub_1410F9DF0` per inner element. 14 wire bytes (1.17) → 22 (1.18).
+    ///
+    /// ── 1.18.00: this is the exe's `AutoSpawnCharacterData`, which went
+    /// **6 → 8 fields** (+`_spawnReason`, +`_subSpawnReason`), so +8 bytes.
+    ///
+    /// The layout is the same 6-field shape as `FactionPatrolCharacterData`
+    /// in `faction_spawn_data_info` (u32, u16, u32, u16, u8, u8), and 1.18
+    /// grew both in the same way — there, the byte evidence pinned the new
+    /// reason field after `raw_c` and the sub-reason after `raw_d`. This
+    /// mirrors that placement.
+    /// ⚠ Position is by analogy, not by direct byte evidence here (a fixed-size
+    /// element round-trips identically wherever the 8 bytes sit). The +8 WIDTH
+    /// is what the round-trip actually proves.
     pub struct PoolSplineInnerEntry {
         pub raw_a: u32,    // sub_1410FF340 (u32 wire / u16 mem, qword_DA08)
         pub raw_b: u16,    // sub_1411003E0 (u16 wire / u16 mem, qword_12668)
         pub raw_c: u32,    // sub_1410FF340
+        pub spawn_reason: u32,      // 1.18 `_spawnReason`
         pub raw_d: u16,    // sub_1411003E0
+        pub sub_spawn_reason: u32,  // 1.18 `_subSpawnReason`
         pub flag_a: u8,
         pub flag_b: u8,
     }

@@ -26,7 +26,7 @@
 //!   5.  u32 lookup_8           (wire 17..20, mem +8,  sub_1410FF430)
 //!   6.  u32 raw_12             (wire 21..24, mem +12)
 //!   7.  u64 raw_16             (wire 25..32, mem +16)
-//!   8.  u32 raw_24             (wire 33..36, mem +24)
+//!   8.  [REMOVED in 1.18.00] u32 raw_24 / `rates_100` (was wire 33..36, mem +24)
 //!   9.  u64 raw_32             (wire 37..44, mem +32)
 //!  10.  u64 raw_40             (wire 45..52, mem +40)
 //!  11.  u64 raw_48             (wire 53..60, mem +48)
@@ -73,6 +73,31 @@ py_binary_struct! {
     }
 }
 
+py_binary_struct! {
+    /// 1.18.00 tag 16 (0x10) payload — the exe's `DropRegistLivingCharacterData`.
+    ///
+    /// ★ Field split taken from the MAC 1.18 reader `sub_101FD06E8`, not guessed:
+    /// ```text
+    ///   sub_101F68128(a1, &v15)      -> int, then a pa::CharacterKey lookup
+    ///                                   stored as u16 at mem +8   = _characterInfo
+    ///   sub_100E26380(a1, a2 + 10)   -> 1 byte at mem +10          = _toTargetActor
+    ///   sub_100E26380(a1, a2 + 11)   -> 1 byte at mem +11          = _isRegister
+    /// ```
+    /// u32 + u8 + u8 = 6 bytes, matching the width proven from the wire.
+    /// `character_info` is the usual "u32 wire → u16 mem" key pattern.
+    ///
+    /// ⚠ The field-name ORACLE lists these as toTargetActor, isRegister,
+    /// characterInfo — i.e. characterInfo LAST. That is wrong for wire order
+    /// (address order is not field order); the reader puts it FIRST.
+    /// The one vanilla instance, `DropSet_Living_Together` (key 0xF809C), reads
+    /// character_info=0, to_target_actor=1, is_register=0.
+    pub struct DropRegistLivingCharacterData {
+        pub character_info: u32,
+        pub to_target_actor: u8,
+        pub is_register: u8,
+    }
+}
+
 /// Tag-dispatched payload following the 63-byte fixed prefix of
 /// sub_141600210.
 #[derive(Debug)]
@@ -91,11 +116,17 @@ pub enum DropTargetVariant {
     TagB,
     TagC(u32),
     TagD { lookup: u32, flag: u8 },
+    /// ── 1.18.00: NEW tag 16 (0x10) — `DropRegistLivingCharacterData`.
+    /// Width proven from the wire (6 B), field split read out of the Mac 1.18
+    /// reader `sub_101FD06E8`. Only one vanilla record uses it:
+    /// `DropSet_Living_Together` (key 0xF809C) — a direct name match.
+    Tag16(DropRegistLivingCharacterData),
 }
 
 impl DropTargetVariant {
     fn read_from(tag: u8, data: &[u8], offset: &mut usize) -> io::Result<Self> {
         Ok(match tag {
+            16 => Self::Tag16(DropRegistLivingCharacterData::read_from(data, offset)?),
             0 => Self::Tag0(u32::read_from(data, offset)?),
             1 => Self::Tag1(u32::read_from(data, offset)?),
             2 => Self::Tag2(u32::read_from(data, offset)?),
@@ -138,6 +169,7 @@ impl DropTargetVariant {
                 lookup.write_to(w)?;
                 flag.write_to(w)
             }
+            Self::Tag16(p) => p.write_to(w),
         }
     }
 
@@ -166,6 +198,10 @@ impl DropTargetVariant {
                 m.insert("lookup".into(), lookup.to_json_value());
                 m.insert("flag".into(), flag.to_json_value());
             }
+            Self::Tag16(p) => {
+                m.insert("tag".into(), 16.into());
+                m.insert("data".into(), Value::Object(p.to_json_dict()));
+            }
         }
         Value::Object(m)
     }
@@ -193,6 +229,10 @@ impl DropTargetVariant {
                 <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?)?;
                 <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)
             }
+            16 => {
+                <DropRegistLivingCharacterData as WriteJsonValue>::write_from_json(
+                    w, json_get_field(obj, "data")?)
+            }
             other => Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("DropTargetVariant: unknown tag {}", other))),
         }
@@ -210,7 +250,36 @@ pub struct DropTargetData {
     pub lookup_8: u32,
     pub raw_12: u32,
     pub raw_16: u64,
-    pub raw_24: u32,
+    // ── 1.18.00: the u32 that used to sit here (`raw_24`) was REMOVED.
+    //
+    // ⚠ CORRECTION to the older comment on this struct: `raw_24` was NOT
+    // `_percent`. The Mac 1.18 reader sub_10184CEAC gives the engine's real
+    // `DropInfoData` layout — dropTagNameHash u32 @+12, **percent u64 @+16**,
+    // subPercent u64 @+24, minValue u64 @+32, maxValue u64 @+40,
+    // enchantLevel @+48 — so `_percent` is `raw_16`, and the deleted field sat
+    // between subPercent and minValue.
+    //
+    // The bytes agree and are decisive: on dropsetinfo key 0x90F561 the 1.18
+    // element fits that layout exactly (percent=1000000, subPercent=0,
+    // minValue=50, maxValue=50, enchantLevel=0xffff), while 1.17 only fits with
+    // ONE extra u32 in that slot — force the 1.18 layout onto 1.17 and minValue
+    // reads 214748364800 instead of 50.
+    //
+    // ★ Neither the byte diff nor the field-name oracle could resolve this
+    // alone: the oracle reports DropInfoData UNCHANGED (the removed field emits
+    // no error string, and deletions are invisible to it), and the wire is
+    // equally consistent with "delete a u32" or "narrow a u64". Only reading
+    // the reader settled it.
+    //
+    // ⚠ MOD IMPACT: the old `rates_100` community alias pointed at `raw_24`,
+    // i.e. the LOW HALF of `_subPercent` — not the drop chance. The real drop
+    // percent is `raw_16`. A pre-1.18 mod setting `rates_100` now has that
+    // value silently ignored (key not consumed) rather than corrupting the
+    // record. Anything intending to change drop CHANCE should target `raw_16`.
+    //
+    // ⚠ Remaining names are one slot off from the engine's (raw_32/raw_40/
+    // raw_48 are subPercent/minValue/maxValue). Left as-is: parser field names
+    // are the mod contract, so renaming is a deliberate, separate decision.
     pub raw_32: u64,
     pub raw_40: u64,
     pub raw_48: u64,
@@ -227,7 +296,6 @@ impl<'a> BinaryRead<'a> for DropTargetData {
         let lookup_8 = u32::read_from(data, offset)?;
         let raw_12 = u32::read_from(data, offset)?;
         let raw_16 = u64::read_from(data, offset)?;
-        let raw_24 = u32::read_from(data, offset)?;
         let raw_32 = u64::read_from(data, offset)?;
         let raw_40 = u64::read_from(data, offset)?;
         let raw_48 = u64::read_from(data, offset)?;
@@ -235,7 +303,7 @@ impl<'a> BinaryRead<'a> for DropTargetData {
         let variant = DropTargetVariant::read_from(dispatch_tag, data, offset)?;
         Ok(Self {
             raw_at_120, dispatch_tag, lookup_4, lookup_6, lookup_8,
-            raw_12, raw_16, raw_24, raw_32, raw_40, raw_48, raw_56, variant,
+            raw_12, raw_16, raw_32, raw_40, raw_48, raw_56, variant,
         })
     }
 }
@@ -249,7 +317,6 @@ impl BinaryWrite for DropTargetData {
         self.lookup_8.write_to(w)?;
         self.raw_12.write_to(w)?;
         self.raw_16.write_to(w)?;
-        self.raw_24.write_to(w)?;
         self.raw_32.write_to(w)?;
         self.raw_40.write_to(w)?;
         self.raw_48.write_to(w)?;
@@ -268,7 +335,6 @@ impl ToJsonValue for DropTargetData {
         m.insert("lookup_8".into(), self.lookup_8.to_json_value());
         m.insert("raw_12".into(), self.raw_12.to_json_value());
         m.insert("raw_16".into(), self.raw_16.to_json_value());
-        m.insert("raw_24".into(), self.raw_24.to_json_value());
         m.insert("raw_32".into(), self.raw_32.to_json_value());
         m.insert("raw_40".into(), self.raw_40.to_json_value());
         m.insert("raw_48".into(), self.raw_48.to_json_value());
@@ -299,7 +365,7 @@ impl WriteJsonValue for DropTargetData {
     ///    | (no alias)     | `_gimmickCachedTargetConditionInfo` | `lookup_8` | u32 | 0xFFFFFFFF |
     ///    | (no alias)     | `_dropTagNameHash`  | `raw_12`       | u32  | 0       |
     ///    | `rates`        | `_percent` (main)   | `raw_16`       | u64  | 0       |
-    ///    | `rates_100`    | `_percent` (whole)  | `raw_24`       | u32  | 0       |
+    ///    | `rates_100`    | REMOVED in 1.18. ⚠ It mapped to `raw_24`, which was the low half of `_subPercent`, NOT the drop chance — that is `raw_16` (`_percent`, u64). |
     ///    | (no alias)     | `_subPercent`       | `raw_32`       | u64  | 0       |
     ///    | `min_amt`      | `_minValue`         | `raw_40`       | u64  | 0       |
     ///    | `max_amt`      | `_maxValue`         | `raw_48`       | u64  | 0       |
@@ -325,7 +391,6 @@ impl WriteJsonValue for DropTargetData {
         let lookup_8 = pick_u32(obj, &["lookup_8"], 0xFFFFFFFF);
         let raw_12 = pick_u32(obj, &["raw_12"], 0);
         let raw_16 = pick_u64(obj, &["raw_16", "rates"], 0);
-        let raw_24 = pick_u32(obj, &["raw_24", "rates_100"], 0);
         let raw_32 = pick_u64(obj, &["raw_32"], 0);
         let raw_40 = pick_u64(obj, &["raw_40", "min_amt"], 0);
         let raw_48 = pick_u64(obj, &["raw_48", "max_amt"], 0);
@@ -338,7 +403,6 @@ impl WriteJsonValue for DropTargetData {
         lookup_8.write_to(w)?;
         raw_12.write_to(w)?;
         raw_16.write_to(w)?;
-        raw_24.write_to(w)?;
         raw_32.write_to(w)?;
         raw_40.write_to(w)?;
         raw_48.write_to(w)?;

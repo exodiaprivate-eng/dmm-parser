@@ -121,6 +121,17 @@ py_binary_struct! {
         pub vec_b: [f32; 3],
         pub tag_c: CString<'a>,
         pub vec_c: [f32; 3],
+        // ── 1.18.00: `_targetGotoOffsetRadius`, an f32 immediately after the
+        // goto-offset vec3. From the Mac 1.18 reader sub_101FE8638
+        // (`InteractionPivotOverrideData`): … targetGotoOffset (12 B vec3) @+20,
+        // **targetGotoOffsetRadius @+32**, interactionUpperHeight @+36,
+        // interactionLowerHeight @+40, interactionDistance @+44 — i.e. a single
+        // 4-byte float wedged between the vec3 and the three height/distance
+        // floats.
+        // Anchor chosen empirically: of the five vec3s in this element, only
+        // placing it after vec_c lets the table parse (the CString/CArray length
+        // prefixes downstream reject every other position).
+        pub target_goto_offset_radius: f32,
         pub tag_d: CString<'a>,
         pub vec_d: [f32; 3],
         pub raw_a: u32,
@@ -155,6 +166,17 @@ pub struct InteractionTailDecoded<'a> {
     pub unknown_flag_b: u8,
     pub unknown_flag_c: u8,
     pub unknown_flag_d: u8,
+    /// ── 1.18.00 note: this blob now also absorbs the two new fields
+    /// `_activityGroupInfo` (u32) and `_childInteractionInfoList` (CArray of
+    /// 4-byte elements). Per the Mac 1.18 reader sub_101FE8C50 they sit at mem
+    /// +104 and +112, after three 1-byte reads at +99/+100/+101. They are NOT
+    /// typed out here on purpose: `rest` is byte-preserving, so the record
+    /// round-trips either way, which means no test can discriminate a right
+    /// placement from a wrong one — and a wrong CArray position would make the
+    /// whole tail fall back to Raw and LOSE the fields that are decoded above.
+    /// Type them only alongside the wider tail RE, where the placement can
+    /// actually be verified.
+    ///
     /// `_sequencerStageChartDesc` + trailing tail fields, preserved as an opaque
     /// (lossless, byte-exact) blob. 1.12 rewrote this sub-structure (name/prefab
     /// are now u32 hashes, not CStrings; variable-length nested arrays) and it
