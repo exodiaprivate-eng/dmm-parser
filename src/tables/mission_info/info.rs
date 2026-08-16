@@ -178,6 +178,14 @@ py_binary_struct! {
         pub flag_e: u8,
         pub flag_f: u8,
         pub trailing: u16,         // sub_141106760 (wire u16)
+        // 1.18 — 4 bytes that were never modelled, so EVERY record fell to
+        // blob-fallback. Proven from the wire, not guessed: in record 0 the
+        // label_a LocalizableString has index 0x5FE5F346_00000101 and a default
+        // string of "6910196685243154689" — the same number in decimal. That
+        // pins label_a's start exactly, and it is 4 bytes later than the old
+        // struct put it. Candidate canonical name: _targetQuestDialogKey
+        // (the catalog lists it as reader_4B, stream=4, still undecoded).
+        pub unk_after_trailing: u32,
     }
 }
 
@@ -264,6 +272,13 @@ py_binary_struct! {
         pub flag_438: u8,
         pub flag_439: u8,
         pub flag_440: u8,
+        // 1.18 — a 14TH flag. Proven by end-alignment over all 6822 records:
+        // counting BACK from each record's end, byte -5 is 0x01 in 100% of them
+        // (a constant boolean), and bytes -4..-1 carry the variable u32. That
+        // makes the flag run exactly bytes -18..-5 = 14 bytes, not 13.
+        // (Reading it the other way — u32 then a trailing u8 — gives a u32 with
+        // 555 wild values AND a varying last byte, i.e. misalignment.)
+        pub flag_441: u8,
         pub trailing_u32: u32,              // sub_141BD4120 (raw u32)
     }
 }
