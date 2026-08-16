@@ -579,6 +579,26 @@ pub fn entry_ranges(entries: &[(u32, usize)], total: usize) -> Vec<(u32, usize, 
         } else {
             total
         };
+        // ★ CLAMP TO `total`. Only the LAST entry's end used to be bounded by it;
+        // every intermediate end came straight out of the pabgh unchecked. That is
+        // fine while body and index are the matched pair the game shipped, and it
+        // is a live panic the moment they are not: callers slice `&data[s..e]`, so
+        // an index describing a LARGER body indexes past the end.
+        //
+        // Real case (2026-08-15, two unrelated users): a mod shipping a game-1.17
+        // `skill.pabgb` mounted on game 1.18 got paired with 1.18's `skill.pabgh`.
+        // The 1.18 index has a record ending at 1,235,101; the 1.17 body is
+        // 1,234,380 bytes. `range end index 1235101 out of range for slice of
+        // length 1234380` — thrown from inside a PyO3 call, so it surfaced as
+        // "dispatch panic in apply_mods" and took the whole mount down.
+        //
+        // Clamping cannot rescue the data (the record really is truncated) but it
+        // routes it to the blob-fallback path as a bad record instead of aborting
+        // the process. Detecting the mismatch and SAYING SO is the caller's job —
+        // see `parse_typed_blob_table_to_json_with_pabgh`, which errors up front so
+        // this never degrades into a silently-garbage table.
+        let start = start.min(total);
+        let end = end.clamp(start, total);
         out.push((key, start, end));
     }
     out
@@ -587,3 +607,51 @@ pub fn entry_ranges(entries: &[(u32, usize)], total: usize) -> Vec<(u32, usize, 
 // Suppress unused import warning if CString isn't directly used in this file.
 #[allow(dead_code)]
 fn _force_use_cstring(_: &CString<'_>) {}
+
+#[cfg(test)]
+mod entry_ranges_tests {
+    use super::entry_ranges;
+
+    /// The healthy case must be untouched by the clamp: matched body and index,
+    /// every range exactly abutting the next, last one running to the end.
+    #[test]
+    fn matched_index_and_body_are_unchanged() {
+        let entries = [(0xa, 0usize), (0xb, 100), (0xc, 250)];
+        assert_eq!(
+            entry_ranges(&entries, 400),
+            vec![(0xa, 0, 100), (0xb, 100, 250), (0xc, 250, 400)]
+        );
+    }
+
+    /// An index built for a LARGER body — the shape that panicked. Ranges must
+    /// come back clamped and well-formed (start <= end <= total) so that every
+    /// `&data[s..e]` in the 149 call sites is in bounds.
+    ///
+    /// Modelled on the live failure: game 1.18's `skill.pabgh` against a game
+    /// 1.17 `skill.pabgb` body.
+    #[test]
+    fn index_describing_a_bigger_body_is_clamped_not_out_of_bounds() {
+        let body = 1_234_380usize; // 1.17 skill.pabgb
+        let entries = [
+            (0x1, 0usize),
+            (0x2, 1_200_000),
+            (0x3, 1_235_101), // past the end of the 1.17 body — the panic offset
+            (0x4, 1_238_000),
+        ];
+        let ranges = entry_ranges(&entries, body);
+        for &(k, s, e) in &ranges {
+            assert!(s <= e, "key 0x{k:x}: start {s} > end {e}");
+            assert!(e <= body, "key 0x{k:x}: end {e} past body {body}");
+        }
+        // The record that straddles the boundary is truncated, not dropped, and
+        // the ones fully past the end collapse to empty rather than wrapping.
+        assert_eq!(ranges[1], (0x2, 1_200_000, body));
+        assert_eq!(ranges[2], (0x3, body, body));
+        assert_eq!(ranges[3], (0x4, body, body));
+    }
+
+    #[test]
+    fn empty_index_yields_no_ranges() {
+        assert!(entry_ranges(&[], 100).is_empty());
+    }
+}
