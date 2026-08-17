@@ -7,12 +7,23 @@ use dmm_parser::binary::{BinaryRead, CString};
 use dmm_parser::binary::variants::condition_data::TAG_TRAIL;
 use std::collections::BTreeMap;
 
-const B: &str = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\live_full\conditioninfo.pabgb";
-const H: &str = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\live_full\conditioninfo.pabgh";
+const DIR: &str = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\live_full";
+
+/// Fixture dir, overridable with `DMM_PARSER_PABGB_DIR` — the same knob
+/// `examples/verify_table.rs` uses. This was a hardcoded `live_full` path, and once that
+/// directory went away the diagnostic just printed "no file" and looked like it had run.
+fn dir() -> String {
+    std::env::var("DMM_PARSER_PABGB_DIR").unwrap_or_else(|_| DIR.to_string())
+}
 
 fn main() {
-    let data = match std::fs::read(B) { Ok(d) => d, Err(_) => { println!("no file"); return; } };
-    let entries = load_pabgh_offsets(H).unwrap();
+    let b = format!("{}/conditioninfo.pabgb", dir());
+    let h = format!("{}/conditioninfo.pabgh", dir());
+    let data = match std::fs::read(&b) {
+        Ok(d) => d,
+        Err(e) => { println!("cannot read {}: {}", b, e); return; }
+    };
+    let entries = load_pabgh_offsets(&h).unwrap();
     let ranges = entry_ranges(&entries, data.len());
     let mut hist: BTreeMap<i64, usize> = BTreeMap::new();
     let mut errs: BTreeMap<String, usize> = BTreeMap::new();
