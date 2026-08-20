@@ -100,6 +100,15 @@ py_binary_struct! {
         pub byte_244: u8, pub byte_245: u8, pub byte_246: u8, pub byte_247: u8,
         pub byte_248: u8, pub byte_249: u8, pub byte_250: u8, pub byte_251: u8,
         pub byte_252: u8, pub byte_253: u8,
+        // 1.18: the core block grew 254 -> 256 bytes. Measured, not guessed — the
+        // decode shortfall across effectinfo was exactly `2 * n_effect`, which only a
+        // two-byte-per-element growth explains. Adding them recovers 2,175 of 2,296
+        // records.
+        // ⚠ The remaining 121 are a SECOND, smaller drift and are still broken: 101 fail
+        // early, 17 come up 3 bytes short, 3 over-read by 1. So `effect_info`'s roundtrip
+        // test still fails — it needs every record — and the table stays on the standing
+        // failure list. Do not read "254 -> 256" as effectinfo being fixed.
+        pub byte_254: u8, pub byte_255: u8,
     }
 }
 
