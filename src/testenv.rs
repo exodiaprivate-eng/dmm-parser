@@ -32,6 +32,17 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 1.18.01 — 2026-08-16 HOTFIX on top of 1.18.00.
+    // ⚠ The version is the 3rd u16 of paver, not the 2nd: `0100 1200 0100` =
+    // 1.18.01 vs 1.18.00's `…0000`. The minor (`12` = 18) is UNCHANGED, so a
+    // u16@2 comparison sees no patch at all.
+    // exe 367,943,576 -> 355,485,592, sha256 974C0446…
+    // 268/268 extracted from the UNMOUNTED game. bytediff vs 2026-8-15: only 6
+    // tables changed (conditioninfo + its pabgh, itemuseinfo, missioninfo,
+    // questinfo, storeinfo) and ALL at identical byte size = value edits, not
+    // layout drift. Roundtrip-gated on capture: 130 clean / 0 parse-fail /
+    // 0 roundtrip-fail.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-16",
     // GAME VERSION 18 (1.18.00) — 2026-08-15 FULL PATCH. paver u16@2: 17 -> 18 (major
     // bump). exe 361,664,408 -> 367,943,576 bytes, new sha256 9A102A9F…
     // 268/270 extracted from the UNMOUNTED game (Steam's own update had just replaced

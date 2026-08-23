@@ -214,10 +214,21 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    pub struct ConditionData_CheckKnowledgePayload {
+    /// Tag 37 (ConditionData_HasUnknownKnowledge). Per the 1.18 Mac IDB, vtable slot 17
+    /// (the per-tag deserialize) is sub_1018A483C, which reads, in this order:
+    ///   1. u32 knowledge_key  (sub_101FA9A58 -> 4LL; resolved through
+    ///      StaticInfoWrapper<KnowledgeKey,KnowledgeInfo,…> and kept as a u16 at mem +24)
+    ///   2. u32 field_at_28    (sub_100E26420 -> 4LL)
+    ///   3. u8  field_at_32    (sub_100E26380 -> 1LL)
+    /// Wire body = 9 bytes.
+    ///
+    /// This body used to be attached to tag 36 (CheckKnowledge), which in fact has NO body:
+    /// its slot 17 is the shared `return 1LL` stub sub_100016A18, and its object is only
+    /// 0x18 bytes — too small to hold these fields at all.
+    pub struct ConditionData_HasUnknownKnowledgePayload {
+        pub knowledge_key: u32,
         pub field_at_28: u32,
         pub field_at_32: u8,
-        pub field_at_24: u32,
     }
 }
 
@@ -1887,8 +1898,8 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_CheckActionCharacterState(OneByteBodyPayload),
     ConditionData_CheckCharacterKeys(ConditionData_CheckCharacterKeysPayload),
     ConditionData_Controlable,
-    ConditionData_CheckKnowledge(ConditionData_CheckKnowledgePayload),
-    ConditionData_HasUnknownKnowledge,
+    ConditionData_CheckKnowledge,
+    ConditionData_HasUnknownKnowledge(ConditionData_HasUnknownKnowledgePayload),
     ConditionData_CheckGender,
     ConditionData_CheckHaveItem(ConditionData_CheckHaveItemPayload),
     ConditionData_CheckHaveItemPrice(ConditionData_CheckHaveItemPricePayload),
@@ -2322,8 +2333,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActionCharacterState(_) => 33,
             Self::ConditionData_CheckCharacterKeys(_) => 34,
             Self::ConditionData_Controlable => 35,
-            Self::ConditionData_CheckKnowledge(_) => 36,
-            Self::ConditionData_HasUnknownKnowledge => 37,
+            Self::ConditionData_CheckKnowledge => 36,
+            Self::ConditionData_HasUnknownKnowledge(_) => 37,
             Self::ConditionData_CheckGender => 38,
             Self::ConditionData_CheckHaveItem(_) => 39,
             Self::ConditionData_CheckHaveItemPrice(_) => 40,
@@ -2746,8 +2757,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActionCharacterState(_) => "ConditionData_CheckActionCharacterState",
             Self::ConditionData_CheckCharacterKeys(_) => "ConditionData_CheckCharacterKeys",
             Self::ConditionData_Controlable => "ConditionData_Controlable",
-            Self::ConditionData_CheckKnowledge(_) => "ConditionData_CheckKnowledge",
-            Self::ConditionData_HasUnknownKnowledge => "ConditionData_HasUnknownKnowledge",
+            Self::ConditionData_CheckKnowledge => "ConditionData_CheckKnowledge",
+            Self::ConditionData_HasUnknownKnowledge(_) => "ConditionData_HasUnknownKnowledge",
             Self::ConditionData_CheckGender => "ConditionData_CheckGender",
             Self::ConditionData_CheckHaveItem(_) => "ConditionData_CheckHaveItem",
             Self::ConditionData_CheckHaveItemPrice(_) => "ConditionData_CheckHaveItemPrice",
@@ -3171,8 +3182,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActionCharacterState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckCharacterKeys(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Controlable => {}
-            Self::ConditionData_CheckKnowledge(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::ConditionData_HasUnknownKnowledge => {}
+            Self::ConditionData_CheckKnowledge => {}
+            Self::ConditionData_HasUnknownKnowledge(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckGender => {}
             Self::ConditionData_CheckHaveItem(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_CheckHaveItemPrice(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
@@ -3603,8 +3614,8 @@ impl<'a> ConditionDataVariant<'a> {
             33 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckActionCharacterState: missing body object"))?; OneByteBodyPayload::write_from_json_dict(w, body)?; }
             34 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckCharacterKeys: missing body object"))?; ConditionData_CheckCharacterKeysPayload::write_from_json_dict(w, body)?; }
             35 => {}
-            36 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckKnowledge: missing body object"))?; ConditionData_CheckKnowledgePayload::write_from_json_dict(w, body)?; }
-            37 => {}
+            36 => {}
+            37 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_HasUnknownKnowledge: missing body object"))?; ConditionData_HasUnknownKnowledgePayload::write_from_json_dict(w, body)?; }
             38 => {}
             39 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveItem: missing body object"))?; ConditionData_CheckHaveItemPayload::write_from_json_dict(w, body)?; }
             40 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_CheckHaveItemPrice: missing body object"))?; ConditionData_CheckHaveItemPricePayload::write_from_json_dict(w, body)?; }
@@ -4029,8 +4040,8 @@ impl<'a> ConditionDataVariant<'a> {
             33 => Self::ConditionData_CheckActionCharacterState(OneByteBodyPayload::read_from(data, offset)?),
             34 => Self::ConditionData_CheckCharacterKeys(ConditionData_CheckCharacterKeysPayload::read_from(data, offset)?),
             35 => Self::ConditionData_Controlable,
-            36 => Self::ConditionData_CheckKnowledge(ConditionData_CheckKnowledgePayload::read_from(data, offset)?),
-            37 => Self::ConditionData_HasUnknownKnowledge,
+            36 => Self::ConditionData_CheckKnowledge,
+            37 => Self::ConditionData_HasUnknownKnowledge(ConditionData_HasUnknownKnowledgePayload::read_from(data, offset)?),
             38 => Self::ConditionData_CheckGender,
             39 => Self::ConditionData_CheckHaveItem(ConditionData_CheckHaveItemPayload::read_from(data, offset)?),
             40 => Self::ConditionData_CheckHaveItemPrice(ConditionData_CheckHaveItemPricePayload::read_from(data, offset)?),
@@ -4451,8 +4462,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_CheckActionCharacterState(p) => p.write_to(w),
             Self::ConditionData_CheckCharacterKeys(p) => p.write_to(w),
             Self::ConditionData_Controlable => Ok(()),
-            Self::ConditionData_CheckKnowledge(p) => p.write_to(w),
-            Self::ConditionData_HasUnknownKnowledge => Ok(()),
+            Self::ConditionData_CheckKnowledge => Ok(()),
+            Self::ConditionData_HasUnknownKnowledge(p) => p.write_to(w),
             Self::ConditionData_CheckGender => Ok(()),
             Self::ConditionData_CheckHaveItem(p) => p.write_to(w),
             Self::ConditionData_CheckHaveItemPrice(p) => p.write_to(w),

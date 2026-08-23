@@ -548,28 +548,136 @@ pub fn apply_intents_to_table_body(
     let outcomes = crate::intents::apply_resolved_intents(&mut records, &intents_norm)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("apply: {}", e)))?;
 
-    if let Some(pabgh_bytes) = pabgh {
+    let (new_body, new_pabgh) = if let Some(pabgh_bytes) = pabgh {
         match serialize_table_from_json_with_pabgh(table_name, &records, pabgh_bytes) {
-            Ok((new_body, new_pabgh)) => Ok((new_body, Some(new_pabgh), outcomes)),
+            Ok((new_body, new_pabgh)) => (new_body, Some(new_pabgh)),
             // Self-bounded (count-record) tables — e.g. wanted_info, equip_type_info —
             // have a sister .pabgh on disk but don't use it for record bounds, so the
             // tracked serializer has no rebuild path and errors. A caller that reads
             // the pabgh purely because the file exists (DMM's mount path) shouldn't be
             // penalized: serialize sequentially and pass the pabgh back unchanged (a
             // same-length field edit leaves any offsets it holds valid).
+            //
+            // That reasoning holds only for a table whose PARSE ignores the pabgh —
+            // a truly sequential table can grow freely, because nothing reads the
+            // index for record bounds. It does NOT hold for a table that parses
+            // through the pabgh and merely lacks a tracked serializer: there, this
+            // arm returns a resized body with a stale index and an Ok, so the caller
+            // cannot tell. That is exactly how action_point_info / field_info /
+            // npc_activity_info silently swallowed an added record — all three parse
+            // via `p!` but were missing from serialize_table_from_json_tracked.
+            // Registering them fixed those three; the guard below is what stops the
+            // next omission being silent instead of loud.
             Err(e)
                 if e.kind() == io::ErrorKind::InvalidInput
                     && e.to_string().contains("not pabgh-bounded") =>
             {
                 let new_body = serialize_table_from_json(table_name, &records)?;
-                Ok((new_body, Some(pabgh_bytes.to_vec()), outcomes))
+                if new_body.len() != body.len() && table_requires_pabgh(table_name) {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                        "table '{}' is read through its .pabgh but has no entry in \
+                         serialize_table_from_json_tracked, and this edit resized the body \
+                         ({} -> {} bytes). Returning the original index would leave every \
+                         offset after the edit pointing into the wrong record. Register \
+                         '{}' in serialize_table_from_json_tracked.",
+                        table_name, body.len(), new_body.len(), table_name)));
+                }
+                (new_body, Some(pabgh_bytes.to_vec()))
             }
-            Err(e) => Err(e),
+            Err(e) => return Err(e),
         }
     } else {
-        let new_body = serialize_table_from_json(table_name, &records)?;
-        Ok((new_body, None, outcomes))
+        (serialize_table_from_json(table_name, &records)?, None)
+    };
+
+    // ── Post-condition for record-CREATING ops ────────────────────────────
+    // `clone_record` / `new_record` promise a record under a caller-chosen key.
+    // Nothing on the write path enforces that promise: the key lands in a typed
+    // field, and an over-wide value is CLAMPED there (json_traits `[V3_CLAMP]`,
+    // deliberate — one bad set-value must not drop every other mod sharing the
+    // overlay). Harmless for an ordinary field edit; silently wrong for a KEY,
+    // because the record is then created under a different identity than the
+    // manifest asked for — 65535 or 255 — which on most tables already belongs
+    // to a real record. Measured across the 1.18 fixtures: 31 tables clamp a
+    // 990001-style custom key, every one of them reporting "Applied".
+    //
+    // So read the answer back off the bytes we just produced. This is the only
+    // check that sees the wire truth rather than the JSON we hoped to write, and
+    // it catches the whole family at once — clamped key, key collision, stale
+    // index, record swallowed by its predecessor. It only runs when a creating
+    // op is present, so ordinary field mods pay nothing.
+    let created: Vec<i64> = intents_norm
+        .iter()
+        .filter(|i| matches!(i.op.as_deref(),
+                             Some("clone_record") | Some("new_record") | Some("add_entry")))
+        .filter_map(|i| i.new_key)
+        .collect();
+    if !created.is_empty() {
+        verify_created_keys_landed(table_name, &new_body, new_pabgh.as_deref(), &created)?;
     }
+
+    Ok((new_body, new_pabgh, outcomes))
+}
+
+/// Re-read `body` and confirm every key a record-creating intent asked for is
+/// present, exactly once.
+///
+/// Reports a diagnosis rather than a bare "not found" — the caller is a mod
+/// manager relaying to a mod author, and "that key is wider than this table's
+/// key field" is the answer for 31 of the 124 tables.
+fn verify_created_keys_landed(
+    table_name: &str,
+    body: &[u8],
+    pabgh: Option<&[u8]>,
+    created: &[i64],
+) -> io::Result<()> {
+    let records = parse_table_to_json(table_name, body, pabgh).map_err(|e| {
+        io::Error::new(io::ErrorKind::InvalidData, format!(
+            "table '{}': a record-creating intent produced a body this parser can no \
+             longer read ({}). Refusing to hand back a table we cannot verify.",
+            table_name, e))
+    })?;
+    for want in created {
+        let n = records.iter().filter(|r| record_key_of(r) == Some(*want)).count();
+        if n == 1 {
+            continue;
+        }
+        let hint = if n > 1 {
+            " — the key resolves to more than one record; it collides with an existing one."
+        } else if *want > u16::MAX as i64 {
+            " — the key is too wide for this table's key field and was clamped on write \
+             (to 65535 or 255), so the record exists under a different identity. Choose a \
+             new_key that fits the table's key width."
+        } else {
+            " — the record was written but does not read back at that key."
+        };
+        return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+            "table '{}': record-creating intent asked for key {}, but the written body \
+             contains it {} time(s){}",
+            table_name, want, n, hint)));
+    }
+    Ok(())
+}
+
+/// Does this table's PARSE need the sister `.pabgh` for record boundaries?
+///
+/// Answered by asking the dispatcher itself rather than by keeping a third
+/// hand-maintained list beside `parse_table_to_json`'s `p!` arms and
+/// `serialize_table_from_json_tracked`'s match — two lists have already drifted
+/// apart once, and a third would only widen the gap. Every pabgh-bounded arm
+/// resolves its pabgh argument before it looks at the body, so an empty body
+/// with no pabgh separates the two families in O(1): pabgh-bounded tables fail
+/// with "requires a pabgh file", sequential ones read zero records and succeed.
+fn table_requires_pabgh(table_name: &str) -> bool {
+    matches!(parse_table_to_json(table_name, &[], None),
+             Err(e) if e.kind() == io::ErrorKind::InvalidInput)
+}
+
+/// Read a record's key, unwrapping iteminfo's `{"value": N}` shape.
+fn record_key_of(v: &serde_json::Value) -> Option<i64> {
+    v.get("key")
+        .and_then(|k| k.get("value").or(Some(k)))
+        .and_then(|x| x.as_i64())
 }
 
 /// Serialize a list of typed JSON records back to `.pabgb` bytes AND
@@ -591,10 +699,18 @@ pub fn serialize_table_from_json_with_pabgh(
 ) -> io::Result<(Vec<u8>, Vec<u8>)> {
     use crate::binary::pabgh::{Pabgh, PabghEntry, PabghFormat};
 
+    // Serialize FIRST, parse the index second. A sequential table has a sister
+    // .pabgh on disk that nothing reads for record bounds, and callers pass it
+    // simply because the file exists. Parsing it up front made such a table fail
+    // on a file it does not use: gamestartinfo.pabgh is 6 bytes and matches none
+    // of the six known layouts, so every edit to game_start_info died with
+    // "pabgh size 6 doesn't match any known layout" instead of taking the
+    // sequential path. Dispatching first lets the honest "not pabgh-bounded"
+    // answer reach the caller, which knows what to do with it.
+    let (new_body, offsets) = serialize_table_from_json_tracked(table_name, items)?;
+
     let original = Pabgh::parse(original_pabgh)?;
     let format = original.format;
-
-    let (new_body, offsets) = serialize_table_from_json_tracked(table_name, items)?;
 
     // Format 2 (U16CountU16Key) caps keys at u16::MAX. Catch overflow
     // before it silently truncates.
@@ -649,6 +765,16 @@ fn serialize_table_from_json_tracked(
     }
 
     Ok(match table_name {
+        // ★ These three parse through the pabgh (`p!`) but were missing here,
+        // so `serialize_table_from_json_with_pabgh` bailed with "not
+        // pabgh-bounded" and the caller's fallback arm shipped the body with
+        // the VANILLA index. Any record-count or record-size change then left
+        // every offset after the edit pointing at the wrong bytes — an added
+        // record was simply swallowed by whichever record preceded it. See the
+        // registration gate `every_pabgh_parsed_table_has_a_tracked_serializer`.
+        "action_point_info"              => dt!(crate::tables::action_point_info::ActionPointInfo),
+        "field_info"                     => dt!(crate::tables::field_info::FieldInfo),
+        "npc_activity_info"              => dt!(crate::tables::npc_activity_info::NpcActivityInfo),
         "ai_dialog_string_info"          => dt!(crate::tables::ai_dialog_string_info::AIDialogStringInfo),
         "bitmap_position_info"           => dt!(crate::tables::bitmap_position_info::BitmapPositionInfo),
         "buff_info"                      => dt!(crate::tables::buff_info::BuffInfo),
@@ -863,26 +989,28 @@ pub fn is_file_format_table(table_name: &str) -> bool {
 pub fn supported_tables() -> &'static [&'static str] {
     &[
         // pabgh-bounded
-        "ai_dialog_string_info", "bitmap_position_info", "buff_info",
+        "action_point_info", "ai_dialog_string_info", "bitmap_position_info",
+        "buff_info",
         "character_change_info", "character_info", "condition_info",
         "drop_set_info", "effect_info", "elemental_material_info",
         "equip_info", "equip_slot_info", "faction_info", "faction_node_info",
         "faction_node_spawn_info", "faction_spawn_data_info",
-        "field_revive_info", "frame_event_attr_group_info",
+        "field_info", "field_revive_info", "frame_event_attr_group_info",
         "game_event_handler_info", "game_global_effect_info",
         "game_level_info", "game_play_trigger_info", "gimmick_group_info",
         "gimmick_info", "global_game_event_info", "global_stage_sequencer_info",
         "interaction_info", "inventory_info", "item_use_info",
         "knowledge_info", "level_gimmick_scene_object_info",
         "mini_game_data_info", "mission_info", "multi_change_info",
-        "npc_info", "platform_entitlement_info", "quest_info", "region_info",
+        "npc_activity_info", "npc_info", "platform_entitlement_info",
+        "quest_info", "region_info",
         "royal_supply_info", "sequencer_spawn_info", "skill_info",
         "spawning_pool_auto_spawn_info", "special_mode_info", "stage_info",
         "store_info", "sub_level_info", "terrain_region_auto_spawn_info",
         // localization
         "paloc", "paloc.pamt", "localizationstring",
         // sequential
-        "action_point_info", "action_restriction_order_info",
+        "action_restriction_order_info",
         "aiaction_attribute_info", "aidialog_type_info", "aievent_table_info",
         "aimemory_info", "aimove_speed_info", "ally_group_info",
         "game_start_info", "zone_info", "contents_phase_info",
@@ -893,7 +1021,7 @@ pub fn supported_tables() -> &'static [&'static str] {
         "detect_detail_info", "detect_info", "detect_reaction_info",
         "dialog_voice_info", "dye_color_group_info", "equip_type_info",
         "faction_group_info", "faction_relation_group_info",
-        "faction_waypoint_info", "fail_message_info", "field_info",
+        "faction_waypoint_info", "fail_message_info",
         "field_level_name_table_info", "formation_info",
         "game_advice_group_info", "game_advice_info", "game_play_variable_info",
         "game_version_data_info",
@@ -903,7 +1031,7 @@ pub fn supported_tables() -> &'static [&'static str] {
         "knowledge_group_info", "level_action_point_info", "local_string_info",
         "material_blood_decal_info", "material_match_info",
         "material_relation_info", "mercenary_group_info", "mercenary_info",
-        "npc_activity_group_info", "npc_activity_info",
+        "npc_activity_group_info",
         "part_prefab_dye_slot_info", "part_prefab_dye_texture_pallete_info",
         "pattern_description_info", "platform_achievement_info",
         "quest_gauge_info", "quest_group_info", "quick_time_event_info",
@@ -1352,6 +1480,73 @@ mod tests {
     }
 
     /// v3.1 shape projects snake_case → _camelCase for any aliased table.
+    /// Every table read through its `.pabgh` must also be registered in
+    /// `serialize_table_from_json_tracked`.
+    ///
+    /// The two live in separate match statements and drifted apart once:
+    /// action_point_info, field_info and npc_activity_info parsed via `p!` but
+    /// had no tracked serializer, so `apply_intents_to_table_body` fell into the
+    /// "not pabgh-bounded" arm and handed back a resized body paired with the
+    /// VANILLA index. An added record was then swallowed by whichever record
+    /// preceded it — no error, no warning, the mod simply did nothing.
+    ///
+    /// Probing rather than listing: a third hand-kept list would be a third
+    /// thing to drift. An empty body with no pabgh separates the families,
+    /// because every pabgh-bounded arm resolves its pabgh before it reads the
+    /// body; a two-byte zero-count pabgh is the smallest valid index, and the
+    /// tracked serializer either recognises the table or says it does not.
+    #[test]
+    fn every_pabgh_parsed_table_has_a_tracked_serializer() {
+        const EMPTY_PABGH: [u8; 2] = [0, 0]; // u16 count = 0
+        let mut unregistered = Vec::new();
+        for &table in crate::dispatch::supported_tables() {
+            let needs_pabgh = matches!(
+                crate::dispatch::parse_table_to_json(table, &[], None),
+                Err(ref e) if e.kind() == std::io::ErrorKind::InvalidInput);
+            if !needs_pabgh {
+                continue;
+            }
+            if let Err(e) = crate::dispatch::serialize_table_from_json_with_pabgh(
+                table, &[], &EMPTY_PABGH)
+                && e.to_string().contains("not pabgh-bounded")
+            {
+                unregistered.push(table);
+            }
+        }
+        assert!(unregistered.is_empty(),
+            "these tables are read through their .pabgh but have no tracked serializer, \
+             so any size-changing edit would ship a stale index: {:?}. Add them to \
+             serialize_table_from_json_tracked.", unregistered);
+    }
+
+    /// The mirror of the gate above: a table advertised as pabgh-bounded in
+    /// `supported_tables()` must actually be one. The halves of that list are
+    /// what callers use to decide whether to hand us a pabgh at all.
+    #[test]
+    fn supported_tables_pabgh_half_matches_reality() {
+        // The pabgh-bounded half runs from the start of the list up to "paloc".
+        let all = crate::dispatch::supported_tables();
+        let split = all.iter().position(|&t| t == "paloc").expect("paloc marks the boundary");
+        let mut misfiled = Vec::new();
+        for (i, &table) in all.iter().enumerate() {
+            let needs_pabgh = matches!(
+                crate::dispatch::parse_table_to_json(table, &[], None),
+                Err(ref e) if e.kind() == std::io::ErrorKind::InvalidInput);
+            // equip_slot_info is pabgh-bounded through its own hand-written
+            // parser rather than a `p!` arm, so it is correctly in the first
+            // half even though the probe cannot see it there.
+            if table == "equip_slot_info" {
+                continue;
+            }
+            if needs_pabgh != (i < split) {
+                misfiled.push((table, needs_pabgh));
+            }
+        }
+        assert!(misfiled.is_empty(),
+            "supported_tables() files these on the wrong side of the pabgh boundary \
+             (name, actually_needs_pabgh): {:?}", misfiled);
+    }
+
     /// The `skill_info` table has known aliases (`cooltime` → `_cooltime`,
     /// `buff_level_list` → `_buffLevelList`, etc.) so confirm the lookup
     /// returns a non-empty table and the rename direction is correct.

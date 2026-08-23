@@ -200,6 +200,46 @@ fn detect_key_width(pabgh: &[u8]) -> io::Result<u8> {
     }
 }
 
+/// Reject a pabgh index that describes a LARGER body than the one supplied.
+///
+/// A `.pabgb` body and its `.pabgh` index are a matched pair — the index is a
+/// list of record offsets INTO that exact body. Pair a body from one game build
+/// with an index from another and the offsets are simply wrong: they run past
+/// the end, and every caller that slices `&data[s..e]` panics.
+///
+/// This is not hypothetical. On 2026-08-15 two unrelated users hit
+/// `range end index 1235101 out of range for slice of length 1234057` — the same
+/// number on different machines with different mod lists, because 1,235,101 is a
+/// record offset out of game 1.18's stock `skill.pabgh` and both had a mod
+/// shipping a game-1.17 `skill.pabgb`. Inside a PyO3 call that panic became
+/// "dispatch panic in apply_mods" and killed the mount with no usable message.
+///
+/// `entry_ranges` now clamps, so the panic is gone either way. But clamping alone
+/// would turn a version mismatch into a table full of blob-fallback records —
+/// silently wrong, which is worse than loudly broken and is exactly how a dead
+/// table has slipped past a green gate before. So refuse it here, and name both
+/// sizes so the report says which side is stale.
+fn check_pabgh_matches_body(entries: &[(u32, usize)], body_len: usize) -> io::Result<()> {
+    // The index legitimately ends AT body_len (the last record runs to the end),
+    // so only a start strictly past the end is unambiguous evidence of a mismatch.
+    let Some(&(key, worst)) = entries.iter().max_by_key(|(_, off)| *off) else {
+        return Ok(());
+    };
+    if worst > body_len {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "pabgh/pabgb mismatch: index describes a record at offset {} (key 0x{:x}) \
+                 but the body is only {} bytes. The .pabgb and .pabgh are from different \
+                 builds — a mod is shipping a table built for another game version, or \
+                 only one half of the pair was replaced.",
+                worst, key, body_len
+            ),
+        ));
+    }
+    Ok(())
+}
+
 /// Parse any pabgh_blob_table-formatted body using its sister pabgh for record
 /// boundaries. Returns one JSON dict per record in pabgh order — same calling
 /// convention as `parse_skill_to_json_with_pabgh`.
@@ -216,6 +256,7 @@ pub fn parse_blob_table_to_json_with_pabgh(
     let key_width = detect_key_width(pabgh)?;
     let entries = load_pabgh_offsets_from_bytes(pabgh).ok_or_else(|| io::Error::new(
         io::ErrorKind::InvalidData, "blob_table: pabgh parse failed"))?;
+    check_pabgh_matches_body(&entries, data.len())?;
     let ranges = entry_ranges(&entries, data.len());
     let mut out = Vec::with_capacity(ranges.len());
     for (k, s, e) in ranges {
@@ -271,6 +312,7 @@ where
 {
     let entries = load_pabgh_offsets_from_bytes(pabgh).ok_or_else(|| io::Error::new(
         io::ErrorKind::InvalidData, "typed_blob_table: pabgh parse failed"))?;
+    check_pabgh_matches_body(&entries, data.len())?;
     let ranges = entry_ranges(&entries, data.len());
     let mut out = Vec::with_capacity(ranges.len());
     for (k, s, e) in ranges {
@@ -503,6 +545,49 @@ fn type_name(v: &Value) -> &'static str {
         Value::String(_) => "string",
         Value::Array(_) => "array",
         Value::Object(_) => "object",
+    }
+}
+
+#[cfg(test)]
+mod mismatch_guard_tests {
+    use super::check_pabgh_matches_body;
+
+    /// A matched pair: the last record legitimately runs to the end of the body,
+    /// so an offset EQUAL to body_len must not be treated as a mismatch.
+    #[test]
+    fn matched_pair_is_accepted_including_a_record_ending_at_the_body_end() {
+        let entries = [(0x1, 0usize), (0x2, 500), (0x3, 900)];
+        assert!(check_pabgh_matches_body(&entries, 1000).is_ok());
+        // Degenerate but legal: an empty trailing record starting exactly at the end.
+        assert!(check_pabgh_matches_body(&[(0x1, 0), (0x2, 1000)], 1000).is_ok());
+    }
+
+    /// The live failure, in miniature: game 1.18's skill index (a record at
+    /// 1,235,101) against a game 1.17 skill body (1,234,380 bytes).
+    ///
+    /// Before this guard the mismatch reached `&data[s..e]` and panicked through
+    /// PyO3 as "dispatch panic in apply_mods", killing the mount. It must now be
+    /// an ordinary Err whose text names both sizes, so the report says which side
+    /// is stale instead of printing a bare slice index.
+    #[test]
+    fn index_from_another_build_is_refused_with_both_sizes_named() {
+        let entries = [(0x1, 0usize), (0x2, 1_200_000), (0xabc, 1_235_101)];
+        let err = check_pabgh_matches_body(&entries, 1_234_380)
+            .expect_err("a 1.18 index over a 1.17 body must not be accepted");
+        let msg = err.to_string();
+        assert!(msg.contains("1235101"), "should name the bad offset: {msg}");
+        assert!(msg.contains("1234380"), "should name the body size: {msg}");
+        assert!(msg.contains("abc"), "should name the record key: {msg}");
+        assert!(
+            msg.contains("different") || msg.contains("version"),
+            "should explain it is a build mismatch, not just a number: {msg}"
+        );
+    }
+
+    #[test]
+    fn empty_index_is_not_a_mismatch() {
+        assert!(check_pabgh_matches_body(&[], 0).is_ok());
+        assert!(check_pabgh_matches_body(&[], 1000).is_ok());
     }
 }
 
