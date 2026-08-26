@@ -7,6 +7,32 @@ Rust library with Python bindings (via PyO3/maturin) for reading, writing, and m
 - Run tests: `cargo test`
 - Lint: `cargo clippy` (must pass with zero warnings)
 
+## ★ Rebuild the .pyd before pushing parser changes to `main`
+
+`python/dmm_parser/dmm_parser.pyd` is **committed to this repo**, and people who
+use the parser from Python get that file — they do not build it. DMM does not:
+it links the crate as a Cargo path dep and compiles from source, so a stale
+`.pyd` is invisible in all of our own testing and breaks only for them.
+
+A stale `.pyd` does not fail loudly. It parses, returns records, and reports
+counts — with the previous version's field layout. That reads as a data problem
+in the caller's code, not as a build artifact left behind.
+
+So, before any push to `main` that touches `src/`:
+
+```bash
+VIRTUAL_ENV=<repo>/.venv maturin develop --release
+```
+
+Then confirm the rebuilt binding actually carries the change — parse a table you
+touched and check a new field is present — and commit the `.pyd` with the source.
+Its mtime should be newer than every `.rs` you edited.
+
+⚠ Bare `python` on the dev box resolves a DIFFERENT, older `dmm_parser.pyd` in
+its own site-packages, which `maturin develop` does not touch. Verify with
+`.venv/Scripts/python.exe`, never bare `python`, or you will confirm the rebuild
+against the stale copy.
+
 # Documentation
 - `docs/archive-format.md` — Binary format specs (PAPGT, PAMT, PAZ, trie), mod loading overlay approach
 - `docs/api.md` — Full Python API reference (enums, pack_mod, PAPGT/PAMT/PAZ, ItemInfo)
