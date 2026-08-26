@@ -112,6 +112,33 @@ py_binary_struct! {
         // byte is `01` while the old byte at that offset is `00`, so it cannot
         // slide — it lands between is_main_dischargeable and spawn_position_type.
         pub is_loss_inventory_item: u8,          // _isLossInventoryItem
+        // ── 2.00.00: fifteen new fields ─────────────────────────────
+        // The companion overhaul in the Enhanced update (patch notes: companion
+        // damage, flying-mount control, breeding). Recovered from the reader
+        // rather than guessed — `field_order.py MercenaryInfo` gives the read
+        // order, and the offsets in sub_10203C630 line up exactly:
+        //
+        //   +34..+51  eighteen 1-byte reads  = indices 8..25
+        //   +56       _statusUIList          = index 26
+        //   +72..+80  nine 1-byte reads      = indices 27..35
+        //
+        // Widths are the vtable call's third argument (sub_100E4BBE4 -> 1LL),
+        // not inferred from the data.
+        pub use_wagon_road: u8,                  // _useWagonRoad
+        pub is_show_ddd_status_detail: u8,       // _isShowDDDStatusDetail
+        pub is_show_horse_status: u8,            // _isShowHorseStatus
+        pub is_require_login: u8,                // _isRequireLogin
+        pub is_summon_recovery_item: u8,         // _isSummonRecoveryItem
+        pub status_ui_list: CArray<u32>,         // _statusUIList
+        pub is_check_grown_target_list: u8,      // _isCheckGrownTargetList
+        pub is_main_mercenary_info: u8,          // _isMainMercenaryInfo
+        pub can_have_breeding_targets: u8,       // _canHaveBreedingTargets
+        pub is_use_inventory: u8,                // _isUseInventory
+        pub is_focus_changeable: u8,             // _isFocusChangeable
+        pub is_connection_required: u8,          // _isConnectionRequired
+        pub is_buff_level_changeable: u8,        // _isBuffLevelChangeable
+        pub is_min_hp_makeable: u8,              // _isMinHPMakeable
+        pub is_fireable: u8,                     // _isFireable
         pub spawn_position_type: u8,             // _spawnPositionType
         pub summon_owner_option: u8,             // _summonOwnerOption (was u32, now u8 in-block)
         pub parent_mercenary_group_info: u8,     // _parentMercenaryGroupInfo (sub_1410FD230: 1B)

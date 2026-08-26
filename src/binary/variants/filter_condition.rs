@@ -349,13 +349,36 @@ impl crate::python_traits::WritePyValue for FilterCondition {
 }
 
 py_binary_struct! {
-    /// QuestDialog_FilterData — the 144-byte composite that lives in
-    /// `quest_info::_questDialogFilterDataList`. Reader: sub_1410F42E0.
-    /// 18 wire fields, all field-level addressable.
+    /// QuestDialog_FilterData — the composite that lives in
+    /// `quest_info::_questDialogFilterDataList`. 19 wire fields on 2.00.00.
+    ///
+    /// The placeholder names below predate having the canonical list. They map
+    /// 1:1 onto it, so a rename is mechanical — left for a deliberate change
+    /// because field names are the mod contract:
+    ///
+    /// ```text
+    /// flag_a  _dialogType          condition_list_a          _filterConditionList
+    /// flag_b  _interactionType     condition_list_b          _filterConditionList_missionResult
+    /// ui_style _uiStyle            element_list_of_lists     _questDialogDataList
+    /// raw_a   _aiCategoryType      element_list_a            _selectSetDialogData
+    /// raw_b   _attractActionTypeHash element_list_b          _onHearingDialogData
+    /// hash_ef20 _ownerQuestInfo    keyed_element_list_006d0  _interrogationDialogList
+    /// raw_c   _ownerFilterIndex    keyed_element_list_da30   _subSelectSetDialogList
+    /// hash_ff050 _interactionText  flag_c _useOverhearing    flag_d _isMissensceneDialog
+    /// flag_e  _useCameraLockOn     flag_f _selectRatioLevel
+    /// ```
     pub struct QuestDialogFilterData<'a> {
-        pub flag_a: u8,                                       // a2+0
-        pub flag_b: u8,                                       // a2+1
-        pub raw_a: u32,                                       // a2+4
+        pub flag_a: u8,                                       // _dialogType
+        pub flag_b: u8,                                       // _interactionType
+        // 2.00.00 — `_uiStyle`, inserted between `_interactionType` and
+        // `_aiCategoryType` (`field_order.py QuestDialog_FilterData`, read site
+        // 0x10203360c). QuestInfo decodes this type inside a polymorphic blob
+        // whose extent is found by probing, so a missed field here does not
+        // mis-read four bytes — it moves the accepted blob boundary and the
+        // whole record walks off. That is why quest_info failed 1 MB into a
+        // record with a nonsense CArray count rather than at the field itself.
+        pub ui_style: u8,                                     // _uiStyle
+        pub raw_a: u32,                                       // _aiCategoryType
         pub raw_b: u32,                                       // a2+8
         pub hash_ef20: u32,                                   // sub_141102CB0
         pub raw_c: u32,                                       // a2+16

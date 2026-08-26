@@ -37,17 +37,36 @@ py_binary_struct! {
         pub key: u8,
         pub string_key: CString<'a>,
         pub is_blocked: u8,
-        // iter 6 of T0 verification loop: rust field renamed
-        // `mercenary_key_list` → `allow_operation_type_list` to match
-        // the canonical PA name `_allowOperationTypeList` found in
-        // IDA at 0x144b0a315 (MercenaryGroupInfo metaobject region).
-        pub allow_operation_type_list: CArray<u8>,
-        // Note: typo preserved in BOTH rust and PA canonical name.
-        // IDA confirms `_mercenaryeInfoList` (with extra 'e') at
-        // 0x144b0a515 — the typo is real in the game binary.
+        // ★ ORDER CORRECTED 2.00.00. These three were listed
+        // allow / mercenarye / child; the reader takes them
+        // mercenarye / child / allow (`field_order.py MercenaryGroupInfo`,
+        // read sites 0x10202aabc / aac8 / aad4).
+        //
+        // All three are `CArray<u8>`, so the wire could not tell us: every
+        // permutation round-trips byte-identically. The names were simply
+        // attached to the wrong lists, which is invisible until a mod edits
+        // one by name. Field names are the mod contract, so this is a fix,
+        // not a tidy-up.
+        //
+        // Typo preserved on purpose: `_mercenaryeInfoList` (extra 'e') is
+        // spelled that way in the game binary.
         pub mercenarye_info_list: CArray<u8>,
         pub child_mercenary_group_info_list: CArray<u8>,
+        pub allow_operation_type_list: CArray<u8>,
         pub parent_mercenary_group_info: u8,
+        // ── 2.00.00: nine new trailing fields ─────────────────────
+        // Appended after `_parentMercenaryGroupInfo`, read sites
+        // 0x10202aaec..0x10202ab4c at a regular 0xc stride.
+        pub is_dead_state_updatable: u8,
+        pub is_using_portrait_texture: u8,
+        pub is_item_contribution_countable: u8,
+        pub is_hyosi_usable: u8,
+        // Typo preserved: `_useChanageMainMercenary` in the binary.
+        pub use_chanage_main_mercenary: u8,
+        pub is_using_spawned_usable: u8,
+        pub use_reserve_or_main: u8,
+        pub use_vehicle_key: u8,
+        pub is_return_main_mercenary_data: u8,
     }
 }
 
