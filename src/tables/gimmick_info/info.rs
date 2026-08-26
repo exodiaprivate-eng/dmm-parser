@@ -1719,7 +1719,15 @@ impl<'a> GimmickTail<'a> {
         let tail_start = *offset;
         let mut probe = tail_start;
         let try_decode = (|| -> io::Result<_> {
-            let tr = std::env::var("RAWDIAG2").is_ok() && tail_start == 218058;
+            // GIMTRACE traces the FIRST record only, so "how far does F1..F10 get"
+            // is answerable without knowing an offset in advance. RAWDIAG2 kept for
+            // the pinned-offset case it was written for.
+            let tr = (std::env::var("RAWDIAG2").is_ok() && tail_start == 218058)
+                || (std::env::var("GIMTRACE").is_ok() && {
+                    static TC: std::sync::atomic::AtomicU32 =
+                        std::sync::atomic::AtomicU32::new(0);
+                    TC.fetch_add(1, std::sync::atomic::Ordering::Relaxed) == 0
+                });
             macro_rules! tp { ($nm:expr) => { if tr { eprintln!("RAWDIAG2 {} ok @{}", $nm, probe); } } }
             let list = GimmickInteractionOverrideCArray::read_from(data, &mut probe)?; tp!("F1");
             if probe > entry_end { return Err(io::Error::new(io::ErrorKind::InvalidData, "overrun")); }
@@ -1848,6 +1856,18 @@ impl<'a> GimmickTail<'a> {
                 })
             }
             Err(e) => {
+                // GIMDIAG: report WHY the tail refused to decode. The existing
+                // RAWDIAG hooks print positions but never the error, and RAWDIAG2
+                // is pinned to one hardcoded tail_start — so a decoder that fails
+                // on 100% of records left no way to ask what it tripped on.
+                if std::env::var("GIMDIAG").is_ok() {
+                    static GC: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+                    let n = GC.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    if n < 12 {
+                        eprintln!("GIMDIAG group={} ts={} len={} err={}",
+                                  group, tail_start, entry_end - tail_start, e);
+                    }
+                }
                 if std::env::var("RAWDIAG").is_ok() {
                     static RC: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
                     let n = RC.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

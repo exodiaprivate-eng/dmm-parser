@@ -57,6 +57,24 @@ MANUAL_OVERRIDES = {
     ("knowledge_group_info",  "is_show_ui"):           "_isShowUI",
     ("knowledge_group_info",  "is_show_uialert"):      "_isShowUIAlert",
     ("mini_game_data_info",   "ui_view_id"):           "_uiViewID",
+
+    # Iter 124: mini_game_data_info leaderboard trio. NattKh's schema lists 16
+    # MiniGameDataInfo canonicals and none of these three, so the schema check
+    # would drop them even though the mechanical translation is already exact.
+    # They are not a schema bug in the "wrong name" sense — they are simply
+    # absent from the harvest, and the harvest is the gate. Overrides ship them.
+    #
+    # Evidence is the binary, not the schema: the Korean field asserts in the
+    # 2.00 Mac build place `_uiLeaderBoardModalTitleLocalStringInfo`,
+    # `_uiLeaderBoardSound` and `_uiLeaderBoardModalSound` at indices 6-8 of
+    # MiniGameDataInfo, between `_uiViewID` and `_useDeactiveResult`, and the
+    # record reader sub_10201C9BC reads them in that order. Adding the matching
+    # fields took the table from 3/24 records parsing to 24/24 on every capture
+    # back to 2026-06-04 — which is the strongest confirmation available that
+    # the names describe real wire fields.
+    ("mini_game_data_info", "ui_leader_board_modal_title_local_string_info"): "_uiLeaderBoardModalTitleLocalStringInfo",
+    ("mini_game_data_info", "ui_leader_board_sound"):                        "_uiLeaderBoardSound",
+    ("mini_game_data_info", "ui_leader_board_modal_sound"):                  "_uiLeaderBoardModalSound",
     ("vehicle_info",          "show_count_on_ui"):     "_showCountOnUI",
     ("status_info",           "status_index_xxxxx"):   "_statusIndexXXXXX",
     ("elemental_material_info", "parent_material_key_list_deprecated_xxx"): "_parentMaterialKeyListDeprecatedXXX",
@@ -618,6 +636,27 @@ PLACEHOLDER_PATTERNS = [
     re.compile(r"^[a-z]_dword_\d+$"),          # block_a_dword_0
     re.compile(r"^header_dword_\d+$"),         # header_dword_0
     re.compile(r"^raw_block_[a-z]_dword_\d+$"),
+
+    # ── Patch-day placeholders ────────────────────────────────────────────────
+    # When a game update adds a wire field we cannot yet name, the convention in
+    # this repo is a placeholder carrying the version that introduced it:
+    # `bank_new_a_113`, `tail_e_116`, `unk_u16_113`, `unk_f32_112`. Those are OUR
+    # names for an unknown, not Pearl Abyss identifiers — and the mechanical
+    # translation happily turns them into `_bankNewA113` / `_unkU16113`, which
+    # v3.1 then advertises to mod authors as the canonical engine name.
+    #
+    # Field names are the mod contract, so publishing a fabricated one is worse
+    # than publishing nothing: v3.1 falls back to snake_case for unaliased
+    # fields, which is honest. Filter them out.
+    #
+    # Trailing `_1NN` is the version marker (112/113/116/118 so far). Anchored to
+    # three digits starting with 1 so a genuine name ending in a small number is
+    # unaffected.
+    re.compile(r".*_1\d\d$"),                  # bank_new_a_113, tail_e_116
+    re.compile(r"^unk(_|$)"),                  # unk_u16_113, unk_a, unk_88
+    re.compile(r".*_unk(_[a-z0-9_]+)?$"),      # raw_unk, block_unk_tail
+    re.compile(r"^tail_[a-z]$"),               # tail_a, tail_b
+    re.compile(r"^byte_at_\d+$"),              # byte_at_16 (position, not name)
 ]
 
 def is_placeholder(name: str) -> bool:
@@ -715,7 +754,59 @@ def load_schema_field_names(schema_entry) -> set[str]:
         return set()
     return {e["f"] for e in schema_entry if isinstance(e, dict) and "f" in e}
 
+NL = "\n"
+PAIR_RE = re.compile(r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)')
+
+
+def existing_pairs(path: Path) -> dict[str, str]:
+    """Alias pairs already shipped in a generated file, as {rust: canonical}.
+
+    Read so the generator can refuse to DELETE work. Comment lines are skipped
+    so a hand-added pair quoted inside a rationale comment is not mistaken for
+    a shipped one.
+    """
+    if not path.exists():
+        return {}
+    out = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("//"):
+            continue
+        for rust, canon in PAIR_RE.findall(line):
+            out[rust] = canon
+    return out
+
+
+def existing_registry_rows(path: Path) -> list[tuple[str, str]]:
+    """Shipped registry rows as (key, text), so hand-added ones survive a re-run.
+
+    `text` carries the contiguous comment block immediately above the row. That
+    block is where a hand-added row explains why the generator cannot produce
+    it, and dropping the explanation while keeping the row is how the next
+    person deletes it again in good faith.
+    """
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8").splitlines()
+    out = []
+    for i, ln in enumerate(lines):
+        if not (ln.lstrip().startswith("(") and "FIELD_ALIASES_V3_1" in ln):
+            continue
+        j = i
+        while j > 0 and lines[j - 1].lstrip().startswith("//"):
+            j -= 1
+        out.append((registry_key(ln), NL.join(lines[j:i + 1])))
+    return out
+
+
+def registry_key(line: str) -> str:
+    m = re.search(r'\(\s*"([^"]+)"', line)
+    return m.group(1) if m else ""
+
+
+
 def main():
+    force = "--force" in sys.argv
+    regressions: list[tuple[str, dict[str, str]]] = []
     schema = {}
     schema_loaded = False
     if SCHEMA_PATH.exists():
@@ -750,6 +841,39 @@ def main():
             fallback_count += 1
             source = "mechanical"
         aliases = extract_main_struct_fields(info_rs, t, schema_names, MANUAL_OVERRIDES)
+
+        # ⚠ REGRESSION GATE. This script's own header tells you to re-run it
+        # "after any table struct field changes", and doing exactly that used to
+        # DELETE aliases: on 2026-08-26 a plain re-run stripped entries from 24
+        # tables and dropped the hand-added `iteminfo` registry row, because the
+        # generator only ever emits what the CURRENT schema + overrides justify
+        # and has no memory of what was already reasoned out and shipped.
+        #
+        # A generator that silently narrows the mod-facing field vocabulary is
+        # worse than one that fails: v3.1 emit falls back to snake_case for the
+        # dropped fields and nothing reports it. So dropping is now an ERROR.
+        # If a removal really is intended, pass --force and say why in the
+        # commit message.
+        out_path = TABLES_DIR / t / "field_aliases_v3_1.rs"
+        prior = existing_pairs(out_path)
+        fresh = dict(aliases)
+        lost = {k: v for k, v in prior.items() if k not in fresh}
+        if lost and not force:
+            regressions.append((t, lost))
+            rows.append((t, len(prior), "KEPT (would drop %d)" % len(lost)))
+            central.append(f'    ("{t}", crate::tables::{t}::field_aliases_v3_1::FIELD_ALIASES_V3_1),')
+            continue
+
+        # Idempotence: nothing to say, so say nothing. The shipped files were
+        # written by an older emitter with different whitespace, so a plain
+        # re-run used to touch ~110 files that had no alias change at all — the
+        # one real edit then arrives buried in a hundred whitespace diffs, which
+        # is how a bad alias gets waved through in review.
+        if prior == fresh and out_path.exists():
+            central.append(f'    ("{t}", crate::tables::{t}::field_aliases_v3_1::FIELD_ALIASES_V3_1),')
+            rows.append((t, len(aliases), source + " (unchanged)"))
+            continue
+
         if aliases:
             entries = ",\n    ".join(f'("{snake}", "{camel}")' for snake, camel in aliases)
             provenance = (
@@ -782,6 +906,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
         else:
             # No aliases: write an empty file so the central registry can still
             # link cleanly, and so re-runs don't leave stale per-field data.
+            # (The regression gate above already returned early if this table
+            # currently ships aliases, so reaching here means it never had any.)
             empty_const = """// Auto-generated by scripts/generate_v3_1_aliases.py — do NOT hand-edit.
 // No v3.1 canonical aliases for this table (no schema match or no fields
 // match the canonical name set). v3 (snake_case) and v3.1 emit identically.
@@ -794,6 +920,18 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[];
 
     # Write central registry.
     central_rs = REPO / "src" / "json_shape_table_registry.rs"
+
+    # Carry across any row this script cannot produce. The `iteminfo` row is the
+    # standing example: item_info lives at src/item_info/, outside the
+    # src/tables/* walk, so a re-run would drop the alias table for the one file
+    # nearly every mod edits. Keyed by table name, appended in file order.
+    produced = {registry_key(ln) for ln in central}
+    carried = [(k, text) for k, text in existing_registry_rows(central_rs)
+               if k and k not in produced]
+    if carried:
+        print(f"[generate] carried {len(carried)} hand-added registry row(s): "
+              + ", ".join(k for k, _ in carried))
+        central.extend(text for _, text in carried)
     central_text = """// SPDX-License-Identifier: LicenseRef-CDMTL-1.0
 // Auto-generated by scripts/generate_v3_1_aliases.py — do NOT hand-edit.
 //
@@ -807,15 +945,40 @@ pub static TABLE_FIELD_ALIASES_V3_1: &[(&str, &[(&str, &str)])] = &[
 """ + "\n".join(central) + """
 ];
 """
-    central_rs.write_text(central_text, encoding="utf-8")
+    # Same idempotence rule as the per-table files: rewrite only when the set of
+    # indexed tables actually changed, so the registry does not reformat itself
+    # (and re-flatten a carried row's comment block) on every run.
+    if {registry_key(ln) for ln in central} == {
+        k for k, _ in existing_registry_rows(central_rs)
+    } and central_rs.exists():
+        print(f"[generate] central registry unchanged ({len(central)} tables)")
+    else:
+        central_rs.write_text(central_text, encoding="utf-8")
+        print(f"[generate] wrote central registry at {central_rs}")
 
-    print(f"[generate] wrote {len(central)} per-table alias files")
+    print(f"[generate] {len(central)} per-table alias files indexed")
     print(f"[generate] schema-grounded: {schema_grounded_count}, mechanical fallback: {fallback_count}")
-    print(f"[generate] wrote central registry at {central_rs}")
     print()
     print(f"{'TABLE':40} {'FIELDS':>8}  {'SOURCE'}")
     for t, n, src in rows:
         print(f"{t:40} {n:>8}  {src}")
 
+    if regressions:
+        total = sum(len(v) for _, v in regressions)
+        print()
+        print(f"*** REFUSED to rewrite {len(regressions)} table(s): the fresh run "
+              f"would have DROPPED {total} shipped alias(es).")
+        print("*** Those files were left exactly as they were.")
+        for t, lost in regressions:
+            print(f"  {t}")
+            for rust, canon in sorted(lost.items()):
+                print(f"      {rust:52s} -> {canon}")
+        print()
+        print("Each of these was justified once and written down. Before you pass")
+        print("--force, find that justification — usually a MANUAL_OVERRIDES entry")
+        print("or a schema harvest that has since gone stale — and restore it.")
+        return 1
+    return 0
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

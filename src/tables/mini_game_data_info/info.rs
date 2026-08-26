@@ -76,7 +76,28 @@ impl<'a> SpawnDataList<'a> {
                 *offset = probe;
                 Ok(SpawnDataList::Decoded(list))
             }
-            _ => {
+            other => {
+                // `MGDIAG=1` reports why a record fell back. Without it the
+                // reason is thrown away and every fallback looks the same,
+                // which is how "11 of 24 are Raw" stays a number instead of
+                // becoming a lead.
+                if std::env::var_os("MGDIAG").is_some() {
+                    let why = match other {
+                        Err(e) => format!("ERR {}", e),
+                        Ok(_) => format!(
+                            "SHORT: consumed {} of {} bytes ({} left)",
+                            probe - region_start,
+                            region_end - region_start,
+                            region_end - probe
+                        ),
+                    };
+                    eprintln!(
+                        "MGDIAG spawn_data_list @{:#x} size={} -> {}",
+                        region_start,
+                        region_end - region_start,
+                        why
+                    );
+                }
                 let bytes = data[region_start..region_end].to_vec();
                 *offset = region_end;
                 Ok(SpawnDataList::Raw(bytes))
@@ -214,6 +235,22 @@ pub struct MiniGameDataInfo<'a> {
     pub script_name: u32,
     pub phase_panel_tag_name: u32,
     pub ui_view_id: u32,
+    /// ── Three fields this struct never had ────────────────────────
+    /// The Korean asserts put `_uiLeaderBoardModalTitleLocalStringInfo`,
+    /// `_uiLeaderBoardSound` and `_uiLeaderBoardModalSound` at indices 6-8,
+    /// between `_uiViewID` and `_useDeactiveResult`. The model jumped straight
+    /// from one to the other, so it read a string's length prefix as a u8 flag
+    /// and everything after drifted.
+    ///
+    /// NOT 2.00.00 drift — MiniGameDataInfo is absent from the 1.18->2.00 field
+    /// diff, and 21 of 24 records fail on BOTH builds. A long-standing gap.
+    ///
+    /// Widths from the 2.00 reader (Mac sub_10201C9BC): read 5 is
+    /// sub_101B418C0, whose inner sub_101FDC1F4 is a 4-byte vtable read; reads
+    /// 6 and 7 are the CString reader sub_100E4BE74.
+    pub ui_leader_board_modal_title_local_string_info: u32,
+    pub ui_leader_board_sound: CString<'a>,
+    pub ui_leader_board_modal_sound: CString<'a>,
     pub use_deactive_result: u8,
     pub need_change_character_scale: u8,
     pub entrance_fee_list: Vec<EntranceFee>,
@@ -260,6 +297,9 @@ impl<'a> MiniGameDataInfo<'a> {
         let script_name = u32::read_from(data, offset)?;
         let phase_panel_tag_name = u32::read_from(data, offset)?;
         let ui_view_id = u32::read_from(data, offset)?;
+        let ui_leader_board_modal_title_local_string_info = u32::read_from(data, offset)?;
+        let ui_leader_board_sound = CString::read_from(data, offset)?;
+        let ui_leader_board_modal_sound = CString::read_from(data, offset)?;
         let use_deactive_result = u8::read_from(data, offset)?;
         let need_change_character_scale = u8::read_from(data, offset)?;
 
@@ -293,7 +333,9 @@ impl<'a> MiniGameDataInfo<'a> {
 
         Ok(Self {
             key, string_key, is_blocked, script_name, phase_panel_tag_name,
-            ui_view_id, use_deactive_result, need_change_character_scale,
+            ui_view_id, ui_leader_board_modal_title_local_string_info,
+            ui_leader_board_sound, ui_leader_board_modal_sound,
+            use_deactive_result, need_change_character_scale,
             entrance_fee_list, default_reward_drop_set_info,
             player_data_list, npc_data_list, spawn_data_list,
             game_event_handler_info, knowledge_info, game_advice_info_list,
@@ -307,6 +349,9 @@ impl<'a> MiniGameDataInfo<'a> {
         self.script_name.write_to(w)?;
         self.phase_panel_tag_name.write_to(w)?;
         self.ui_view_id.write_to(w)?;
+        self.ui_leader_board_modal_title_local_string_info.write_to(w)?;
+        self.ui_leader_board_sound.write_to(w)?;
+        self.ui_leader_board_modal_sound.write_to(w)?;
         self.use_deactive_result.write_to(w)?;
         self.need_change_character_scale.write_to(w)?;
         (self.entrance_fee_list.len() as u32).write_to(w)?;
@@ -331,6 +376,9 @@ impl<'a> MiniGameDataInfo<'a> {
         m.insert("script_name".to_string(), self.script_name.to_json_value());
         m.insert("phase_panel_tag_name".to_string(), self.phase_panel_tag_name.to_json_value());
         m.insert("ui_view_id".to_string(), self.ui_view_id.to_json_value());
+        m.insert("ui_leader_board_modal_title_local_string_info".to_string(), self.ui_leader_board_modal_title_local_string_info.to_json_value());
+        m.insert("ui_leader_board_sound".to_string(), self.ui_leader_board_sound.to_json_value());
+        m.insert("ui_leader_board_modal_sound".to_string(), self.ui_leader_board_modal_sound.to_json_value());
         m.insert("use_deactive_result".to_string(), self.use_deactive_result.to_json_value());
         m.insert("need_change_character_scale".to_string(), self.need_change_character_scale.to_json_value());
         m.insert("entrance_fee_list".to_string(),
@@ -352,6 +400,9 @@ impl<'a> MiniGameDataInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "script_name")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "phase_panel_tag_name")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_view_id")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_leader_board_modal_title_local_string_info")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_leader_board_sound")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_leader_board_modal_sound")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_deactive_result")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_change_character_scale")?)?;
         let fees = json_get_field(obj, "entrance_fee_list")?
