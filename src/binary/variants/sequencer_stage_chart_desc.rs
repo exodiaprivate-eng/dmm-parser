@@ -17,6 +17,7 @@
 //!   1. CString name
 //!   2. u32 raw
 //!   3. CString prefab_path
+//!   3b. CString alias_name_200 (2.00.00)
 //!   4. [f32; 3] position (Vec3)
 //!   5. u32 raw
 //!   6-13. 8× u8 flag
@@ -486,6 +487,24 @@ pub struct SequencerStageChartDescPartial<'a> {
     pub name: CString<'a>,
     pub raw_a: u32,
     pub prefab_path: CString<'a>,
+    /// 2.00.00 — a new CString between `prefab_path` and `position`.
+    ///
+    /// The 2.00 element reader (Mac `sub_101C3672C`) makes 27 reads where this
+    /// struct had 26 fields, and reads 1/3/4 are all the CString reader
+    /// (`sub_100E4BE74`) while the model had only two strings before `position`.
+    ///
+    /// Empty in every vanilla record, which is exactly why the growth is a
+    /// uniform +4: an empty CString is its u32 length and nothing else. That
+    /// also proves it is per-DESC and not a new table field — 70 records hold
+    /// one desc and grew +4, the two records holding three descs grew +12.
+    ///
+    /// ⚠ POSITION IS AMBIGUOUS IN THE DATA. Being empty everywhere, it reads
+    /// identically before or after `prefab_path`; only the reader's call order
+    /// distinguishes them, and that puts it second of the pair. Named for what
+    /// the neighbouring GimmickLevelAliasData/levelAliasNameList work suggests
+    /// rather than from an assert — this field has no Korean error string, so
+    /// the oracle cannot name it. Rename if a later dive does.
+    pub alias_name_200: CString<'a>,
     pub position: [f32; 3],
     pub raw_b: u32,
     pub flag_a: u8,
@@ -583,6 +602,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         let name = CString::read_from(data, offset)?;
         let raw_a = u32::read_from(data, offset)?;
         let prefab_path = CString::read_from(data, offset)?;
+        let alias_name_200 = CString::read_from(data, offset)?;
         let position = <[f32; 3]>::read_from(data, offset)?;
         let raw_b = u32::read_from(data, offset)?;
         let flag_a = u8::read_from(data, offset)?;
@@ -621,7 +641,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         *offset = blob_end;
 
         Ok(Self {
-            name, raw_a, prefab_path, position, raw_b,
+            name, raw_a, prefab_path, alias_name_200, position, raw_b,
             flag_a, flag_b, flag_c, flag_d, flag_e, flag_f, flag_g, flag_h, flag_i,
             lookup_a, cond_a, cstring_a, cstring_b, string_pair_list,
             track_change_list, spawn_data_lists,
@@ -634,6 +654,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         self.name.write_to(w)?;
         self.raw_a.write_to(w)?;
         self.prefab_path.write_to(w)?;
+        self.alias_name_200.write_to(w)?;
         self.position.write_to(w)?;
         self.raw_b.write_to(w)?;
         self.flag_a.write_to(w)?;
@@ -667,6 +688,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         m.insert("name".to_string(), self.name.to_json_value());
         m.insert("raw_a".to_string(), self.raw_a.to_json_value());
         m.insert("prefab_path".to_string(), self.prefab_path.to_json_value());
+        m.insert("alias_name_200".to_string(), self.alias_name_200.to_json_value());
         m.insert("position".to_string(), self.position.to_json_value());
         m.insert("raw_b".to_string(), self.raw_b.to_json_value());
         m.insert("flag_a".to_string(), self.flag_a.to_json_value());
@@ -703,6 +725,7 @@ impl<'a> SequencerStageChartDescPartial<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "prefab_path")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "alias_name_200")?)?;
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_b")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
@@ -760,6 +783,7 @@ impl<'a> BinaryRead<'a> for SequencerStageChartDescPartial<'a> {
             name: CString::read_from(data, offset)?,
             raw_a: u32::read_from(data, offset)?,
             prefab_path: CString::read_from(data, offset)?,
+            alias_name_200: CString::read_from(data, offset)?,
             position: <[f32; 3]>::read_from(data, offset)?,
             raw_b: u32::read_from(data, offset)?,
             flag_a: u8::read_from(data, offset)?,
