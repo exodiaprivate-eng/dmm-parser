@@ -7,6 +7,28 @@ Rust library with Python bindings (via PyO3/maturin) for reading, writing, and m
 - Run tests: `cargo test`
 - Lint: `cargo clippy` (must pass with zero warnings)
 
+## ★ A parser update is not finished until it is on `main`
+
+Work happens on `AerowynX`. **`main` is the branch the public consumes** — anyone building
+against dmm-parser clones main, and the committed `.pyd` there is what Python users get.
+Pushing `AerowynX` alone changes nothing for them.
+
+This is not theoretical: an outside contributor sent a 2.00.00 iteminfo analysis in August 2026
+citing `ae952a6` as their upstream base. That was main's HEAD, and it could not read 2.00.00
+iteminfo at all — it stopped on an unknown SubItem tag before applying anything. They rebuilt
+work we had already done, because the fix was sitting on `AerowynX`.
+
+So every parser update ends with:
+
+```bash
+git checkout main && git merge --no-ff AerowynX -m "Merge AerowynX into main: <what changed>"
+git push origin main
+```
+
+Verify before pushing a public branch: `main^{tree}` should equal `AerowynX^{tree}`, and the
+suite should be no worse than it was on AerowynX. If a sanity command prints nothing, that is
+not a pass — re-run it until it actually reports.
+
 ## ★ Rebuild the .pyd before pushing parser changes to `main`
 
 `python/dmm_parser/dmm_parser.pyd` is **committed to this repo**, and people who
