@@ -76,7 +76,28 @@ impl<'a> SpawnDataList<'a> {
                 *offset = probe;
                 Ok(SpawnDataList::Decoded(list))
             }
-            _ => {
+            other => {
+                // `MGDIAG=1` reports why a record fell back. Without it the
+                // reason is thrown away and every fallback looks the same,
+                // which is how "11 of 24 are Raw" stays a number instead of
+                // becoming a lead.
+                if std::env::var_os("MGDIAG").is_some() {
+                    let why = match other {
+                        Err(e) => format!("ERR {}", e),
+                        Ok(_) => format!(
+                            "SHORT: consumed {} of {} bytes ({} left)",
+                            probe - region_start,
+                            region_end - region_start,
+                            region_end - probe
+                        ),
+                    };
+                    eprintln!(
+                        "MGDIAG spawn_data_list @{:#x} size={} -> {}",
+                        region_start,
+                        region_end - region_start,
+                        why
+                    );
+                }
                 let bytes = data[region_start..region_end].to_vec();
                 *offset = region_end;
                 Ok(SpawnDataList::Raw(bytes))
