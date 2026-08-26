@@ -630,11 +630,40 @@ fn verify_one_mod() {
     assert_eq!(unstable, 0);
 }
 
+/// The mods DMM is actually configured to load, from `config.json`'s `activeMods`.
+///
+/// ★ Walking the mods FOLDER audits everything that ever landed there — retired mods,
+/// superseded versions, loose `.zip`s, scratch builds. On 2.00.00 that produced findings for
+/// `Equip All V6`, `Equip All V7.2` and `Female Weapon Master`, none of which the user runs
+/// any more; the current `Equip Everything V9.0` was clean. A finding against a dead mod is
+/// worse than no finding — it costs real time to chase and it trains you to ignore the audit.
+///
+/// 19 active of 49 present when this was written. Returns `None` when there is no config, so
+/// the caller falls back to the folder walk rather than silently auditing nothing.
+fn active_mod_files() -> Option<Vec<PathBuf>> {
+    let cfg = std::fs::read(r"C:\Users\justi\Desktop\DMM\config.json").ok()?;
+    let v: serde_json::Value = serde_json::from_slice(&cfg).ok()?;
+    let list = v.get("activeMods")?.as_array()?;
+    let root = Path::new(MODS);
+    let mut out = Vec::new();
+    for m in list {
+        let Some(name) = m.get("fileName").and_then(|x| x.as_str()) else { continue };
+        let p = root.join(name.replace('/', std::path::MAIN_SEPARATOR_STR));
+        if p.is_file() {
+            out.push(p);
+        } else {
+            eprintln!("ACTIVE BUT MISSING: {}", p.display());
+        }
+    }
+    (!out.is_empty()).then_some(out)
+}
+
 /// GENERIC patch-day audit: for every `op:set` whose value is a LIST, compare the
 /// length the mod writes against the length the CURRENT vanilla table has at the
 /// same path. Shorter == the mod deletes what this patch added == the Equip All
-/// V7.2 defect class. Set DMM_AUDIT_MOD to a mod json, or leave unset to sweep
-/// every mod under the mods folder.
+/// V7.2 defect class.
+/// Scope: DMM_AUDIT_MOD=<file> one mod · DMM_AUDIT_ALL=1 everything in the folder ·
+/// default the ACTIVE mods only — see `active_mod_files`.
 #[test]
 #[ignore]
 fn audit_wholesale_set_lists() {
@@ -642,21 +671,38 @@ fn audit_wholesale_set_lists() {
     let dir = fixture_dir();
     let mut cache: std::collections::HashMap<String, Vec<serde_json::Value>> = Default::default();
 
+    fn walk(d: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(rd) = std::fs::read_dir(d) else { return };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() { walk(&p, out) }
+            else if p.extension().and_then(|x| x.to_str()) == Some("json") { out.push(p) }
+        }
+    }
+
+    // Scope, in order of preference:
+    //   DMM_AUDIT_MOD=<file>  one mod
+    //   DMM_AUDIT_ALL=1       every json in the folder (the old behaviour — useful when
+    //                         deciding whether an INACTIVE mod is safe to re-enable)
+    //   default               only what DMM is configured to load
     let mut files: Vec<PathBuf> = Vec::new();
+    let scope: &str;
     if let Ok(one) = std::env::var("DMM_AUDIT_MOD") {
         files.push(one.into());
-    } else {
-        fn walk(d: &Path, out: &mut Vec<PathBuf>) {
-            let Ok(rd) = std::fs::read_dir(d) else { return };
-            for e in rd.flatten() {
-                let p = e.path();
-                if p.is_dir() { walk(&p, out) }
-                else if p.extension().and_then(|x| x.to_str()) == Some("json") { out.push(p) }
-            }
-        }
+        scope = "single mod";
+    } else if std::env::var("DMM_AUDIT_ALL").is_ok() {
         walk(Path::new(MODS), &mut files);
         walk(Path::new(r"C:\Users\justi\Desktop\MyMods\mod_sources"), &mut files);
+        scope = "EVERY json in the mods folder (incl. retired/superseded)";
+    } else if let Some(active) = active_mod_files() {
+        files = active;
+        scope = "the ACTIVE mods from config.json";
+    } else {
+        walk(Path::new(MODS), &mut files);
+        walk(Path::new(r"C:\Users\justi\Desktop\MyMods\mod_sources"), &mut files);
+        scope = "folder walk (no config.json found)";
     }
+    eprintln!("AUDIT SCOPE: {scope} — {} file(s)", files.len());
 
     let mut findings: Vec<String> = Vec::new();
     let (mut scanned, mut unreadable, mut compared) = (0usize, 0usize, 0usize);
