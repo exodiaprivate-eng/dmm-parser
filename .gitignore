@@ -60,3 +60,8 @@ fixtures_1_06/
 # Kept on disk for Claude Code, never published.
 Claude.MD
 CLAUDE.md
+
+# RE probes — one-off scripts against a specific game build, written to answer a
+# question and then superseded. They belong beside the game data, not in a
+# library other people build against.
+dmm_probes/
