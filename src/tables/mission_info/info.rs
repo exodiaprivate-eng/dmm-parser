@@ -280,6 +280,16 @@ py_binary_struct! {
         // 555 wild values AND a varying last byte, i.e. misalignment.)
         pub flag_441: u8,
         pub trailing_u32: u32,              // sub_141BD4120 (raw u32)
+        // 2.00.00 — `_sameNameSubMissionList`, appended after the trailing u32.
+        // Mac reader sub_102030A60 ends with sub_101FD55EC(a2+460) then
+        // sub_101950044(a2+464); the latter is a list whose element reader
+        // sub_101FC9230 is a single 4-byte read, so CArray<u32>.
+        //
+        // Empty in almost every record, so it costs 4 bytes and the size deltas
+        // could not have found it — mission records also changed content heavily
+        // in this patch (the story rewrite), so their sizes move for unrelated
+        // reasons and carry no signal.
+        pub same_name_sub_mission_list: CArray<u32>,
     }
 }
 

@@ -140,7 +140,23 @@
 // ⏳ _excludeSequencerBoundary (direct_u8, stream=1)
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
+
+py_binary_struct! {
+    /// 2.00.00 — element of `_levelAliasNameList`, which REPLACED
+    /// `_sequencerLevelConnectAliasNameList`.
+    ///
+    /// The old field was a `CArray<CString>`; the new one is a list of
+    /// three-field records. Mac element reader `sub_10205A744`: count, then per
+    /// element two CString reads (`sub_100E4BE74`) and `sub_1025A6734`, which is
+    /// the u8-presence + tag + body shape of an optional condition tree.
+    pub struct GimmickLevelAliasData<'a> {
+        pub level_name: CString<'a>,
+        pub level_alias_name: CString<'a>,
+        pub active_expression: OptionalGameCondition<'a>,
+    }
+}
 
 py_binary_struct! {
     pub struct GimmickProperty<'a> {
@@ -306,7 +322,11 @@ py_binary_struct! {
         pub default_spawn_reason_hash: u32,
         pub initial_body_motion_type: u8,
         pub sequencer_level_allow_gimmick_event_key_list: CArray<u32>,
-        pub sequencer_level_connect_alias_name_list: CArray<CString<'a>>,
+        // 2.00.00 renamed AND re-typed: `_sequencerLevelConnectAliasNameList`
+        // (a `CArray<CString>`) became `_levelAliasNameList`, a list of
+        // `GimmickLevelAliasData`. Not a rename to wave through — the element
+        // grew from one string to two plus an optional expression.
+        pub level_alias_name_list: CArray<GimmickLevelAliasData<'a>>,
         pub gimmick_alias_data_list: CArray<GimmickAliasData>,
         pub logout_time_after_break: u64,
         pub attack_by_collision_info_list_key: u32,
