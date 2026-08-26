@@ -117,9 +117,82 @@ fn to_py_item<'py>(py: Python<'py>, v: &ItemInfo) -> PyResult<Bound<'py, PyDict>
     v.to_py_dict(py)
 }
 
+/// Accept an ItemInfo dict written against the pre-2.00.00 field names.
+///
+/// The late-ItemInfo region was re-modelled once the game's own field asserts
+/// were read (see `ItemInfoFactionManagementData`): a flat run of four members
+/// turned out to be one nested struct, and `unk_u32_112` turned out to be
+/// `_itemEffectInfo`. Two of the old names still EXIST in the new schema with
+/// different meanings, so a plain key-rename table cannot express this:
+///
+/// | legacy key | now |
+/// |---|---|
+/// | `unk_u32_112` | `item_effect_info` (u32 EffectKey) |
+/// | `item_effect_info` (u8) | `faction_management_data.is_valid` |
+/// | `faction_management_data` (list) | `faction_management_data.cost_list` |
+/// | `faction_management_extra_b_200` | `faction_management_data.tier` |
+/// | `apply_drop_stat_extra_111` | `is_reward_loot_drop` |
+///
+/// The SHAPE disambiguates: legacy dicts carry `faction_management_data` as a
+/// list, current ones as an object. That test is exact, so a current dict is
+/// never touched and a legacy one is never half-converted.
+///
+/// One subtlety this has to get right: `faction_management_extra` meant `_tier`
+/// on 1.18 and `_priceList`'s count on 2.00.00 — the same key, two meanings,
+/// because the game inserted `_priceList` BETWEEN `_costList` and `_tier`. So
+/// tier comes from `_b_200` when that key is present (a 2.00-era dict) and from
+/// `faction_management_extra` when it is not (a 1.18-era dict).
+///
+/// Returns a converted copy; the caller's dict is left alone.
+fn normalize_legacy_item_dict<'py>(d: &Bound<'py, PyDict>) -> PyResult<Bound<'py, PyDict>> {
+    let is_legacy = match d.get_item("faction_management_data")? {
+        Some(v) => v.is_instance_of::<PyList>(),
+        None => false,
+    };
+    if !is_legacy {
+        return Ok(d.clone());
+    }
+
+    let out = d.copy()?;
+    let take = |k: &str| -> PyResult<Option<Bound<'py, PyAny>>> { d.get_item(k) };
+
+    // unk_u32_112 was never its own field — it IS _itemEffectInfo.
+    if let Some(v) = take("unk_u32_112")? {
+        out.set_item("item_effect_info", v)?;
+        out.del_item("unk_u32_112")?;
+    }
+
+    let faction = PyDict::new(d.py());
+    // The old top-level `item_effect_info` (u8) was the block's _isValid.
+    faction.set_item("is_valid", take("item_effect_info")?.unwrap_or(0u8.into_pyobject(d.py())?.into_any()))?;
+    faction.set_item("cost_list", take("faction_management_data")?.unwrap())?;
+    // _priceList is new in 2.00.00 and empty in every vanilla record; a legacy
+    // dict has no entries to carry, only the count we used to read as a scalar.
+    faction.set_item("price_list", PyList::empty(d.py()))?;
+    let tier = match take("faction_management_extra_b_200")? {
+        Some(v) => v,                                   // 2.00-era dict
+        None => take("faction_management_extra")?       // 1.18-era dict: extra WAS tier
+            .unwrap_or(0u32.into_pyobject(d.py())?.into_any()),
+    };
+    faction.set_item("tier", tier)?;
+    out.set_item("faction_management_data", faction)?;
+    for k in ["faction_management_extra", "faction_management_extra_b_200"] {
+        if out.contains(k)? {
+            out.del_item(k)?;
+        }
+    }
+
+    if let Some(v) = take("apply_drop_stat_extra_111")? {
+        out.set_item("is_reward_loot_drop", v)?;
+        out.del_item("apply_drop_stat_extra_111")?;
+    }
+    Ok(out)
+}
+
 fn wr_item(w: &mut Vec<u8>, obj: &Bound<'_, PyAny>) -> PyResult<()> {
     let d = obj.cast::<PyDict>()?;
-    ItemInfo::write_from_py_dict(w, d)
+    let d = normalize_legacy_item_dict(d)?;
+    ItemInfo::write_from_py_dict(w, &d)
 }
 
 // ── Module functions ───────────────────────────────────────────────────────

@@ -637,7 +637,7 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    /// 1.16.00 — element of `ItemInfo::faction_management_data`, 28 bytes.
+    /// 1.16.00 — element of the faction cost/price lists, 28 bytes.
     /// Observed rows: (13, 50, 50, 51) and (13, 3, 3, 4) — a faction/track id
     /// plus three magnitudes. Exact semantics unconfirmed; sizes are pinned by
     /// the +28 B step between the +52 and +80 record classes.
@@ -646,6 +646,41 @@ py_binary_struct! {
         pub value_a: u64,
         pub value_b: u64,
         pub value_c: u64,
+    }
+}
+
+py_binary_struct! {
+    /// `ItemInfo::_factionManagementData` — a NESTED struct, not four flat fields.
+    ///
+    /// The parser carried this region as loose members for three patches, which
+    /// read the same bytes and hid a live hazard: `_priceList` is a real
+    /// `CArray`, and its count was being consumed as an opaque `u32`. Every one
+    /// of the 6,810 records has an empty price list today, so the bytes round-trip
+    /// and every gate passes — but the first item Pearl Abyss ships with a faction
+    /// price would put the reader 28×N bytes out of alignment and take the whole
+    /// table down.
+    ///
+    /// Confirmed against the Korean field asserts in the 2.00.00 Mac binary
+    /// (`tools/patchday/korean_fields.py`), which name the owner type and its
+    /// members directly:
+    ///
+    /// ```text
+    /// === ItemInfo_FactionManagementData ===
+    ///   1.18 (3 fields):  _isValid, _costList,             _tier
+    ///   2.00 (4 fields):  _isValid, _costList, _priceList, _tier
+    /// ```
+    ///
+    /// So 2.00.00's four new bytes are `_priceList`'s count, inserted BETWEEN
+    /// `_costList` and `_tier` — not appended after `_tier` as first assumed.
+    /// The data could never have shown this: the whole block is zero in every
+    /// record, so both layouts round-trip byte-identically. Only the binary
+    /// distinguishes them.
+    pub struct ItemInfoFactionManagementData {
+        pub is_valid: u8,
+        pub cost_list: CArray<FactionManagementData>,
+        // 2.00.00. Empty in all 6,810 vanilla records — see the type doc.
+        pub price_list: CArray<FactionManagementData>,
+        pub tier: u32,
     }
 }
 
@@ -1187,6 +1222,66 @@ mod tests {
 
         let mut out = Vec::new();
         si.write_to(&mut out).unwrap();
+        assert_eq!(out, bytes);
+    }
+
+    /// `_priceList` is a real `CArray`, not a spare u32.
+    ///
+    /// Vanilla has an empty price list in all 6,810 records, so the full-table
+    /// round-trip passes whether this is modelled as a list or as an opaque
+    /// scalar count. That is exactly why it went unnoticed for a patch: the
+    /// only input that can tell the two apart is one no shipped table contains
+    /// yet. So construct it here.
+    ///
+    /// If someone ever "simplifies" this back to a u32, the size assertion
+    /// below fails instead of the whole table silently sliding 28xN bytes out
+    /// of alignment the day Pearl Abyss prices a faction item.
+    #[test]
+    fn faction_block_price_list_is_a_real_array() {
+        fn entry(out: &mut Vec<u8>, id: u32) {
+            out.extend_from_slice(&id.to_le_bytes());
+            for v in [1u64, 2, 3] {
+                out.extend_from_slice(&v.to_le_bytes());
+            }
+        }
+        let mut bytes = Vec::new();
+        bytes.push(1u8); // _isValid
+        bytes.extend_from_slice(&2u32.to_le_bytes()); // _costList: 2 entries
+        entry(&mut bytes, 10);
+        entry(&mut bytes, 11);
+        bytes.extend_from_slice(&1u32.to_le_bytes()); // _priceList: 1 entry
+        entry(&mut bytes, 20);
+        bytes.extend_from_slice(&7u32.to_le_bytes()); // _tier
+
+        // 1 + (4 + 2*28) + (4 + 1*28) + 4
+        assert_eq!(bytes.len(), 1 + 4 + 56 + 4 + 28 + 4);
+
+        let mut offset = 0;
+        let f = ItemInfoFactionManagementData::read_from(&bytes, &mut offset).unwrap();
+        assert_eq!(offset, bytes.len(), "the reader must consume the whole block");
+        assert_eq!(f.is_valid, 1);
+        assert_eq!(f.cost_list.items.len(), 2);
+        assert_eq!(f.price_list.items.len(), 1, "_priceList must decode as an array");
+        assert_eq!(f.price_list.items[0].faction_info, 20);
+        assert_eq!(f.tier, 7);
+
+        let mut out = Vec::new();
+        f.write_to(&mut out).unwrap();
+        assert_eq!(out, bytes);
+    }
+
+    /// The empty shape vanilla actually ships: 1 + 4 + 4 + 4 = 13 bytes.
+    /// On 1.18 the same block was 9 bytes (no `_priceList`) — that 4-byte step
+    /// is the whole of the 2.00.00 ItemInfo growth in this region.
+    #[test]
+    fn empty_faction_block_is_thirteen_bytes() {
+        let bytes = vec![0u8; 13];
+        let mut offset = 0;
+        let f = ItemInfoFactionManagementData::read_from(&bytes, &mut offset).unwrap();
+        assert_eq!(offset, 13);
+        assert!(f.cost_list.items.is_empty() && f.price_list.items.is_empty());
+        let mut out = Vec::new();
+        f.write_to(&mut out).unwrap();
         assert_eq!(out, bytes);
     }
 

@@ -139,7 +139,10 @@ py_binary_struct! {
         // wrong disc byte (0x00 disc-0 +u32 instead of 0x0f disc-15 None), and
         // prefab_data_list.count blew up at offset 348. Verified via IDA + the
         // PrefabData reader (sub_101969834, fields unchanged).
-        pub apply_drop_stat_extra_111: u8,
+        // `_isRewardLootDrop` per the 2.00.00 field asserts — it reads
+        // immediately before `_applyDropStatType`. Semantic rename only; the
+        // wire size and position are unchanged from the 1.11 discovery above.
+        pub is_reward_loot_drop: u8,
         pub drop_default_data: DropDefaultData,
         // 1.13.00: prefab_data_list RELOCATED to the record tail (after
         // repair_data_list) and unified with the old gimmick_visual_prefab_data_list
@@ -201,55 +204,36 @@ py_binary_struct! {
         // and _isPreservedOnExtract between _isPreorderItem and _respawnTimeSeconds.
         pub is_has_item_use_data_inventory_buff: u8,
         pub is_preserved_on_extract: u8,
-        // 1.12's `unk_u32_112` sits HERE in 1.16 — before the new region and
-        // before respawn_time_seconds, not after it. Its old placement was
-        // indistinguishable while everything around it was zero; the new region's
-        // count byte makes it observable, and reading it after respawn puts the
-        // count 4 bytes early (observed as a bogus CArray count 0x01000000).
-        // Same 4 bytes, same total record size — only the order moved.
-        pub unk_u32_112: u32,
-        // ── 1.16.00: new variable-length region, 10 + 28n bytes ───────────────
-        // The binary's 115-field list gained `_itemEffectInfo`,
-        // `_factionManagementData` and `_useAveragePrice` right here, between
-        // `_isPreservedOnExtract` and `_respawnTimeSeconds`.
+        // ── _itemEffectInfo + _factionManagementData ─────────────────────
+        // Both were mis-modelled for three patches. The bytes were always right;
+        // the NAMES and the nesting were not, and one of them hid a live hazard.
         //
-        // Pinned by aligning every record class at `max_endurance` (reliable on
-        // records whose repair and prefab lists are both empty):
-        //   +24 class -> region 10 B   (count 0)
-        //   +52 class -> region 38 B   (count 1)
-        //   +80 class -> region 66 B   (count 2)
-        // i.e. a fixed 10 B frame plus 28 B per entry. Confirmed on item
-        // 0xf51f0: `01 | 01 00 00 00 | 0d.. 32.. 32.. 33.. | 03 00 00 00 | 00`.
+        // The Korean field asserts in the 2.00.00 Mac binary give ItemInfo's own
+        // field list, and there is no slot between `_isPreservedOnExtract` and
+        // `_itemEffectInfo`:
         //
-        // This also explains the earlier red herring: the items whose bytes here
-        // looked like `ff ff ff ff ff ff ff ff` are NOT this region — that is
-        // `respawn_time_seconds` = -1 (never respawns), which only became visible
-        // once the region was placed on the correct side of it.
-        pub item_effect_info: u8,
-        pub faction_management_data: CArray<FactionManagementData>,
-        pub faction_management_extra: u32,
-        // 2.00.00: FOUR more bytes land between `faction_management_data` and
-        // `max_endurance`. Established by tracked-read (the walk dies on
-        // `repair_data_list.__count__` reading 0xFFFF0000, i.e. `max_endurance`'s
-        // 0xFFFF sitting 4 bytes late) and by byte-diff of record 0.
+        //   108 _isPreservedOnExtract   109 _itemEffectInfo
+        //   110 _factionManagementData  111 _useAveragePrice
+        //   112 _respawnTimeSeconds     113 _maxEndurance
         //
-        // ⚠ The POSITION inside this run is not determined by the bytes: all four
-        // candidate slots — after `faction_management_data`, after
-        // `faction_management_extra`, after `use_average_price`, after
-        // `respawn_time_seconds` — give a byte-exact 6810/6810 roundtrip, because
-        // everything around them is zero here. The classic "insert slides inside a
-        // zero run" ambiguity.
+        // So the `unk_u32_112` that used to sit here was never a field of its
+        // own — it IS `_itemEffectInfo`, an EffectKey. The data agrees: it is 0
+        // in 6,774 records and, in the 36 that set it, holds a value inside the
+        // EffectInfo key range, on a single weapon class whose neighbouring
+        // `destroy_effec_info` is itself an EffectKey.
         //
-        // The Korean field oracle cannot break the tie either: ItemInfo's field
-        // list is IDENTICAL on 1.18.02 and 2.00.00 through this whole region
-        // (_factionManagementData, _useAveragePrice, _respawnTimeSeconds,
-        // _maxEndurance, _repairDataList), so the new field carries no assert —
-        // exactly like `faction_management_extra` above it, which is why it is
-        // parked next to it rather than guessed into a named slot.
+        // What used to be a flat `item_effect_info: u8` was really
+        // `_factionManagementData._isValid`, and the two loose u32s after the
+        // list were its `_priceList` count and `_tier`. See
+        // `ItemInfoFactionManagementData` — the price list is a real CArray whose
+        // count we were consuming as an opaque scalar.
         //
-        // Wire-correct and roundtrip-proven; SEMANTICS unknown. If a later dive
-        // names it, move it — the bytes will not object.
-        pub faction_management_extra_b_200: u32,
+        // ⚠ Every field in that block is zero in all 6,810 records, so the
+        // round-trip, per-record-boundary and severity gates ALL pass on either
+        // layout. Do not "verify" a change here against the data alone; check the
+        // Korean asserts for the owner TYPE, not just for ItemInfo.
+        pub item_effect_info: EffectKey,
+        pub faction_management_data: ItemInfoFactionManagementData,
         pub use_average_price: u8,
         pub respawn_time_seconds: i64,
         pub max_endurance: u16,
