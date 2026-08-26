@@ -81,6 +81,9 @@ py_binary_struct! {
         // value (0x6963DF0E) while the other twelve hold the 0xFFFFFFFF unset
         // sentinel — so it is a key, not padding.
         pub physics_material_key: u32,
+        // game 2.00.00: `_isWater`, after `_physicsMaterialKey`. bytediff measured
+        // every changed record as exactly +1 byte, so u8 — no guessing needed.
+        pub is_water: u8,
         pub preset_list: CArray<PresetEntry<'a>>,
     }
 }

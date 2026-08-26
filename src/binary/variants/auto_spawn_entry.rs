@@ -84,6 +84,14 @@ py_binary_struct! {
         pub max_water_depth_116: u32,
         pub min_height_from_water_ground_116: u32,
         pub max_height_from_water_ground_116: u32,
+        // game 2.00.00: `_heightOffset`, named by the Korean field oracle and placed
+        // right after `_maxHeightFromWaterGround`. 4 bytes — u8 fails the roundtrip on
+        // both tables that embed this struct. Held as u32 like its neighbours (they are
+        // floats on the wire too); same reasoning as `block_extra` below.
+        //
+        // One field, but AutoSpawnEntry is shared, so it took spawningpoolautospawninfo
+        // AND terrainregionautospawninfo from 0% to 100% blob fallback.
+        pub height_offset_200: u32,
         pub block: [u32; 3],   // formerly block[1..4]
         // 1.10: a new 4-byte field was inserted here, after `block` and before
         // `flag_a`. It carries a float (vanilla 0x3f800000 = 1.0f). Without it

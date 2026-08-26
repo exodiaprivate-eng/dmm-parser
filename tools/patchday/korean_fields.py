@@ -1,12 +1,53 @@
 """NattKh method: dump the per-FIELD Korean error strings
    "<Table>의 _<field>를 읽어들이는데 실패했다"
 to get each table's exact FIELD LIST + ORDER from the binary.
-Usage: python korean_fields.py [table_filter]"""
+
+Reads the **Mac** (Apple-silicon) build — unstripped Mach-O, so the assert strings carry the
+real field names in reader order. That is the whole reason the Mac binary is kept.
+
+★ The binary is an ARGUMENT, not a constant. It was pinned to the 1.16 build, so running it
+on patch day reported field names from three patches ago — a wrong answer that looks exactly
+like a right one, which is the worst kind. Defaults to the newest version directory under the
+IDA workspace, so it follows whatever builds are actually on disk.
+
+Usage:
+    python tools/patchday/korean_fields.py                  # newest build on disk
+    python tools/patchday/korean_fields.py --list           # which builds are available
+    python tools/patchday/korean_fields.py --bin <path>     # a specific binary
+    python tools/patchday/korean_fields.py iteminfo         # filter to one table
+"""
+import argparse
+import os
 import re
 import struct
 import sys
 
-BIN = r"C:\Users\justi\Desktop\Project\IDA Professional 9.0\1.16\CrimsonDesert_Steam.exe"
+IDA_WORKSPACE = os.path.join(
+    os.path.expanduser("~"), "Desktop", "Project", "IDA Professional 9.0"
+)
+MAC_NAME = "CrimsonDesert_Steam.exe"
+
+
+def _vkey(name):
+    """Sort '1.18' and '2.0' the way a human means — '2.0' is NEWER than '1.18'."""
+    return [int(c) if c.isdigit() else -1 for c in re.split(r"[._]", name)]
+
+
+def available_builds():
+    if not os.path.isdir(IDA_WORKSPACE):
+        return []
+    out = []
+    for d in sorted(os.listdir(IDA_WORKSPACE)):
+        p = os.path.join(IDA_WORKSPACE, d, MAC_NAME)
+        if os.path.isfile(p) and d[:1].isdigit():
+            out.append((d, p))
+    return sorted(out, key=lambda t: _vkey(t[0]))
+
+
+def newest_build():
+    b = available_builds()
+    return b[-1][1] if b else None
+
 NEEDLE = "\uc77d\uc5b4\ub4e4\uc774\ub294\ub370".encode("utf-8")  # 읽어들이는데
 
 def sections(data):
@@ -30,6 +71,22 @@ def f2v(secs, fo):
         if foff <= fo < foff + size:
             return addr + (fo - foff)
     return None
+
+_ap = argparse.ArgumentParser()
+_ap.add_argument("table_filter", nargs="?", default=None)
+_ap.add_argument("--bin", dest="binary", default=None, help="Mach-O to scan")
+_ap.add_argument("--list", action="store_true", help="list builds and exit")
+_args = _ap.parse_args()
+
+if _args.list:
+    for _name, _path in available_builds():
+        print(f"  {_name:<8} {os.path.getsize(_path):>13,}  {_path}")
+    sys.exit(0)
+
+BIN = _args.binary or newest_build()
+if not BIN:
+    sys.exit(f"no Mac binary under {IDA_WORKSPACE}/<version>/{MAC_NAME}")
+print(f"binary: {BIN}")
 
 data = open(BIN, "rb").read()
 secs = sections(data)
@@ -60,7 +117,7 @@ for tbl, fld, va, fo in hits:
     tables.setdefault(tbl, []).append((fld, va, fo))
 
 print(f"found {len(hits)} field-error strings across {len(tables)} tables\n")
-filt = sys.argv[1].lower() if len(sys.argv) > 1 else None
+filt = _args.table_filter.lower() if _args.table_filter else None
 shown = 0
 for tbl in sorted(tables):
     if filt and filt not in tbl.lower():

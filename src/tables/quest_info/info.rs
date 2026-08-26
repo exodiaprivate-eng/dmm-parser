@@ -101,7 +101,8 @@
 //!  32. u8 is_save
 //!  33. u8 is_continuous_mission
 //!  34. u8 is_repeatable
-//!  35. u32 debug_color                 (sub_1006B4CD0, vtable[2] width 4)
+//!  35. u8  enable_new_game_plus        (2.00.00)
+//!  36. u32 debug_color                 (sub_1006B4CD0, vtable[2] width 4)
 
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::variants::filter_condition::QuestDialogFilterData;
@@ -254,6 +255,9 @@ pub struct QuestInfo<'a> {
     pub is_save: u8,
     pub is_continuous_mission: u8,
     pub is_repeatable: u8,
+    /// 2.00.00 — `_enableNewGamePlus`, read between `_isRepeatable` and
+    /// `_debugColor` (`field_order.py QuestInfo`: 0x102033c68 / c74 / c80).
+    pub enable_new_game_plus: u8,
     pub debug_color: u32,
 }
 
@@ -273,16 +277,19 @@ fn try_read_trailer(data: &[u8], start: usize, end: usize) -> Option<usize> {
     // u32 npc_dialog_must_condition
     if cursor + 4 > end { return None; }
     cursor += 4;
-    // u8 is_save, u8 is_continuous_mission, u8 is_repeatable
-    if cursor + 3 > end { return None; }
-    let is_save = data[cursor];
-    let is_continuous = data[cursor + 1];
-    let is_repeatable = data[cursor + 2];
-    // Boolean fields are 0 or 1 only
-    if is_save > 1 || is_continuous > 1 || is_repeatable > 1 {
+    // u8 is_save, is_continuous_mission, is_repeatable, enable_new_game_plus
+    //
+    // 2.00.00 added `_enableNewGamePlus` here. This probe decides where the
+    // polymorphic blob ends by testing whether the trailer fits exactly, so a
+    // missed field does not just mis-read four bytes — it moves the accepted
+    // boundary and takes the blob with it.
+    if cursor + 4 > end { return None; }
+    let flags = &data[cursor..cursor + 4];
+    // Boolean fields are 0 or 1 only — this is the probe's whole discriminator.
+    if flags.iter().any(|&b| b > 1) {
         return None;
     }
-    cursor += 3;
+    cursor += 4;
     // u32 debug_color
     if cursor + 4 > end { return None; }
     cursor += 4;
@@ -363,6 +370,7 @@ impl<'a> QuestInfo<'a> {
         let is_save = u8::read_from(data, offset)?;
         let is_continuous_mission = u8::read_from(data, offset)?;
         let is_repeatable = u8::read_from(data, offset)?;
+        let enable_new_game_plus = u8::read_from(data, offset)?;
         let debug_color = u32::read_from(data, offset)?;
 
         Ok(Self {
@@ -401,6 +409,7 @@ impl<'a> QuestInfo<'a> {
             is_save,
             is_continuous_mission,
             is_repeatable,
+            enable_new_game_plus,
             debug_color,
         })
     }
@@ -457,6 +466,7 @@ impl<'a> QuestInfo<'a> {
         let is_save = track_read_field::<u8>(data, offset, path, ranges, "is_save", "u8")?;
         let is_continuous_mission = track_read_field::<u8>(data, offset, path, ranges, "is_continuous_mission", "u8")?;
         let is_repeatable = track_read_field::<u8>(data, offset, path, ranges, "is_repeatable", "u8")?;
+        let enable_new_game_plus = track_read_field::<u8>(data, offset, path, ranges, "enable_new_game_plus", "u8")?;
         let debug_color = track_read_field::<u32>(data, offset, path, ranges, "debug_color", "u32")?;
 
         Ok(Self {
@@ -469,7 +479,7 @@ impl<'a> QuestInfo<'a> {
             test_tag, game_start_stage, game_start_sub_timeline, memo,
             quest_dialog_filter_data_list,
             dialog_must_mission_info_list, npc_dialog_must_condition,
-            is_save, is_continuous_mission, is_repeatable, debug_color,
+            is_save, is_continuous_mission, is_repeatable, enable_new_game_plus, debug_color,
         })
     }
 
@@ -509,6 +519,7 @@ impl<'a> QuestInfo<'a> {
         self.is_save.write_to(w)?;
         self.is_continuous_mission.write_to(w)?;
         self.is_repeatable.write_to(w)?;
+        self.enable_new_game_plus.write_to(w)?;
         self.debug_color.write_to(w)?;
         Ok(())
     }
@@ -558,6 +569,7 @@ impl<'a> QuestInfo<'a> {
         m.insert("is_save".to_string(), self.is_save.to_json_value());
         m.insert("is_continuous_mission".to_string(), self.is_continuous_mission.to_json_value());
         m.insert("is_repeatable".to_string(), self.is_repeatable.to_json_value());
+        m.insert("enable_new_game_plus".to_string(), self.enable_new_game_plus.to_json_value());
         m.insert("debug_color".to_string(), self.debug_color.to_json_value());
         m
     }
@@ -600,6 +612,7 @@ impl<'a> QuestInfo<'a> {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_save")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_continuous_mission")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_repeatable")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "enable_new_game_plus")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "debug_color")?)?;
         Ok(())
     }

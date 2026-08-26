@@ -32,6 +32,15 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.00.00 — 2026-08-25, the Enhanced update. 134 tables.
+    //
+    // ⚠ ADDING THE CAPTURE IS PART OF THE PATCH, NOT A FOLLOW-UP. Until this
+    // entry existed, a plain `cargo test` resolved iteminfo to the 1.18 capture
+    // below and read it with the 2.00 layout, so
+    // `full_table_every_record_consumes_its_range` failed for a reason that had
+    // nothing to do with the code under test. The gate only means anything when
+    // the newest capture is the one it reaches by default.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-25",
     // GAME VERSION 1.18.01 — 2026-08-16 HOTFIX on top of 1.18.00.
     // ⚠ The version is the 3rd u16 of paver, not the 2nd: `0100 1200 0100` =
     // 1.18.01 vs 1.18.00's `…0000`. The minor (`12` = 18) is UNCHANGED, so a

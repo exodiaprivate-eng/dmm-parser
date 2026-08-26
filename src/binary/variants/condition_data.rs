@@ -2292,6 +2292,7 @@ pub enum ConditionDataVariant<'a> {
     // game v16 — same recurring Class D slot (Character k=0x2 move_condition).
     ConditionData_Tag414(U32U16BodyPayload),
     ConditionData_Tag415(U32U16BodyPayload),
+    ConditionData_Tag416(U32U16BodyPayload),
 }
 
 impl<'a> ConditionDataVariant<'a> {
@@ -2713,6 +2714,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag413(_) => 413,
             Self::ConditionData_Tag414(_) => 414,
             Self::ConditionData_Tag415(_) => 415,
+            Self::ConditionData_Tag416(_) => 416,
         }
     }
 
@@ -3137,6 +3139,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag413(_) => "ConditionData_Tag413",
             Self::ConditionData_Tag414(_) => "ConditionData_Tag414",
             Self::ConditionData_Tag415(_) => "ConditionData_Tag415",
+            Self::ConditionData_Tag416(_) => "ConditionData_Tag416",
         }
     }
 
@@ -3562,6 +3565,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag413(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag414(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag415(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag416(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
         }
         Value::Object(m)
     }
@@ -3994,6 +3998,7 @@ impl<'a> ConditionDataVariant<'a> {
             413 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag413: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             414 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag414: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             415 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag415: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            416 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag416: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("ConditionDataVariant: unknown disc {}", other))),
         }
@@ -4420,6 +4425,7 @@ impl<'a> ConditionDataVariant<'a> {
             413 => Self::ConditionData_Tag413(U32U16BodyPayload::read_from(data, offset)?),
             414 => Self::ConditionData_Tag414(U32U16BodyPayload::read_from(data, offset)?),
             415 => Self::ConditionData_Tag415(U32U16BodyPayload::read_from(data, offset)?),
+            416 => Self::ConditionData_Tag416(U32U16BodyPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
         })
     }
@@ -4842,6 +4848,7 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag413(p) => p.write_to(w),
             Self::ConditionData_Tag414(p) => p.write_to(w),
             Self::ConditionData_Tag415(p) => p.write_to(w),
+            Self::ConditionData_Tag416(p) => p.write_to(w),
         }
     }
 }
@@ -5009,7 +5016,11 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // Tags 409/410 added in 1.10 (Re-Blockade / pet growth) — same Class D shape.
         // Tag 411 added in 1.12 — same Class D shape (same Character entry, k=0x2).
         // Tags 414/415 added in game v16 — same Class D shape.
-        407 | 408 | 409 | 410 | 411 | 412 | 413 | 414 | 415
+        // Tag 416 added in 2.00.00 — same Class D shape, same Character entry.
+        // ★ This disc increments EVERY patch. It is a standing chore, not a
+        //   discovery: bump it here AND at all seven enum sites, or the half-fix
+        //   produces "not enough data" and a wasted width sweep.
+        407 | 408 | 409 | 410 | 411 | 412 | 413 | 414 | 415 | 416
     )
 }
 

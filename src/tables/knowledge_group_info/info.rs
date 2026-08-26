@@ -24,6 +24,14 @@ py_binary_struct! {
         pub knowledge_info_list: CArray<u32>,
         pub child_knowledge_group_info_list: CArray<u32>,
         pub parent_knowledge_group_info: u32,
+        // game 2.00.00 — Korean field oracle put \_skillPointOwnerType here, right
+        // after \_parentKnowledgeGroupInfo. Width is u8, established against the live
+        // fixture: u16 and u32 both fail the roundtrip.
+        //
+        // ⚠ The Mac binary's `EnumReflectPropertyBind<..., SkillPointOwnerType, j>`
+        // symbol says u32 — it is SAVE-DATA binding and does NOT describe the table
+        // wire width. See dmm_enum_reflect_bind_is_savedata_not_tables.
+        pub skill_point_owner_type: u8,
         pub is_show_ui: u8,
         pub is_show_uialert: u8,
         pub is_meditation_learnable: u8,
