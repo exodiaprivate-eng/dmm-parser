@@ -688,7 +688,12 @@ impl<'a> BinaryRead<'a> for SubItem {
             // like 14/15/255. type_id is preserved, so write-back is byte-exact.
             // 1.13.00 added disc 17 (0x10→0x11) — the same zero-payload progression;
             // proven zero-payload by a full-table byte-exact roundtrip over all items.
-            14 | 15 | 16 | 17 | 255 => SubItemValue::None,
+            // 2.00.00 added disc 18 (0x11→0x12). THIRD patch running, so treat this as a
+            // standing per-patch chore rather than a discovery — see the runbook's
+            // "bump, don't re-discover" list. The Korean field oracle CANNOT see it: it
+            // is a variant tag, not a field, so ItemInfo's field list reads unchanged
+            // while the table stops parsing.
+            14 | 15 | 16 | 17 | 18 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -717,7 +722,7 @@ impl<'a> BinaryReadTracked<'a> for SubItem {
             3 => SubItemValue::Character(CharacterKey::read_tracked(data, offset, path, ranges)?),
             9 => SubItemValue::Gimmick(GimmickInfoKey::read_tracked(data, offset, path, ranges)?),
             // 1.12: disc 16, 1.13.00: disc 17 = zero-payload sentinels (see read_from note).
-            14 | 15 | 16 | 17 | 255 => SubItemValue::None,
+            14 | 15 | 16 | 17 | 18 | 255 => SubItemValue::None,
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -767,7 +772,7 @@ impl WritePyValue for SubItem {
                 w.extend_from_slice(&v.to_le_bytes());
             }
             // 14/15/255 = legacy zero-payload sentinels; 16 added in 1.12, 17 in 1.13.00.
-            14 | 15 | 16 | 17 | 255 => {}
+            14 | 15 | 16 | 17 | 18 | 255 => {}
             _ => {
                 return Err(PyValueError::new_err(format!(
                     "invalid SubItem type_id: {}",
@@ -827,7 +832,7 @@ impl WriteJsonValue for SubItem {
                 }
                 w.extend_from_slice(&(n as u32).to_le_bytes());
             }
-            14 | 15 | 16 | 17 | 255 => {} // no payload (16 = 1.12, 17 = 1.13.00 sentinel)
+            14 | 15 | 16 | 17 | 18 | 255 => {} // no payload (16=1.12, 17=1.13.00, 18=2.00.00)
             _ => {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("invalid SubItem.type_id: {}", type_id)));

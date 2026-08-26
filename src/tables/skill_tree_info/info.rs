@@ -189,6 +189,8 @@ py_binary_struct! {
         pub skill_node_list: CArray<SkillTreeSkillNode>,
         pub stat_node_list: CArray<SkillTreeStatNode<'a>>,
         pub first_focus_skill_info: u32,
+        // game 2.00.00: `_unlockEffectKnowledgeList`, after `_firstFocusSkillInfo`.
+        pub unlock_effect_knowledge_list: CArray<u32>,
         pub first_focus_zoom: f32,
         pub first_focus_position: [f32; 2],
         pub skill_tree_area: u64,

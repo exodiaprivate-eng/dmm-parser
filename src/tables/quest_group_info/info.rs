@@ -59,6 +59,10 @@ py_binary_struct! {
         pub is_dev: u8,
         pub is_show_quest_list: u8,
         pub is_auto_save: u8,
+        // game 2.00.00: `_disableGiveUp`, last field. The oracle says "after
+        // _isCompletable" — our name for that field differs, but idx 16 of 17 is
+        // unambiguously the tail.
+        pub disable_give_up: u8,
     }
 }
 

@@ -1278,6 +1278,12 @@ pabgh_typed_blob_table! {
         pub default_friendly_value: u64,             // 172 sub_100D39298
         pub game_difficulty_buff_level_list: GameDifficultyBuffLevel, // 173 sub_101FB180C
         pub game_difficulty_buff_info: u32,          // 174 BuffKey — sub_101F96C40 (inner reads 4B!)
+        // game 2.00.00 — the Korean field oracle puts _skillPointOwnerType here,
+        // immediately after _gameDifficultyBuffInfo. ONE field, but at index 173 of
+        // 191, so everything after it shifted and the whole table fell to 100%
+        // blob fallback (2.4% -> 100%). u8, matching knowledge_group_info, which
+        // gained the same field and is small enough to pin the width on.
+        pub skill_point_owner_type: u8,
         pub empowered_overlay_color: u32,            // 175 sub_100D3A1C8
         pub empowered_overlay_color_ratio: u32,      // 176 sub_100D392D8
         pub buff_overlay_color_data_map: CArray<BuffOverlayColorEntry>, // 177 sub_101FE86DC

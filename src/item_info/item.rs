@@ -228,6 +228,28 @@ py_binary_struct! {
         pub item_effect_info: u8,
         pub faction_management_data: CArray<FactionManagementData>,
         pub faction_management_extra: u32,
+        // 2.00.00: FOUR more bytes land between `faction_management_data` and
+        // `max_endurance`. Established by tracked-read (the walk dies on
+        // `repair_data_list.__count__` reading 0xFFFF0000, i.e. `max_endurance`'s
+        // 0xFFFF sitting 4 bytes late) and by byte-diff of record 0.
+        //
+        // ⚠ The POSITION inside this run is not determined by the bytes: all four
+        // candidate slots — after `faction_management_data`, after
+        // `faction_management_extra`, after `use_average_price`, after
+        // `respawn_time_seconds` — give a byte-exact 6810/6810 roundtrip, because
+        // everything around them is zero here. The classic "insert slides inside a
+        // zero run" ambiguity.
+        //
+        // The Korean field oracle cannot break the tie either: ItemInfo's field
+        // list is IDENTICAL on 1.18.02 and 2.00.00 through this whole region
+        // (_factionManagementData, _useAveragePrice, _respawnTimeSeconds,
+        // _maxEndurance, _repairDataList), so the new field carries no assert —
+        // exactly like `faction_management_extra` above it, which is why it is
+        // parked next to it rather than guessed into a named slot.
+        //
+        // Wire-correct and roundtrip-proven; SEMANTICS unknown. If a later dive
+        // names it, move it — the bytes will not object.
+        pub faction_management_extra_b_200: u32,
         pub use_average_price: u8,
         pub respawn_time_seconds: i64,
         pub max_endurance: u16,
@@ -349,6 +371,65 @@ mod tests {
     // #[ignore]d until the 1.13.00 iteminfo record reorg is decoded (SubItem disc 17
     // is handled, but prefab/enchant/gimmick_visual relocated to the record tail —
     // see WORKING_STATE 1.13.00 notes). Run with DMM_PARSER_ITEMINFO_PATH set.
+    /// ★ Every record parses AND consumes exactly its declared byte range.
+    ///
+    /// iteminfo had no full-table gate at all between 1.13.00 and 2.00.00:
+    /// `test_full_table_roundtrip` was `#[ignore]`d ("record reorg not yet
+    /// decoded") and everything else parsed only the first two items. So when
+    /// 2.00.00 added a SubItem discriminant and a 4-byte field, the parser suite
+    /// stayed green and only DMM's live-game test noticed — and iteminfo is the
+    /// table Item Workshop, Custom Equipment, Transmog and every vendor mod read.
+    ///
+    /// This asserts rather than reports, and it resolves through the normal
+    /// fixture path, so a future patch that shifts iteminfo fails HERE instead of
+    /// three layers downstream. Skips only when there is genuinely no fixture.
+    #[test]
+    fn full_table_every_record_consumes_its_range() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let p = crate::testenv::resolve("iteminfo.pabgb");
+        let Ok(data) = std::fs::read(&p) else {
+            eprintln!("SKIP: no iteminfo.pabgb fixture at {}", p.display());
+            return;
+        };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy())
+        else {
+            eprintln!("SKIP: no iteminfo.pabgh beside {}", p.display());
+            return;
+        };
+        let ranges = entry_ranges(&entries, data.len());
+        assert!(
+            ranges.len() > 5_000,
+            "iteminfo fixture looks truncated: {} records",
+            ranges.len()
+        );
+
+        let mut bad: Vec<String> = Vec::new();
+        for (k, start, end) in &ranges {
+            let mut cur = *start;
+            match ItemInfo::read_from(&data, &mut cur) {
+                Ok(_) if cur == *end => {}
+                Ok(_) => bad.push(format!(
+                    "k=0x{k:x} consumed {} of {} ({:+})",
+                    cur - *start,
+                    *end - *start,
+                    cur as i64 - *end as i64
+                )),
+                Err(e) => bad.push(format!("k=0x{k:x} FAILED: {e}")),
+            }
+            if bad.len() >= 8 {
+                break;
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "{} of {} records mis-parse; first few:\n  {}",
+            bad.len(),
+            ranges.len(),
+            bad.join("\n  ")
+        );
+        eprintln!("RESULT iteminfo: {} records, every one byte-exact", ranges.len());
+    }
+
     /// Per-record diagnostic: walks the pabgh index so every record is checked
     /// against its OWN declared boundary instead of cascading from a single
     /// sequential desync. Reports which keys mis-size and by how much.
