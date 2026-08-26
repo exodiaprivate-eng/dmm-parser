@@ -15,5 +15,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("string_key", "_stringKey"),
     ("is_blocked", "_isBlocked"),
     ("global_game_event_group_info", "_globalGameEventGroupInfo"),
+    ("event_desc", "_eventDesc"),
+    ("execute_data_list", "_executeDataList"),
     ("execute_data", "_executeDataList"),
 ];
