@@ -172,3 +172,74 @@ impl<'a> OptionalGameConditionNoTail<'a> {
         Ok(())
     }
 }
+
+// ── Trait impls so the type can sit inside a `py_binary_struct!` ──────────────
+//
+// The inherent read_from/write_to already match the trait signatures exactly;
+// these delegate so a macro-generated struct can hold an OptionalGameCondition
+// as a plain field. Added for 2.00.00's `GimmickLevelAliasData`, whose
+// `_activeExpression` is one of these.
+//
+// `read_tracked` records the whole condition as ONE field range rather than
+// walking into the tree. The tracked reader exists to give field-path offsets
+// for mods, and no mod addresses a node inside a condition tree — it edits the
+// condition wholesale, so a single range is the useful granularity.
+impl<'a> crate::binary::BinaryRead<'a> for OptionalGameCondition<'a> {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        OptionalGameCondition::read_from(data, offset)
+    }
+}
+
+impl crate::binary::BinaryWrite for OptionalGameCondition<'_> {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        OptionalGameCondition::write_to(self, w)
+    }
+}
+
+impl<'a> crate::binary::BinaryReadTracked<'a> for OptionalGameCondition<'a> {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<crate::binary::FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let v = OptionalGameCondition::read_from(data, offset)?;
+        ranges.push(crate::binary::FieldRange {
+            path: path.clone(),
+            start,
+            end: *offset,
+            ty: "OptionalGameCondition",
+        });
+        Ok(v)
+    }
+}
+
+// JSON is the supported path for condition trees (same as FilterCondition and
+// the other variant families) — the Python surface would have to mirror the
+// whole recursive node type for no benefit.
+impl crate::json_traits::ToJsonValue for OptionalGameCondition<'_> {
+    fn to_json_value(&self) -> Value {
+        OptionalGameCondition::to_json_value(self)
+    }
+}
+
+impl crate::json_traits::WriteJsonValue for OptionalGameCondition<'_> {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        OptionalGameCondition::write_from_json(w, v)
+    }
+}
+
+impl crate::python_traits::ToPyValue for OptionalGameCondition<'_> {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "OptionalGameCondition: use JSON path"))
+    }
+}
+
+impl crate::python_traits::WritePyValue for OptionalGameCondition<'_> {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "OptionalGameCondition: use JSON path"))
+    }
+}
