@@ -226,17 +226,50 @@ fn blob_fallback_skip(
         .get("_blob_fallback")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    if is_fallback && field != "_blob_b64" {
-        return Some(format!(
-            "{}: entry '{}' / key {:?} fell to blob-fallback (typed parse failed — \
-             parser likely out of date for this game build); field '{}' edit NOT applied",
-            op,
-            entry.unwrap_or(""),
-            key,
-            field
-        ));
+    if !is_fallback || field == "_blob_b64" {
+        return None;
     }
-    None
+
+    // ★ A PARTIALLY-decoded record is not the same as an opaque one.
+    //
+    // `read_partial_json` salvages every field that decoded before the schema
+    // broke and records how many (`_partial_fields`) and how far into the entry
+    // they reach (`_partial_prefix_len`). `write_blob_fallback_entry_partial`
+    // re-serialises exactly those fields and splices the ORIGINAL bytes from the
+    // prefix length onward — so an edit to one of them lands, and the undecoded
+    // remainder stays byte-identical.
+    //
+    // A field is inside that prefix if and only if it is a key on the record:
+    // read_partial_json inserts nothing it could not decode. So `is_blocked` on
+    // a stage_info record is editable even though 51,860 of 51,860 records fall
+    // back, while a field past the break is still correctly refused.
+    //
+    // Without this, the guard blocked the very case the partial writer was built
+    // for, and the mount log said "parser out of date" about a field the parser
+    // reads perfectly well.
+    let head = field
+        .split(|c| c == '.' || c == '[')
+        .next()
+        .unwrap_or(field);
+    let in_decoded_prefix = record
+        .get("_partial_fields")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0)
+        > 0
+        && record.get(head).is_some();
+    if in_decoded_prefix {
+        return None;
+    }
+
+    Some(format!(
+        "{}: entry '{}' / key {:?} fell to blob-fallback and field '{}' is not in the \
+         decoded prefix (typed parse failed — parser likely out of date for this game \
+         build); edit NOT applied",
+        op,
+        entry.unwrap_or(""),
+        key,
+        field
+    ))
 }
 
 /// Apply each `Patch` to `record`. Defaults to `set` per
@@ -973,5 +1006,49 @@ mod tests {
         // Clone preserves the {"value": N} wrapper shape.
         assert_eq!(records[1]["key"], json!({ "value": 999001 }));
         assert_eq!(records[1]["cooltime"], 1);
+    }
+
+    /// ★★★★ A partially-decoded record takes edits to its decoded prefix.
+    ///
+    /// The guard used to refuse EVERY field on any `_blob_fallback` record,
+    /// which was right when the fallback writer emitted the blob verbatim. Once
+    /// `write_blob_fallback_entry_partial` existed, that same guard blocked the
+    /// exact case the partial writer was built for, and the mount log claimed
+    /// "parser out of date" about a field the parser reads perfectly.
+    ///
+    /// Real case: `stage_info` falls back on 51,860 of 51,860 records, yet
+    /// salvages 48 fields per record. `is_blocked` is field 3. Sixteen
+    /// `Func_*_Forbidden_*` stages needed exactly that byte flipped.
+    #[test]
+    fn a_decoded_prefix_field_is_editable_on_a_fallback_record() {
+        let partial = json!({
+            "_blob_fallback": true,
+            "_partial_fields": 48,
+            "_partial_prefix_len": 410,
+            "key": 1000057,
+            "string_key": "Func_Damiane_Forbidden_ImpBanquet",
+            "is_blocked": 0,
+        });
+
+        // In the prefix -> allowed.
+        assert!(
+            blob_fallback_skip("set", &partial, None, Some(1000057), "is_blocked").is_none(),
+            "is_blocked decoded fine; refusing it is the bug this fixes"
+        );
+        // Nested path into a decoded field -> allowed (the whole prefix is rewritten).
+        assert!(blob_fallback_skip("set", &partial, None, None, "string_key").is_none());
+
+        // Past the break -> still refused. read_partial_json inserts nothing it
+        // could not decode, so absence IS the signal.
+        let past = blob_fallback_skip("set", &partial, None, Some(1000057), "weather_info");
+        assert!(past.is_some(), "a field beyond the decode break must not be claimed");
+        assert!(past.unwrap().contains("not in the decoded prefix"));
+
+        // Nothing salvaged at all -> refuse everything, as before.
+        let opaque = json!({ "_blob_fallback": true, "key": 1 });
+        assert!(blob_fallback_skip("set", &opaque, None, Some(1), "is_blocked").is_some());
+
+        // A whole-blob replacement was always allowed and still is.
+        assert!(blob_fallback_skip("set", &opaque, None, Some(1), "_blob_b64").is_none());
     }
 }
