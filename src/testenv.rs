@@ -32,6 +32,13 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.00.01 — 2026-08-28 hotfix on top of 2.00.00 (paver
+    // 020000000100159a). Parser-neutral: 266 of 268 tables byte-identical, and
+    // the only two that changed (actionpointinfo .pabgb/.pabgh) are the SAME
+    // SIZE — value edits, no layout drift. `cargo test --lib` gives the
+    // identical 20-failure set as 2.00.00 (zero regressions, zero fixes) and the
+    // blob census found no rate jump on any table. No table work was needed.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-28",
     // GAME VERSION 2.00.00 — 2026-08-25, the Enhanced update. 134 tables.
     //
     // ⚠ ADDING THE CAPTURE IS PART OF THE PATCH, NOT A FOLLOW-UP. Until this
