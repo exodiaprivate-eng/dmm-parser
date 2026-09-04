@@ -242,7 +242,12 @@ mod tests {
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
             let item = SequencerSpawnInfo::read_with_size(&data, &mut cursor, end - start)
-                .unwrap_or_else(|e| panic!("entry {} key=0x{:x} off=0x{:x} size={}: {}", i, key, start, end-start, e));
+                .unwrap_or_else(|e| {
+                let tag = crate::binary::variants::condition_data::LAST_ATTEMPTED_TAG.with(|x| x.get());
+                let trail = crate::binary::variants::condition_data::TAG_TRAIL.with(|t| t.borrow().clone());
+                let trail_strs: Vec<String> = trail.iter().map(|(t, off)| format!("tag={} after_body_abs={}", t, off)).collect();
+                panic!("entry {} key=0x{:x} off=0x{:x} size={}: {} (LAST_ATTEMPTED_TAG = {:?}, TRAIL = [{}])", i, key, start, end-start, e, tag, trail_strs.join(" | "))
+            });
             assert_eq!(cursor, *end);
             items.push(item);
         }

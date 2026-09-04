@@ -32,6 +32,11 @@ use std::io::{self, Write};
 #[derive(Debug)]
 pub struct OptionalGameCondition<'a> {
     pub inner: Option<GameConditionWrapper<'a>>,
+    /// The presence byte as read. NOT a pure bool: 2.01.00 interactioninfo entry 307
+    /// (key 0xf4322) carries 3 in `cond_b`; the engine only tests non-zero. Written
+    /// back verbatim so round-trips are byte-exact. JSON carries it as `_presence`
+    /// only when it is not the plain 1, so every existing mod file is unchanged.
+    pub presence: u8,
 }
 
 #[derive(Debug)]
@@ -65,13 +70,13 @@ impl<'a> OptionalGameCondition<'a> {
             }
             None
         };
-        Ok(Self { inner })
+        Ok(Self { inner, presence })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         match &self.inner {
             Some(g) => {
-                1u8.write_to(w)?;
+                (if self.presence == 0 { 1u8 } else { self.presence }).write_to(w)?;
                 g.tree.write_to(w)?;
                 g.tail_a.write_to(w)?;
                 g.tail_b.write_to(w)?;
@@ -92,6 +97,9 @@ impl<'a> OptionalGameCondition<'a> {
                 m.insert("tail_a".to_string(), g.tail_a.to_json_value());
                 m.insert("tail_b".to_string(), g.tail_b.to_json_value());
                 m.insert("tail_c".to_string(), g.tail_c.to_json_value());
+                if self.presence != 1 {
+                    m.insert("_presence".to_string(), Value::from(self.presence));
+                }
                 Value::Object(m)
             }
             None => Value::Null,
@@ -107,7 +115,8 @@ impl<'a> OptionalGameCondition<'a> {
             io::ErrorKind::InvalidData,
             "OptionalGameCondition: expected object or null",
         ))?;
-        w.push(1);
+        let presence = obj.get("_presence").and_then(|x| x.as_u64()).unwrap_or(1) as u8;
+        w.push(if presence == 0 { 1 } else { presence });
         GameConditionNode::write_from_json(w, json_get_field(obj, "tree")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_a")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_b")?)?;

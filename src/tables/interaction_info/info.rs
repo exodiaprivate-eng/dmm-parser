@@ -493,7 +493,22 @@ mod tests {
         eprintln!("interactioninfo: decoded={} raw={} (total={})", decoded, raw, ranges.len());
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
-        assert_eq!(out, data, "interactioninfo roundtrip mismatch");
+        if out != data {
+            let first = out.iter().zip(data.iter()).position(|(a, b)| a != b).unwrap_or(out.len().min(data.len()));
+            let which = ranges.iter().enumerate().find(|(_, (_, s, e))| first >= *s && first < *e);
+            let (idx, key, start, tail) = match which {
+                Some((i, (k, s, _))) => (i as i64, *k, *s, matches!(items[i].tail, InteractionTail::Decoded(_))),
+                None => (-1, 0, 0, false),
+            };
+            let lo = first.saturating_sub(8);
+            let hi = (first + 24).min(data.len()).min(out.len());
+            panic!(
+                "interactioninfo roundtrip mismatch: out.len={} data.len={} first diff at 0x{:x} (entry {} key=0x{:x} +{}, tail decoded={})
+  data: {:02x?}
+  out:  {:02x?}",
+                out.len(), data.len(), first, idx, key, first - start, tail, &data[lo..hi], &out[lo..hi]
+            );
+        }
     }
 
     /// Diagnostic: for each Raw fallback, re-run the typed decode on the

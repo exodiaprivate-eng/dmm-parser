@@ -862,9 +862,12 @@ fn serialize_table_from_json_tracked(
 /// [`is_supported_table`] for a yes/no answer or pass the result of this
 /// function to the apply / parse / serialize entry points.
 pub fn normalize_target_name(input: &str) -> Option<&'static str> {
-    // Strip recognized extensions.
+    // Strip recognized extensions. `.staticinfobody` is the 2.01.00 archive name of
+    // the same table (`iteminfo.pabgb` -> `binarystaticinfo__/bin/iteminfo.staticinfobody`);
+    // a mod may name the table either way and means the same thing.
     let stripped = input
         .strip_suffix(".pabgb")
+        .or_else(|| input.strip_suffix(".staticinfobody"))
         .or_else(|| input.strip_suffix(".pamt"))
         .unwrap_or(input);
 
@@ -1304,6 +1307,9 @@ mod tests {
     fn normalize_target_name_compact() {
         // SuperMod-style compact-with-extension names.
         assert_eq!(normalize_target_name("characterinfo.pabgb"), Some("character_info"));
+        // 2.01.00 archive spelling of the same table.
+        assert_eq!(normalize_target_name("characterinfo.staticinfobody"), Some("character_info"));
+        assert_eq!(normalize_target_name("iteminfo.staticinfobody"), Some("iteminfo"));
         assert_eq!(normalize_target_name("regioninfo.pabgb"), Some("region_info"));
         assert_eq!(
             normalize_target_name("spawningpoolautospawninfo.pabgb"),

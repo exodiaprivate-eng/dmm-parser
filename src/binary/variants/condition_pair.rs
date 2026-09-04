@@ -107,6 +107,11 @@ impl<'a> ConditionPair<'a> {
 #[derive(Debug)]
 pub struct OptionalConditionPair<'a> {
     pub inner: Option<ConditionPair<'a>>,
+    /// The presence byte as read. It is NOT a pure bool: 2.01.00 interactioninfo
+    /// carries 3 here (entry 307, key 0xf4322) and the engine only tests non-zero.
+    /// Written back verbatim so a round-trip is byte-exact; JSON emits it as
+    /// `_presence` only when it is not the plain 1.
+    pub presence: u8,
 }
 
 impl<'a> OptionalConditionPair<'a> {
@@ -117,13 +122,13 @@ impl<'a> OptionalConditionPair<'a> {
         } else {
             None
         };
-        Ok(Self { inner })
+        Ok(Self { inner, presence })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         match &self.inner {
             Some(c) => {
-                1u8.write_to(w)?;
+                (if self.presence == 0 { 1u8 } else { self.presence }).write_to(w)?;
                 c.write_to(w)
             }
             None => 0u8.write_to(w),
@@ -132,7 +137,14 @@ impl<'a> OptionalConditionPair<'a> {
 
     pub fn to_json_value(&self) -> Value {
         match &self.inner {
-            Some(c) => c.to_json_value(),
+            Some(c) => {
+                let mut v = c.to_json_value();
+                if self.presence != 1
+                    && let Value::Object(m) = &mut v {
+                        m.insert("_presence".to_string(), Value::from(self.presence));
+                    }
+                v
+            }
             None => Value::Null,
         }
     }
@@ -142,7 +154,8 @@ impl<'a> OptionalConditionPair<'a> {
             w.push(0);
             Ok(())
         } else {
-            w.push(1);
+            let presence = v.get("_presence").and_then(|x| x.as_u64()).unwrap_or(1) as u8;
+            w.push(if presence == 0 { 1 } else { presence });
             ConditionPair::write_from_json(w, v)
         }
     }
