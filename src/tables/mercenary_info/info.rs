@@ -85,6 +85,17 @@ use crate::py_binary_struct;
 //   _feedFromGimmickInfo (u32, sub_1410F75A0) →
 //   _hiredSkillInfoList → _setNewMercenaryIsMain
 py_binary_struct! {
+    /// 2.01.00 (2026-09-04) — rewritten from the Mac 2.01 reader (sub_102040544, 52 reads
+    /// after the key, one per oracle field, paired in order). Widths: every 1-byte reader is
+    /// the engine's u8/enum read; `_mercenaryType`, `_farFromLeaderOption` and the four
+    /// `*Type`/`*Option` enums before the actor-type list read 1 byte each;
+    /// `_allowedSpawnActorTypeList` is a u32 count of 1-byte elements; `_statusUIList` a u32
+    /// count of u32; `_parentMercenaryGroupInfo` 1 byte; `_sharedSummonCountTag` and
+    /// `_feedFromGimmickInfo` u32; `_expandedSlotList` (kept under its old name
+    /// `hired_skill_info_list`, the contract) is u64 + u32 + KnowledgeKey u32 = 16 bytes.
+    /// 2.01 REMOVED `_isControllable`, `_mainMercenaryPerTribe`, `_unspawnOnFocusActorChanged`
+    /// and ADDED eleven flags plus the actor-type list; the pre-2.01 `tail_u8_110` /
+    /// `tail_u8b_111` / `tail_u32_110` guesses now carry their real names.
     pub struct MercenaryInfo<'a> {
         pub key: u8,                              // _key
         pub string_key: CString<'a>,             // _stringKey
@@ -92,38 +103,18 @@ py_binary_struct! {
         pub default_limit_summon_count: u32,     // _defaultLimitSummonCount
         pub default_limit_hire_count: u32,       // _defaultLimitHireCount
         pub max_limit_hire_count: u32,           // _maxLimitHireCount
-        // 16 u8 fields (struct offsets +32..+47 in IDA, wire bytes sequential)
         pub mercenary_type: u8,                  // _mercenaryType
         pub far_from_leader_option: u8,          // _farFromLeaderOption
-        pub is_controllable: u8,                 // _isControllable
         pub is_playable: u8,                     // _isPlayable
         pub summon_after_regist: u8,             // _summonAfterRegist
-        pub main_mercenary_per_tribe: u8,        // _mainMercenaryPerTribe
         pub is_force_stackable: u8,              // _isForceStackable
         pub use_camp_level: u8,                  // _useCampLevel
         pub apply_equip_item_stat: u8,           // _applyEquipItemStat
         pub check_item_no_on_push_to_item: u8,   // _checkItemNoOnPushToItem
         pub allow_exceed_limit_hire_count: u8,   // _allowExceedLimitHireCount
         pub is_select_mercenary_spawn: u8,       // _isSelectMercenarySpawn
-        pub unspawn_on_focus_actor_changed: u8,  // _unspawnOnFocusActorChanged
-        pub is_main_dischargeable: u8,           // _isMainDischargeable
-        // ── 1.18.00: `_isLossInventoryItem`, one u8 in the u8 block. Position
-        // is exact, not a zero-run guess: in keys 0x4E and 0x42 the inserted
-        // byte is `01` while the old byte at that offset is `00`, so it cannot
-        // slide — it lands between is_main_dischargeable and spawn_position_type.
+        pub check_owned_item_for_restore_item: u8, // _checkOwnedItemForRestoreItem
         pub is_loss_inventory_item: u8,          // _isLossInventoryItem
-        // ── 2.00.00: fifteen new fields ─────────────────────────────
-        // The companion overhaul in the Enhanced update (patch notes: companion
-        // damage, flying-mount control, breeding). Recovered from the reader
-        // rather than guessed — `field_order.py MercenaryInfo` gives the read
-        // order, and the offsets in sub_10203C630 line up exactly:
-        //
-        //   +34..+51  eighteen 1-byte reads  = indices 8..25
-        //   +56       _statusUIList          = index 26
-        //   +72..+80  nine 1-byte reads      = indices 27..35
-        //
-        // Widths are the vtable call's third argument (sub_100E4BBE4 -> 1LL),
-        // not inferred from the data.
         pub use_wagon_road: u8,                  // _useWagonRoad
         pub is_show_ddd_status_detail: u8,       // _isShowDDDStatusDetail
         pub is_show_horse_status: u8,            // _isShowHorseStatus
@@ -139,29 +130,25 @@ py_binary_struct! {
         pub is_buff_level_changeable: u8,        // _isBuffLevelChangeable
         pub is_min_hp_makeable: u8,              // _isMinHPMakeable
         pub is_fireable: u8,                     // _isFireable
+        pub is_logout_in_ai: u8,                 // _isLogoutInAI (2.01)
+        pub is_map_icon_pet: u8,                 // _isMapIconPet (2.01)
+        pub use_vehicle_equip_slot: u8,          // _useVehicleEquipSlot (2.01)
+        pub is_pet_friendly_addition: u8,        // _isPetFriendlyAddition (2.01)
+        pub use_friendly_gauge: u8,              // _useFriendlyGauge (2.01)
+        pub is_must_hide_and_restore: u8,        // _isMustHideAndRestore (2.01)
+        pub check_inventory_push_on_spawn: u8,   // _checkInventoryPushOnSpawn (2.01)
+        pub check_indoor: u8,                    // _checkIndoor (2.01)
+        pub is_show_level_up_alert: u8,          // _isShowLevelUpAlert (2.01)
+        pub is_farm_hire: u8,                    // _isFarmHire (2.01)
+        pub main_dischargeable_type: u8,         // _mainDischargeableType
         pub spawn_position_type: u8,             // _spawnPositionType
-        pub summon_owner_option: u8,             // _summonOwnerOption (was u32, now u8 in-block)
-        pub parent_mercenary_group_info: u8,     // _parentMercenaryGroupInfo (sub_1410FD230: 1B)
-        // 1.10: tail RESTRUCTURED. shared_summon_count_tag (u32),
-        // hired_skill_info_list (CArray), and set_new_mercenary_is_main (u8)
-        // are GONE; the post-block tail is now u8 + u32 + u32 (fixed).
-        // The trailing u8 mirrors the record key in vanilla; the first u32 is
-        // a name-hash (0xEAC5E173 sentinel when empty); the second u32 is a
-        // key reference. Verified via wire-walker: all 18 records byte-exact.
-        pub tail_u8_110: u8,
-        // 1.11: one new u8 inserted between tail_u8_110 and the name-hash (small
-        // enum/flag, 0x40/0x41 observed), and _hiredSkillInfoList re-added as the
-        // trailing CArray (16-byte elements; was removed in 1.10). Verified via
-        // wire-walker against 1.11 pabgh boundaries: all 18 records byte-exact
-        // (empty list in 17 records, 8 entries in the "Pet" record).
-        pub tail_u8b_111: u8,
-        pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo (name-hash)
-        pub tail_u32_110: u32,
-        pub hired_skill_info_list: CArray<HiredSkillData>,  // _hiredSkillInfoList (1.11 re-add)
-        // ── 1.18.00: `_cameraPresetHash`, one u32 appended after the hired
-        // skill list. Present in all 21 records; 5 carry real hashes
-        // (0xBEE0C77B, 0x221089D6, 0x54473E0C, 0x5CB92E95, 0x70ED6590), the
-        // rest are 0. A name-hash, consistent with the canonical name.
+        pub summon_owner_option: u8,             // _summonOwnerOption
+        pub inventory_owner_type: u8,            // _inventoryOwnerType
+        pub allowed_spawn_actor_type_list: CArray<u8>, // _allowedSpawnActorTypeList (2.01)
+        pub parent_mercenary_group_info: u8,     // _parentMercenaryGroupInfo
+        pub shared_summon_count_tag: u32,        // _sharedSummonCountTag
+        pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo
+        pub hired_skill_info_list: CArray<HiredSkillData>,  // _expandedSlotList (name kept: mod contract)
         pub camera_preset_hash: u32,             // _cameraPresetHash
     }
 }
