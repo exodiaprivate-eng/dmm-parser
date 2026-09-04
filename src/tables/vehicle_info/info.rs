@@ -109,7 +109,10 @@ py_binary_struct! {
         // 1.11: _callVehicleVoxelType widened from a single u32 to a CArray<u32>
         // (count + N×u32). Verified via wire-walker: count=1 in most records,
         // count=2 in the 0x424F record; all 34 reconcile.
-        pub call_vehicle_voxel_type_list: CArray<u32>,
+        // ── 2.01.00 REMOVED `_callVehicleSpawnVoxelTypeList` (this was it: a CArray<u32>
+        // that every record carried as count=1, value=4 — the 8 bytes bytediff saw
+        // deleted from all 34 records). Kept out rather than commented in: a V3 mod that
+        // names it gets an unresolved-field report, which is the truthful outcome.
         pub show_count_on_ui: u8,
         pub ui_map_texture_info: u32,
         pub rider_detect_info: u16,

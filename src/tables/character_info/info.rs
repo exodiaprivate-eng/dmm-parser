@@ -837,18 +837,69 @@ py_binary_struct! {
         pub summon_tag_hash_b: u32,
         pub summon_tag_hash_c: u32,
         pub summon_tag_hash_d: u32,
+        // ── 2.01.00: `_animationRootBoneName`, read last by the Mac reader
+        // (sub_101ADA060) through the CString routine the two attach-socket names use.
+        // Every docking child grew by 2 (an empty string) — the 2/4-byte deltas bytediff
+        // saw on iteminfo and characterinfo.
+        pub animation_root_bone_name: CString<'a>,
     }
 }
 
 // Field 144 element `CharacterFriendlyItemData` (reader sub_101FAF58C): nested
 // DropSet CArray + 3 key u32 + u64 reward.
 py_binary_struct! {
+    // ── 2.01.00 REORDERED this element: the drop-set list moved from first to third
+    // (Mac reader sub_102047C84: _itemInfoToDeliver, _itemGroupInfoToDeliver,
+    // _friendlyItemRewardDropSetInfoList, _knowledgeInfo, _rewardFriendly). Same five
+    // fields, same widths; only the wire order changed. Field NAMES are unchanged on
+    // purpose — they are the mod contract; only the read/write order moved.
     pub struct CharacterFriendlyItemData {
-        pub friendly_item_reward_drop_set_info_list: CArray<u32>, // DropSetKey list
         pub item_info_to_deliver: u32,        // ItemKey
         pub item_group_info_to_deliver: u16,  // ItemGroupKey (sub_101600BC0 reads 2B!)
+        pub friendly_item_reward_drop_set_info_list: CArray<u32>, // DropSetKey list
         pub knowledge_info: u32,              // KnowledgeKey
         pub reward_friendly: u64,
+    }
+}
+
+// 2.01.00 — `CharacterFriendlyKnowledgeData` (Mac reader sub_102047F80): KnowledgeKey u32,
+// KnowledgeGroupKey u32, a 1-byte prefer type, then two u64 rewards. 25 wire bytes.
+py_binary_struct! {
+    pub struct CharacterFriendlyKnowledgeData {
+        pub knowledge_to_shared: u32,
+        pub knowledge_group_to_shared: u32,
+        pub knowledge_prefer_type: u8,
+        pub reward_friendly: u64,
+        pub reward_affinity: u64,
+    }
+}
+
+// 2.01.00 — the field the oracle calls `_characterFriendlyKnowledgeDataList` is THREE
+// lists on the wire: its reader (sub_10204A4DC) calls the list reader sub_102084D80 three
+// times, at +0, +16 and +32 of the destination. That is why every record grew by 12
+// here (three empty u32 counts), not 4. Which list is which is not named anywhere in
+// the binary; they are numbered in wire order.
+py_binary_struct! {
+    pub struct CharacterFriendlyKnowledgeDataLists {
+        pub knowledge_list_0: CArray<CharacterFriendlyKnowledgeData>,
+        pub knowledge_list_1: CArray<CharacterFriendlyKnowledgeData>,
+        pub knowledge_list_2: CArray<CharacterFriendlyKnowledgeData>,
+    }
+}
+
+// 2.01.00 — `ShipStationData` (Mac reader sub_102048A34): `_strKey` is a 4-byte read
+// (sub_101FCF954), `_spawnSocketName` a CString, `_name` goes through sub_100E37990 which
+// reads a 1-byte kind, an 8-byte hash and then a CString, `_count` is u32 and
+// `_uiPosition` an 8-byte read (sub_100E1383C), held opaque.
+py_binary_struct! {
+    pub struct ShipStationData<'a> {
+        pub str_key: u32,
+        pub spawn_socket_name: CString<'a>,
+        pub name_kind: u8,
+        pub name_hash: u64,
+        pub name_text: CString<'a>,
+        pub count: u32,
+        pub ui_position: u64,
     }
 }
 
@@ -1247,6 +1298,8 @@ pabgh_typed_blob_table! {
         pub character_collision_type: u8,            // 142 sub_101378594
         pub bump_type_hash: u32,                     // 143 sub_100D39278
         pub character_friendly_item_data_list: CArray<CharacterFriendlyItemData>, // 144 sub_101FE7B98
+        // 2.01.00 — three knowledge lists; see CharacterFriendlyKnowledgeDataLists.
+        pub character_friendly_knowledge_data_list: CharacterFriendlyKnowledgeDataLists,
         pub character_threat_dialog_info: u32,       // 145 AIDialogStringKey — sub_101FB1714
         pub ai_dialog_override_list: CArray<AiDialogOverride>, // 146 sub_101FE7E28
         pub trap_food_data: TrapFoodData,            // 147 sub_101FAED78
@@ -1266,6 +1319,9 @@ pabgh_typed_blob_table! {
         pub bullet_item: BulletItem,                 // 161 sub_10137866C
         pub job_info: u16,                           // 162 JobKey — sub_101F8B5DC
         pub call_vehicle_gimmick_info: u32,          // 163 GimmickInfoKey — sub_100DCDC64
+        // 2.01.00 — `_callMercenarySpawnVoxelType`: despite the singular name its reader
+        // (sub_10208567C) reads a u32 count and 4-byte elements, i.e. a CArray<u32>.
+        pub call_mercenary_spawn_voxel_type: CArray<u32>,
         pub camp_guest_data: CampGuestData,          // 164 sub_101FAF2F0
         pub talk_tree_info: u16,                     // 165 TalkTreeKey — sub_101F89C3C
         pub base_material_key_override: u32,         // 166 sub_100D39278
@@ -1310,6 +1366,8 @@ pabgh_typed_blob_table! {
         // the records just stopped being addressable.
         pub game_play_trigger_zone: CArray<u32>,     // _gamePlayTriggerZone  (1.18)
         pub sub_zone_tag_list: CArray<u32>,          // _subZoneTagList       sub_10111CDFC (count + 4*n)
+        // 2.01.00 — `_shipStationDataList` (reader sub_102085CD8: u32 count + ShipStationData).
+        pub ship_station_data_list: CArray<ShipStationData<'a>>,
         pub balance_difficulty_level: u32,           // 179 sub_100D39258
         pub is_apply_stat_control_data: u8,          // 180 sub_100D391B8
         pub apply_stat_balace_data: ApplyStatBalance,     // 181 sub_101FB185C

@@ -531,6 +531,11 @@ pub struct StoreStockData {
     pub lookup_b: u32,                                    // sub_1410F61C0 wire u32
     pub lookup_c: u32,                                    // sub_1410F61C0 wire u32  [1.0.8]
     pub sub_data: OptionalStoreStockSubData,
+    // 2.01.00: `_maxRefillCondition`, 8 wire bytes between `_conditionOption` (sub_data)
+    // and `_orderCountDataList` (effect_list) in the binary's 18-field StockData. Every
+    // stock entry of every store grew by exactly 8. Kept opaque (u64) like the other
+    // condition-ish quantities here; vanilla writes 0.
+    pub max_refill_condition_201: u64,
     pub effect_list: CArray<StoreStockEffectEntry>,
 }
 
@@ -552,10 +557,11 @@ impl StoreStockData {
         let lookup_b = u32::read_from(data, offset)?;
         let lookup_c = u32::read_from(data, offset)?;
         let sub_data = OptionalStoreStockSubData::read_from(data, offset)?;
+        let max_refill_condition_201 = u64::read_from(data, offset)?;
         let effect_list = CArray::<StoreStockEffectEntry>::read_from(data, offset)?;
         Ok(Self {
             lookup_a, raw_a, raw_b, raw_c, low_price_threshold_count_116, raw_d, raw_e, order_index_113,
-            flag_a, flag_b, flag_c, is_restore_item, value, lookup_b, lookup_c, sub_data, effect_list,
+            flag_a, flag_b, flag_c, is_restore_item, value, lookup_b, lookup_c, sub_data, max_refill_condition_201, effect_list,
         })
     }
 
@@ -576,6 +582,7 @@ impl StoreStockData {
         self.lookup_b.write_to(w)?;
         self.lookup_c.write_to(w)?;
         self.sub_data.write_to(w)?;
+        self.max_refill_condition_201.write_to(w)?;
         self.effect_list.write_to(w)
     }
 
@@ -597,6 +604,7 @@ impl StoreStockData {
         m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
         m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
         m.insert("sub_data".to_string(), self.sub_data.to_json_value());
+        m.insert("max_refill_condition_201".to_string(), self.max_refill_condition_201.to_json_value());
         m.insert("effect_list".to_string(), self.effect_list.to_json_value());
         Value::Object(m)
     }
@@ -624,6 +632,8 @@ impl StoreStockData {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
         OptionalStoreStockSubData::write_from_json(w, json_get_field(obj, "sub_data")?)?;
+        // Null-tolerant: stock entries captured before 2.01.00 have no key for this.
+        <u64 as WriteJsonValue>::write_from_json(w, obj.get("max_refill_condition_201").unwrap_or(&Value::Null))?;
         <CArray<StoreStockEffectEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "effect_list")?)?;
         Ok(())
     }
@@ -644,6 +654,10 @@ pub struct StoreInfo<'a> {
     // _resetHour (StoreInfo reader sub_10190B0A0 @ byte 73). Shifts the whole
     // stock_data_list region — without it the value disc misreads.
     pub pre_reset_extra_111: u8,
+    // ── 2.01.00: `_hasStockCondition`, one u8 between `_hasRestoreItem` (the field
+    // above, named before the oracle existed) and `_enterCityWagonStore`. Record 0 grew
+    // by exactly 1 byte at offset 33.
+    pub has_stock_condition: u8,
     // 1.16.00: `_enterCityWagonStore` (u8). The binary's 23-field StoreInfo
     // list has THREE flags here — _hasSellableCharacter, _hasRestoreItem,
     // _enterCityWagonStore — where we modelled only two, leaving every record
@@ -696,6 +710,7 @@ impl<'a> StoreInfo<'a> {
         let price_increase_percent_list = track_read_field::<CArray<u64>>(data, offset, path, ranges, "price_increase_percent_list", "CArray<u64>")?;
         let sellable_character_condition_logic = track_read_field::<u8>(data, offset, path, ranges, "sellable_character_condition_logic", "u8")?;
         let pre_reset_extra_111 = track_read_field::<u8>(data, offset, path, ranges, "pre_reset_extra_111", "u8")?;
+        let has_stock_condition = track_read_field::<u8>(data, offset, path, ranges, "has_stock_condition", "u8")?;
         let enter_city_wagon_store_116 = track_read_field::<u8>(data, offset, path, ranges, "enter_city_wagon_store_116", "u8")?;
         let reset_hour = track_read_field::<u32>(data, offset, path, ranges, "reset_hour", "u32")?;
         let reset_day = track_read_field::<u32>(data, offset, path, ranges, "reset_day", "u32")?;
@@ -738,7 +753,7 @@ impl<'a> StoreInfo<'a> {
             exchange_item_info_for_buy, exchange_item_info_list_for_sell,
             sell_percents, store_type, price_increase_percent_list,
             sellable_character_condition_logic, pre_reset_extra_111,
-            enter_city_wagon_store_116, reset_hour, reset_day,
+            has_stock_condition, enter_city_wagon_store_116, reset_hour, reset_day,
             buyable_stock_count, sellable_stock_count, sellable_type,
             stock_data_list, sale_item_type_list, not_sale_item_type_list,
             custom_mesh_obb_max_length,
@@ -757,6 +772,7 @@ impl<'a> StoreInfo<'a> {
         let price_increase_percent_list = CArray::<u64>::read_from(data, offset)?;
         let sellable_character_condition_logic = u8::read_from(data, offset)?;
         let pre_reset_extra_111 = u8::read_from(data, offset)?;
+        let has_stock_condition = u8::read_from(data, offset)?;
         let enter_city_wagon_store_116 = u8::read_from(data, offset)?;
         let reset_hour = u32::read_from(data, offset)?;
         let reset_day = u32::read_from(data, offset)?;
@@ -791,7 +807,7 @@ impl<'a> StoreInfo<'a> {
             exchange_item_info_for_buy, exchange_item_info_list_for_sell,
             sell_percents, store_type, price_increase_percent_list,
             sellable_character_condition_logic, pre_reset_extra_111,
-            enter_city_wagon_store_116, reset_hour, reset_day,
+            has_stock_condition, enter_city_wagon_store_116, reset_hour, reset_day,
             buyable_stock_count, sellable_stock_count, sellable_type,
             stock_data_list, sale_item_type_list, not_sale_item_type_list,
             custom_mesh_obb_max_length,
@@ -810,6 +826,7 @@ impl<'a> StoreInfo<'a> {
         self.price_increase_percent_list.write_to(w)?;
         self.sellable_character_condition_logic.write_to(w)?;  // u8 in 1.0.8 (was u32 in 1.0.7)
         self.pre_reset_extra_111.write_to(w)?;
+        self.has_stock_condition.write_to(w)?;
         self.enter_city_wagon_store_116.write_to(w)?;
         self.reset_hour.write_to(w)?;
         self.reset_day.write_to(w)?;
@@ -838,6 +855,7 @@ impl<'a> StoreInfo<'a> {
         m.insert("price_increase_percent_list".to_string(), self.price_increase_percent_list.to_json_value());
         m.insert("sellable_character_condition_logic".to_string(), self.sellable_character_condition_logic.to_json_value());
         m.insert("pre_reset_extra_111".to_string(), self.pre_reset_extra_111.to_json_value());
+        m.insert("has_stock_condition".to_string(), self.has_stock_condition.to_json_value());
         m.insert("enter_city_wagon_store_116".to_string(), self.enter_city_wagon_store_116.to_json_value());
         m.insert("reset_hour".to_string(), self.reset_hour.to_json_value());
         m.insert("reset_day".to_string(), self.reset_day.to_json_value());
@@ -866,6 +884,8 @@ impl<'a> StoreInfo<'a> {
         <CArray<u64> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "price_increase_percent_list")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_character_condition_logic")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pre_reset_extra_111")?)?;
+        // Null-tolerant: a V3 store mod authored before 2.01.00 has no key for this.
+        <u8 as WriteJsonValue>::write_from_json(w, obj.get("has_stock_condition").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "enter_city_wagon_store_116")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_hour")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_day")?)?;
@@ -954,6 +974,7 @@ mod tests {
         body.extend_from_slice(&0u32.to_le_bytes()); // price_increase_percent_list count=0
         body.push(0); // sellable_character_condition_logic
         body.push(0); // pre_reset_extra_111
+        body.push(0); // has_stock_condition (2.01.00)
         body.push(0); // enter_city_wagon_store_116
         body.extend_from_slice(&0u32.to_le_bytes()); // reset_hour
         body.extend_from_slice(&0u32.to_le_bytes()); // reset_day

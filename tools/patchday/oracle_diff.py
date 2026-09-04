@@ -41,10 +41,20 @@ def main():
         o, n = old.get(t, []), new.get(t, [])
         added = [f for f in n if f not in o]
         removed = [f for f in o if f not in n]
-        if not added and not removed:
+        # ⚠ 2.01.00 lesson: a struct can change with NO field added or removed — a
+        # REORDER (CharacterFriendlyItemData moved its drop-set list from first to
+        # third) is a wire-layout change just the same. And this comparison must run
+        # for EVERY table: the first version of this loop reported 17 of the 36
+        # types that changed between 2.0 and 2.01 and was trusted for hours.
+        common_o = [f for f in o if f in n]
+        common_n = [f for f in n if f in o]
+        reordered = common_o != common_n
+        if not added and not removed and not reordered:
             continue
         changed += 1
-        print(f"=== {t}  ({len(o)} -> {len(n)} fields) ===")
+        print(f"=== {t}  ({len(o)} -> {len(n)} fields{', REORDERED' if reordered else ''}) ===")
+        if reordered and not added and not removed:
+            print("   new order:", " ".join(n))
         for f in added:
             # index in the NEW reader order = where it sits in the struct
             print(f"   + {f}   (new idx {n.index(f)}, after "

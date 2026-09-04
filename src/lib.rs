@@ -221,7 +221,10 @@ mod tests {
     }
 
     fn extract_paloc_data() -> Option<Vec<u8>> {
+        // 2.01.00 split the single per-language file into 39 per-table files; either
+        // shape is a valid fixture for the format tests.
         extract_paloc_from_archive("0020", "localizationstring_eng.paloc")
+            .or_else(|| extract_paloc_from_archive("0020", "item.paloc"))
     }
 
     fn extract_paloc_from_archive(group: &str, file_name: &str) -> Option<Vec<u8>> {
@@ -237,17 +240,18 @@ mod tests {
             .unwrap_or_else(|e| panic!("{}: {}", pamt_path.display(), e));
         let pamt = PackMeta::parse(&pamt_data, None).unwrap();
 
-        let dir = pamt.directories.iter()
-            .find(|d| d.path == "gamedata/stringtable/binary__")
-            .expect("directory not found in pamt");
-        let file = dir.files.iter()
-            .find(|f| f.name == file_name)
-            .unwrap_or_else(|| panic!("{} not found", file_name));
+        // 2.01.00 moved the string tables from `gamedata/stringtable/binary__/` into a
+        // per-language folder under it (`.../binary__/eng/`). Look for the file in any
+        // directory under the stringtable root rather than pinning one layout.
+        let (dir, file) = pamt.directories.iter()
+            .filter(|d| d.path.starts_with("gamedata/stringtable/binary__"))
+            .find_map(|d| d.files.iter().find(|f| f.name == file_name).map(|f| (d, f)))
+            .or_else(|| { eprintln!("SKIP: {} not in 0020 (layout changed?)", file_name); None })?;
 
         Some(paz::extract_file(
             &group_dir,
             file,
-            "gamedata/stringtable/binary__",
+            &dir.path,
             &pamt.header.encrypt_info.encrypt_info,
         ).unwrap())
     }
@@ -285,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_paloc_kor_parse() {
-        let Some(data) = extract_paloc_from_archive("0019", "localizationstring_kor.paloc") else {
+        let Some(data) = extract_paloc_from_archive("0019", "localizationstring_kor.paloc").or_else(|| extract_paloc_from_archive("0019", "item.paloc")) else {
             eprintln!("SKIP: paloc-kor fixture (game dir or 0019/0.pamt not found)");
             return;
         };
@@ -305,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_paloc_kor_roundtrip() {
-        let Some(data) = extract_paloc_from_archive("0019", "localizationstring_kor.paloc") else {
+        let Some(data) = extract_paloc_from_archive("0019", "localizationstring_kor.paloc").or_else(|| extract_paloc_from_archive("0019", "item.paloc")) else {
             eprintln!("SKIP: paloc-kor fixture (game dir or 0019/0.pamt not found)");
             return;
         };

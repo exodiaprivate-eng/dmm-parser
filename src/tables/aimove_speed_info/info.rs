@@ -10,20 +10,18 @@
 use crate::binary::*;
 use crate::py_binary_struct;
 
-// Hand-corrected: ai_move_speed_data_list is a fixed-size 6-slot
-// `[COptional<AIMoveSpeedData>; 6]` per IDA sub_1410D58A0
-// (loop runs exactly 6 iterations, each preceded by u8 presence flag).
-// Element struct AIMoveSpeedData has 127 bytes per IDA sub_1410EDD90.
+// 2.01.00 (2026-09-03) — the six presence-flagged slots are UNCHANGED (the list reader
+// sub_10207C31C still reads a u8 flag and allocates a 0x84-byte element, six times over).
+// What changed is the element (sub_10201454C, 127 -> 131 wire bytes): 2.01 split
+// `_accPreventDistanceAfterCurve` into `_min` / `_max`. `moveAcc` / `moveDcc` are read as
+// four 8-byte values each, i.e. the same 32 bytes as the eight f32 exposed here; the f32
+// names stay because they are the mod contract. Record count went 189 -> 346 (data).
 py_binary_struct! {
     pub struct AIMoveSpeedData {
         pub target_move_speed: f32,
         pub min_move_speed: f32,
-        // 8-slot acceleration ramp (f32 each). Empirical sweep across 10
-        // present vanilla slots × 16 f32 values found 0 NaN — safe to
-        // expose as f32. acc_count above tells how many slots are valid.
         pub move_acc_0: f32, pub move_acc_1: f32, pub move_acc_2: f32, pub move_acc_3: f32,
         pub move_acc_4: f32, pub move_acc_5: f32, pub move_acc_6: f32, pub move_acc_7: f32,
-        // 8-slot deceleration ramp.
         pub move_dcc_0: f32, pub move_dcc_1: f32, pub move_dcc_2: f32, pub move_dcc_3: f32,
         pub move_dcc_4: f32, pub move_dcc_5: f32, pub move_dcc_6: f32, pub move_dcc_7: f32,
         pub look_forward_sec: f32,
@@ -32,7 +30,10 @@ py_binary_struct! {
         pub max_degree_diff: f32,
         pub rotation_damping: f32,
         pub max_rotation_speed: f32,
-        pub acc_prevent_distance_after_curve: f32,
+        // 2.01.00: was one `acc_prevent_distance_after_curve`; now a min/max pair. The
+        // old name is gone rather than aliased — a mod that set it must choose a bound.
+        pub acc_prevent_distance_after_curve_min: f32,
+        pub acc_prevent_distance_after_curve_max: f32,
         pub min_degree_diff_stride: f32,
         pub max_degree_diff_stride: f32,
         pub min_move_speed_stride: f32,
@@ -44,7 +45,6 @@ py_binary_struct! {
         pub rotate_to_target_sync_with_ik: u8,
     }
 }
-
 py_binary_struct! {
     pub struct AIMoveSpeedInfo<'a> {
         pub key: u32,
@@ -58,7 +58,6 @@ py_binary_struct! {
         pub slot_5: COptional<AIMoveSpeedData>,
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

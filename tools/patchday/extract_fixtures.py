@@ -37,7 +37,49 @@ sys.path.insert(0, os.path.abspath("python"))
 import dmm_parser as dp  # noqa: E402
 
 GAME = r"D:\SteamLibrary\steamapps\common\Crimson Desert"
-BIN = "gamedata/binary__/client/bin"
+# Where the static tables live, NEWEST LAYOUT FIRST. 2.01.00 (2026-09-03) moved and renamed
+# them: `gamedata/binary__/client/bin/<t>.pabgb|.pabgh` became
+# `gamedata/binarystaticinfo__/bin/<t>.staticinfobody|.staticinfoheader`. The dump keeps the
+# OLD names (`<t>.pabgb` / `<t>.pabgh`) so bytediff, the test fixtures and every V3 mod's
+# `"file"` name keep working; the mapping below is the only place that knows the difference.
+# The extractor reported "0/268 extracted, 268 MISSING" on the day it happened, which reads
+# like a broken game. Walk the pamt directories first when that ever happens again.
+LAYOUTS = [
+    ("gamedata/binarystaticinfo__/bin", {".staticinfobody": ".pabgb", ".staticinfoheader": ".pabgh"}),
+    ("gamedata/binary__/client/bin",    {".pabgb": ".pabgb", ".pabgh": ".pabgh"}),
+]
+BIN = LAYOUTS[0][0]          # kept for callers that print it; resolved per build by find_layout()
+EXT_MAP = LAYOUTS[0][1]
+
+
+def find_layout(pamt):
+    """The (dir, ext_map) this build actually uses, or None. Newest layout wins."""
+    global BIN, EXT_MAP
+    dirs = {d["path"].replace("\\", "/").lower(): d for d in pamt["directories"]}
+    for path, ext_map in LAYOUTS:
+        d = dirs.get(path)
+        if d and any(f["name"].lower().endswith(tuple(ext_map)) for f in (d.get("files") or [])):
+            BIN, EXT_MAP = path, ext_map
+            return path, ext_map
+    return None
+
+
+def dump_name(live_name):
+    """`iteminfo.staticinfobody` -> `iteminfo.pabgb` (the name the dump and the tools use)."""
+    low = live_name.lower()
+    for live_ext, dump_ext in EXT_MAP.items():
+        if low.endswith(live_ext):
+            return live_name[: -len(live_ext)] + dump_ext
+    return live_name
+
+
+def live_name(dump_name_):
+    """`iteminfo.pabgb` -> `iteminfo.staticinfobody` (what to ask the archive for)."""
+    low = dump_name_.lower()
+    for live_ext, dump_ext in EXT_MAP.items():
+        if low.endswith(dump_ext):
+            return dump_name_[: -len(dump_ext)] + live_ext
+    return dump_name_
 ROOT = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb"
 PAVER_NOTE = "paver.hex"
 
@@ -78,13 +120,15 @@ def group_tables():
         pamt = dp.parse_pamt_file(os.path.join(GAME, "0008", "0.pamt"))
     except Exception:  # noqa: BLE001
         return None
+    if find_layout(pamt) is None:
+        return None
     out = set()
     for d in pamt["directories"]:
         if d["path"].replace("\\", "/").lower() != BIN:
             continue
         for f in (d.get("files") or []):
-            if f["name"].lower().endswith((".pabgb", ".pabgh")):
-                out.add(f["name"])
+            if f["name"].lower().endswith(tuple(EXT_MAP)):
+                out.add(dump_name(f["name"]))     # dump-side name, e.g. iteminfo.pabgb
     return out
 
 
@@ -145,7 +189,7 @@ def main():
     ok, miss, err = 0, [], []
     for name in names:
         try:
-            data = bytes(dp.extract_file(GAME, "0008", BIN, name))
+            data = bytes(dp.extract_file(GAME, "0008", BIN, live_name(name)))
             open(os.path.join(out, name), "wb").write(data)
             ok += 1
         except Exception as e:  # noqa: BLE001
@@ -198,7 +242,7 @@ def main():
             print(f"\n★ {len(fresh)} table(s) in this build that the prior set never had:")
             for n in fresh:
                 try:
-                    data = bytes(dp.extract_file(GAME, "0008", BIN, n))
+                    data = bytes(dp.extract_file(GAME, "0008", BIN, live_name(n)))
                     open(os.path.join(out, n), "wb").write(data)
                     print(f"  + {n:<36} {len(data):>11,}  captured")
                 except Exception as e:  # noqa: BLE001

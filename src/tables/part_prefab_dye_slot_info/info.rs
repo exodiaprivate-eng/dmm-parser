@@ -45,7 +45,13 @@ py_binary_struct! {
         pub flag_d: u8,
         pub flag_e: u8,
         pub flag_f: u8,
-        pub flag_g: u8,
+        // ── 2.01.00: `_useDyeGrime` grew from 3 bytes to 12 (Mac reader sub_102064620 reads
+        // twelve u8 in one chain). flag_d/e/f are the first three, kept under their old
+        // names because Dye Fix and friends address them by name; the nine new ones follow.
+        pub use_dye_grime_3: u8, pub use_dye_grime_4: u8, pub use_dye_grime_5: u8,
+        pub use_dye_grime_6: u8, pub use_dye_grime_7: u8, pub use_dye_grime_8: u8,
+        pub use_dye_grime_9: u8, pub use_dye_grime_10: u8, pub use_dye_grime_11: u8,
+        pub flag_g: u8,   // `_modelPropertyIndex`
     }
 }
 
@@ -64,7 +70,13 @@ py_binary_struct! {
         pub flag_d: u8,
         pub flag_e: u8,
         pub flag_f: u8,
-        pub flag_g_112: u8,
+        // ── 2.01.00: `_useDyeGrime` grew from 3 bytes to 12 (Mac reader sub_102064620 reads
+        // twelve u8 in one chain). flag_d/e/f are the first three, kept under their old
+        // names because Dye Fix and friends address them by name; the nine new ones follow.
+        pub use_dye_grime_3: u8, pub use_dye_grime_4: u8, pub use_dye_grime_5: u8,
+        pub use_dye_grime_6: u8, pub use_dye_grime_7: u8, pub use_dye_grime_8: u8,
+        pub use_dye_grime_9: u8, pub use_dye_grime_10: u8, pub use_dye_grime_11: u8,
+        pub flag_g_112: u8,   // `_modelPropertyIndex`
         // 1.13.00 FIX: this was mis-modeled as a plain u32 (`unk_u32_112`). It is
         // actually the `_modelPropertyDyeInfoList` — a CArray whose elements share
         // the _default's 3-CString + 4-u8 layout. Vanilla 1.12.2 records all had

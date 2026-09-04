@@ -32,6 +32,29 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.01.00 — 2026-09-03 (Steam build 25116796, paver 020001000000cb5f).
+    // ⛔ The tables MOVED and were RENAMED in the archive:
+    //   gamedata/binary__/client/bin/<t>.pabgb|.pabgh  ->
+    //   gamedata/binarystaticinfo__/bin/<t>.staticinfobody|.staticinfoheader
+    // The dump keeps the OLD names on purpose (tools/patchday/extract_fixtures.py maps
+    // them) so this list, bytediff and every V3 mod's `"file"` name keep working.
+    // Content: 111 of 268 files changed, 46 tables with record drift; regressions on
+    // first run: aimove_speed, buff (BuffData disc 120), drop_set (+8 B rollDiceSkipRate),
+    // global_stage_sequencer, interaction, mercenary, mercenary_group,
+    // part_prefab_dye_slot, relation, status (+12 B), store, vehicle; census: characterinfo
+    // 2.4% -> 100% blob, storeinfo 0 -> 100% blob.
+    r"C:	emp\GIT\CrimsonDesertUpdates\pabgb6-9-3",
+    // GAME VERSION 2.00.02 — landed 2026-08-31 23:04 and went UNTRACKED for three days;
+    // captured 2026-09-03 minutes before 2.01.00 committed. bytediff vs 2026-8-28:
+    // 0 tables drifted; `cargo test --lib` 674/20 with the identical failing set.
+    r"C:	emp\GIT\CrimsonDesertUpdates\pabgb6-9-1",
+    // GAME VERSION 2.00.01 — 2026-08-28 hotfix on top of 2.00.00 (paver
+    // 020000000100159a). Parser-neutral: 266 of 268 tables byte-identical, and
+    // the only two that changed (actionpointinfo .pabgb/.pabgh) are the SAME
+    // SIZE — value edits, no layout drift. `cargo test --lib` gives the
+    // identical 20-failure set as 2.00.00 (zero regressions, zero fixes) and the
+    // blob census found no rate jump on any table. No table work was needed.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-8-28",
     // GAME VERSION 2.00.00 — 2026-08-25, the Enhanced update. 134 tables.
     //
     // ⚠ ADDING THE CAPTURE IS PART OF THE PATCH, NOT A FOLLOW-UP. Until this

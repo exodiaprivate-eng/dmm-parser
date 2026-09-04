@@ -66,7 +66,10 @@ py_binary_struct! {
         pub is_using_spawned_usable: u8,
         pub use_reserve_or_main: u8,
         pub use_vehicle_key: u8,
-        pub is_return_main_mercenary_data: u8,
+        // ── 2.01.00 REMOVED `_isReturnMainMercenaryData` (u8): all 11 records shrank by
+        // exactly 1 byte. (`use_chanage_main_mercenary` keeps its historical spelling:
+        // the game fixed the typo to `_useChangeMainMercenary` in 2.01.00, but the field
+        // name is the mod contract.)
     }
 }
 

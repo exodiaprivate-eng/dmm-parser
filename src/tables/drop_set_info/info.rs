@@ -61,6 +61,12 @@ pub struct DropSetInfo<'a> {
     /// interpretation. Treat as opaque u64 for round-trip safety; the
     /// game side knows the scaling factor.
     pub total_drop_rate: u64,
+    // ── 2.01.00 (2026-09-03): `_rollDiceSkipRate`, 8 bytes between `_totalDropRate`
+    // and `_originalString`. bytediff: every one of 14,736 changed records grew by
+    // exactly 8 B; the Mac oracle places the field at index 11, right after
+    // totalDropRate. Same wire shape as its neighbours (u64 fixed-point), kept
+    // opaque for round-trip safety.
+    pub roll_dice_skip_rate: u64,
     pub original_string: CString<'a>,
     // ── 1.18.00: `_isEqualPercent`, one u8 appended after original_string.
     // 13,547 of the shared records grew by exactly 1 byte at the very end, and
@@ -88,13 +94,14 @@ impl<'a> DropSetInfo<'a> {
         let nee_slot_count = u16::read_from(data, offset)?;
         let need_weight = u64::read_from(data, offset)?;
         let total_drop_rate = u64::read_from(data, offset)?;
+        let roll_dice_skip_rate = u64::read_from(data, offset)?;
         let original_string = CString::read_from(data, offset)?;
         let is_equal_percent = u8::read_from(data, offset)?;
 
         Ok(Self {
             key, string_key, is_blocked, drop_roll_type, drop_roll_count,
             drop_condition_string, drop_tag_name_hash, list, nee_slot_count,
-            need_weight, total_drop_rate, original_string, is_equal_percent,
+            need_weight, total_drop_rate, roll_dice_skip_rate, original_string, is_equal_percent,
         })
     }
 
@@ -116,12 +123,13 @@ impl<'a> DropSetInfo<'a> {
         let nee_slot_count = track_read_field::<u16>(data, offset, path, ranges, "nee_slot_count", "u16")?;
         let need_weight = track_read_field::<u64>(data, offset, path, ranges, "need_weight", "u64")?;
         let total_drop_rate = track_read_field::<u64>(data, offset, path, ranges, "total_drop_rate", "u64")?;
+        let roll_dice_skip_rate = track_read_field::<u64>(data, offset, path, ranges, "roll_dice_skip_rate", "u64")?;
         let original_string = track_read_field::<CString<'a>>(data, offset, path, ranges, "original_string", "CString")?;
         let is_equal_percent = track_read_field::<u8>(data, offset, path, ranges, "is_equal_percent", "u8")?;
         Ok(Self {
             key, string_key, is_blocked, drop_roll_type, drop_roll_count,
             drop_condition_string, drop_tag_name_hash, list, nee_slot_count,
-            need_weight, total_drop_rate, original_string, is_equal_percent,
+            need_weight, total_drop_rate, roll_dice_skip_rate, original_string, is_equal_percent,
         })
     }
 
@@ -137,6 +145,7 @@ impl<'a> DropSetInfo<'a> {
         self.nee_slot_count.write_to(w)?;
         self.need_weight.write_to(w)?;
         self.total_drop_rate.write_to(w)?;
+        self.roll_dice_skip_rate.write_to(w)?;
         self.original_string.write_to(w)?;
         self.is_equal_percent.write_to(w)?;
         Ok(())
@@ -155,6 +164,7 @@ impl<'a> DropSetInfo<'a> {
         m.insert("nee_slot_count".to_string(), self.nee_slot_count.to_json_value());
         m.insert("need_weight".to_string(), self.need_weight.to_json_value());
         m.insert("total_drop_rate".to_string(), self.total_drop_rate.to_json_value());
+        m.insert("roll_dice_skip_rate".to_string(), self.roll_dice_skip_rate.to_json_value());
         m.insert("original_string".to_string(), self.original_string.to_json_value());
         m.insert("is_equal_percent".to_string(), self.is_equal_percent.to_json_value());
         m
@@ -172,6 +182,10 @@ impl<'a> DropSetInfo<'a> {
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "nee_slot_count")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_weight")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "total_drop_rate")?)?;
+        // Null-tolerant: a V3 mod authored before 2.01.00 has no key for this (Stormsteel
+        // 1.0 ships 585 whole-record dropset intents built on 2.00.02).
+        <u64 as WriteJsonValue>::write_from_json(
+            w, obj.get("roll_dice_skip_rate").unwrap_or(&Value::Null))?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "original_string")?)?;
         // Null-tolerant: a V3 mod authored before 1.18 has no key for this.
         <u8 as WriteJsonValue>::write_from_json(
