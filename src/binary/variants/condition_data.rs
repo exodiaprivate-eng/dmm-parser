@@ -2279,6 +2279,11 @@ pub enum ConditionDataVariant<'a> {
     ConditionData_Tag413(U32U16BodyPayload),
     // game v16 — same recurring Class D slot (Character k=0x2 move_condition).
     ConditionData_Tag414(U32U16BodyPayload),
+    /// 2.01.00 added two Class D cases at the top (discs 415 and 416 in 2.01 numbering).
+    /// Named as the continuation of the pre-2.01 sequence so the existing TagNNN names
+    /// keep meaning what they always meant (Tag416 = the case added in 2.00.00 = disc 414 now).
+    ConditionData_Tag417(U32U16BodyPayload),
+    ConditionData_Tag418(U32U16BodyPayload),
     ConditionData_Tag415(U32U16BodyPayload),
     ConditionData_Tag416(U32U16BodyPayload),
 }
@@ -2699,6 +2704,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag412(_) => 410,
             Self::ConditionData_Tag413(_) => 411,
             Self::ConditionData_Tag414(_) => 412,
+            Self::ConditionData_Tag417(_) => 415,
+            Self::ConditionData_Tag418(_) => 416,
             Self::ConditionData_Tag415(_) => 413,
             Self::ConditionData_Tag416(_) => 414,
         }
@@ -3122,6 +3129,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag412(_) => "ConditionData_Tag412",
             Self::ConditionData_Tag413(_) => "ConditionData_Tag413",
             Self::ConditionData_Tag414(_) => "ConditionData_Tag414",
+            Self::ConditionData_Tag417(_) => "ConditionData_Tag417",
+            Self::ConditionData_Tag418(_) => "ConditionData_Tag418",
             Self::ConditionData_Tag415(_) => "ConditionData_Tag415",
             Self::ConditionData_Tag416(_) => "ConditionData_Tag416",
         }
@@ -3546,6 +3555,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag412(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag413(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag414(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag417(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ConditionData_Tag418(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag415(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::ConditionData_Tag416(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
         }
@@ -3977,6 +3988,8 @@ impl<'a> ConditionDataVariant<'a> {
             410 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag412: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             411 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag413: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             412 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag414: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            415 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag417: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
+            416 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag418: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             413 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag415: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             414 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ConditionData_Tag416: missing body object"))?; U32U16BodyPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -4402,6 +4415,8 @@ impl<'a> ConditionDataVariant<'a> {
             410 => Self::ConditionData_Tag412(U32U16BodyPayload::read_from(data, offset)?),
             411 => Self::ConditionData_Tag413(U32U16BodyPayload::read_from(data, offset)?),
             412 => Self::ConditionData_Tag414(U32U16BodyPayload::read_from(data, offset)?),
+            415 => Self::ConditionData_Tag417(U32U16BodyPayload::read_from(data, offset)?),
+            416 => Self::ConditionData_Tag418(U32U16BodyPayload::read_from(data, offset)?),
             413 => Self::ConditionData_Tag415(U32U16BodyPayload::read_from(data, offset)?),
             414 => Self::ConditionData_Tag416(U32U16BodyPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ConditionData disc: {}", disc))),
@@ -4823,6 +4838,8 @@ impl<'a> ConditionDataVariant<'a> {
             Self::ConditionData_Tag412(p) => p.write_to(w),
             Self::ConditionData_Tag413(p) => p.write_to(w),
             Self::ConditionData_Tag414(p) => p.write_to(w),
+            Self::ConditionData_Tag417(p) => p.write_to(w),
+            Self::ConditionData_Tag418(p) => p.write_to(w),
             Self::ConditionData_Tag415(p) => p.write_to(w),
             Self::ConditionData_Tag416(p) => p.write_to(w),
         }
@@ -4999,7 +5016,9 @@ fn variant_skips_option_block(tag: u16) -> bool {
         // ★ This disc increments EVERY patch. It is a standing chore, not a
         //   discovery: bump it here AND at all seven enum sites, or the half-fix
         //   produces "not enough data" and a wasted width sweep.
-        405 | 406 | 407 | 408 | 409 | 410 | 411 | 412 | 413 | 414
+        405 | 406 | 407 | 408 | 409 | 410 | 411 | 412 | 413 | 414 |
+        // 2.01.00: two more Class D cases at the top (Tag417/Tag418 = discs 415/416).
+        415 | 416
     )
 }
 
