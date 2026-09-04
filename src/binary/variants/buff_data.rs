@@ -1500,6 +1500,17 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Disc 120, first seen 2.01.00 on `BuffLevel_LiveWater` (key 1000325), the last of
+    /// that record's three BuffData. Measured, not decompiled: as an empty variant the
+    /// read threw; with a 2-byte payload the record came up 2 bytes short; with 4 it
+    /// round-trips. A voxel-type value (the game's other voxel-type fields are u32) is the
+    /// likeliest reading; vanilla writes 0.
+    pub struct AdditionalMovableVoxelBuffDataPayload {
+        pub movable_voxel_type: u32,
+    }
+}
+
+py_binary_struct! {
     pub struct DetectReactionOverrideBuffDataPayload {
         pub f00: u32,
         pub f01: u32,
@@ -1632,6 +1643,17 @@ pub enum BuffDataVariant<'a> {
     DecreaseMercenaryCooltimeBuffData(DecreaseMercenaryCooltimeBuffDataPayload),
     DetectReactionOverrideBuffData(DetectReactionOverrideBuffDataPayload),
     EmpoweredOverlayColorBuffData,
+    // ── 2.01.00 (2026-09-03): three BuffData classes appear in the 2.01 binary that the
+    // 2.0 binary lacks (AdditionalMovableVoxelBuffData, BlockChangeEquipBuffData,
+    // BlockUnequipItemBuffData). The wire dispatches on disc 120 for the water buff
+    // `BuffLevel_LiveWater` and the parse re-synchronises with NO payload bytes, so
+    // 120 is an empty variant like 111/116/119. The disc->class NAME assignment below is
+    // the semantic match (a "movable voxel" buff on a live-water status), not a decompile;
+    // 121/122 have not been seen on the wire yet and are reserved so a future record does
+    // not fall back to a blob for want of two lines.
+    AdditionalMovableVoxelBuffData(AdditionalMovableVoxelBuffDataPayload),
+    BlockChangeEquipBuffData,
+    BlockUnequipItemBuffData,
 }
 
 impl<'a> BuffDataVariant<'a> {
@@ -1757,6 +1779,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DecreaseMercenaryCooltimeBuffData(_) => 117,
             Self::DetectReactionOverrideBuffData(_) => 118,
             Self::EmpoweredOverlayColorBuffData => 119,
+            Self::AdditionalMovableVoxelBuffData(_) => 120,
+            Self::BlockChangeEquipBuffData => 121,
+            Self::BlockUnequipItemBuffData => 122,
         }
     }
 
@@ -1883,6 +1908,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DecreaseMercenaryCooltimeBuffData(_) => "DecreaseMercenaryCooltimeBuffData",
             Self::DetectReactionOverrideBuffData(_) => "DetectReactionOverrideBuffData",
             Self::EmpoweredOverlayColorBuffData => "EmpoweredOverlayColorBuffData",
+            Self::AdditionalMovableVoxelBuffData(_) => "AdditionalMovableVoxelBuffData",
+            Self::BlockChangeEquipBuffData => "BlockChangeEquipBuffData",
+            Self::BlockUnequipItemBuffData => "BlockUnequipItemBuffData",
         }
     }
 
@@ -2012,6 +2040,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DecreaseMercenaryCooltimeBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::DetectReactionOverrideBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::EmpoweredOverlayColorBuffData => {}
+            Self::AdditionalMovableVoxelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockChangeEquipBuffData => {}
+            Self::BlockUnequipItemBuffData => {}
         }
         Value::Object(m)
     }
@@ -2147,6 +2178,9 @@ impl<'a> BuffDataVariant<'a> {
             117 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DecreaseMercenaryCooltimeBuffData: missing body object"))?; DecreaseMercenaryCooltimeBuffDataPayload::write_from_json_dict(w, body)?; }
             118 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectReactionOverrideBuffData: missing body object"))?; DetectReactionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
             119 => {}
+            120 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalMovableVoxelBuffData: missing body object"))?; AdditionalMovableVoxelBuffDataPayload::write_from_json_dict(w, body)?; }
+            121 => {}
+            122 => {}
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("BuffDataVariant: unknown disc {}", other))),
         }
@@ -2277,6 +2311,9 @@ impl<'a> BuffDataVariant<'a> {
             117 => Self::DecreaseMercenaryCooltimeBuffData(DecreaseMercenaryCooltimeBuffDataPayload::read_from(data, offset)?),
             118 => Self::DetectReactionOverrideBuffData(DetectReactionOverrideBuffDataPayload::read_from(data, offset)?),
             119 => Self::EmpoweredOverlayColorBuffData,
+            120 => Self::AdditionalMovableVoxelBuffData(AdditionalMovableVoxelBuffDataPayload::read_from(data, offset)?),
+            121 => Self::BlockChangeEquipBuffData,
+            122 => Self::BlockUnequipItemBuffData,
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown BuffData disc: {}", disc))),
         })
     }
@@ -2403,6 +2440,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DecreaseMercenaryCooltimeBuffData(p) => p.write_to(w),
             Self::DetectReactionOverrideBuffData(p) => p.write_to(w),
             Self::EmpoweredOverlayColorBuffData => Ok(()),
+            Self::AdditionalMovableVoxelBuffData(p) => p.write_to(w),
+            Self::BlockChangeEquipBuffData => Ok(()),
+            Self::BlockUnequipItemBuffData => Ok(()),
         }
     }
 }

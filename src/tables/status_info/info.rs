@@ -16,6 +16,34 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// 2.01.00: `FrameEventAttribute` was rewritten from 5 nested fields to 15 flat ones
+    /// (moveSpeed .. jumpHeight). The wire element is 68 bytes: the Mac 2.01 reader
+    /// (sub_10203C724) reads eleven 4-byte values, then ONE 12-byte value at +44
+    /// (`changingRotationSpeed` is a 3-float vector), then three more 4-byte values.
+    /// The four new status records (MoveRate, AccRate, RotationRate, JumpRate) each
+    /// carry six levels of these; every other record's list is empty.
+    pub struct FrameEventAttribute {
+        pub move_speed: f32,
+        pub input_acc_max_speed: f32,
+        pub move_acc: f32,
+        pub move_deacc: f32,
+        pub inertia_brake_min_threshold: f32,
+        pub inertia_brake_max_threshold: f32,
+        pub inertia_brake_strength: f32,
+        pub input_acc_add_speed: f32,
+        pub input_acc_decrease_speed: f32,
+        pub input_acc_decrease_cool_time: f32,
+        pub character_rotation_speed: f32,
+        pub changing_rotation_speed_x: f32,
+        pub changing_rotation_speed_y: f32,
+        pub changing_rotation_speed_z: f32,
+        pub character_rotation_acc: f32,
+        pub character_rotation_dcc: f32,
+        pub jump_height: f32,
+    }
+}
+
+py_binary_struct! {
     pub struct StatusInfo<'a> {
         pub key: u32,
         pub string_key: CString<'a>,
@@ -49,10 +77,20 @@ py_binary_struct! {
         pub use_percent: u8,
         pub is_repeat_update_from_server: u8,
         pub stat_level_data: CArray<u64>,
+        // ── 2.01.00: `_frameEventAttributeListByLevel`. The 2.0 oracle already listed
+        // it (and the two passive lists below) but the game did not serialize them
+        // until 2.01.00: every record grew by exactly 12 bytes = three empty CArray
+        // counts, at the positions the oracle gives.
+        pub frame_event_attribute_list_by_level: CArray<FrameEventAttribute>,
         pub is_reset_on_revive: u8,
         pub not_enough_resource_message: u32,
         pub ui_template_name: u32,
         pub ui_component_name: u32,
+        // ── 2.01.00: `_minPassiveSkillList` / `_maxPassiveSkillList` (see above).
+        // Skill keys are u32 everywhere else in the data; both lists are empty in
+        // every vanilla record, so the element type is the convention, not evidence.
+        pub min_passive_skill_list: CArray<u32>,
+        pub max_passive_skill_list: CArray<u32>,
     }
 }
 
