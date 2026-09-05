@@ -38,7 +38,7 @@ use std::io;
 
 use serde_json::Value;
 
-use super::path::{array_append_at_path, set_value_at_path, PathError};
+use super::path::{array_append_at_path, array_union_at_path, set_value_at_path, PathError};
 use super::types::{Intent, IntentResolveError, Patch, ResolvedIntentOp};
 
 #[derive(Debug)]
@@ -126,6 +126,7 @@ fn op_name(op: &ResolvedIntentOp) -> String {
     match op {
         ResolvedIntentOp::Set { .. } => "set".into(),
         ResolvedIntentOp::ArrayAppend { .. } => "array_append".into(),
+        ResolvedIntentOp::ArrayUnion { .. } => "list_union".into(),
         ResolvedIntentOp::CloneRecord { .. } => "clone_record".into(),
         ResolvedIntentOp::NewRecord { .. } => "new_record".into(),
         ResolvedIntentOp::DeleteRecord { .. } => "delete_record".into(),
@@ -165,6 +166,20 @@ fn apply_single(
                 return Ok(Some(reason));
             }
             array_append_at_path(&mut records[idx], field, value.clone())?;
+            Ok(None)
+        }
+        ResolvedIntentOp::ArrayUnion { entry, key, field, values } => {
+            let Some(idx) = find_record_index(records, entry.as_deref(), *key) else {
+                return Ok(Some(format!(
+                    "list_union: record '{}' / key {:?} not found",
+                    entry.as_deref().unwrap_or(""),
+                    key
+                )));
+            };
+            if let Some(reason) = blob_fallback_skip("list_union", &records[idx], entry.as_deref(), *key, field) {
+                return Ok(Some(reason));
+            }
+            array_union_at_path(&mut records[idx], field, values)?;
             Ok(None)
         }
         ResolvedIntentOp::CloneRecord { source_key, new_key, patches } => {

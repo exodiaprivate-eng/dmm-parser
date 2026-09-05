@@ -300,6 +300,17 @@ pub enum ResolvedIntentOp {
         field: String,
         value: Value,
     },
+    /// Add every element of `values` that the array at `field` does not
+    /// already hold (by equality); skip the rest. `list_union` in the manifest.
+    /// Additive and order-independent: two mods widening the same allow-list
+    /// (a skill's `carray_u16`) both land whichever applies last, where two
+    /// whole-list `set`s keep only the last writer's entries.
+    ArrayUnion {
+        entry: Option<String>,
+        key: Option<i64>,
+        field: String,
+        values: Vec<Value>,
+    },
     /// Clone the record with `source_key` under `new_key`, then apply
     /// `patches` to the clone.
     CloneRecord {
@@ -370,6 +381,26 @@ impl Intent {
                     key: self.key,
                     field,
                     value,
+                })
+            }
+            "list_union" => {
+                let field = self.field.clone().ok_or(IntentResolveError::MissingField {
+                    op: op.to_string(), field: "field",
+                })?;
+                let new = self.new.clone().or_else(|| self.value.clone()).ok_or(
+                    IntentResolveError::MissingField {
+                        op: op.to_string(), field: "new",
+                    },
+                )?;
+                let values = match new {
+                    Value::Array(a) => a,
+                    v => vec![v],
+                };
+                Ok(ResolvedIntentOp::ArrayUnion {
+                    entry: self.entry.clone(),
+                    key: self.key,
+                    field,
+                    values,
                 })
             }
             "clone_record" => {
