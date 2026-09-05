@@ -501,4 +501,37 @@ mod tests {
         assert_eq!(offset, data.len(), "trailing bytes after {count} items");
         println!("full-table roundtrip OK: {count} items, {} bytes", data.len());
     }
+
+#[cfg(test)]
+mod alignment_gates {
+    //! A byte-exact round trip cannot see a struct that is a few bytes short: the
+    //! missing bytes are swallowed by the fields after it and written back verbatim.
+    //! What it CAN see is the nonsense those fields then hold. 2.01.00 appended a string
+    //! to DockingChildData; without it, every docking item read its SubItem as type 0
+    //! with key 0x12000000, an item that does not exist. A block ADDED by a mod was then
+    //! written four bytes short and the game desynced (2026-09-04).
+    use super::*;
+    use crate::binary::BinaryRead;
+
+    #[test]
+    fn every_sub_item_reference_resolves() {
+        let path = crate::testenv::resolve("iteminfo.pabgb"); if !path.exists() { eprintln!("SKIP: no fixture"); return; }
+        let data = std::fs::read(path).unwrap();
+        let mut off = 0usize;
+        let mut items = Vec::new();
+        while off < data.len() {
+            items.push(ItemInfo::read_from(&data, &mut off).expect("item parses"));
+        }
+        let keys: std::collections::HashSet<u32> = items.iter().map(|i| i.key.0).collect();
+        let mut bad = Vec::new();
+        for it in &items {
+            let ok = match &it.default_sub_item.value {
+                crate::item_info::structs::SubItemValue::Item(k) => keys.contains(&k.0),
+                _ => true,
+            };
+            if !ok { bad.push((it.key.0, it.default_sub_item.type_id)); }
+        }
+        assert!(bad.is_empty(), "{} items reference a SubItem key that is not an item; the first is {:?}. A struct before default_sub_item is misaligned (a game update added a field the parser lacks).", bad.len(), bad.first());
+    }
+}
 }
