@@ -617,6 +617,14 @@ py_binary_struct! {
         pub docking_slot_key: CString<'a>,
         pub inherit_summoner: u8,
         pub summon_tag_name_hash: [u32; 4],
+        // 2.01.00 appended this (oracle: DockingChildData 24 -> 25 fields). Missing it, the
+        // parser still round-tripped every vanilla docking item because the four bytes of
+        // the empty string were swallowed by the fields after this block, which is also why
+        // those 392 items showed `default_sub_item` as type 0 with value 0x12000000. A
+        // docking block ADDED to an item that had none was written four bytes short and the
+        // game desynced on the next string read (Custom Equipment armour with an
+        // attachment, Stormsteel clone 47; 2026-09-04).
+        pub animation_root_bone_name: CString<'a>,
     }
 }
 

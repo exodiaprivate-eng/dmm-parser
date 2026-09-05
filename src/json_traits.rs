@@ -415,6 +415,15 @@ impl ToJsonValue for CString<'_> {
 }
 impl WriteJsonValue for CString<'_> {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        // A key a mod file predates is absent and arrives as Null (see
+        // `py_binary_struct!`'s `get_field_or_null`); for a string that is the empty
+        // string, exactly what the game writes for it. 2.01.00 appended
+        // `animation_root_bone_name` to DockingChildData and every docking patch shipped
+        // before then lacks it.
+        if v.is_null() {
+            w.extend_from_slice(&0u32.to_le_bytes());
+            return Ok(());
+        }
         let s = v.as_str().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
             format!("expected string for CString, got {}", type_name(v))))?;
         let bytes = s.as_bytes();
