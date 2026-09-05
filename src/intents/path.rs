@@ -296,11 +296,37 @@ pub fn get_value_at_path<'a>(
 
 /// Append `value` to the array located at `path`. The leaf must already
 /// exist and be an array.
+/// Like [`array_append_at_path`], for several values at once, skipping any the
+/// array already holds (compared by JSON equality). The order of new elements is
+/// kept; nothing already present moves.
+pub fn array_union_at_path(
+    target: &mut Value,
+    path: &str,
+    values: &[Value],
+) -> Result<(), PathError> {
+    let arr = array_at_path_mut(target, path)?;
+    for v in values {
+        if !arr.iter().any(|x| x == v) {
+            arr.push(v.clone());
+        }
+    }
+    Ok(())
+}
+
 pub fn array_append_at_path(
     target: &mut Value,
     path: &str,
     value: Value,
 ) -> Result<(), PathError> {
+    array_at_path_mut(target, path)?.push(value);
+    Ok(())
+}
+
+/// Walk `path` and return the array it names, mutably. Shared by append and union.
+fn array_at_path_mut<'a>(
+    target: &'a mut Value,
+    path: &str,
+) -> Result<&'a mut Vec<Value>, PathError> {
     let segments = parse_path(path)?;
     if segments.is_empty() {
         return Err(PathError::BadSyntax(path.to_string()));
@@ -339,14 +365,27 @@ pub fn array_append_at_path(
         };
     }
     match cur {
-        Value::Array(arr) => {
-            arr.push(value);
-            Ok(())
-        }
+        Value::Array(arr) => Ok(arr),
         other => Err(PathError::NotArray {
             path: path.to_string(),
             got: type_name(other),
         }),
+    }
+}
+
+#[cfg(test)]
+mod union_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn union_skips_present_and_keeps_order() {
+        let mut rec = json!({ "buff_level_list": [[{ "base": { "carray_u16": [1, 2] } }]] });
+        array_union_at_path(&mut rec, "buff_level_list[0][0].base.carray_u16", &[json!(2), json!(3), json!(1), json!(4)]).unwrap();
+        assert_eq!(rec["buff_level_list"][0][0]["base"]["carray_u16"], json!([1, 2, 3, 4]));
+        // idempotent
+        array_union_at_path(&mut rec, "buff_level_list[0][0].base.carray_u16", &[json!(3)]).unwrap();
+        assert_eq!(rec["buff_level_list"][0][0]["base"]["carray_u16"], json!([1, 2, 3, 4]));
     }
 }
 
