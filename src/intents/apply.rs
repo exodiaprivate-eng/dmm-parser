@@ -37,6 +37,7 @@
 use std::io;
 
 use serde_json::Value;
+use std::collections::HashMap;
 
 use super::path::{array_append_at_path, array_union_at_path, set_value_at_path, PathError};
 use super::types::{Intent, IntentResolveError, Patch, ResolvedIntentOp};
@@ -105,10 +106,15 @@ pub fn apply_resolved_intents(
     intents: &[Intent],
 ) -> Result<Vec<ApplyOutcome>, ApplyError> {
     let mut out = Vec::with_capacity(intents.len());
+    // One index for the whole batch. Every op used to scan `records` from the
+    // front (twice for a clone: duplicate check, then the source), so a mod of
+    // N clones cost N * table size. Stormsteel's 5,852 clones on iteminfo were
+    // 15 s of that on a fast machine, minutes on a slow one (2026-09-07).
+    let mut index = RecordIndex::build(records);
     for intent in intents {
         let resolved = intent.resolve_op()?;
         let op_name = op_name(&resolved);
-        match apply_single(records, &resolved)? {
+        match apply_single(records, &mut index, &resolved)? {
             Some(reason) => out.push(ApplyOutcome {
                 op: op_name,
                 status: ApplyStatus::Skipped(reason),
@@ -137,11 +143,12 @@ fn op_name(op: &ResolvedIntentOp) -> String {
 /// `Err(ApplyError)` for hard failures.
 fn apply_single(
     records: &mut Vec<Value>,
+    index: &mut RecordIndex,
     op: &ResolvedIntentOp,
 ) -> Result<Option<String>, ApplyError> {
     match op {
         ResolvedIntentOp::Set { entry, key, field, new } => {
-            let Some(idx) = find_record_index(records, entry.as_deref(), *key) else {
+            let Some(idx) = index.find(entry.as_deref(), *key) else {
                 return Ok(Some(format!(
                     "set: record '{}' / key {:?} not found",
                     entry.as_deref().unwrap_or(""),
@@ -152,10 +159,11 @@ fn apply_single(
                 return Ok(Some(reason));
             }
             set_value_at_path(&mut records[idx], field, new.clone())?;
+            index.refresh(records, idx);
             Ok(None)
         }
         ResolvedIntentOp::ArrayAppend { entry, key, field, value } => {
-            let Some(idx) = find_record_index(records, entry.as_deref(), *key) else {
+            let Some(idx) = index.find(entry.as_deref(), *key) else {
                 return Ok(Some(format!(
                     "array_append: record '{}' / key {:?} not found",
                     entry.as_deref().unwrap_or(""),
@@ -169,7 +177,7 @@ fn apply_single(
             Ok(None)
         }
         ResolvedIntentOp::ArrayUnion { entry, key, field, values } => {
-            let Some(idx) = find_record_index(records, entry.as_deref(), *key) else {
+            let Some(idx) = index.find(entry.as_deref(), *key) else {
                 return Ok(Some(format!(
                     "list_union: record '{}' / key {:?} not found",
                     entry.as_deref().unwrap_or(""),
@@ -183,10 +191,10 @@ fn apply_single(
             Ok(None)
         }
         ResolvedIntentOp::CloneRecord { source_key, new_key, patches } => {
-            if find_record_index(records, None, Some(*new_key)).is_some() {
+            if index.find(None, Some(*new_key)).is_some() {
                 return Err(ApplyError::DuplicateKey { key: *new_key });
             }
-            let src_idx = find_record_index(records, None, Some(*source_key)).ok_or(
+            let src_idx = index.find(None, Some(*source_key)).ok_or(
                 ApplyError::RecordNotFound {
                     lookup: format!("source_key={}", source_key),
                 },
@@ -196,22 +204,26 @@ fn apply_single(
             set_record_key(&mut clone, *new_key)?;
             apply_patches(&mut clone, patches)?;
             records.push(clone);
+            index.refresh(records, records.len() - 1);
             Ok(None)
         }
         ResolvedIntentOp::NewRecord { new_key, template } => {
-            if find_record_index(records, None, Some(*new_key)).is_some() {
+            if index.find(None, Some(*new_key)).is_some() {
                 return Err(ApplyError::DuplicateKey { key: *new_key });
             }
             let mut new = template.clone();
             set_record_key(&mut new, *new_key)?;
             records.push(new);
+            index.refresh(records, records.len() - 1);
             Ok(None)
         }
         ResolvedIntentOp::DeleteRecord { key } => {
-            let Some(idx) = find_record_index(records, None, Some(*key)) else {
+            let Some(idx) = index.find(None, Some(*key)) else {
                 return Ok(Some(format!("delete_record: key {} not found", key)));
             };
             records.remove(idx);
+            // Every position after `idx` shifted; a delete is rare, rebuild.
+            index.rebuild(records);
             Ok(None)
         }
     }
@@ -307,6 +319,79 @@ fn apply_patches(record: &mut Value, patches: &[Patch]) -> Result<(), ApplyError
         }
     }
     Ok(())
+}
+
+/// Position lookup for a batch of intents: `string_key` and numeric `key`
+/// to index, built once and kept current as ops add, remove or rename
+/// records. Same answer as `find_record_index` (entry name first, then key,
+/// first record wins on a duplicate), without the scan per op.
+pub struct RecordIndex {
+    by_key: HashMap<i64, usize>,
+    by_name: HashMap<String, usize>,
+}
+
+impl RecordIndex {
+    pub fn build(records: &[Value]) -> Self {
+        let mut ix = RecordIndex {
+            by_key: HashMap::with_capacity(records.len()),
+            by_name: HashMap::with_capacity(records.len()),
+        };
+        ix.rebuild(records);
+        ix
+    }
+
+    pub fn rebuild(&mut self, records: &[Value]) {
+        self.by_key.clear();
+        self.by_name.clear();
+        for (i, r) in records.iter().enumerate() {
+            if let Some(k) = record_key_value(r) {
+                self.by_key.entry(k).or_insert(i);
+            }
+            if let Some(sk) = r.get("string_key").and_then(|v| v.as_str()) {
+                self.by_name.entry(sk.to_string()).or_insert(i);
+            }
+        }
+    }
+
+    /// Record `records[idx]` under its current key and name. Called after an
+    /// op writes a record, so a clone's minted key and a patched `string_key`
+    /// are found by the next op in the batch.
+    pub fn refresh(&mut self, records: &[Value], idx: usize) {
+        let Some(r) = records.get(idx) else { return };
+        if let Some(k) = record_key_value(r) {
+            self.by_key.entry(k).or_insert(idx);
+        }
+        if let Some(sk) = r.get("string_key").and_then(|v| v.as_str()) {
+            self.by_name.entry(sk.to_string()).or_insert(idx);
+        }
+    }
+
+    pub fn find(&self, entry: Option<&str>, key: Option<i64>) -> Option<usize> {
+        if let Some(name) = entry.filter(|s| !s.is_empty())
+            && let Some(&i) = self.by_name.get(name)
+        {
+            return Some(i);
+        }
+        key.and_then(|k| self.by_key.get(&k).copied())
+    }
+}
+
+/// The record's numeric key as i64, accepting the same shapes as
+/// `record_key_matches`.
+fn record_key_value(record: &Value) -> Option<i64> {
+    let v = lookup_record_key(record)?;
+    if let Some(n) = v.as_i64() {
+        return Some(n);
+    }
+    if let Some(n) = v.as_u64() {
+        return Some(n as i64);
+    }
+    if let Some(n) = v.as_f64()
+        && n.fract() == 0.0
+    {
+        return Some(n as i64);
+    }
+    None
 }
 
 /// Locate a record by `string_key` (preferred) or numeric `key`
