@@ -244,6 +244,31 @@ Add 4 new ops alongside `set`:
 - `{"index": 0}` — match by 0-indexed position
 - `{"$and": [{"level": 3}, {"slot": 0}]}` — multi-field match
 
+A `where` that matches nothing is reported as a skipped intent. Add `"optional": true` to the intent when a miss is expected and should pass quietly, for example one `match` block over many records where only some carry the element:
+
+```json
+{ "match": {"equip_type_info": 2667368044}, "field": "enchant_data_list", "op": "list_set",
+  "where": {"level": 3}, "new": {...}, "optional": true }
+```
+
+Applies to `list_set` and `list_remove`, by `where` or by `index`. Without the flag the miss stays a skip, so existing mods keep their diagnostics. (DMM releases after 2.5.1.)
+
+**Operators.** A condition value may be an object of `$`-operators instead of a plain value, in both the record-level `match` selector and the list `where` clause:
+
+| Operator | Meaning |
+|---|---|
+| `$eq`, `$ne` | equal / not equal (numeric-tolerant) |
+| `$in`, `$nin` | value is / is not in the array |
+| `$lt`, `$lte`, `$gt`, `$gte` | numeric comparison |
+| `$contains`, `$ncontains` | case-insensitive substring on string fields |
+| `$and` | array of sub-conditions, all must match |
+
+```json
+{ "match": {"sell_price": {"$lt": 100}}, "field": "sell_price", "op": "set", "new": 100 }
+```
+
+Sets the price to 100 only on records where it is currently below 100. An unknown operator matches nothing. (`match` operators: DMM 2.4 and newer. `where` operators: DMM releases after 2.5.2.)
+
 ### Change 3: Schema discovery
 
 Each parser exposes a `describe()` that returns the field schema:
