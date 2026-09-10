@@ -637,8 +637,19 @@ fn verify_created_keys_landed(
              longer read ({}). Refusing to hand back a table we cannot verify.",
             table_name, e))
     })?;
+    // One pass over the table, then O(1) per created key. This used to scan every
+    // record once PER created key: Stormsteel's all-weapons refinement test
+    // (40,283 recipe clones on a 58,000-row multichangeinfo, 2026-09-09) spent
+    // 140 s here and 1.5 s in the actual apply.
+    let mut count_by_key: std::collections::HashMap<i64, usize> =
+        std::collections::HashMap::with_capacity(records.len());
+    for r in &records {
+        if let Some(k) = record_key_of(r) {
+            *count_by_key.entry(k).or_insert(0) += 1;
+        }
+    }
     for want in created {
-        let n = records.iter().filter(|r| record_key_of(r) == Some(*want)).count();
+        let n = count_by_key.get(want).copied().unwrap_or(0);
         if n == 1 {
             continue;
         }

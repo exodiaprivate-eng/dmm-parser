@@ -206,6 +206,21 @@ impl Pabgh {
     /// Serialize back to the original byte layout. Round-trips byte-identical
     /// against the source file.
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        // A u16 count is the game's own ceiling for these tables: 65,535 records.
+        // Writing `len as u16` past it wrapped silently and the index no longer
+        // matched the body (Stormsteel's three refinement add-ons on
+        // multichangeinfo, 73,146 rows, 2026-09-09). Refuse with the number.
+        let u16_count = matches!(
+            self.format,
+            PabghFormat::U16CountU32Key | PabghFormat::U16CountU16Key | PabghFormat::U16CountU8Key
+        );
+        if u16_count && self.entries.len() > u16::MAX as usize {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                "this table's index counts records in 16 bits, so it holds at most 65,535; \
+                 asked to write {}",
+                self.entries.len()
+            )));
+        }
         match self.format {
             PabghFormat::U16CountU32Key => {
                 w.write_all(&(self.entries.len() as u16).to_le_bytes())?;
