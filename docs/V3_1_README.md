@@ -262,12 +262,19 @@ Applies to `list_set` and `list_remove`, by `where` or by `index`. Without the f
 | `$lt`, `$lte`, `$gt`, `$gte` | numeric comparison |
 | `$contains`, `$ncontains` | case-insensitive substring on string fields |
 | `$and` | array of sub-conditions, all must match |
+| `$count` | the field is a list and its length satisfies the value (a number or a nested operator object) |
 
 ```json
 { "match": {"sell_price": {"$lt": 100}}, "field": "sell_price", "op": "set", "new": 100 }
 ```
 
 Sets the price to 100 only on records where it is currently below 100. An unknown operator matches nothing. (`match` operators: DMM 2.4 and newer. `where` operators: DMM releases after 2.5.2.)
+
+**Paths into lists.** A `match` key may step into a list the way a `field` path does: `enchant_data_list[10].level` names one element, `enchant_data_list[*].level` names every element and the condition holds if any of them satisfies it, and `{"enchant_data_list": {"$count": 11}}` tests how many elements the list has. (DMM 3.0 and newer; earlier releases stop a match path at the first list and match nothing.)
+
+```json
+{ "match": {"enchant_data_list": {"$count": 11}}, "field": "drop_default_data.drop_enchant_level", "op": "set", "new": 10 }
+```
 
 ### Change 3: Schema discovery
 

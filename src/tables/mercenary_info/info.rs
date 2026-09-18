@@ -140,6 +140,7 @@ py_binary_struct! {
         pub check_indoor: u8,                    // _checkIndoor (2.01)
         pub is_show_level_up_alert: u8,          // _isShowLevelUpAlert (2.01)
         pub is_farm_hire: u8,                    // _isFarmHire (2.01)
+        pub is_teleportable: u8,                 // _isTeleportable (2.03, after _isFarmHire)
         pub main_dischargeable_type: u8,         // _mainDischargeableType
         pub spawn_position_type: u8,             // _spawnPositionType
         pub summon_owner_option: u8,             // _summonOwnerOption
@@ -150,6 +151,8 @@ py_binary_struct! {
         pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo
         pub hired_skill_info_list: CArray<HiredSkillData>,  // _expandedSlotList (name kept: mod contract)
         pub camera_preset_hash: u32,             // _cameraPresetHash
+        pub camera_preset_center_hash: u32,      // _cameraPresetCenterHash (2.03)
+        pub teleport_socket_name: CString<'a>,   // _teleportSocketName (2.03, last)
     }
 }
 

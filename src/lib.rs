@@ -262,6 +262,7 @@ mod tests {
             eprintln!("SKIP: paloc fixture (game dir or 0020/0.pamt not found)");
             return;
         };
+        let data = crate::binary::paloc::unwrap_container(&data).unwrap().into_owned();
         let paloc = LocalizationFile::parse(&data).unwrap();
         println!("PALOC: {} entries", paloc.entries.len());
         for entry in paloc.entries.iter().take(5) {
@@ -277,14 +278,43 @@ mod tests {
 
     #[test]
     fn test_paloc_roundtrip() {
-        let Some(data) = extract_paloc_data() else {
+        let Some(file) = extract_paloc_data() else {
             eprintln!("SKIP: paloc fixture (game dir or 0020/0.pamt not found)");
             return;
         };
+        let data = crate::binary::paloc::unwrap_container(&file).unwrap().into_owned();
         let paloc = LocalizationFile::parse(&data).unwrap();
         let written = paloc.to_bytes().unwrap();
         assert_eq!(written.len(), data.len(), "paloc roundtrip size mismatch");
         assert_eq!(written, data, "paloc roundtrip bytes mismatch");
+    }
+
+    /// 2.03.00 ships every string table in the LZ4 container. The header the
+    /// game wrote must say what we measured, our re-wrap must inflate back to
+    /// the same records, and the JSON surface must copy the shape of what it
+    /// replaces. Skips on a game older than 2.03.00 (bare file).
+    #[test]
+    fn test_paloc_container_rewraps_to_the_same_records() {
+        use crate::binary::paloc;
+        let Some(file) = extract_paloc_data() else {
+            eprintln!("SKIP: paloc fixture (game dir or 0020/0.pamt not found)");
+            return;
+        };
+        if !paloc::is_container(&file) {
+            eprintln!("SKIP: game ships bare paloc (pre-2.03.00)");
+            return;
+        }
+        let csize = u32::from_le_bytes(file[9..13].try_into().unwrap()) as usize;
+        let dsize = u32::from_le_bytes(file[13..17].try_into().unwrap()) as usize;
+        assert_eq!(csize, file.len() - paloc::CONTAINER_HEADER_LEN, "compressed size = file - header");
+        assert!(file[17..paloc::CONTAINER_HEADER_LEN].iter().all(|b| *b == 0), "header pad is zero");
+        let raw = paloc::unwrap_container(&file).unwrap().into_owned();
+        assert_eq!(raw.len(), dsize);
+        assert_eq!(paloc::unwrap_container(&paloc::wrap_container(&raw)).unwrap().as_ref(), raw.as_slice());
+        let items = paloc::parse_paloc_to_json(&file).unwrap();
+        let back = paloc::serialize_paloc_like(&items, &file).unwrap();
+        assert!(paloc::is_container(&back));
+        assert_eq!(paloc::unwrap_container(&back).unwrap().as_ref(), raw.as_slice());
     }
 
     #[test]
@@ -293,6 +323,7 @@ mod tests {
             eprintln!("SKIP: paloc-kor fixture (game dir or 0019/0.pamt not found)");
             return;
         };
+        let data = crate::binary::paloc::unwrap_container(&data).unwrap().into_owned();
         let paloc = LocalizationFile::parse(&data).unwrap();
         println!("PALOC KOR: {} entries", paloc.entries.len());
         for entry in paloc.entries.iter().take(5) {
@@ -313,6 +344,7 @@ mod tests {
             eprintln!("SKIP: paloc-kor fixture (game dir or 0019/0.pamt not found)");
             return;
         };
+        let data = crate::binary::paloc::unwrap_container(&data).unwrap().into_owned();
         let paloc = LocalizationFile::parse(&data).unwrap();
         let written = paloc.to_bytes().unwrap();
         assert_eq!(written.len(), data.len(), "paloc kor roundtrip size mismatch");

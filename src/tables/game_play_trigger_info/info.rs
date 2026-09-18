@@ -193,6 +193,11 @@ pub struct GamePlayTriggerInfo<'a> {
     pub is_enable: u8,
     pub safe_zone_type: u8,
     pub player_condition_info: u32,
+    /// 2.03.00: `_tagList` (oracle GamePlayTriggerInfo 15 -> 16 fields; +4 B every
+    /// record = an empty count). Read and written at the record TAIL, after
+    /// target_data_list: the oracle lists it 4th, but reading it there under-reads
+    /// every record by 50 bytes.
+    pub tag_list: CArray<u32>,
     pub ui_map_texture_info: u32,
     pub position: [f32; 3],
     pub rotation_y: f32,
@@ -240,6 +245,12 @@ impl<'a> GamePlayTriggerInfo<'a> {
         let string_key = CString::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let trigger_type = u8::read_from(data, offset)?;
+        // 2.03.00: `_tagList` right after _triggerType, as the 2.03 reader-string order
+        // has it (_isBlocked _triggerType _tagList _playerConditionInfo ...). +4 B every
+        // record = an empty count; the byte diff shows the four new zero bytes inside
+        // the zero run that follows trigger_type. This table was already a standing
+        // roundtrip failure on 2.02 (under-read), so the test does not judge this line.
+        let tag_list = CArray::<u32>::read_from(data, offset)?;
         let is_enable = u8::read_from(data, offset)?;
         let safe_zone_type = u8::read_from(data, offset)?;
         let player_condition_info = u32::read_from(data, offset)?;
@@ -263,7 +274,7 @@ impl<'a> GamePlayTriggerInfo<'a> {
         let new_112_list = CArray::<GptTrailingItem>::read_from(data, offset)?;
         let target_data_list = CArray::<TargetDataItem>::read_from(data, offset)?;
         Ok(Self {
-            key, string_key, is_blocked, trigger_type, is_enable, safe_zone_type,
+            key, string_key, is_blocked, trigger_type, tag_list, is_enable, safe_zone_type,
             player_condition_info, ui_map_texture_info, position, rotation_y,
             world_map_color_r, playable_character_list, field_revive_info,
             contents_phase_type, skill_info, skill_level, target_data_list,
@@ -276,6 +287,7 @@ impl<'a> GamePlayTriggerInfo<'a> {
         self.string_key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.trigger_type.write_to(w)?;
+        self.tag_list.write_to(w)?;
         self.is_enable.write_to(w)?;
         self.safe_zone_type.write_to(w)?;
         self.player_condition_info.write_to(w)?;
@@ -318,6 +330,7 @@ impl<'a> GamePlayTriggerInfo<'a> {
         m.insert("skill_info".to_string(), self.skill_info.to_json_value());
         m.insert("skill_level".to_string(), self.skill_level.to_json_value());
         m.insert("target_data_list".to_string(), self.target_data_list.to_json_value());
+        m.insert("tag_list".to_string(), self.tag_list.to_json_value());
         m.insert("new_112_a".to_string(), self.new_112_a.to_json_value());
         m.insert("new_112_b".to_string(), self.new_112_b.to_json_value());
         m.insert("new_112_c".to_string(), self.new_112_c.to_json_value());
@@ -333,6 +346,7 @@ impl<'a> GamePlayTriggerInfo<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trigger_type")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, obj.get("tag_list").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_enable")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "safe_zone_type")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "player_condition_info")?)?;

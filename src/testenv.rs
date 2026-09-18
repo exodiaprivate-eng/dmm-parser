@@ -32,6 +32,14 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.03.00 — 2026-09-17 (Steam build 25381195, paver 020003000000385104):
+    // 126 of 268 tables changed, 57 drifted by layout; 11 tables regressed vs 2.02
+    // (iteminfo +2 B/record, skill, status, region, detect, vehicle, bitmap_position,
+    // game_global_effect, mercenary, spawning_pool_auto_spawn, terrain_region_auto_spawn).
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-18",
+    // GAME VERSION 2.02.00 — 2026-09-10 (paver 020002000000585c92c8): content-only drift
+    // (4 tables, value/enum edits), same 20 standing failures as 2.01.00.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-11",
     // GAME VERSION 2.01.00 — 2026-09-03 (Steam build 25116796, paver 020001000000cb5f).
     // ⛔ The tables MOVED and were RENAMED in the archive:
     //   gamedata/binary__/client/bin/<t>.pabgb|.pabgh  ->
@@ -43,11 +51,11 @@ const FALLBACK_DIRS: &[&str] = &[
     // global_stage_sequencer, interaction, mercenary, mercenary_group,
     // part_prefab_dye_slot, relation, status (+12 B), store, vehicle; census: characterinfo
     // 2.4% -> 100% blob, storeinfo 0 -> 100% blob.
-    r"C:	emp\GIT\CrimsonDesertUpdates\pabgb6-9-3",
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-3",
     // GAME VERSION 2.00.02 — landed 2026-08-31 23:04 and went UNTRACKED for three days;
     // captured 2026-09-03 minutes before 2.01.00 committed. bytediff vs 2026-8-28:
     // 0 tables drifted; `cargo test --lib` 674/20 with the identical failing set.
-    r"C:	emp\GIT\CrimsonDesertUpdates\pabgb6-9-1",
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-1",
     // GAME VERSION 2.00.01 — 2026-08-28 hotfix on top of 2.00.00 (paver
     // 020000000100159a). Parser-neutral: 266 of 268 tables byte-identical, and
     // the only two that changed (actionpointinfo .pabgb/.pabgh) are the SAME

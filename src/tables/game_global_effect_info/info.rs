@@ -142,7 +142,15 @@ py_binary_struct! {
         pub cloud_cirrus_weight_b: u32,
         pub cloud_flow: u32,
         pub cloud_seed: u32,
+        // ── 2.03.00: five weather fields (oracle GameGlobalEffectInfo_Weather 46 -> 51):
+        // three after _cloudSeed, two after _rayleighScatteringColor. Stored as u32
+        // like every other f32/colour in this block.
+        pub under_water_moss_rate: u32,
+        pub under_water_tint_strength: u32,
+        pub extinction_coefficient: u32,
         pub rayleigh_scattering_color: u32,
+        pub scattering_albedo: u32,
+        pub under_water_tint_color: u32,
         pub enable_climate_texture: u8,
     }
 }

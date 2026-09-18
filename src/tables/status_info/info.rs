@@ -83,6 +83,9 @@ py_binary_struct! {
         // counts, at the positions the oracle gives.
         pub frame_event_attribute_list_by_level: CArray<FrameEventAttribute>,
         pub is_reset_on_revive: u8,
+        // ── 2.03.00: `_mustShowInUITooltip`, one u8 after _isResetOnRevive (oracle
+        // 2.02 -> 2.03 Mac, StatusInfo 37 -> 38 fields at index 32).
+        pub must_show_in_ui_tooltip: u8,
         pub not_enough_resource_message: u32,
         pub ui_template_name: u32,
         pub ui_component_name: u32,

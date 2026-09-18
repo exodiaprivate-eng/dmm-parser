@@ -79,10 +79,13 @@ pub struct FieldReviveInfo<'a> {
     pub field_info_key: u32,
     pub knowledge_info: u32,
     pub knowledge_level: u32,
+    /// 2.03.00: `_reviveWithMercenary`, one u8 after _knowledgeLevel (oracle
+    /// FieldReviveInfo 10 -> 11 fields at index 9; +1 B every record).
+    pub revive_with_mercenary: u8,
     pub use_default_revive: u8,
 }
 
-const TRAILING_BYTES: usize = 4 + 4 + 4 + 1; // field_info_key, knowledge_info, knowledge_level, use_default_revive
+const TRAILING_BYTES: usize = 4 + 4 + 4 + 1 + 1; // field_info_key, knowledge_info, knowledge_level, revive_with_mercenary, use_default_revive
 
 impl<'a> FieldReviveInfo<'a> {
     pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> io::Result<Self> {
@@ -115,12 +118,13 @@ impl<'a> FieldReviveInfo<'a> {
         let field_info_key = u32::read_from(data, offset)?;
         let knowledge_info = u32::read_from(data, offset)?;
         let knowledge_level = u32::read_from(data, offset)?;
+        let revive_with_mercenary = u8::read_from(data, offset)?;
         let use_default_revive = u8::read_from(data, offset)?;
 
         Ok(Self {
             key, string_key, is_blocked, position, rotation_y,
             sequencer_stage_chart_desc, field_info_key, knowledge_info,
-            knowledge_level, use_default_revive,
+            knowledge_level, revive_with_mercenary, use_default_revive,
         })
     }
 
@@ -134,6 +138,7 @@ impl<'a> FieldReviveInfo<'a> {
         self.field_info_key.write_to(w)?;
         self.knowledge_info.write_to(w)?;
         self.knowledge_level.write_to(w)?;
+        self.revive_with_mercenary.write_to(w)?;
         self.use_default_revive.write_to(w)?;
         Ok(())
     }
@@ -152,6 +157,7 @@ impl<'a> FieldReviveInfo<'a> {
         m.insert("field_info_key".to_string(), self.field_info_key.to_json_value());
         m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
         m.insert("knowledge_level".to_string(), self.knowledge_level.to_json_value());
+        m.insert("revive_with_mercenary".to_string(), self.revive_with_mercenary.to_json_value());
         m.insert("use_default_revive".to_string(), self.use_default_revive.to_json_value());
         m
     }
@@ -169,6 +175,7 @@ impl<'a> FieldReviveInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_info_key")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_level")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "revive_with_mercenary")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_default_revive")?)?;
         Ok(())
     }
@@ -267,7 +274,7 @@ mod tests {
             "key", "string_key", "is_blocked", "position", "rotation_y",
             "sequencer_stage_chart_desc",
             "field_info_key", "knowledge_info", "knowledge_level",
-            "use_default_revive",
+            "revive_with_mercenary", "use_default_revive",
         ] {
             assert!(dict.contains_key(f), "missing field `{}` in JSON dict", f);
         }

@@ -140,6 +140,10 @@ pub struct RegionInfo<'a> {
     pub forbidden_mercenary_key_list: CArray<u8>,
     pub is_world_map_road_path_findable: u8,
     pub is_accompany_allowed: u8,
+    /// 2.03.00: `_regionInventoryInfo` after _isAccompanyAllowed (oracle RegionInfo
+    /// 22 -> 23 fields at index 20). bytediff: records grew by 2 or 6, so a u16
+    /// inventory key (inventory_info keys are u16, 21 records) plus data edits.
+    pub region_inventory_info: u16,
     pub domain_faction_list: CArray<RegionDomainFactionItem>,
     pub tag_list: CArray<u32>,
 }
@@ -182,6 +186,7 @@ impl<'a> RegionInfo<'a> {
         let forbidden_mercenary_key_list = CArray::<u8>::read_from(data, offset)?;
         let is_world_map_road_path_findable = u8::read_from(data, offset)?;
         let is_accompany_allowed = u8::read_from(data, offset)?;
+        let region_inventory_info = u16::read_from(data, offset)?;
         let domain_faction_list = CArray::<RegionDomainFactionItem>::read_from(data, offset)?;
         let tag_list = CArray::<u32>::read_from(data, offset)?;
         Ok(Self {
@@ -191,7 +196,7 @@ impl<'a> RegionInfo<'a> {
             region_type, fog_clear_condition, limit_vehicle_run, is_town,
             is_wild, is_ui_map_disable, is_housing_region, is_none_play_zone,
             forbidden_mercenary_key_list, is_world_map_road_path_findable,
-            is_accompany_allowed, domain_faction_list, tag_list,
+            is_accompany_allowed, region_inventory_info, domain_faction_list, tag_list,
         })
     }
 
@@ -217,6 +222,7 @@ impl<'a> RegionInfo<'a> {
         self.forbidden_mercenary_key_list.write_to(w)?;
         self.is_world_map_road_path_findable.write_to(w)?;
         self.is_accompany_allowed.write_to(w)?;
+        self.region_inventory_info.write_to(w)?;
         self.domain_faction_list.write_to(w)?;
         self.tag_list.write_to(w)?;
         Ok(())
@@ -245,6 +251,7 @@ impl<'a> RegionInfo<'a> {
         m.insert("forbidden_mercenary_key_list".to_string(), self.forbidden_mercenary_key_list.to_json_value());
         m.insert("is_world_map_road_path_findable".to_string(), self.is_world_map_road_path_findable.to_json_value());
         m.insert("is_accompany_allowed".to_string(), self.is_accompany_allowed.to_json_value());
+        m.insert("region_inventory_info".to_string(), self.region_inventory_info.to_json_value());
         m.insert("domain_faction_list".to_string(), self.domain_faction_list.to_json_value());
         m.insert("tag_list".to_string(), self.tag_list.to_json_value());
         m
@@ -272,6 +279,7 @@ impl<'a> RegionInfo<'a> {
         <CArray<u8> as WriteJsonValue>::write_from_json(w, obj.get("forbidden_mercenary_key_list").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_world_map_road_path_findable")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, obj.get("is_accompany_allowed").unwrap_or(&Value::Null))?;
+        <u16 as WriteJsonValue>::write_from_json(w, obj.get("region_inventory_info").unwrap_or(&Value::Null))?;
         <CArray<RegionDomainFactionItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "domain_faction_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
         Ok(())
@@ -340,7 +348,7 @@ mod tests {
             "limit_vehicle_run", "is_town", "is_wild", "is_ui_map_disable",
             "is_housing_region", "is_none_play_zone",
             "forbidden_mercenary_key_list", "is_world_map_road_path_findable",
-            "is_accompany_allowed", "domain_faction_list",
+            "is_accompany_allowed", "region_inventory_info", "domain_faction_list",
             "tag_list",
         ] {
             assert!(dict.contains_key(f), "missing field `{}` in JSON dict", f);
