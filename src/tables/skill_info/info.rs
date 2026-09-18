@@ -682,7 +682,8 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 
     fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("skill.pabgb") }
-#[test]
+
+    #[test]
     fn roundtrip() {
         let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
         let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };

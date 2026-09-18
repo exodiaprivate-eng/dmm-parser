@@ -267,6 +267,11 @@ py_binary_struct! {
         // prefab_data_list; kept as u8 + u8 for bit-exact roundtrip (obs `ff 00`).
         pub item_push_inventory_contents_type_113: u8,
         pub trailing_u8_113: u8,
+        // 2.03.00: +2 bytes at the very end of every record (6816/6816, the whole
+        // prefix byte-identical to 2.02): a NINTH per-inventory-contents-type slot.
+        // 255 = unset in 6757 records; the 59 that carry 21 here carry 6 in the
+        // slot before it. No reader string changed, so the name is by position.
+        pub push_inventory_type_8_203: u16,
     }
 }
 

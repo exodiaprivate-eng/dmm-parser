@@ -155,6 +155,9 @@ py_binary_struct! {
         // vehicle you can walk around on. Semantic confirmation, not just a
         // width that happens to fit.
         pub is_platform_vehicle: u8,
+        // ── 2.03.00: `_platformHitEventMinAttackImpulseLevel`, one u8 appended
+        // after _isPlatformVehicle (oracle VehicleInfo 24 -> 25 fields, last).
+        pub platform_hit_event_min_attack_impulse_level: u8,
     }
 }
 

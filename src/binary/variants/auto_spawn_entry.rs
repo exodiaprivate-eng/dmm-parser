@@ -54,6 +54,11 @@ py_binary_struct! {
 py_binary_struct! {
     /// `sub_1410F9F00` per element. 72 mem bytes per parent slot.
     pub struct PoolSplineEntry {
+        // ── 2.03.00: the exe renamed AutoSpawnPartyData to AutoSpawnGroupData (this
+        // struct: inner_list is its _characterSpawnList) and put `_autoSpawnGroupType`
+        // first. One byte, confirmed by the byte diff on terrain key 2 and pool key
+        // 0x33: the new 00 sits between the spline_list count and inner_list's count.
+        pub auto_spawn_group_type: u8,
         pub inner_list: CArray<PoolSplineInnerEntry>,
         pub raw_a: u32,        // u32 wire → hash → u32 mem (qword_1ADD0)
         pub raw_b: u32,        // sub_141100740 (u32 wire / u16 mem)

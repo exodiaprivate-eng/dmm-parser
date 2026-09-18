@@ -1511,6 +1511,28 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Disc 121, first on the wire 2.03.00: `Skill_PlayerLimitMainWeaponOnly` (key
+    /// 0x128f2) carries two of them, asset strings "mainweapon_0 고정" and
+    /// "mainweapon_1 고정". Measured against the record: 8 bytes between the base and
+    /// the next entry's absent flag, the same u32 in both (0x4425304d, an equip-slot
+    /// hash) then 0 and 1, the slot index the string names.
+    pub struct BlockChangeEquipBuffDataPayload {
+        pub equip_slot_hash: u32,
+        pub slot_index: u32,
+    }
+}
+
+py_binary_struct! {
+    /// Disc 122, first on the wire 2.03.00 on the same record, asset string
+    /// "AuxWeapon 교체 불가": the same 8-byte shape as disc 121 with a different
+    /// hash (0x7aa1c455) and index 0.
+    pub struct BlockUnequipItemBuffDataPayload {
+        pub equip_slot_hash: u32,
+        pub slot_index: u32,
+    }
+}
+
+py_binary_struct! {
     pub struct DetectReactionOverrideBuffDataPayload {
         pub f00: u32,
         pub f01: u32,
@@ -1649,11 +1671,16 @@ pub enum BuffDataVariant<'a> {
     // `BuffLevel_LiveWater` and the parse re-synchronises with NO payload bytes, so
     // 120 is an empty variant like 111/116/119. The disc->class NAME assignment below is
     // the semantic match (a "movable voxel" buff on a live-water status), not a decompile;
-    // 121/122 have not been seen on the wire yet and are reserved so a future record does
-    // not fall back to a blob for want of two lines.
+    // 121/122 first appeared on the wire in 2.03.00 (Skill_PlayerLimitMainWeaponOnly)
+    // with an 8-byte payload each; see the payload structs.
     AdditionalMovableVoxelBuffData(AdditionalMovableVoxelBuffDataPayload),
-    BlockChangeEquipBuffData,
-    BlockUnequipItemBuffData,
+    BlockChangeEquipBuffData(BlockChangeEquipBuffDataPayload),
+    BlockUnequipItemBuffData(BlockUnequipItemBuffDataPayload),
+    /// 2.03.00: disc 123, carried by Passive_GlobalDetectTarget and
+    /// Skill_PlayerLimitMainWeaponOnly. No reader string for a new buff class
+    /// appeared in the 2.02 -> 2.03 oracle, so it is a marker with no payload,
+    /// like the two before it; the name is provisional.
+    Tag123BuffData,
 }
 
 impl<'a> BuffDataVariant<'a> {
@@ -1780,8 +1807,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DetectReactionOverrideBuffData(_) => 118,
             Self::EmpoweredOverlayColorBuffData => 119,
             Self::AdditionalMovableVoxelBuffData(_) => 120,
-            Self::BlockChangeEquipBuffData => 121,
-            Self::BlockUnequipItemBuffData => 122,
+            Self::BlockChangeEquipBuffData(_) => 121,
+            Self::BlockUnequipItemBuffData(_) => 122,
+            Self::Tag123BuffData => 123,
         }
     }
 
@@ -1909,8 +1937,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DetectReactionOverrideBuffData(_) => "DetectReactionOverrideBuffData",
             Self::EmpoweredOverlayColorBuffData => "EmpoweredOverlayColorBuffData",
             Self::AdditionalMovableVoxelBuffData(_) => "AdditionalMovableVoxelBuffData",
-            Self::BlockChangeEquipBuffData => "BlockChangeEquipBuffData",
-            Self::BlockUnequipItemBuffData => "BlockUnequipItemBuffData",
+            Self::BlockChangeEquipBuffData(_) => "BlockChangeEquipBuffData",
+            Self::BlockUnequipItemBuffData(_) => "BlockUnequipItemBuffData",
+            Self::Tag123BuffData => "Tag123BuffData",
         }
     }
 
@@ -2041,8 +2070,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DetectReactionOverrideBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::EmpoweredOverlayColorBuffData => {}
             Self::AdditionalMovableVoxelBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
-            Self::BlockChangeEquipBuffData => {}
-            Self::BlockUnequipItemBuffData => {}
+            Self::BlockChangeEquipBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BlockUnequipItemBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::Tag123BuffData => {}
         }
         Value::Object(m)
     }
@@ -2179,8 +2209,9 @@ impl<'a> BuffDataVariant<'a> {
             118 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "DetectReactionOverrideBuffData: missing body object"))?; DetectReactionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
             119 => {}
             120 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "AdditionalMovableVoxelBuffData: missing body object"))?; AdditionalMovableVoxelBuffDataPayload::write_from_json_dict(w, body)?; }
-            121 => {}
-            122 => {}
+            121 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockChangeEquipBuffData: missing body object"))?; BlockChangeEquipBuffDataPayload::write_from_json_dict(w, body)?; }
+            122 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockUnequipItemBuffData: missing body object"))?; BlockUnequipItemBuffDataPayload::write_from_json_dict(w, body)?; }
+            123 => {}
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("BuffDataVariant: unknown disc {}", other))),
         }
@@ -2312,8 +2343,9 @@ impl<'a> BuffDataVariant<'a> {
             118 => Self::DetectReactionOverrideBuffData(DetectReactionOverrideBuffDataPayload::read_from(data, offset)?),
             119 => Self::EmpoweredOverlayColorBuffData,
             120 => Self::AdditionalMovableVoxelBuffData(AdditionalMovableVoxelBuffDataPayload::read_from(data, offset)?),
-            121 => Self::BlockChangeEquipBuffData,
-            122 => Self::BlockUnequipItemBuffData,
+            121 => Self::BlockChangeEquipBuffData(BlockChangeEquipBuffDataPayload::read_from(data, offset)?),
+            122 => Self::BlockUnequipItemBuffData(BlockUnequipItemBuffDataPayload::read_from(data, offset)?),
+            123 => Self::Tag123BuffData,
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown BuffData disc: {}", disc))),
         })
     }
@@ -2441,8 +2473,9 @@ impl<'a> BuffDataVariant<'a> {
             Self::DetectReactionOverrideBuffData(p) => p.write_to(w),
             Self::EmpoweredOverlayColorBuffData => Ok(()),
             Self::AdditionalMovableVoxelBuffData(p) => p.write_to(w),
-            Self::BlockChangeEquipBuffData => Ok(()),
-            Self::BlockUnequipItemBuffData => Ok(()),
+            Self::BlockChangeEquipBuffData(p) => p.write_to(w),
+            Self::BlockUnequipItemBuffData(p) => p.write_to(w),
+            Self::Tag123BuffData => Ok(()),
         }
     }
 }

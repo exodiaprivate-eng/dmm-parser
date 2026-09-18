@@ -174,6 +174,10 @@ pub struct BitmapPositionInfo<'a> {
     pub scale_per_pixel: u32,
     pub max_using_height: u32,
     pub export_texture_on_editing: u8,
+    /// 2.03.00: `_bitmapCookDataList`, appended after _exportTextureOnEditing
+    /// (oracle BitmapPositionInfo 11 -> 12 fields). Each BitmapCookData is one
+    /// field, `_contentsGroupKey`; empty in every vanilla record (+4 B = the count).
+    pub bitmap_cook_data_list: CArray<u32>,
 }
 
 impl<'a> BitmapPositionInfo<'a> {
@@ -204,10 +208,12 @@ impl<'a> BitmapPositionInfo<'a> {
         let scale_per_pixel = u32::read_from(data, offset)?;
         let max_using_height = u32::read_from(data, offset)?;
         let export_texture_on_editing = u8::read_from(data, offset)?;
+        let bitmap_cook_data_list = CArray::<u32>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, scale_type, values,
             boundary_position_min, boundary_position_max, center_position,
             scale_per_pixel, max_using_height, export_texture_on_editing,
+            bitmap_cook_data_list,
         })
     }
 
@@ -223,6 +229,7 @@ impl<'a> BitmapPositionInfo<'a> {
         self.scale_per_pixel.write_to(w)?;
         self.max_using_height.write_to(w)?;
         self.export_texture_on_editing.write_to(w)?;
+        self.bitmap_cook_data_list.write_to(w)?;
         Ok(())
     }
 
@@ -239,6 +246,7 @@ impl<'a> BitmapPositionInfo<'a> {
         m.insert("scale_per_pixel".to_string(), self.scale_per_pixel.to_json_value());
         m.insert("max_using_height".to_string(), self.max_using_height.to_json_value());
         m.insert("export_texture_on_editing".to_string(), self.export_texture_on_editing.to_json_value());
+        m.insert("bitmap_cook_data_list".to_string(), self.bitmap_cook_data_list.to_json_value());
         m
     }
 
@@ -254,6 +262,7 @@ impl<'a> BitmapPositionInfo<'a> {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "scale_per_pixel")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_using_height")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "export_texture_on_editing")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, obj.get("bitmap_cook_data_list").unwrap_or(&Value::Null))?;
         Ok(())
     }
 }
@@ -319,6 +328,7 @@ mod tests {
             "key", "string_key", "is_blocked", "scale_type", "values",
             "boundary_position_min", "boundary_position_max", "center_position",
             "scale_per_pixel", "max_using_height", "export_texture_on_editing",
+            "bitmap_cook_data_list",
         ] {
             assert!(dict.contains_key(f), "missing field `{}` in JSON dict", f);
         }

@@ -38,6 +38,11 @@ pub struct SpawningPoolAutoSpawnInfo<'a> {
     // shows `00000000` between the raw block and the flag block.
     pub raw_e_113: u32,
     pub flag_a: u8,
+    /// 2.03.00: `_meshGroupSpawnOffset` after _attachTerrainCheckHeight (= flag_a in
+    /// the reader-string order; oracle SpawningPoolAutoSpawnInfo 17 -> 18 fields at
+    /// index 12). Twelve bytes, a vec3; with the entry's new leading byte that is the
+    /// +13 every record shows.
+    pub mesh_group_spawn_offset: [f32; 3],
     pub flag_b: u8,
     pub flag_c: u8,
     pub flag_d: u8,
@@ -91,6 +96,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         let raw_d = u32::read_from(data, offset)?;
         let raw_e_113 = u32::read_from(data, offset)?;
         let flag_a = u8::read_from(data, offset)?;
+        let mesh_group_spawn_offset = <[f32; 3]>::read_from(data, offset)?;
         let flag_b = u8::read_from(data, offset)?;
         let flag_c = u8::read_from(data, offset)?;
         let flag_d = u8::read_from(data, offset)?;
@@ -101,7 +107,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
             spawn_list, terminator,
             hash_list, socket_os_name,
             raw_a, raw_b, raw_c, raw_d, raw_e_113,
-            flag_a, flag_b, flag_c, flag_d,
+            flag_a, mesh_group_spawn_offset, flag_b, flag_c, flag_d,
             final_u16,
         })
     }
@@ -128,6 +134,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         self.raw_d.write_to(w)?;
         self.raw_e_113.write_to(w)?;
         self.flag_a.write_to(w)?;
+        self.mesh_group_spawn_offset.write_to(w)?;
         self.flag_b.write_to(w)?;
         self.flag_c.write_to(w)?;
         self.flag_d.write_to(w)?;
@@ -150,6 +157,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         m.insert("raw_d".to_string(), self.raw_d.to_json_value());
         m.insert("raw_e_113".to_string(), self.raw_e_113.to_json_value());
         m.insert("flag_a".to_string(), self.flag_a.to_json_value());
+        m.insert("mesh_group_spawn_offset".to_string(), self.mesh_group_spawn_offset.to_json_value());
         m.insert("flag_b".to_string(), self.flag_b.to_json_value());
         m.insert("flag_c".to_string(), self.flag_c.to_json_value());
         m.insert("flag_d".to_string(), self.flag_d.to_json_value());
@@ -185,6 +193,7 @@ impl<'a> SpawningPoolAutoSpawnInfo<'a> {
         // null-safe: old mods (pre-1.13.00) omit raw_e_113 → default 0.
         <u32 as WriteJsonValue>::write_from_json(w, obj.get("raw_e_113").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, obj.get("mesh_group_spawn_offset").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_c")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_d")?)?;

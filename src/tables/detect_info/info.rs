@@ -54,6 +54,10 @@ py_binary_struct! {
         pub is_blocked: u8,
         pub decrease_value_per_sec: u32,
         pub is_detectable_attached_docking: u8,
+        // ── 2.03.00: `_globalDetectTargetDistance` after _isDetectableAttachedDocking
+        // (oracle DetectInfo 7 -> 8 fields at index 5; +4 B every record). Distances
+        // in this table are u32, as _targetLostDistance next to it.
+        pub global_detect_target_distance: u32,
         pub target_lost_distance: u32,
         pub detect_sense_data: DetectSenseData,
     }

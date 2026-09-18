@@ -596,13 +596,35 @@ fn to_py_paloc_entry<'py>(
 
 #[pyfunction]
 pub fn parse_paloc_bytes(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
-    let paloc = crate::binary::paloc::LocalizationFile::parse(data)
+    let raw = crate::binary::paloc::unwrap_container(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let paloc = crate::binary::paloc::LocalizationFile::parse(&raw)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let entries = PyList::empty(py);
     for entry in &paloc.entries {
         entries.append(to_py_paloc_entry(py, entry)?)?;
     }
     Ok(entries.into_any().unbind())
+}
+
+/// True when `data` is a 2.03.00 paloc container (512-byte header + LZ4 block).
+#[pyfunction]
+pub fn paloc_is_container(data: &[u8]) -> bool {
+    crate::binary::paloc::is_container(data)
+}
+
+/// The bare record bytes of a paloc file of either shape.
+#[pyfunction]
+pub fn unwrap_paloc_container(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let raw = crate::binary::paloc::unwrap_container(data)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &raw).into_any().unbind())
+}
+
+/// Bare paloc record bytes wrapped in the 2.03.00 container.
+#[pyfunction]
+pub fn wrap_paloc_container(py: Python<'_>, records: &[u8]) -> PyResult<Py<PyAny>> {
+    Ok(PyBytes::new(py, &crate::binary::paloc::wrap_container(records)).into_any().unbind())
 }
 
 #[pyfunction]
@@ -2263,6 +2285,9 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paloc_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_paloc, m)?)?;
+    m.add_function(wrap_pyfunction!(paloc_is_container, m)?)?;
+    m.add_function(wrap_pyfunction!(unwrap_paloc_container, m)?)?;
+    m.add_function(wrap_pyfunction!(wrap_paloc_container, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paloc_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_paloc_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_paloc_to_bytes, m)?)?;
