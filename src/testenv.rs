@@ -32,14 +32,22 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.03.01 hotfix — 2026-09-21 (Steam build 25438250, paver 0200030001005b5ed60c):
+    // content only. 10 of 268 files changed: one record grew in questinfo (+1 quest),
+    // questgroupinfo, knowledgeinfo and uifiltergroupinfo, stageinfo +2 stages. No layout
+    // drift, same 680 pass / 20 standing failures as 2.03.00, by name.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-9-21",
     // GAME VERSION 2.03.00 — 2026-09-17 (Steam build 25381195, paver 020003000000385104):
     // 126 of 268 tables changed, 57 drifted by layout; 11 tables regressed vs 2.02
     // (iteminfo +2 B/record, skill, status, region, detect, vehicle, bitmap_position,
     // game_global_effect, mercenary, spawning_pool_auto_spawn, terrain_region_auto_spawn).
-    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-18",
+    // (This entry and the next read `pabgb\206-9-..` until 2026-09-21: a shell ate `\202` as
+    // an octal escape when the line was written. Neither folder existed, so a run with no
+    // DMM_PARSER_PABGB_DIR silently fell back to the 2.01.00 set.)
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-9-18",
     // GAME VERSION 2.02.00 — 2026-09-10 (paver 020002000000585c92c8): content-only drift
     // (4 tables, value/enum edits), same 20 standing failures as 2.01.00.
-    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-11",
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-9-11",
     // GAME VERSION 2.01.00 — 2026-09-03 (Steam build 25116796, paver 020001000000cb5f).
     // ⛔ The tables MOVED and were RENAMED in the archive:
     //   gamedata/binary__/client/bin/<t>.pabgb|.pabgh  ->
