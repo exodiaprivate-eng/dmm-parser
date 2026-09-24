@@ -32,6 +32,11 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.03.02 hotfix - 2026-09-23 (Steam build 25477059, paver 020003000200e3cc19cb):
+    // content only. 5 of 268 files changed, all gimmick tables (gimmickinfo +77 B, the rest
+    // value edits), no new tables, no layout drift. Same 680 pass / 20 standing failures as
+    // 2.03.01, by name.
+    r"C:	emp\GIT\CrimsonDesertUpdates\pabgb6-9-23",
     // GAME VERSION 2.03.01 hotfix — 2026-09-21 (Steam build 25438250, paver 0200030001005b5ed60c):
     // content only. 10 of 268 files changed: one record grew in questinfo (+1 quest),
     // questgroupinfo, knowledgeinfo and uifiltergroupinfo, stageinfo +2 stages. No layout
