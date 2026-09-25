@@ -191,9 +191,6 @@ fn apply_single(
             Ok(None)
         }
         ResolvedIntentOp::CloneRecord { source_key, new_key, patches } => {
-            if index.find(None, Some(*new_key)).is_some() {
-                return Err(ApplyError::DuplicateKey { key: *new_key });
-            }
             let src_idx = index.find(None, Some(*source_key)).ok_or(
                 ApplyError::RecordNotFound {
                     lookup: format!("source_key={}", source_key),
@@ -203,16 +200,36 @@ fn apply_single(
             // Set the new key on the clone, then run patches.
             set_record_key(&mut clone, *new_key)?;
             apply_patches(&mut clone, patches)?;
+            if let Some(existing) = index.find(None, Some(*new_key)) {
+                // A second mod minting the SAME record under the SAME key is not a clash,
+                // it is the same record: two mods that both need "petrify = poison shell
+                // with payload 290" agree on one fixed key on purpose, so that either one
+                // alone, or both together, leaves exactly one such record. Only a
+                // different record under that key is a real duplicate.
+                if records[existing] == clone {
+                    return Ok(Some(format!(
+                        "SKIP: key {} already holds this exact record (identical clone_record from another mod)",
+                        new_key
+                    )));
+                }
+                return Err(ApplyError::DuplicateKey { key: *new_key });
+            }
             records.push(clone);
             index.refresh(records, records.len() - 1);
             Ok(None)
         }
         ResolvedIntentOp::NewRecord { new_key, template } => {
-            if index.find(None, Some(*new_key)).is_some() {
-                return Err(ApplyError::DuplicateKey { key: *new_key });
-            }
             let mut new = template.clone();
             set_record_key(&mut new, *new_key)?;
+            if let Some(existing) = index.find(None, Some(*new_key)) {
+                if records[existing] == new {
+                    return Ok(Some(format!(
+                        "SKIP: key {} already holds this exact record (identical new_record from another mod)",
+                        new_key
+                    )));
+                }
+                return Err(ApplyError::DuplicateKey { key: *new_key });
+            }
             records.push(new);
             index.refresh(records, records.len() - 1);
             Ok(None)
@@ -865,6 +882,30 @@ mod tests {
             ..Default::default()
         };
         let err = apply_resolved_intents(&mut records, &[intent]).unwrap_err();
+        assert!(matches!(err, ApplyError::DuplicateKey { .. }));
+    }
+
+    #[test]
+    fn clone_record_identical_twice_is_a_skip_not_a_duplicate() {
+        // Stormsteel Crystal and an Item Workshop crystal mod both clone the poison shell
+        // to the same fixed key with the same patches; mounted together that must be one
+        // record, not an abort of the second mod's skill target.
+        let mut records = fake_records();
+        let mk = || Intent {
+            op: Some("clone_record".into()),
+            source_key: Some(100),
+            new_key: Some(300),
+            patches: Some(vec![Patch { path: "cooltime".into(), op: None, new: serde_json::json!(7) }]),
+            ..Default::default()
+        };
+        let out = apply_resolved_intents(&mut records, &[mk(), mk()]).unwrap();
+        assert_eq!(records.iter().filter(|r| r["key"] == 300).count(), 1);
+        assert!(matches!(out[0].status, ApplyStatus::Applied));
+        assert!(matches!(&out[1].status, ApplyStatus::Skipped(r) if r.contains("identical")));
+        // a DIFFERENT record under the same key is still refused
+        let mut other = mk();
+        other.patches = Some(vec![Patch { path: "cooltime".into(), op: None, new: serde_json::json!(9) }]);
+        let err = apply_resolved_intents(&mut records, &[other]).unwrap_err();
         assert!(matches!(err, ApplyError::DuplicateKey { .. }));
     }
 
