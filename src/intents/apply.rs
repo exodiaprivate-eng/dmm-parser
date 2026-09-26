@@ -212,6 +212,10 @@ fn apply_single(
                         new_key
                     )));
                 }
+                let named = patches.iter().any(|p| p.path == "string_key");
+                if let Some(reason) = same_named_record(&records[existing], &clone, named, *new_key, "clone_record") {
+                    return Ok(Some(reason));
+                }
                 return Err(ApplyError::DuplicateKey { key: *new_key });
             }
             records.push(clone);
@@ -227,6 +231,10 @@ fn apply_single(
                         "SKIP: key {} already holds this exact record (identical new_record from another mod)",
                         new_key
                     )));
+                }
+                let named = template.get("string_key").is_some();
+                if let Some(reason) = same_named_record(&records[existing], &new, named, *new_key, "new_record") {
+                    return Ok(Some(reason));
                 }
                 return Err(ApplyError::DuplicateKey { key: *new_key });
             }
@@ -244,6 +252,42 @@ fn apply_single(
             Ok(None)
         }
     }
+}
+
+/// Two mods that mint ONE shared record under one fixed key agree on its NAME: the crystal
+/// petrify passive is `Equip_Passive_Crystal_Stormsteel` at 891290 in Stormsteel Crystal and in
+/// every DMM Item Workshop crystal export. Each of them edits it right after minting (widening
+/// its class list, relabelling it), so a later mod's fresh clone never equals the record an
+/// earlier mod left behind, and the whole-record comparison above refused the later mod's
+/// entire target whenever the earlier one loaded first (Stormsteel Crystal 3.1, then an Item
+/// Workshop crystal export: duplicate key 891290). A record the intent names ITSELF (a
+/// `string_key` patch, or a template carrying one), found under its key with that same name, is
+/// that shared record: skip, and keep what the earlier mods made of it. A clone that keeps its
+/// donor's name still needs the exact record, and a different name is still a real duplicate.
+fn same_named_record(existing: &Value, minted: &Value, named_by_intent: bool, key: i64, op: &str) -> Option<String> {
+    if !named_by_intent {
+        return None;
+    }
+    let name = minted.get("string_key").and_then(|v| v.as_str()).filter(|s| !s.is_empty())?;
+    if existing.get("string_key").and_then(|v| v.as_str()) != Some(name) {
+        return None;
+    }
+    let differs: Vec<&str> = match (existing.as_object(), minted.as_object()) {
+        (Some(a), Some(b)) => b
+            .iter()
+            .filter(|(k, v)| a.get(k.as_str()) != Some(*v))
+            .map(|(k, _)| k.as_str())
+            .take(4)
+            .collect(),
+        _ => Vec::new(),
+    };
+    Some(format!(
+        "SKIP: key {} already holds '{}' from another mod (a {} of the same shared record; kept as the earlier mods left it{})",
+        key,
+        name,
+        op,
+        if differs.is_empty() { String::new() } else { format!("; differs in {}", differs.join(", ")) }
+    ))
 }
 
 /// Guard against the silent-drop failure mode: when a typed table entry's
@@ -907,6 +951,57 @@ mod tests {
         other.patches = Some(vec![Patch { path: "cooltime".into(), op: None, new: serde_json::json!(9) }]);
         let err = apply_resolved_intents(&mut records, &[other]).unwrap_err();
         assert!(matches!(err, ApplyError::DuplicateKey { .. }));
+    }
+
+    #[test]
+    fn a_named_shared_record_an_earlier_mod_already_edited_is_a_skip() {
+        // Stormsteel Crystal clones the poison shell to 891290 as `Equip_Passive_Crystal_Stormsteel`
+        // and widens it straight away; an Item Workshop crystal export loaded after it mints the
+        // same named record. That used to be DuplicateKey, and the whole skill target of the second
+        // mod was refused (Stormsteel Crystal 3.1 followed by such an export hit exactly this).
+        let mut records = fake_records();
+        let mint = || Intent {
+            op: Some("clone_record".into()),
+            source_key: Some(100),
+            new_key: Some(300),
+            patches: Some(vec![
+                Patch { path: "string_key".into(), op: None, new: json!("Shared_Passive") },
+                Patch { path: "cooltime".into(), op: None, new: json!(7) },
+            ]),
+            ..Default::default()
+        };
+        let widen = Intent { op: Some("set".into()), entry: Some("Shared_Passive".into()), key: Some(300),
+                             field: Some("max_stack_count".into()), new: Some(json!(5)), ..Default::default() };
+        let out = apply_resolved_intents(&mut records, &[mint(), widen, mint()]).unwrap();
+        assert_eq!(records.iter().filter(|r| r["key"] == 300).count(), 1, "one shared record");
+        let shared = records.iter().find(|r| r["key"] == 300).unwrap();
+        assert_eq!(shared["max_stack_count"], 5, "the earlier mod's edit survives the later mint");
+        assert!(matches!(&out[2].status, ApplyStatus::Skipped(r) if r.contains("same shared record") && r.contains("max_stack_count")));
+    }
+
+    #[test]
+    fn a_named_clone_under_a_key_holding_another_name_is_still_a_duplicate() {
+        let mut records = fake_records();
+        let named = |name: &str| Intent {
+            op: Some("clone_record".into()),
+            source_key: Some(100),
+            new_key: Some(300),
+            patches: Some(vec![Patch { path: "string_key".into(), op: None, new: json!(name) }]),
+            ..Default::default()
+        };
+        apply_resolved_intents(&mut records, &[named("First_Mod_Record")]).unwrap();
+        let err = apply_resolved_intents(&mut records, &[named("Second_Mod_Record")]).unwrap_err();
+        assert!(matches!(err, ApplyError::DuplicateKey { key: 300 }));
+        // and a named clone never takes a vanilla record's key whose name differs from its own
+        let mut records = fake_records();
+        let onto_apple = Intent {
+            op: Some("clone_record".into()),
+            source_key: Some(100),
+            new_key: Some(200),
+            patches: Some(vec![Patch { path: "string_key".into(), op: None, new: json!("Not_Apple") }]),
+            ..Default::default()
+        };
+        assert!(matches!(apply_resolved_intents(&mut records, &[onto_apple]).unwrap_err(), ApplyError::DuplicateKey { key: 200 }));
     }
 
     #[test]
