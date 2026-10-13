@@ -1821,31 +1821,47 @@ single value carries the entire file shape plus synthetic
 
 ### pappt
 
+One entry per part prefab (game 2.03.02: 15,566 entries, 2,630
+secondary pairs). A head, as the game ships it:
+
 ```json
 {
   "key": 0,
   "string_key": "",
-  "header": [222, 173, 190, 239, 0, 1, 2, 3],
+  "header": [0, 0, 0, 0, 0, 0, 0, 0],
   "primary": [
     {
-      "key_a": "Kliff",
-      "key_b": "hair",
-      "key_c": "src/kliff_hair.pmod",
-      "asset_id": "kliff_hair_default",
-      "flag": 1,
+      "key_a": "cd_phw_00_head_00_0052",
+      "key_b": "1_pc/02_phw/head/head",
+      "key_c": "",
+      "bool_flag": 1,
+      "asset_id": "",
+      "flag": 0,
       "children": [
-        { "sub_key": "kliff_hair_long", "sub_flag": 2 }
+        { "sub_key": "CD_Head", "sub_flag": 1 },
+        { "sub_key": "CD_Head_Sub", "sub_flag": 1 }
       ]
     }
   ],
   "secondary": [
-    { "alias_a": "old_kliff_hair", "alias_b": "kliff_hair_default" }
+    { "alias_a": "cd_phw_00_head_00_0052", "alias_b": "1_pc/02_phw/head/head" }
   ]
 }
 ```
 
+- `key_a` is the prefab name, `key_b` its folder, `key_c` a sockets
+  xml path or empty (the loader skips it). `children` are the part
+  slots the prefab fills. `asset_id` is a tag, empty for most entries
+  (`Empty`, `Chest01`, `WideShoulder01` ... on some).
+- `bool_flag` is a byte the loader stores as a bool; every 2.03.02
+  entry holds 1, and an entry added without it gets 1.
+- Strings are shown without the NUL each one carries in the file; the
+  writer adds it back. At most 254 bytes each.
+- A barber list, app_xml or conditional part rule can only name a
+  prefab that has an entry here.
+
 Field paths v3 intents address:
-- `primary[N].key_a` / `key_b` / `key_c` / `asset_id` / `flag`
+- `primary[N].key_a` / `key_b` / `key_c` / `bool_flag` / `asset_id` / `flag`
 - `primary[N].children[M].sub_key` / `sub_flag`
 - `secondary[N].alias_a` / `alias_b`
 - `header[N]` (one byte of the 8-byte opaque header)
