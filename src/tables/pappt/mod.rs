@@ -16,11 +16,12 @@
 //! `character/bindev__/partprefabtable.pappt`.
 //!
 //! Layout: opaque 8-byte header, `u32` primary count, N primary
-//! entries, `u32` secondary count, M secondary entries. All strings
-//! are length-prefixed by a single `u8` length byte (max 255 bytes,
-//! no NUL terminator written by the file).
+//! entries (one per part prefab), `u32` secondary count, M secondary
+//! entries. Every string is a single `u8` length followed by that many
+//! bytes, the last a NUL the loader needs; the parsed strings leave it
+//! out and the writer adds it back (254 bytes of text at most).
 //!
-//! Format reference: `tools/mod-workbench/PAPPT_FORMAT_RESEARCH.md`.
+//! Field-by-field layout: [`info`].
 
 pub mod info;
 pub use info::{
