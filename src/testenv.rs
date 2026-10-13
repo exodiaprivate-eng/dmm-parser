@@ -35,8 +35,11 @@ const FALLBACK_DIRS: &[&str] = &[
     // GAME VERSION 2.03.02 hotfix - 2026-09-23 (Steam build 25477059, paver 020003000200e3cc19cb):
     // content only. 5 of 268 files changed, all gimmick tables (gimmickinfo +77 B, the rest
     // value edits), no new tables, no layout drift. Same 680 pass / 20 standing failures as
-    // 2.03.01, by name.
-    r"C:	emp\GIT\CrimsonDesertUpdates\pabgb6-9-23",
+    // 2.03.01, by name. (Until 2026-10-02 this line read C:<TAB>emp\...\pabgb<U+0082>6-9-23: a shell
+    // ate the \t and the \202 when it was written, the folder was never found, and a run with no
+    // DMM_PARSER_PABGB_DIR silently used 2.03.01. The 2.01.00 and 2.00.02 lines below had lost
+    // the 2 of 2026 the same way.)
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-9-23",
     // GAME VERSION 2.03.01 hotfix — 2026-09-21 (Steam build 25438250, paver 0200030001005b5ed60c):
     // content only. 10 of 268 files changed: one record grew in questinfo (+1 quest),
     // questgroupinfo, knowledgeinfo and uifiltergroupinfo, stageinfo +2 stages. No layout
@@ -64,11 +67,11 @@ const FALLBACK_DIRS: &[&str] = &[
     // global_stage_sequencer, interaction, mercenary, mercenary_group,
     // part_prefab_dye_slot, relation, status (+12 B), store, vehicle; census: characterinfo
     // 2.4% -> 100% blob, storeinfo 0 -> 100% blob.
-    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-3",
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-9-3",
     // GAME VERSION 2.00.02 — landed 2026-08-31 23:04 and went UNTRACKED for three days;
     // captured 2026-09-03 minutes before 2.01.00 committed. bytediff vs 2026-8-28:
     // 0 tables drifted; `cargo test --lib` 674/20 with the identical failing set.
-    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\206-9-1",
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-9-1",
     // GAME VERSION 2.00.01 — 2026-08-28 hotfix on top of 2.00.00 (paver
     // 020000000100159a). Parser-neutral: 266 of 268 tables byte-identical, and
     // the only two that changed (actionpointinfo .pabgb/.pabgh) are the SAME
