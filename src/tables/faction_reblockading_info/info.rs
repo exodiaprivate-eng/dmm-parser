@@ -16,8 +16,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FactionReblockadingInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub reoccupation_quest_data_list: CArray<ReoccupationQuestData>,
         pub faction_node_list: CArray<u32>,

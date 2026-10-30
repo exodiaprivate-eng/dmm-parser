@@ -23,6 +23,7 @@ pub mod effect_data;
 pub mod game_condition;
 pub mod game_event_handler_data;
 pub mod game_expression;
+pub mod game_expression_204;
 pub mod global_effect_condition_data;
 pub mod global_game_event_execute_data;
 pub mod ivariant_item;

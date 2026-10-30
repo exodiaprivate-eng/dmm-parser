@@ -362,16 +362,16 @@ impl QuickTimeEventInfoData {
 
 #[derive(Debug)]
 pub struct QuickTimeEventInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub quick_time_event_data_list: Vec<QuickTimeEventInfoData>,
 }
 
 impl<'a> QuickTimeEventInfo<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let count = u32::read_from(data, offset)? as usize;
         // Sanity clamp (mirrors CArray in binary/types.rs): each element is
@@ -393,8 +393,8 @@ impl<'a> QuickTimeEventInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         (self.quick_time_event_data_list.len() as u32).write_to(w)?;
         for entry in &self.quick_time_event_data_list {
@@ -405,8 +405,8 @@ impl<'a> QuickTimeEventInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert(
             "quick_time_event_data_list".to_string(),
@@ -421,8 +421,8 @@ impl<'a> QuickTimeEventInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         let arr = json_get_field(obj, "quick_time_event_data_list")?
             .as_array()

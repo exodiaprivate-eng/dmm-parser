@@ -157,22 +157,26 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_1020436C0). The two one-byte flags now sit together
+    // after the state list (scene type first: it carries the same 3 the 2.03 tail did).
     pub struct ElementalMaterialInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub use_temperature_transfer_margin: u8,
         pub elemental_material_system_type: u8,
-        pub elemental_material_key: CString<'a>,
-        pub unk_new_u32_a: u32,
-        pub unk_new_u32_b: u32,
+        pub fuel_end_active_skill_key: u32,
+        pub fuel_end_passive_skill_key: u32,
+        pub fuel_end_active_skill_level: u32,
         pub total_fuel_amount: u32,
         pub fuel_standard_obb_size: u32,
-        pub fuel_end_passive_skill_key: u32,
         pub fuel_end_passive_skill_level: u32,
-        pub fuel_end_active_skill_key: u32,
-        pub fuel_end_active_skill_level: u32,
-        pub use_temperature_transfer_margin: u8,
+        pub elemental_material_key: CString<'a>,
+        pub unk_new_u32_a: u32,     // _passiveSkillKeyAndLevel (8 bytes)
+        pub unk_new_u32_b: u32,
         pub elemental_material_state_data_list: CArray<ElementalMaterialStateData<'a>>,
+        pub scene_object_spawnable_type: u8,
+        pub is_system_type: u8,
         pub min_stat_list: CArray<ElementalMaterialU32U64Pair>,
         pub max_stat_list: CArray<ElementalMaterialU32U64Pair>,
         pub parent_material_key_list_deprecated_xxx: CArray<ElementalMaterialParentEntry>,
@@ -184,9 +188,7 @@ py_binary_struct! {
         pub flag_5: u32,
         pub flag_6: u32,
         pub flag_7: u32,
-        pub is_system_type: u8,
         pub elemental_material_stat_data_list: CArray<ElementalMaterialEntry>,
-        pub scene_object_spawnable_type: u8,
     }
 }
 

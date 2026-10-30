@@ -28,13 +28,13 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct GameStartInfo<'a> {
-        pub key: u8,
         pub string_key: CString<'a>,
+        pub key: u8,
         pub is_blocked: u8,
-        pub name: CString<'a>,
+        pub use_instance_save_slot: u8,
         pub field_info: u32,
         pub start_quest_info: u32,
-        pub use_instance_save_slot: u8,
+        pub name: CString<'a>,
         pub character_spawn_data_map: CArray<u8>,
     }
 }

@@ -1,43 +1,37 @@
 //! Full Tier 1 — every wire read decoded.
 //!
-//! Reader: `sub_1410E3C20` in CrimsonDesert.exe (Win build).
-//!
-//! Wire reads (2026-5-1 layout), in order:
-//!   1. u16 key (pabgh format 2)
-//!   2. CString string_key
-//!   3. u8 is_blocked
-//!   4. u32 unk_a
-//!   5. u64 unk_b  (old tail_qword relocated here)
-//!   6. u64 unk_c  (new field)
-//!   7. u32 unk_d
-//!   8. CArray<GGEGSubItem> sub_list  (each item: u32+u64+u64+u32 = 24 bytes)
-//!   9. CArray<u16> events
-//!  10. COptional<u32> tail_optional
+//! 2.04.00 reader: Mac `sub_1020735AC` (names from its Korean asserts). Wire order:
+//!   stringKey, key (u16), isBlocked, updateType (u8), activeConditionInfo (u32),
+//!   fieldInfo (u32), defaultOption, globalGameEventUpdateOption (list of the same option
+//!   struct), globalGameEventInfoList (u16 keys).
+//! The option struct (Mac sub_102073254) gained `_maxUpdateTime` in 2.04. The pre-2.04
+//! `unk_*` / `sub_list` / `events` / `tail_optional` names were positional.
 
 use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    pub struct GGEGSubItem {
-        pub field_a: u32,
-        pub field_b: u64,
-        pub field_c: u64,
-        pub field_d: u32,
+    /// GlobalGameEventUpdateOption (Mac sub_102073254).
+    pub struct GlobalGameEventUpdateOption {
+        pub mode_key: u32,
+        pub execute_percent: u64,
+        pub min_update_time: u64,
+        pub max_update_time: u64,
+        pub max_count: u32,
     }
 }
 
 py_binary_struct! {
     pub struct GlobalGameEventGroupInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub unk_a: u32,
-        pub unk_b: u64,
-        pub unk_c: u64,
-        pub unk_d: u32,
-        pub sub_list: CArray<GGEGSubItem>,
-        pub events: CArray<u16>,
-        pub tail_optional: COptional<u32>,
+        pub update_type: u8,
+        pub active_condition_info: u32,
+        pub field_info: u32,
+        pub default_option: GlobalGameEventUpdateOption,
+        pub global_game_event_update_option: CArray<GlobalGameEventUpdateOption>,
+        pub global_game_event_info_list: CArray<u16>,
     }
 }
 

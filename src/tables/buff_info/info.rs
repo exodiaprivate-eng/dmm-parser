@@ -123,19 +123,22 @@ impl<'a> WriteJsonValue for BuffDataEntry<'a> {
 
 #[derive(Debug)]
 pub struct BuffInfo<'a> {
-    pub key: u32,
+    // 2.04.00: fields in the reader order (Mac sub_1020726DC). New: is_use_child_pattern_
+    // description_buff_data. sequencer_file_name is a StringInfoKey (4 bytes) since 2.04.
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
-    pub buff_data_list: CArray<BuffDataEntry<'a>>,
-    pub min_level: u32,
-    pub max_level: u32,
-    pub sequencer_file_name: CString<'a>,
     pub buff_level_calculate_type: u8,
+    pub is_use_skill_info_pattern_description: u8,
+    pub is_use_child_pattern_description_buff_data: u8,
+    pub use_counting_by_global_timer: u8,
+    pub elemental_status_info: u32,
     pub ui_template_name: u32,
     pub ui_component_name: u32,
-    pub elemental_status_info: u32,
-    pub is_use_skill_info_pattern_description: u8,
-    pub use_counting_by_global_timer: u8,
+    pub min_level: u32,
+    pub max_level: u32,
+    pub buff_data_list: CArray<BuffDataEntry<'a>>,
+    pub sequencer_file_name: u32,
 }
 
 impl<'a> BuffInfo<'a> {
@@ -144,43 +147,41 @@ impl<'a> BuffInfo<'a> {
         offset: &mut usize,
         _entry_size: usize,
     ) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let buff_data_list = CArray::<BuffDataEntry>::read_from(data, offset)?;
-        let min_level = u32::read_from(data, offset)?;
-        let max_level = u32::read_from(data, offset)?;
-        let sequencer_file_name = CString::read_from(data, offset)?;
-        let buff_level_calculate_type = u8::read_from(data, offset)?;
-        let ui_template_name = u32::read_from(data, offset)?;
-        let ui_component_name = u32::read_from(data, offset)?;
-        let elemental_status_info = u32::read_from(data, offset)?;
-        let is_use_skill_info_pattern_description = u8::read_from(data, offset)?;
-        let use_counting_by_global_timer = u8::read_from(data, offset)?;
-
+        // 2.04.00: field order of the Mac reader sub_1020726DC.
+        let string_key = <CString<'a>>::read_from(data, offset)?;
+        let key = <u32>::read_from(data, offset)?;
+        let is_blocked = <u8>::read_from(data, offset)?;
+        let buff_level_calculate_type = <u8>::read_from(data, offset)?;
+        let is_use_skill_info_pattern_description = <u8>::read_from(data, offset)?;
+        let is_use_child_pattern_description_buff_data = <u8>::read_from(data, offset)?;
+        let use_counting_by_global_timer = <u8>::read_from(data, offset)?;
+        let elemental_status_info = <u32>::read_from(data, offset)?;
+        let ui_template_name = <u32>::read_from(data, offset)?;
+        let ui_component_name = <u32>::read_from(data, offset)?;
+        let min_level = <u32>::read_from(data, offset)?;
+        let max_level = <u32>::read_from(data, offset)?;
+        let buff_data_list = <CArray<BuffDataEntry<'a>>>::read_from(data, offset)?;
+        let sequencer_file_name = <u32>::read_from(data, offset)?;
         Ok(Self {
-            key, string_key, is_blocked, buff_data_list,
-            min_level, max_level, sequencer_file_name,
-            buff_level_calculate_type, ui_template_name, ui_component_name,
-            elemental_status_info,
-            is_use_skill_info_pattern_description, use_counting_by_global_timer,
+            string_key, key, is_blocked, buff_level_calculate_type, is_use_skill_info_pattern_description, is_use_child_pattern_description_buff_data, use_counting_by_global_timer, elemental_status_info, ui_template_name, ui_component_name, min_level, max_level, buff_data_list, sequencer_file_name,
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        self.buff_data_list.write_to(w)?;
-        self.min_level.write_to(w)?;
-        self.max_level.write_to(w)?;
-        self.sequencer_file_name.write_to(w)?;
         self.buff_level_calculate_type.write_to(w)?;
+        self.is_use_skill_info_pattern_description.write_to(w)?;
+        self.is_use_child_pattern_description_buff_data.write_to(w)?;
+        self.use_counting_by_global_timer.write_to(w)?;
+        self.elemental_status_info.write_to(w)?;
         self.ui_template_name.write_to(w)?;
         self.ui_component_name.write_to(w)?;
-        self.elemental_status_info.write_to(w)?;
-        self.is_use_skill_info_pattern_description.write_to(w)?;
-        self.use_counting_by_global_timer.write_to(w)?;
+        self.min_level.write_to(w)?;
+        self.max_level.write_to(w)?;
+        self.buff_data_list.write_to(w)?;
+        self.sequencer_file_name.write_to(w)?;
         Ok(())
     }
 
@@ -191,25 +192,23 @@ impl<'a> BuffInfo<'a> {
         path: &mut String,
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
+        // 2.04.00: field order of the Mac reader sub_1020726DC.
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
-        let buff_data_list = track_read_field::<CArray<BuffDataEntry<'a>>>(data, offset, path, ranges, "buff_data_list", "CArray<BuffDataEntry>")?;
-        let min_level = track_read_field::<u32>(data, offset, path, ranges, "min_level", "u32")?;
-        let max_level = track_read_field::<u32>(data, offset, path, ranges, "max_level", "u32")?;
-        let sequencer_file_name = track_read_field::<CString<'a>>(data, offset, path, ranges, "sequencer_file_name", "CString")?;
         let buff_level_calculate_type = track_read_field::<u8>(data, offset, path, ranges, "buff_level_calculate_type", "u8")?;
+        let is_use_skill_info_pattern_description = track_read_field::<u8>(data, offset, path, ranges, "is_use_skill_info_pattern_description", "u8")?;
+        let is_use_child_pattern_description_buff_data = track_read_field::<u8>(data, offset, path, ranges, "is_use_child_pattern_description_buff_data", "u8")?;
+        let use_counting_by_global_timer = track_read_field::<u8>(data, offset, path, ranges, "use_counting_by_global_timer", "u8")?;
+        let elemental_status_info = track_read_field::<u32>(data, offset, path, ranges, "elemental_status_info", "u32")?;
         let ui_template_name = track_read_field::<u32>(data, offset, path, ranges, "ui_template_name", "u32")?;
         let ui_component_name = track_read_field::<u32>(data, offset, path, ranges, "ui_component_name", "u32")?;
-        let elemental_status_info = track_read_field::<u32>(data, offset, path, ranges, "elemental_status_info", "u32")?;
-        let is_use_skill_info_pattern_description = track_read_field::<u8>(data, offset, path, ranges, "is_use_skill_info_pattern_description", "u8")?;
-        let use_counting_by_global_timer = track_read_field::<u8>(data, offset, path, ranges, "use_counting_by_global_timer", "u8")?;
+        let min_level = track_read_field::<u32>(data, offset, path, ranges, "min_level", "u32")?;
+        let max_level = track_read_field::<u32>(data, offset, path, ranges, "max_level", "u32")?;
+        let buff_data_list = track_read_field::<CArray<BuffDataEntry<'a>>>(data, offset, path, ranges, "buff_data_list", "CArray<BuffDataEntry<'a>>")?;
+        let sequencer_file_name = track_read_field::<u32>(data, offset, path, ranges, "sequencer_file_name", "u32")?;
         Ok(Self {
-            key, string_key, is_blocked, buff_data_list,
-            min_level, max_level, sequencer_file_name,
-            buff_level_calculate_type, ui_template_name, ui_component_name,
-            elemental_status_info,
-            is_use_skill_info_pattern_description, use_counting_by_global_timer,
+            string_key, key, is_blocked, buff_level_calculate_type, is_use_skill_info_pattern_description, is_use_child_pattern_description_buff_data, use_counting_by_global_timer, elemental_status_info, ui_template_name, ui_component_name, min_level, max_level, buff_data_list, sequencer_file_name,
         })
     }
 
@@ -219,38 +218,42 @@ impl<'a> BuffInfo<'a> {
     /// 120-variant BuffDataVariant ToJsonValue/WriteJsonValue pipeline.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("buff_data_list".to_string(), self.buff_data_list.to_json_value());
-        m.insert("min_level".to_string(), self.min_level.to_json_value());
-        m.insert("max_level".to_string(), self.max_level.to_json_value());
-        m.insert("sequencer_file_name".to_string(), self.sequencer_file_name.to_json_value());
         m.insert("buff_level_calculate_type".to_string(), self.buff_level_calculate_type.to_json_value());
+        m.insert("is_use_skill_info_pattern_description".to_string(), self.is_use_skill_info_pattern_description.to_json_value());
+        m.insert("is_use_child_pattern_description_buff_data".to_string(), self.is_use_child_pattern_description_buff_data.to_json_value());
+        m.insert("use_counting_by_global_timer".to_string(), self.use_counting_by_global_timer.to_json_value());
+        m.insert("elemental_status_info".to_string(), self.elemental_status_info.to_json_value());
         m.insert("ui_template_name".to_string(), self.ui_template_name.to_json_value());
         m.insert("ui_component_name".to_string(), self.ui_component_name.to_json_value());
-        m.insert("elemental_status_info".to_string(), self.elemental_status_info.to_json_value());
-        m.insert("is_use_skill_info_pattern_description".to_string(), self.is_use_skill_info_pattern_description.to_json_value());
-        m.insert("use_counting_by_global_timer".to_string(), self.use_counting_by_global_timer.to_json_value());
+        m.insert("min_level".to_string(), self.min_level.to_json_value());
+        m.insert("max_level".to_string(), self.max_level.to_json_value());
+        m.insert("buff_data_list".to_string(), self.buff_data_list.to_json_value());
+        m.insert("sequencer_file_name".to_string(), self.sequencer_file_name.to_json_value());
         m
     }
 
     /// Inverse of `to_json_dict`. Reads typed fields by name including
     /// the recursive `buff_data_list` (CArray of BuffDataEntry).
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <CArray<BuffDataEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_data_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "min_level")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sequencer_file_name")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_level_calculate_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_use_skill_info_pattern_description")?)?;
+        // Null-tolerant: new in 2.04.00, absent from older mods.
+        <u8 as WriteJsonValue>::write_from_json(w, obj.get("is_use_child_pattern_description_buff_data").unwrap_or(&Value::Null))?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_counting_by_global_timer")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "elemental_status_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_template_name")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_component_name")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "elemental_status_info")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_use_skill_info_pattern_description")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_counting_by_global_timer")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "min_level")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
+        <CArray<BuffDataEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_data_list")?)?;
+        // A V3 mod authored before 2.04 carries the file name as text: converted to its key.
+        crate::json_traits::write_string_info_key(w, json_get_field(obj, "sequencer_file_name")?)?;
         Ok(())
     }
 }
@@ -385,9 +388,10 @@ mod diag_1_16 {
         for (k, s, e) in entry_ranges(&entries, data.len()) {
             if k as u32 != want { continue; }
             let mut c = s;
-            let _key = u32::read_from(&data, &mut c).unwrap();
+            // 2.04.00 header: string_key, key, is_blocked, 4 one-byte fields, 5 u32, then the list
             let _sk = CString::read_from(&data, &mut c).unwrap();
-            let _ib = u8::read_from(&data, &mut c).unwrap();
+            let _key = u32::read_from(&data, &mut c).unwrap();
+            c += 1 + 4 + 5 * 4;
             let n = u32::read_from(&data, &mut c).unwrap();
             eprintln!("k=0x{:x} span [{}..{}) len={}  buff_data_list count={}", k, s, e, e - s, n);
             for i in 0..n {

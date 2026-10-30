@@ -159,9 +159,10 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00: from/to node keys are 4 bytes each (Mac reader sub_10206DAE0).
     pub struct WayPointDeprData {
-        pub lookup_a: u16,
-        pub lookup_b: u16,
+        pub lookup_a: u32,
+        pub lookup_b: u32,
         pub points: CArray<WayPointTriplet>,
     }
 }
@@ -411,27 +412,47 @@ py_binary_struct! {
     }
 }
 
+py_binary_struct! {
+    /// 2.04.00 `_observeData` (Mac reader sub_10204F5A0).
+    pub struct FactionNodeObserveData {
+        pub observe_position: [f32; 3],
+        pub start_yaw: f32,
+        pub yaw_min: f32,
+        pub yaw_max: f32,
+        pub observe_camera_preset_hash: u32,
+    }
+}
+
 pabgh_typed_blob_table! {
+    // 2.04.00 order (Mac reader sub_10204FA84). The reader moved most one-byte and key fields
+    // to the front, so the typed prefix now runs through `_wayPointDataList_deprecated` with
+    // ten more fields typed than before; `_factionScheduleInfoList` onward stays in tail_blob.
     pub struct FactionNodeInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub is_reblockading_target: u8,
+        pub worker_count: u8,
+        pub use_custom_way_point_for_dev: u8,
+        pub faction_type: u8,
+        pub knock_down_condition: u32,
+        pub bit_map_color_key_r: u8,
+        pub bit_map_color_key_g: u8,
         pub knowledge_info: u32,
+        pub religion_sub_level_info: u32,
+        pub field_info: u32,
         pub skill_tree_info: u32,
-        pub connect_research_node_info: u32,
         pub store_info: u16,
         pub royal_supply_info: u16,
+        pub connect_research_node_info: u32,
+        pub religion_max_block_day: u32,
+        pub operation_spawn_radius: f32,
+        pub node_radius: f32,
+        pub world_position: [f32; 3],
+        pub observe_data: FactionNodeObserveData,
         pub memo: CString<'a>,
         pub child_faction_info_list: CArray<u32>,
         pub node_line_main_faction_info_list: CArray<u32>,
-        pub world_position: [f32; 3],
-        // 1.10 FIX (NattKh): _operationSpawnRadius is a plain f32 that sits
-        // BETWEEN _worldPosition (field 12) and _nodeRadius (field 13). It was
-        // absent from every prior layout, so the whole tail shifted by 4 bytes
-        // and the table fell to 100% blob-fallback (first record over-reads:
-        // "not enough data"). Inserting it realigns the prefix.
-        pub operation_spawn_radius: f32,
-        pub node_radius: f32,
         pub apply_skill_data_list: CArray<ApplySkillData>,
         pub resource_item_list: CArray<ResourceItemData>,
         pub revival_stage_info_list: CArray<u32>,

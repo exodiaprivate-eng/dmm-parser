@@ -41,13 +41,22 @@ py_binary_struct! {
         pub vec_c: [f32; 3],   // 12 bytes raw at mem +48
         pub raw_b: f32,        // 4 bytes raw at mem +60
         pub raw_c: u32,        // 4 bytes raw at mem +64
-        // game v16: +1 byte APPENDED per element (observed 0x00).
-        // Byte-decisive: on a record populated in BOTH builds the inserts land
-        // every 65 bytes at elem-relative 87/152/217/282/347..., and elements
-        // start at 22 (header 16 + presence 1 + flag 1 + count 4). Element[0] is
-        // 22..87, so the FIRST insert sits at the END of element[0], not at its
-        // start (which would have been 22). Record delta == element count.
-        pub tail_u8_116: u8,
+        // game v16 added one byte here (observed 0x00). 2.04.00 shows what it is: the presence
+        // byte of an optional `NavigationRoadCustomData` (Mac reader sub_101217814), present
+        // on some 2.04 elements.
+        pub tail_u8_116: COptional<NavigationRoadCustomData>,
+    }
+}
+
+py_binary_struct! {
+    /// 2.04.00 `NavigationRoadCustomData` (Mac reader sub_1020324AC), 29 wire bytes.
+    pub struct NavigationRoadCustomData {
+        pub custom_scene_object_uuid: [u8; 16],
+        pub entry_index: u32,
+        pub lane_index: u32,
+        pub spline_index: u32,
+        pub direction_type: u8,
+        pub speed_limit: f32,
     }
 }
 
@@ -64,6 +73,8 @@ pub struct PatrolSplineEntry {
     pub header_dword_2: u32,
     pub header_dword_3: u32,
     pub group: OptionalPatrolSplineGroup,
+    /// 2.04.00: a u32 after the group (Mac list reader sub_1020BBD50, stored at +24).
+    pub trailing_u32_204: u32,
 }
 
 impl<'a> BinaryRead<'a> for PatrolSplineEntry {
@@ -73,7 +84,8 @@ impl<'a> BinaryRead<'a> for PatrolSplineEntry {
         let header_dword_2 = u32::read_from(data, offset)?;
         let header_dword_3 = u32::read_from(data, offset)?;
         let group = OptionalPatrolSplineGroup::read_from(data, offset)?;
-        Ok(Self { header_dword_0, header_dword_1, header_dword_2, header_dword_3, group })
+        let trailing_u32_204 = u32::read_from(data, offset)?;
+        Ok(Self { header_dword_0, header_dword_1, header_dword_2, header_dword_3, group, trailing_u32_204 })
     }
 }
 
@@ -83,7 +95,8 @@ impl BinaryWrite for PatrolSplineEntry {
         self.header_dword_1.write_to(w)?;
         self.header_dword_2.write_to(w)?;
         self.header_dword_3.write_to(w)?;
-        self.group.write_to(w)
+        self.group.write_to(w)?;
+        self.trailing_u32_204.write_to(w)
     }
 }
 
@@ -95,6 +108,7 @@ impl ToJsonValue for PatrolSplineEntry {
         m.insert("header_dword_2".to_string(), self.header_dword_2.to_json_value());
         m.insert("header_dword_3".to_string(), self.header_dword_3.to_json_value());
         m.insert("group".to_string(), self.group.to_json_value());
+        m.insert("trailing_u32_204".to_string(), self.trailing_u32_204.to_json_value());
         Value::Object(m)
     }
 }
@@ -108,7 +122,8 @@ impl WriteJsonValue for PatrolSplineEntry {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_dword_1")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_dword_2")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header_dword_3")?)?;
-        OptionalPatrolSplineGroup::write_from_json(w, json_get_field(obj, "group")?)
+        OptionalPatrolSplineGroup::write_from_json(w, json_get_field(obj, "group")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing_u32_204")?)
     }
 }
 
@@ -181,8 +196,8 @@ impl WriteJsonValue for OptionalPatrolSplineGroup {
 
 #[derive(Debug)]
 pub struct FactionNodeSpawnInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub faction_node_info: u32,
     /// 3D bounding box (Vec3 min, Vec3 max) — 24 wire bytes total.
@@ -200,8 +215,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let faction_node_info = u32::read_from(data, offset)?;
         let boundary_box_min = <[f32; 3]>::read_from(data, offset)?;
@@ -227,8 +242,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
         let entry_end = *offset + entry_size;
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
         let faction_node_info = track_read_field::<u32>(data, offset, path, ranges, "faction_node_info", "u32")?;
         let boundary_box_min = track_read_field::<[f32; 3]>(data, offset, path, ranges, "boundary_box_min", "[f32;3]")?;
@@ -245,8 +260,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.faction_node_info.write_to(w)?;
         self.boundary_box_min.write_to(w)?;
@@ -257,8 +272,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("faction_node_info".to_string(), self.faction_node_info.to_json_value());
         m.insert("boundary_box_min".to_string(), self.boundary_box_min.to_json_value());
@@ -269,8 +284,8 @@ impl<'a> FactionNodeSpawnInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_node_info")?)?;
         <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_box_min")?)?;

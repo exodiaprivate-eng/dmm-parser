@@ -45,8 +45,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct PartPrefabDyeTexturePalleteInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub texture_set_index: u32,
         pub texture_set_array: CArray<DyeTextureSetElem<'a>>,

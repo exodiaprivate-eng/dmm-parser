@@ -36,14 +36,14 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct GameAdviceGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub game_advice_group_icon_path: u32,
+        pub game_advice_start_index: u32,
         pub game_advice_group_name: LocalizableString<'a>,
         pub game_advice_group_unknown_name: LocalizableString<'a>,
-        pub game_advice_group_icon_path: u32,
         pub game_advice_info_list: CArray<u32>,
-        pub game_advice_start_index: u32,
     }
 }
 

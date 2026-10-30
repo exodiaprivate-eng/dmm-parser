@@ -58,20 +58,20 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct RelationInfo<'a> {
-        pub key: u8,
         pub string_key: CString<'a>,
+        pub key: u8,
         pub is_blocked: u8,
-        pub relation_reaction_type: u8,
-        pub order: u8,
-        pub detect_restrict_count: u8,
-        pub detect_memorize_time: u64,
         pub do_complete_not_priority_actor: u8,
-        pub detect_value_ratio: f32,
         pub is_detect_event_only: u8,
         // ── 2.01.00: `_disableNonBattleAccompanyReaction`, one u8 between
         // `_isDetectEventOnly` and `_gimmickTagDataList`. Every one of the 52 records
         // grew by exactly 1 byte, at offset 22 of record 0 — right here.
         pub disable_non_battle_accompany_reaction: u8,
+        pub order: u8,
+        pub relation_reaction_type: u8,
+        pub detect_restrict_count: u8,
+        pub detect_value_ratio: f32,
+        pub detect_memorize_time: u64,
         pub gimmick_tag_data_list: CArray<RelationGimmickTagData>,
         // ── 1.18.00: `_battleOverrideReactionList`, appended after the gimmick
         // tag list. 51 of 52 records grew by exactly 4 (count=0); record 0x16

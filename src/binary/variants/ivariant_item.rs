@@ -37,9 +37,9 @@ use std::io::{self, Write};
 
 #[derive(Debug)]
 pub enum IVariantItemPayload<'a> {
-    /// Tags 0, 2, 3, 4, 5, 14, 15, 16, 17, 18 — no payload bytes.
+    /// Tags 0, 2, 3, 4, 5, 13, 14, 15, 16, 17 — no payload bytes.
     Empty,
-    /// Tags 1, 6, 11 — single staticstringA.
+    /// Tags 1, 6 — single staticstringA.
     StaticString { value: CString<'a> },
     /// Tag 7 — pair of staticstringA.
     StaticStringPair {
@@ -60,11 +60,11 @@ pub enum IVariantItemPayload<'a> {
     },
     /// Tag 9 — uint32 value + InteractionKey.
     Interaction { value: u32, interaction_key: u32 },
-    /// Tag 12 — uint32 value + StageBranchType (u8 enum).
+    /// Tag 11 — uint32 value + StageBranchType (u8 enum).
     StageBranch { value: u32, branch_type: u8 },
-    /// Tag 13 — bare uint32 numeric value.
+    /// Tag 12 — bare uint32 numeric value.
     Uint32 { value: u32 },
-    /// Tag 19 — bare HashCode32.
+    /// Tag 18 — bare HashCode32.
     HashCode { hash_code: u32 },
 }
 
@@ -81,8 +81,10 @@ impl<'a> IVariantItem<'a> {
         tag: u8,
     ) -> io::Result<Self> {
         let payload = match tag {
-            0 | 2 | 3 | 4 | 5 | 14 | 15 | 16 | 17 | 18 => IVariantItemPayload::Empty,
-            1 | 6 | 11 => IVariantItemPayload::StaticString {
+            // 2.04.00 (Mac sub_101C86764) dropped the tag-11 string and moved every later
+            // tag down by one: 11 = StageBranch, 12 = Uint32, 13-17 empty, 18 = HashCode.
+            0 | 2 | 3 | 4 | 5 | 13 | 14 | 15 | 16 | 17 => IVariantItemPayload::Empty,
+            1 | 6 => IVariantItemPayload::StaticString {
                 value: CString::read_from(data, offset)?,
             },
             7 => IVariantItemPayload::StaticStringPair {
@@ -102,14 +104,14 @@ impl<'a> IVariantItem<'a> {
                 value: u32::read_from(data, offset)?,
                 interaction_key: u32::read_from(data, offset)?,
             },
-            12 => IVariantItemPayload::StageBranch {
+            11 => IVariantItemPayload::StageBranch {
                 value: u32::read_from(data, offset)?,
                 branch_type: u8::read_from(data, offset)?,
             },
-            13 => IVariantItemPayload::Uint32 {
+            12 => IVariantItemPayload::Uint32 {
                 value: u32::read_from(data, offset)?,
             },
-            19 => IVariantItemPayload::HashCode {
+            18 => IVariantItemPayload::HashCode {
                 hash_code: u32::read_from(data, offset)?,
             },
             other => {

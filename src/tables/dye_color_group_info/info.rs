@@ -37,12 +37,12 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct DyeColorGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub icon_path: u32,
         pub dye_color_data_list: CArray<DyeColorEntry>,
         pub dye_color_group_name: LocalizableString<'a>,
-        pub icon_path: u32,
     }
 }
 

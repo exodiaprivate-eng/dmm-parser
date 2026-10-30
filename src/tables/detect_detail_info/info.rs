@@ -43,8 +43,9 @@ pub struct DetectDetailInfo<'a> {
 
 impl<'a> DetectDetailInfo<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u16::read_from(data, offset)?;
+        // 2.04.00 (Mac reader sub_102054834): stringKey first, then key.
         let string_key = CString::read_from(data, offset)?;
+        let key = u16::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let mut detect_detail_data_list_new = Vec::with_capacity(DETAIL_LIST_LEN);
         for _ in 0..DETAIL_LIST_LEN {
@@ -54,8 +55,8 @@ impl<'a> DetectDetailInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         if self.detect_detail_data_list_new.len() != DETAIL_LIST_LEN {
             return Err(io::Error::new(
@@ -86,8 +87,8 @@ impl<'a> DetectDetailInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         let entries = json_get_field(obj, "detect_detail_data_list_new")?
             .as_array()

@@ -62,14 +62,17 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_1020488A0). New: `_isPackage`, `_imagePath` (StringInfoKey).
     pub struct PlatformEntitlementInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
+        pub type_: u8,
+        pub is_package: u8,
+        pub icon_path: u32,
+        pub image_path: u32,
         pub entitlement_name: LocalizableString<'a>,
         pub entitlement_desc: LocalizableString<'a>,
-        pub icon_path: u32,
-        pub type_: u8,
         pub result_drop_info_list: CArray<u32>,
         pub platform_id_list: CArray<PlatformIdEntry<'a>>,
     }

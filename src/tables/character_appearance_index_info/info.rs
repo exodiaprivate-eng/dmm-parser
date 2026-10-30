@@ -35,8 +35,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct CharacterAppearanceIndexInfo<'a> {
-        pub key: u64,
         pub string_key: CString<'a>,
+        pub key: u64,
         pub is_blocked: u8,
         pub character_edit_name: u32,
         pub appearance_name: u32,

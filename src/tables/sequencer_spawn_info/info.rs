@@ -5,15 +5,15 @@
 //! the polymorphic SequencerStageChartDesc embedded inline (now fully
 //! decoded by `binary::sequencer_stage_chart_desc::SequencerStageChartDescPartial`).
 //!
-//! Wire layout (in order):
-//!   1. u32 key
-//!   2. CString string_key
+//! Wire layout (2.04.00, Mac reader sub_102041698):
+//!   1. CString string_key
+//!   2. u32 key
 //!   3. u8 is_blocked
-//!   4. CString description
-//!   5. CArray<SequencerSpawnDataElement> sequencer_spawn_data_list
-//!   6. u8 stage_type
-//!   7. u8 is_random
-//!   8. u32 match_tag_hash
+//!   4. u8 is_random
+//!   5. u8 stage_type
+//!   6. u32 match_tag_hash
+//!   7. CString description
+//!   8. CArray<SequencerSpawnDataElement> sequencer_spawn_data_list
 //!
 //! Per `sub_141DAE6A0` each `SequencerSpawnDataElement` is:
 //!     u32 player_condition_info  (sub_1410FF430 → qword_145F0E9C0)
@@ -142,14 +142,14 @@ impl<'a> WriteJsonValue for SequencerSpawnDataElement<'a> {
 
 #[derive(Debug)]
 pub struct SequencerSpawnInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
+    pub is_random: u8,
+    pub stage_type: u8,
+    pub match_tag_hash: u32,
     pub description: CString<'a>,
     pub sequencer_spawn_data_list: CArray<SequencerSpawnDataElement<'a>>,
-    pub stage_type: u8,
-    pub is_random: u8,
-    pub match_tag_hash: u32,
 }
 
 impl<'a> SequencerSpawnInfo<'a> {
@@ -161,14 +161,14 @@ impl<'a> SequencerSpawnInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let is_random = u8::read_from(data, offset)?;
+        let stage_type = u8::read_from(data, offset)?;
+        let match_tag_hash = u32::read_from(data, offset)?;
         let description = CString::read_from(data, offset)?;
         let sequencer_spawn_data_list = CArray::<SequencerSpawnDataElement>::read_from(data, offset)?;
-        let stage_type = u8::read_from(data, offset)?;
-        let is_random = u8::read_from(data, offset)?;
-        let match_tag_hash = u32::read_from(data, offset)?;
 
         if *offset != entry_end {
             return Err(io::Error::new(
@@ -187,41 +187,41 @@ impl<'a> SequencerSpawnInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.is_random.write_to(w)?;
+        self.stage_type.write_to(w)?;
+        self.match_tag_hash.write_to(w)?;
         self.description.write_to(w)?;
         self.sequencer_spawn_data_list.write_to(w)?;
-        self.stage_type.write_to(w)?;
-        self.is_random.write_to(w)?;
-        self.match_tag_hash.write_to(w)?;
         Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("is_random".to_string(), self.is_random.to_json_value());
+        m.insert("stage_type".to_string(), self.stage_type.to_json_value());
+        m.insert("match_tag_hash".to_string(), self.match_tag_hash.to_json_value());
         m.insert("description".to_string(), self.description.to_json_value());
         m.insert("sequencer_spawn_data_list".to_string(), self.sequencer_spawn_data_list.to_json_value());
-        m.insert("stage_type".to_string(), self.stage_type.to_json_value());
-        m.insert("is_random".to_string(), self.is_random.to_json_value());
-        m.insert("match_tag_hash".to_string(), self.match_tag_hash.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_random")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "match_tag_hash")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "description")?)?;
         <CArray<SequencerSpawnDataElement> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "sequencer_spawn_data_list")?,
         )?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_type")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_random")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "match_tag_hash")?)?;
         Ok(())
     }
 }

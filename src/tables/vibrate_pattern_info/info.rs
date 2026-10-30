@@ -46,8 +46,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct VibratePatternInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub ease_type: u8,
         pub reverse_ease: u8,

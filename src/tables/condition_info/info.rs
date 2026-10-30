@@ -62,8 +62,25 @@
 // ✅ _gameCondition
 // ✅ _parserType (direct_u8, stream=1)
 
-use crate::binary::variant::find_cstring_u8_trailer;
-use crate::binary::variants::game_condition::GameCondition;
+use crate::binary::variant::find_cstring_trailer;
+use crate::binary::variants::game_condition::{GameCondition, GameConditionNode};
+
+/// Length of the condition (tree + three tail bytes) that starts at `start`. Parsing the tree
+/// decides it when the bytes after it are exactly the trailing `_originalString`; scanning for
+/// a string that ends the record is the fallback (a payload can contain bytes that look like
+/// one, which is how 2.04 entries ended up cut short and fell to `Raw`).
+fn condition_size(data: &[u8], start: usize, end: usize) -> io::Result<usize> {
+    let mut p = start;
+    let parsed = GameConditionNode::read_from(&data[..end], &mut p).is_ok() && p + 3 + 4 <= end;
+    if parsed {
+        let q = p + 3;
+        let len = u32::from_le_bytes(data[q..q + 4].try_into().unwrap()) as usize;
+        if q + 4 + len == end {
+            return Ok(q - start);
+        }
+    }
+    find_cstring_trailer(data, start, end)
+}
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
@@ -78,6 +95,9 @@ pub struct ConditionInfo<'a> {
     /// (typed access to the tree), `Raw` for the 0.2% with unknown variant
     /// recipes (still round-trips byte-perfect).
     pub game_condition: GameCondition<'a>,
+    /// 2.04.00: the condition is read behind a presence byte (Mac sub_101A31680). Always 1
+    /// in vanilla; kept so a 0 round-trips.
+    pub has_game_condition: u8,
     pub original_string: CString<'a>,
     pub parser_type: u8,
 }
@@ -91,12 +111,16 @@ impl<'a> ConditionInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
+        // 2.04.00 order (Mac reader sub_102066A24): stringKey, key, isBlocked, parserType,
+        // the condition tree, originalString. The tree's end is found from the trailing string.
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let parser_type = u8::read_from(data, offset)?;
+        let has_game_condition = u8::read_from(data, offset)?;
 
         let post_pre = *offset;
-        let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
+        let variant_size = condition_size(data, post_pre, entry_end)?;
         // GameCondition::read_from assumes `data` is sized to exactly the
         // wrapper. Pass a sub-slice of just the variant bytes so the
         // Decoded|Raw fallback can detect under-consume correctly.
@@ -106,13 +130,13 @@ impl<'a> ConditionInfo<'a> {
         *offset = post_pre + variant_size;
 
         let original_string = CString::read_from(data, offset)?;
-        let parser_type = u8::read_from(data, offset)?;
 
         Ok(Self {
             key,
             string_key,
             is_blocked,
             game_condition,
+            has_game_condition,
             original_string,
             parser_type,
         })
@@ -128,13 +152,15 @@ impl<'a> ConditionInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let parser_type = track_read_field::<u8>(data, offset, path, ranges, "parser_type", "u8")?;
+        let has_game_condition = track_read_field::<u8>(data, offset, path, ranges, "has_game_condition", "u8")?;
 
         let game_condition = track_read_with(offset, path, ranges, "game_condition", "GameCondition", |o| {
             let post_pre = *o;
-            let variant_size = find_cstring_u8_trailer(data, post_pre, entry_end)?;
+            let variant_size = condition_size(data, post_pre, entry_end)?;
             let wrapper_bytes = &data[post_pre..post_pre + variant_size];
             let mut wrapper_cur = 0usize;
             let gc = GameCondition::read_from(wrapper_bytes, &mut wrapper_cur)?;
@@ -143,25 +169,26 @@ impl<'a> ConditionInfo<'a> {
         })?;
 
         let original_string = track_read_field::<CString<'a>>(data, offset, path, ranges, "original_string", "CString")?;
-        let parser_type = track_read_field::<u8>(data, offset, path, ranges, "parser_type", "u8")?;
 
         Ok(Self {
             key,
             string_key,
             is_blocked,
             game_condition,
+            has_game_condition,
             original_string,
             parser_type,
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.parser_type.write_to(w)?;
+        self.has_game_condition.write_to(w)?;
         self.game_condition.write_to(w)?;
         self.original_string.write_to(w)?;
-        self.parser_type.write_to(w)?;
         Ok(())
     }
 
@@ -179,6 +206,7 @@ impl<'a> ConditionInfo<'a> {
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("has_game_condition".to_string(), self.has_game_condition.to_json_value());
         m.insert("game_condition".to_string(), self.game_condition.to_json_value());
         m.insert("original_string".to_string(), self.original_string.to_json_value());
         m.insert("parser_type".to_string(), self.parser_type.to_json_value());
@@ -186,12 +214,17 @@ impl<'a> ConditionInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parser_type")?)?;
+        // Absent in JSON written before 2.04: the condition was always present then.
+        match obj.get("has_game_condition") {
+            Some(v) => <u8 as WriteJsonValue>::write_from_json(w, v)?,
+            None => w.push(1),
+        }
         GameCondition::write_from_json(w, json_get_field(obj, "game_condition")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "original_string")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parser_type")?)?;
         Ok(())
     }
 }

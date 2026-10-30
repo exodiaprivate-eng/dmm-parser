@@ -52,8 +52,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct QuestGaugeInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub parent_quest: u32,
         pub start_event_data: QuestGaugeEventData,

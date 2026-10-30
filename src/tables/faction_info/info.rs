@@ -106,64 +106,68 @@ py_binary_struct! {
     }
 }
 
-// FactionEventData — 288 mem bytes per element via sub_141128990.
-// Built from sub_1410DD2A0 (10 wire fields → 24 mem bytes) +
-// sub_1410DD420 (37 outer wire fields with FactionEventNestedData
-// nested → 264 mem bytes). 36 catalog field count includes some
-// composite mappings; this layout preserves the wire shape exactly
-// and is what round-trips. Names follow catalog where confident,
-// generic flag_/raw_/lookup_ otherwise.
+py_binary_struct! {
+    /// 2.04.00 `DailyDeliveryItemPair` (Mac reader sub_101A46D1C): ItemKey + count.
+    pub struct DailyDeliveryItemPair {
+        pub item_info: u32,
+        pub count: u64,
+    }
+}
+
+// 2.04.00 `FactionEventData` element (Mac list reader sub_10209158C): an ExecuteCondition
+// (sub_10205E098) followed by the event data itself (sub_10205E548). Rewritten with the game's
+// names: the pre-2.04 layout was a width fit with generic names, and the event data changed.
+// `nested` is `_blockData` (same shape as before).
 py_binary_struct! {
     pub struct FactionEventData<'a> {
-        // sub_1410DD2A0 part (10 fields)
+        // ExecuteCondition
+        pub event_type: u8,
+        pub player_condition: u32,
+        pub quest_info: u32,
+        pub stage_info: u32,
+        pub mission_info: u32,
+        pub condition_faction_node_info: u32,
+        pub condition_faction_info: u32,
+        pub game_variable_info: u32,
+        pub close_stage_on_end_type: u8,
+        pub sub_inner_complete: u8,
+        // event data
         pub event_data_type: u8,
         pub faction_info: u32,
         pub faction_node_info: u32,
         pub leader_character_info: u32,
         pub target_faction_node_info: u32,
         pub target_faction_info: u32,
-        pub faction_relation: u32,
+        pub faction_relation: u8,
         pub due_date_in_seconds: u32,
-        pub relation_group_info: u8,
-        pub conquered_node_info: u8,
-        // sub_1410DD420 part
+        pub relation_group_info: u16,
+        pub conquered_node_info: u32,
         pub is_conquer_enable: u8,
-        pub is_capital_lookup_a: u32,
-        pub is_capital_lookup_b: u32,
-        pub block_data_a: u32,
-        pub block_data_b: u32,
-        pub block_data_c: u32,
-        pub is_block_enable: u8,
-        pub daily_delivery_item_pair: u32,
-        pub range_value: u16,
-        pub spawn_rate: u32,
-        pub flag_d: u8,
-        pub flag_e: u8,
+        pub is_capital: u8,
         pub nested: FactionEventNestedData,
-        pub flag_f: u8,
-        pub is_revive_enable_lookup: u32,
-        pub is_save_enable_raw: u64,
-        pub is_sub_inner_enable_raw: u32,
-        pub is_node_enable_raw: u64,
-        pub apply_skill_data_list: CArray<u32>,
-        pub fire_arm_range_type: u32,
-        pub target_faction_type_list: CArray<u32>,
-        pub level_name_raw: u64,
-        pub alias_name_list: CArray<u32>,
-        pub desc_list: CArray<u16>,
+        pub is_block_enable: u8,
+        pub daily_delivery_item_pair: DailyDeliveryItemPair,
+        pub range_value: f32,
+        pub spawn_rate: u64,
+        pub target_quest_list: CArray<u32>,
+        pub target_stage: u32,
+        pub target_faction_list: CArray<u32>,
+        pub apply_skill_data: u64,
+        pub target_faction_node_list: CArray<u32>,
+        pub target_region_list: CArray<u16>,
         pub target_position: [f32; 3],
-        pub flag_g: u8,
-        pub flag_h: u8,
-        pub flag_i: u8,
-        pub flag_j: u8,
-        pub flag_k: u8,
+        pub is_skill_enable: u8,
+        pub is_revive_enable: u8,
+        pub is_save_enable: u8,
+        pub is_sub_inner_enable: u8,
+        pub is_node_enable: u8,
+        pub fire_arm_range_type: u32,
+        pub target_faction_type: u8,
+        pub level_name: u32,                  // StringInfoKey
+        pub alias_name: u32,                  // StringInfoKey
+        pub desc: LocalizableString<'a>,
         pub event_data_file_line_number: u32,
-        pub flag_l: u8,
-        pub lookup_x: u32,
-        pub lookup_y: u32,
-        pub event_data_file_name_loc: LocalizableString<'a>,
         pub event_data_file_name: CString<'a>,
-        pub raw_tail: u32,
     }
 }
 
@@ -190,29 +194,43 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// 2.04.00 `FactionDependencyConditionData` (Mac reader sub_10206991C).
+    pub struct FactionDependencyData {
+        pub dependency_condition_info: u32,
+        pub parent_faction_info: u32,
+        pub use_self_faction_flag: u8,
+    }
+}
+
+py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_102069E30), with the game's names: the pre-2.04 middle of
+    // this record (relation/group/"represent faction" lookups) did not line up with the game's
+    // fields. New: fieldInfo, dependencyDataList.
     pub struct FactionInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub memo: CString<'a>,
+        pub is_empty_misc: u8,
         pub category_type: u8,
-        pub flag_component_name: u32,
+        pub faction_group_info: u16,
+        pub faction_relation_group_info: u16,
+        pub field_info: u32,
+        pub stage_icon_path: u32,             // StringInfoKey
+        pub flag_component_name: u32,         // StringInfoKey
         pub knowledge_info: u32,
-        pub contribution_sub_level_info: u32,
-        pub contribution_worker_info: u32,
         pub trade_reward_dropset_info: u32,
-        pub faction_relation_group_info: u32,
-        pub faction_group_info: u32,
-        pub represent_faction_info_lookup_a: u16,
-        pub represent_faction_info_lookup_b: u16,
-        pub represent_faction_info: u32,
-        pub stage_icon_path: u32,
+        // 2.04.00: both contribution fields are a PAIR of keys (Mac readers sub_1020B28E0 /
+        // sub_1020B2A84 read twice).
+        pub contribution_sub_level_info: u32,
+        pub contribution_sub_level_info_2: u32,
+        pub faction_color: u32,
+        pub contribution_worker_info: u32,
+        pub contribution_worker_info_2: u32,
+        pub memo: CString<'a>,
         pub faction_ui_card_list: CArray<FactionUiCardEntry>,
         pub stealth_option_list: CArray<StealthOption<'a>>,
+        pub dependency_data_list: CArray<FactionDependencyData>,
         pub faction_event_data_list: FactionEventDataSlots<'a>,
-        pub is_empty_misc: u8,
-        pub faction_color: u32,
-        pub unk_new_u32: u32,
     }
 }
 

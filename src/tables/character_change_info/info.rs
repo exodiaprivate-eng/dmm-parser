@@ -37,8 +37,8 @@ use std::io::{self, Write};
 
 #[derive(Debug)]
 pub struct CharacterChangeInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub name_list: Vec<CString<'a>>,
     pub hash_lookup_list: CArray<u16>,
@@ -51,8 +51,8 @@ impl<'a> CharacterChangeInfo<'a> {
         offset: &mut usize,
         _entry_size: usize,
     ) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
 
         let name_count = u32::read_from(data, offset)? as usize;
@@ -75,8 +75,8 @@ impl<'a> CharacterChangeInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         (self.name_list.len() as u32).write_to(w)?;
         for s in &self.name_list {
@@ -97,8 +97,8 @@ impl<'a> CharacterChangeInfo<'a> {
         path: &mut String,
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
         let name_list = track_read_with(offset, path, ranges, "name_list", "Vec<CString>", |o| {
             let n = u32::read_from(data, o)? as usize;
@@ -124,8 +124,8 @@ impl<'a> CharacterChangeInfo<'a> {
     /// JSON array of strings; the wire-format u32-length prefix is implicit.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("name_list".to_string(),
             Value::Array(self.name_list.iter().map(|s| s.to_json_value()).collect()));
@@ -135,8 +135,8 @@ impl<'a> CharacterChangeInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         let names = json_get_field(obj, "name_list")?
             .as_array()

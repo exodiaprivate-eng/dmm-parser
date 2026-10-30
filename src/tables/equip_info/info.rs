@@ -98,13 +98,13 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct EquipInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub ui_component_name: u32,
         pub attacked_material_slot_no: u16,
         pub list: CArray<EquipListItem<'a>>,
         pub ragdoll_list: CArray<RagdollEquipTableGroupData>,
-        pub ui_component_name: u32,
     }
 }
 

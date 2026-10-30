@@ -43,8 +43,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct MaterialRelationInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub material_relation_match_up_data_list: CArray<MaterialRelationMatchUpEntry>,
     }

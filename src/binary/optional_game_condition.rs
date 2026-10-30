@@ -37,6 +37,11 @@ pub struct OptionalGameCondition<'a> {
     /// back verbatim so round-trips are byte-exact. JSON carries it as `_presence`
     /// only when it is not the plain 1, so every existing mod file is unchanged.
     pub presence: u8,
+    /// 2.04.00: the game's condition reader (Mac sub_101A31680) reads its OWN presence byte
+    /// before the tree, so a COptional<GameCondition> (sub_101A5FB5C) is two presence bytes.
+    /// 1 in vanilla whenever the outer one is set; JSON carries `_inner_presence` only when
+    /// it is not 1 (0 = the condition is "present" but empty).
+    pub inner_presence: u8,
 }
 
 #[derive(Debug)]
@@ -51,7 +56,8 @@ impl<'a> OptionalGameCondition<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let _ogc_start = *offset;
         let presence = u8::read_from(data, offset)?;
-        let inner = if presence != 0 {
+        let inner_presence = if presence != 0 { u8::read_from(data, offset)? } else { 0 };
+        let inner = if presence != 0 && inner_presence != 0 {
             let tree = GameConditionNode::read_from(data, offset)?;
             let _ogc_after_tree = *offset;
             let tail_a = u8::read_from(data, offset)?;
@@ -70,17 +76,22 @@ impl<'a> OptionalGameCondition<'a> {
             }
             None
         };
-        Ok(Self { inner, presence })
+        Ok(Self { inner, presence, inner_presence })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
         match &self.inner {
             Some(g) => {
                 (if self.presence == 0 { 1u8 } else { self.presence }).write_to(w)?;
+                (if self.inner_presence == 0 { 1u8 } else { self.inner_presence }).write_to(w)?;
                 g.tree.write_to(w)?;
                 g.tail_a.write_to(w)?;
                 g.tail_b.write_to(w)?;
                 g.tail_c.write_to(w)?;
+            }
+            None if self.presence != 0 => {
+                self.presence.write_to(w)?;
+                0u8.write_to(w)?;
             }
             None => {
                 0u8.write_to(w)?;
@@ -97,6 +108,17 @@ impl<'a> OptionalGameCondition<'a> {
                 m.insert("tail_a".to_string(), g.tail_a.to_json_value());
                 m.insert("tail_b".to_string(), g.tail_b.to_json_value());
                 m.insert("tail_c".to_string(), g.tail_c.to_json_value());
+                if self.presence != 1 {
+                    m.insert("_presence".to_string(), Value::from(self.presence));
+                }
+                if self.inner_presence != 1 {
+                    m.insert("_inner_presence".to_string(), Value::from(self.inner_presence));
+                }
+                Value::Object(m)
+            }
+            None if self.presence != 0 => {
+                let mut m = Map::new();
+                m.insert("_inner_presence".to_string(), Value::from(0u8));
                 if self.presence != 1 {
                     m.insert("_presence".to_string(), Value::from(self.presence));
                 }
@@ -117,6 +139,11 @@ impl<'a> OptionalGameCondition<'a> {
         ))?;
         let presence = obj.get("_presence").and_then(|x| x.as_u64()).unwrap_or(1) as u8;
         w.push(if presence == 0 { 1 } else { presence });
+        let inner_presence = obj.get("_inner_presence").and_then(|x| x.as_u64()).unwrap_or(1) as u8;
+        w.push(inner_presence);
+        if inner_presence == 0 {
+            return Ok(());
+        }
         GameConditionNode::write_from_json(w, json_get_field(obj, "tree")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_a")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_b")?)?;

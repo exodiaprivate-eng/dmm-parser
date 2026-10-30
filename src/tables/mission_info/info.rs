@@ -124,171 +124,188 @@ py_binary_struct! {
 
 // sub_1410ECC50 — sub_14110DCE0 inner, 104 mem bytes / 12 wire fields.
 py_binary_struct! {
+    // 2.04.00 `MissionFunctionData` (Mac reader sub_1020531D4): the two 2-byte lookups became
+    // activate/deactivateGamePlayTriggerInfo (4 bytes each) followed by houseInfo (2 bytes).
     pub struct MissionResultData2<'a> {
-        pub flag_a: u8,
-        pub name_a: CString<'a>,
-        pub name_b: CString<'a>,
-        pub region_lookup: u16,             // sub_1410FF220 (wire u16)
-        pub lookup_a: u16,                  // sub_141106810 (wire u16)
-        pub flag_b: u8,
-        pub name_c: CString<'a>,
-        pub list_a: CArray<u32>,            // sub_1410FFC20
-        pub list_b: CArray<u32>,            // sub_141102FF0
-        pub list_c: CArray<u32>,            // sub_141102EF0
-        pub raw: u64,
-        pub flag_c: u8,
+        pub flag_a: u8,                     // _funcType
+        pub name_a: CString<'a>,            // _gimmickControlTargetLevelName
+        pub name_b: CString<'a>,            // _gimmickControlTargetAliasName
+        pub activate_game_play_trigger_info: u32,
+        pub deactivate_game_play_trigger_info: u32,
+        pub house_info: u16,
+        pub flag_b: u8,                     // _activateHousingRegionType
+        pub name_c: CString<'a>,            // _housingSavePresetName
+        pub list_a: CArray<u32>,            // _factionInfoList
+        pub list_b: CArray<u32>,            // _factionNodeInfoList
+        pub list_c: CArray<u32>,            // _questInfoList
+        pub raw: u64,                       // _percent
+        pub flag_c: u8,                     // _onStart
     }
 }
 
 // sub_1410ECFD0 — sub_14110DB10 inner, 32 mem bytes / 9 wire fields.
 // First 4 fields are sub_1410E2030 (u8 flag + 3× u32 lookup).
 py_binary_struct! {
-    pub struct MissionStageData {
-        pub flag_a: u8,
-        pub lookup_a: u32,                  // sub_1410FF430
-        pub lookup_b: u32,                  // sub_1410FF430
-        pub lookup_c: u32,                  // sub_1410FF430
-        pub list: CArray<u32>,              // sub_141101610
-        pub lookup_d: u32,                  // sub_1410FF5C0
-        pub lookup_e: u16,                  // sub_141100620 (wire u16)
-        pub flag_b: u8,
-        pub flag_c: u8,
+    // 2.04.00 challenge-event element (Mac reader sub_102053954); many have-count fields added.
+    pub struct MissionStageData<'a> {
+        pub flag_a: u8,                     // _gameEventExecuteData: type
+        pub lookup_a: u32,                  //   player condition
+        pub lookup_b: u32,                  //   target condition
+        pub lookup_c: u32,                  //   event condition
+        pub list: CArray<u32>,              // _spawnStageInfoList
+        pub lookup_d: u32,                  // _haveCountItemInfo
+        pub lookup_e: u16,                  // _haveCountItemGroupInfo
+        pub have_count_knowledge_info: u32,
+        pub have_count_knowledge_level: u32,
+        pub have_count_knowledge_group_info: u32,
+        pub have_count_mercenary_info: u8,
+        pub have_count_mission_info: u32,
+        pub have_count_stage_info: u32,
+        pub have_count_quest_gauge_info: u32,
+        pub have_count_level_gimmick_name: CString<'a>,
+        pub have_count_level_gimmick_index: u32,
+        pub flag_b: u8,                     // _challengeFunctionType
+        pub affinity_character_info: u32,
+        pub flag_c: u8,                     // _preCheck
     }
 }
 
 // sub_1410EC8B0 — MissionUIDesc, 80 mem bytes / 18 wire fields.
 py_binary_struct! {
+    // 2.04.00 (Mac reader sub_102052B78).
     pub struct MissionUIDesc {
-        pub icon_a: u32,           // read_u32_lookup_DA30
-        pub icon_b: u32,           // read_u32_lookup_DA30
-        pub icon_c: u32,           // read_u32_lookup_DA30
-        pub lookup_a: u32,         // sub_1410FF050
-        pub lookup_b: u32,         // sub_1410FF430
-        pub lookup_c: u32,         // sub_141102D90
-        pub list_a: CArray<u32>,   // sub_141101610 → qword_145F0EF38
-        pub list_b: CArray<u32>,   // inline CArray<u32 raw>
-        pub lookup_d: u32,         // sub_141101D50
-        pub vec3: [f32; 3],
-        pub raw_a: u32,
-        pub unk_new_u32: u32,
-        pub flag_a: u8,
-        pub flag_b: u8,
-        pub flag_c: u8,
-        pub flag_d: u8,
-        pub flag_e: u8,
-        pub flag_f: u8,
-        pub trailing: u16,         // sub_141106760 (wire u16)
-        // 1.18 — 4 bytes that were never modelled, so EVERY record fell to
-        // blob-fallback. Proven from the wire, not guessed: in record 0 the
-        // label_a LocalizableString has index 0x5FE5F346_00000101 and a default
-        // string of "6910196685243154689" — the same number in decimal. That
-        // pins label_a's start exactly, and it is 4 bytes later than the old
-        // struct put it. Candidate canonical name: _targetQuestDialogKey
-        // (the catalog lists it as reader_4B, stream=4, still undecoded).
-        pub unk_after_trailing: u32,
+        pub icon_a: u32,           // _stageIconPath
+        pub icon_b: u32,           // _stageImagePath
+        pub icon_c: u32,           // _completeImagePath
+        pub lookup_a: u32,         // _guideString
+        pub lookup_b: u32,         // _conditionInfo
+        pub lookup_c: u32,         // _targetMissionInfo
+        pub list_a: CArray<u32>,   // _targetStageInfoList
+        pub list_b: CArray<u32>,   // _scheduleNPCAliasNameList
+        pub lookup_d: u32,         // _targetFactionNodeInfo
+        pub target_character_info: u32,
+        pub vec3: [f32; 3],        // _pivotPosition
+        pub raw_a: u32,            // _uiSize
+        pub flag_a: u8,            // _uiType
+        pub flag_b: u8,            // _alertType
+        pub flag_c: u8,            // _showQuestList
+        pub flag_d: u8,            // _showOnlyAbyss
+        pub flag_e: u8,            // _useFindPath
+        pub flag_f: u8,            // _randomFogPosition
+        pub trailing: u16,         // _uiHintEventHandlerInfo
     }
 }
 
 // sub_1410ECE20 inner — 48 mem bytes / 11 wire fields.
 py_binary_struct! {
+    // 2.04.00 (Mac reader sub_102053590): +completeStageInfo after completeMissionInfo, and a
+    // third flag at the end.
     pub struct MissionResultData {
-        pub flag_a: u8,
-        pub list: CArray<u32>,           // sub_1410FEF40
-        pub lookup_a: u32,                // sub_141100370
-        pub lookup_b: u32,                // sub_1410FF5C0
-        pub raw_a: u32,
-        pub lookup_c: u32,                // read_u32_lookup_DA30
-        pub lookup_d: u32,                // read_u32_lookup_DA30
-        pub raw_b: u32,
-        pub lookup_e: u32,                // sub_141102D90
-        pub flag_b: u8,
-        pub flag_c: u8,
+        pub flag_a: u8,                  // _missionResultType
+        pub list: CArray<u32>,           // _tagList
+        pub lookup_a: u32,               // _dropSetInfo
+        pub lookup_b: u32,               // _popItemInfo
+        pub raw_a: u32,                  // _popItemCount
+        pub lookup_c: u32,               // _gimmickLevelName
+        pub lookup_d: u32,               // _gimmickAliasName
+        pub raw_b: u32,                  // _savePresetIndex
+        pub lookup_e: u32,               // _completeMissionInfo
+        pub complete_stage_info: u32,
+        pub flag_b: u8,                  // _showUI
+        pub flag_c: u8,                  // _isCheat
+        pub is_optional: u8,
     }
 }
 
 // sub_1410F3380 inner — 20 mem bytes / 7 wire fields.
 py_binary_struct! {
+    // 2.04.00 `StageBranchData` (Mac reader sub_10203101C), the element of `_executeStageList`
+    // (which our `branch_mission_list` has always held). +subTimelineName and two flags.
     pub struct MissionBranchData {
-        pub lookup_a: u32,    // sub_141102D20
-        pub lookup_b: u32,    // sub_1410FF430
-        pub raw_a: u32,
-        pub raw_b: u32,
-        pub flag_a: u8,
-        pub flag_b: u8,
-        pub flag_c: u8,
+        pub lookup_a: u32,    // _stageInfo
+        pub sub_timeline_name: u32,
+        pub lookup_b: u32,    // _conditionInfo
+        pub raw_a: u32,       // _fromDelayTime
+        pub raw_b: u32,       // _toDelayTime
+        pub flag_a: u8,       // _useDelay
+        pub flag_b: u8,       // _useDelay_loading
+        pub flag_c: u8,       // _isWaitBranch
+        pub on_start: u8,
+        pub is_continue: u8,
     }
 }
 
 // sub_1410ED7D0 inner — 16 mem bytes / 6 wire fields.
 py_binary_struct! {
+    // 2.04.00 `MissionBranchData` (Mac reader sub_1020543C4), the element of `_branchMissionList`
+    // (which our `execute_stage_list` has always held). +onStart.
     pub struct MissionExecuteStage {
-        pub lookup_a: u32,    // sub_141102D90
-        pub lookup_b: u32,    // sub_1410FF430
-        pub raw_a: u32,
-        pub raw_b: u32,
-        pub flag_a: u8,
-        pub flag_b: u8,
+        pub lookup_a: u32,    // _targetMissionInfo
+        pub lookup_b: u32,    // _conditionInfo
+        pub raw_a: u32,       // _fromDelayTime
+        pub raw_b: u32,       // _toDelayTime
+        pub flag_a: u8,       // _useDelay
+        pub flag_b: u8,       // _useDelay_loading
+        pub on_start: u8,
     }
 }
 
 py_binary_struct! {
+    /// 2.04.00 `_knowledgeDescList` element (Mac reader sub_1020A25D8): KnowledgeKey + u32.
+    pub struct KnowledgeDesc {
+        pub knowledge_info: u32,
+        pub value: u32,
+    }
+}
+
+py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_102054370). Our names were assigned by position long ago and
+    // several are not the game's; the comments give the game's names. New in 2.04:
+    // knowledgeDescList, displaySubMission.
     pub struct MissionInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub flag_430: u8,                   // _isShowAlertPlaying
+        pub flag_429: u8,                   // _checkOverlapType
+        pub flag_428: u8,                   // _completeType
+        pub flag_431: u8,                   // _optional
+        pub flag_434: u8,                   // _existComplete
+        pub flag_433: u8,                   // _existHaveCount
+        pub flag_435: u8,                   // _existFail
+        pub flag_440: u8,                   // _ignoreRepeatOnDead
+        pub flag_441: u8,                   // _isAutoTrace
+        pub flag_432: u8,                   // _existStart
+        pub flag_439: u8,                   // _isOperationMission
+        pub flag_436: u8,                   // _preCheck
+        pub flag_437: u8,                   // _checkCompleteCountAtOnce
+        pub flag_438: u8,                   // _showMiniMap
+        pub category_info: u32,             // _repeatCondition
+        pub result_data_2_lookup: u32,      // _parentMissionInfo
+        pub reward_inventory_key: u16,
+        pub raw_418: u16,                   // _limitTime
+        pub display_sub_mission: u32,
+        pub raw_420: u16,                   // _completeTime
         pub parent_quest: u32,
+        pub trailing_u32: u32,              // _targetQuestDialogKey
+        pub raw_424: u32,                   // _completeCount
         pub sub_mission_list: CArray<u32>,
-        pub branch_mission_list: CArray<MissionBranchData>,
-        pub execute_stage_list: CArray<MissionExecuteStage>,
+        pub branch_mission_list: CArray<MissionBranchData>,   // _executeStageList
+        pub execute_stage_list: CArray<MissionExecuteStage>,  // _branchMissionList
         pub start_player_list: CArray<u32>,
         pub field_revive_list: CArray<u32>,
         pub give_up_field_revive_list: CArray<u32>,
         pub trigger_volume_data: COptional<TriggerVolumeData<'a>>,
+        pub knowledge_desc_list: CArray<KnowledgeDesc>,
         pub reward_list: CArray<u32>,
         pub result_data_list: CArray<MissionResultData>,
-        pub reward_inventory_key: u16,
         pub ui_desc: MissionUIDesc,
-        pub label_a: LocalizableString<'a>,
-        pub label_b: LocalizableString<'a>,
-        pub label_c: LocalizableString<'a>,
-        pub label_d: LocalizableString<'a>,
-        pub result_data_2_lookup: u32,       // sub_141102D90 (KNOWN)
-        pub result_data_list_2: CArray<MissionResultData2<'a>>,
-        pub mission_stage_list: CArray<MissionStageData>,
-        pub category_info: u32,             // sub_1410FF430
-        pub raw_418: u16,
-        pub raw_420: u16,
-        pub raw_424: u32,
-        pub flag_428: u8,
-        pub flag_429: u8,
-        pub flag_430: u8,
-        pub flag_431: u8,
-        pub flag_432: u8,
-        pub flag_433: u8,
-        pub flag_434: u8,
-        pub flag_435: u8,
-        pub flag_436: u8,
-        pub flag_437: u8,
-        pub flag_438: u8,
-        pub flag_439: u8,
-        pub flag_440: u8,
-        // 1.18 — a 14TH flag. Proven by end-alignment over all 6822 records:
-        // counting BACK from each record's end, byte -5 is 0x01 in 100% of them
-        // (a constant boolean), and bytes -4..-1 carry the variable u32. That
-        // makes the flag run exactly bytes -18..-5 = 14 bytes, not 13.
-        // (Reading it the other way — u32 then a trailing u8 — gives a u32 with
-        // 555 wild values AND a varying last byte, i.e. misalignment.)
-        pub flag_441: u8,
-        pub trailing_u32: u32,              // sub_141BD4120 (raw u32)
-        // 2.00.00 — `_sameNameSubMissionList`, appended after the trailing u32.
-        // Mac reader sub_102030A60 ends with sub_101FD55EC(a2+460) then
-        // sub_101950044(a2+464); the latter is a list whose element reader
-        // sub_101FC9230 is a single 4-byte read, so CArray<u32>.
-        //
-        // Empty in almost every record, so it costs 4 bytes and the size deltas
-        // could not have found it — mission records also changed content heavily
-        // in this patch (the story rewrite), so their sizes move for unrelated
-        // reasons and carry no signal.
+        pub label_a: LocalizableString<'a>, // _name
+        pub label_b: LocalizableString<'a>, // _completeName
+        pub label_c: LocalizableString<'a>, // _desc
+        pub label_d: LocalizableString<'a>, // _completeLog
+        pub result_data_list_2: CArray<MissionResultData2<'a>>,  // _missionFunctionList
+        pub mission_stage_list: CArray<MissionStageData<'a>>,     // _challengeEventList
         pub same_name_sub_mission_list: CArray<u32>,
     }
 }

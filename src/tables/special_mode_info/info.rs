@@ -1,93 +1,69 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410F60E0` in CrimsonDesert.exe (Win build).
+//! 2.04.00 reader: Mac `sub_102044268` (names from its Korean assert strings). 2.04 moved
+//! stringKey first, gathered the flags after isBlocked, added `_contentsPhaseInfo` (u16) and
+//! grew `_optionList` from 24 to 25 slots. The pre-2.04 `use_world_lighting` / `new_112_flag`
+//! bytes were width fits; there are no such fields in 2.04.
 //!
-//! Wire reads, in order (canonical names from Mac Korean error strings):
-//!   1. u32 key                              (_key)
-//!   2. CString string_key                   (_stringKey)
-//!   3. u8 is_blocked                        (_isBlocked)
-//!   4. u8 type_                             (_type, Rust keyword suffix)
-//!   5. u32 active_condition_info            (_activeConditionInfo,
-//!      sub_1410FF430 wire u32)
-//!   6. CString post_process_sequencer_name  (_postProcessSequencerName)
-//!   7. u32 time_scale                       (_timeScale, f32-as-u32)
-//!   8. u32 player_time_scale                (_playerTimeScale)
-//!   9. u32 mode_radius                      (_modeRadius, f32)
-//!  10. u32 passive_skill                    (_passiveSkill, sub_1410FEBE0
-//!      wire u32 → qword_145F0DA68)
-//!  11. u32 skill_level                      (_skillLevel)
-//!  12. u32 input_key_hash                   (_inputKeyHash)
-//!  13. u32 cancel_input_key_hash            (_cancelInputKeyHash)
-//!  14. u8 has_near_by_target_option         (_hasNearByTargetOption)
-//!  15. u8 is_high_priority                  (_isHighPriority)
-//!  16. u8 exclusive_with_detect             (_exclusiveWithDetect)
-//!  17. u8 disable_occlusion_culling         (_disableOcclusionCulling)
-//!  18. u8 disable_player_targetable         (_disablePlayerTargetable)
-//!  19. u8 change_minimap_scale              (_changeMinimapScale)
-//!  20. u8 is_minimap_zoom_out               (_isMinimapZoomOut)
-//!  21. u8 is_allow_dialog                   (_isAllowDialog)
-//!  22. SpecialModeOptionSlots option_slots  (24 fixed CArray slots, each
-//!      a CArray<SpecialModeOption> via sub_141128AF0 → sub_1410F5A30)
-//!  23. DetectModeAreaData detect_mode_area_data
-//!      (sub_1410F5F80, 64 mem bytes / 8 wire fields at a2+456)
-//!  24. PlayerActionLimitDesc player_action_limit_desc
-//!      (sub_14B92C740 via thunk sub_1410D4540, ~40 mem bytes / 8 wire
-//!      fields at a2+520)
-//!
-//! SpecialModeOption (sub_1410F5A30 inner, 176 mem bytes / 32 wire fields).
+//! SpecialModeOption: Mac element reader `sub_102043814`. DetectModeAreaData
+//! (`sub_102043E3C`) and PlayerActionLimitDesc (`sub_102037CD4`) are unchanged.
 
 use crate::binary::*;
 use crate::py_binary_struct;
 
-// sub_14110A460 inner element — 24 mem bytes / 3 wire fields (variable).
+// `_subInnerGuideEffectList` element (Mac sub_102082788) — 24 mem bytes / 3 wire fields.
 py_binary_struct! {
     pub struct SpecialModeOptionMacroEntry<'a> {
-        pub key_str: CString<'a>,    // sub_1410A9D40 (wire = CString)
-        pub name: CString<'a>,       // direct read_CString
+        pub key_str: CString<'a>,
+        pub name: CString<'a>,
         pub flag: u8,
     }
 }
 
-// sub_1410F5A30 inner — 176 mem bytes / 32 wire fields.
+// Mac sub_102043814. Fields past `bokeh_kernel_size` have no assert string; they are named
+// by type and position.
 py_binary_struct! {
     pub struct SpecialModeOption<'a> {
-        pub flag_a: u8,
-        pub lookup_a: u32,
-        pub lookup_b: u32,
-        pub key_a: CString<'a>,
-        pub raw_a: u32,
-        pub key_b: CString<'a>,
-        pub raw_b: u32,
-        pub raw_c: u32,
-        pub raw_d: u32,
-        pub raw_e: u32,
-        // 1.07 added a u32 here (IDA sub_1410D7ED0: five 4-byte reads at
-        // mem +20/+24/+28/+32/+36 before the u64 at +40). Its absence
-        // shifted every later field by 4 bytes → CArray count misread.
-        pub raw_e2: u32,
-        pub raw_f: u64,
-        pub raw_g: u64,
-        pub lookup_c: u32,
-        pub flag_b: u8,
-        pub list_u32: CArray<u32>,
-        pub list_macro: CArray<SpecialModeOptionMacroEntry<'a>>,
-        pub lookup_d: u32,
-        pub name: CString<'a>,
-        pub flag_c: u8,
-        pub flag_d: u8,
-        pub flag_e: u8,
-        pub raw_h: u32,
-        pub raw_i: u32,
-        pub raw_j: u32,
-        pub flag_f: u8,
-        pub raw_k: u32,
-        pub raw_l: u32,
-        pub raw_m: u32,
-        pub raw_n: u32,
-        pub raw_o: u32,
-        pub raw_p: u32,
-        // Per IDA sub_1410F5A30: 16 individual 1-byte reads in a loop
-        // (read 1 byte, increment, until 16 collected) — split into named u8 fields.
+        pub type_: u8,
+        pub player_condition_info: u32,
+        pub target_condition_info: u32,
+        pub custom_render_value_name: CString<'a>,
+        pub effect_key: u32,
+        pub param_name: CString<'a>,
+        pub param_uint32: u32,
+        pub on_event_name: u32,                   // StringInfoKey
+        pub off_event_name: u32,                  // StringInfoKey
+        pub repeat_event_name: u32,               // StringInfoKey
+        pub gimmick_event_param_string_hash: u32,
+        pub repeat_interval_random_min: u64,
+        pub repeat_interval_random_max: u64,
+        pub visual_equip_item_info: u32,
+        pub path_trail_type: u8,
+        pub allow_interaction_info_list: CArray<u32>,
+        pub sub_inner_guide_effect_list: CArray<SpecialModeOptionMacroEntry<'a>>,
+        pub level_gimmick_scene_object_info: u32,
+        pub guide_effect_name: CString<'a>,
+        pub guide_effect_type: u8,
+        pub guide_effect_immediately_kill: u8,
+        pub force_send_gimmick_event: u8,
+        pub guide_effect_distance_limit: f32,
+        pub check_distance_by_horizontal: u8,
+        pub illusion_effect_color: u32,
+        pub illusion_effect_time: f32,
+        pub lens_flare_scale_value: f32,
+        pub use_depth_of_field: u8,
+        pub focus_distance: f32,
+        pub focal_length: f32,
+        pub aperture: f32,
+        pub bokeh_kernel_size: f32,
+        pub f32_156: f32,
+        pub f32_160: f32,
+        pub key_list_168: CArray<u32>,
+        pub name_184: CString<'a>,
+        pub u64_188: u64,
+        pub u64_196: u64,
+        pub u8_204: u8,
+        // sub_101A2F048: 16 single-byte reads.
         pub trailing_00: u8, pub trailing_01: u8, pub trailing_02: u8, pub trailing_03: u8,
         pub trailing_04: u8, pub trailing_05: u8, pub trailing_06: u8, pub trailing_07: u8,
         pub trailing_08: u8, pub trailing_09: u8, pub trailing_10: u8, pub trailing_11: u8,
@@ -95,8 +71,7 @@ py_binary_struct! {
     }
 }
 
-// 24 fixed CArray<SpecialModeOption> slots — _optionList iterates 0..24.
-// Each slot is a separate CArray header (16 mem bytes).
+// `_optionList`: 25 fixed CArray<SpecialModeOption> slots (Mac sub_102082AA0).
 py_binary_struct! {
     pub struct SpecialModeOptionSlots<'a> {
         pub slot_00: CArray<SpecialModeOption<'a>>,
@@ -123,10 +98,11 @@ py_binary_struct! {
         pub slot_21: CArray<SpecialModeOption<'a>>,
         pub slot_22: CArray<SpecialModeOption<'a>>,
         pub slot_23: CArray<SpecialModeOption<'a>>,
+        pub slot_24: CArray<SpecialModeOption<'a>>,
     }
 }
 
-// sub_1410F5F80 — DetectModeAreaData, 64 mem bytes / 8 wire fields.
+// Mac sub_102043E3C — DetectModeAreaData, 64 mem bytes / 8 wire fields.
 py_binary_struct! {
     pub struct DetectModeAreaData<'a> {
         pub flag_a: u8,
@@ -140,7 +116,7 @@ py_binary_struct! {
     }
 }
 
-// sub_14B92C740 (thunked via sub_1410D4540) — PlayerActionLimitDesc.
+// Mac sub_102037CD4 — PlayerActionLimitDesc.
 py_binary_struct! {
     pub struct PlayerActionLimitDesc {
         pub flag_a: u8,
@@ -156,31 +132,28 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct SpecialModeInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub type_: u8,
-        pub active_condition_info: u32,
-        pub post_process_sequencer_name: CString<'a>,
-        pub time_scale: u32,
-        pub player_time_scale: u32,
-        pub mode_radius: u32,
-        pub passive_skill: u32,
-        pub skill_level: u32,
-        pub input_key_hash: u32,
-        pub cancel_input_key_hash: u32,
-        pub has_near_by_target_option: u8,
-        pub is_high_priority: u8,
         pub exclusive_with_detect: u8,
         pub disable_occlusion_culling: u8,
+        pub has_near_by_target_option: u8,
+        pub is_high_priority: u8,
         pub disable_player_targetable: u8,
+        pub is_allow_dialog: u8,
+        pub type_: u8,
         pub change_minimap_scale: u8,
         pub is_minimap_zoom_out: u8,
-        pub is_allow_dialog: u8,
-        pub use_world_lighting: u8,
-        // NEW 1.12: one extra u8 flag appended to the flag block, before the
-        // 24 option slots (verified: shifted slot7's "01" count by +1 byte).
-        pub new_112_flag: u8,
+        pub active_condition_info: u32,
+        pub passive_skill: u32,
+        pub contents_phase_info: u16,
+        pub time_scale: f32,
+        pub cancel_input_key_hash: u32,
+        pub player_time_scale: f32,
+        pub input_key_hash: u32,
+        pub skill_level: u32,
+        pub mode_radius: f32,
+        pub post_process_sequencer_name: CString<'a>,
         pub option_slots: SpecialModeOptionSlots<'a>,
         pub detect_mode_area_data: DetectModeAreaData<'a>,
         pub player_action_limit_desc: PlayerActionLimitDesc,

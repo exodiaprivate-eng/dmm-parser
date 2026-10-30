@@ -96,63 +96,70 @@ py_binary_struct! {
     /// 2.01 REMOVED `_isControllable`, `_mainMercenaryPerTribe`, `_unspawnOnFocusActorChanged`
     /// and ADDED eleven flags plus the actor-type list; the pre-2.01 `tail_u8_110` /
     /// `tail_u8b_111` / `tail_u32_110` guesses now carry their real names.
+    // 2.04.00 order (Mac reader sub_10205E044). New: isCostRecovery, the three uiAlertOnAttacked
+    // fields, saveLastValidPosition, recoveryCostItemInfo. Removed: isTeleportable and
+    // teleportSocketName (the 2.03 additions).
     pub struct MercenaryInfo<'a> {
-        pub key: u8,                              // _key
         pub string_key: CString<'a>,             // _stringKey
+        pub key: u8,                              // _key
         pub is_blocked: u8,                      // _isBlocked
-        pub default_limit_summon_count: u32,     // _defaultLimitSummonCount
-        pub default_limit_hire_count: u32,       // _defaultLimitHireCount
-        pub max_limit_hire_count: u32,           // _maxLimitHireCount
-        pub mercenary_type: u8,                  // _mercenaryType
-        pub far_from_leader_option: u8,          // _farFromLeaderOption
-        pub is_playable: u8,                     // _isPlayable
-        pub summon_after_regist: u8,             // _summonAfterRegist
-        pub is_force_stackable: u8,              // _isForceStackable
-        pub use_camp_level: u8,                  // _useCampLevel
-        pub apply_equip_item_stat: u8,           // _applyEquipItemStat
-        pub check_item_no_on_push_to_item: u8,   // _checkItemNoOnPushToItem
-        pub allow_exceed_limit_hire_count: u8,   // _allowExceedLimitHireCount
-        pub is_select_mercenary_spawn: u8,       // _isSelectMercenarySpawn
-        pub check_owned_item_for_restore_item: u8, // _checkOwnedItemForRestoreItem
-        pub is_loss_inventory_item: u8,          // _isLossInventoryItem
-        pub use_wagon_road: u8,                  // _useWagonRoad
-        pub is_show_ddd_status_detail: u8,       // _isShowDDDStatusDetail
-        pub is_show_horse_status: u8,            // _isShowHorseStatus
-        pub is_require_login: u8,                // _isRequireLogin
-        pub is_summon_recovery_item: u8,         // _isSummonRecoveryItem
-        pub status_ui_list: CArray<u32>,         // _statusUIList
-        pub is_check_grown_target_list: u8,      // _isCheckGrownTargetList
-        pub is_main_mercenary_info: u8,          // _isMainMercenaryInfo
-        pub can_have_breeding_targets: u8,       // _canHaveBreedingTargets
-        pub is_use_inventory: u8,                // _isUseInventory
-        pub is_focus_changeable: u8,             // _isFocusChangeable
-        pub is_connection_required: u8,          // _isConnectionRequired
-        pub is_buff_level_changeable: u8,        // _isBuffLevelChangeable
-        pub is_min_hp_makeable: u8,              // _isMinHPMakeable
-        pub is_fireable: u8,                     // _isFireable
-        pub is_logout_in_ai: u8,                 // _isLogoutInAI (2.01)
-        pub is_map_icon_pet: u8,                 // _isMapIconPet (2.01)
-        pub use_vehicle_equip_slot: u8,          // _useVehicleEquipSlot (2.01)
-        pub is_pet_friendly_addition: u8,        // _isPetFriendlyAddition (2.01)
-        pub use_friendly_gauge: u8,              // _useFriendlyGauge (2.01)
-        pub is_must_hide_and_restore: u8,        // _isMustHideAndRestore (2.01)
-        pub check_inventory_push_on_spawn: u8,   // _checkInventoryPushOnSpawn (2.01)
-        pub check_indoor: u8,                    // _checkIndoor (2.01)
-        pub is_show_level_up_alert: u8,          // _isShowLevelUpAlert (2.01)
-        pub is_farm_hire: u8,                    // _isFarmHire (2.01)
-        pub is_teleportable: u8,                 // _isTeleportable (2.03, after _isFarmHire)
-        pub main_dischargeable_type: u8,         // _mainDischargeableType
-        pub spawn_position_type: u8,             // _spawnPositionType
-        pub summon_owner_option: u8,             // _summonOwnerOption
-        pub inventory_owner_type: u8,            // _inventoryOwnerType
-        pub allowed_spawn_actor_type_list: CArray<u8>, // _allowedSpawnActorTypeList (2.01)
-        pub parent_mercenary_group_info: u8,     // _parentMercenaryGroupInfo
-        pub shared_summon_count_tag: u32,        // _sharedSummonCountTag
-        pub feed_from_gimmick_info: u32,         // _feedFromGimmickInfo
+        pub use_vehicle_equip_slot: u8,
+        pub is_map_icon_pet: u8,
+        pub is_pet_friendly_addition: u8,
+        pub is_must_hide_and_restore: u8,
+        pub use_friendly_gauge: u8,
+        pub is_logout_in_ai: u8,
+        pub is_focus_changeable: u8,
+        pub is_use_inventory: u8,
+        pub is_connection_required: u8,
+        pub is_fireable: u8,
+        pub is_min_hp_makeable: u8,
+        pub main_dischargeable_type: u8,
+        pub is_cost_recovery: u8,
+        pub ui_alert_on_attacked: u8,
+        pub ui_alert_on_attacked_min_distance: f32,
+        pub ui_alert_on_attacked_message: u32,
+        pub spawn_position_type: u8,
+        pub inventory_owner_type: u8,
+        pub summon_owner_option: u8,
+        pub save_last_valid_position: u8,
+        pub check_indoor: u8,
+        pub check_inventory_push_on_spawn: u8,
+        pub is_show_level_up_alert: u8,
+        pub is_farm_hire: u8,
+        pub can_have_breeding_targets: u8,
+        pub use_camp_level: u8,
+        pub is_force_stackable: u8,
+        pub apply_equip_item_stat: u8,
+        pub allow_exceed_limit_hire_count: u8,
+        pub check_item_no_on_push_to_item: u8,
+        pub mercenary_type: u8,
+        pub is_buff_level_changeable: u8,
+        pub far_from_leader_option: u8,
+        pub summon_after_regist: u8,
+        pub is_playable: u8,
+        pub is_select_mercenary_spawn: u8,
+        pub is_summon_recovery_item: u8,
+        pub is_require_login: u8,
+        pub is_main_mercenary_info: u8,
+        pub is_check_grown_target_list: u8,
+        pub is_show_horse_status: u8,
+        pub is_loss_inventory_item: u8,
+        pub check_owned_item_for_restore_item: u8,
+        pub use_wagon_road: u8,
+        pub is_show_ddd_status_detail: u8,
+        pub feed_from_gimmick_info: u32,
+        pub parent_mercenary_group_info: u8,
+        pub shared_summon_count_tag: u32,
+        pub recovery_cost_item_info: u32,
+        pub camera_preset_center_hash: u32,
+        pub camera_preset_hash: u32,
+        pub default_limit_hire_count: u32,
+        pub max_limit_hire_count: u32,
+        pub default_limit_summon_count: u32,
+        pub status_ui_list: CArray<u32>,
+        pub allowed_spawn_actor_type_list: CArray<u8>,
         pub hired_skill_info_list: CArray<HiredSkillData>,  // _expandedSlotList (name kept: mod contract)
-        pub camera_preset_hash: u32,             // _cameraPresetHash
-        pub camera_preset_center_hash: u32,      // _cameraPresetCenterHash (2.03)
-        pub teleport_socket_name: CString<'a>,   // _teleportSocketName (2.03, last)
     }
 }
 

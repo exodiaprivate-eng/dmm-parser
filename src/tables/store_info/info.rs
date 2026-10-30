@@ -96,19 +96,11 @@ use std::io::{self, Write};
 // per-disc payload (0-32 wire bytes). Disc 11 (0xB) is the empty variant.
 // 1.0.8 adds disc 14 (0xE): u16 + u8 = 3 wire bytes.
 
-py_binary_struct! {
-    pub struct StoreStockDataValueDisc7 {
-        pub flag_a: u8,
-        pub raw_a: u64,
-        pub lookup_a: u32,    // sub_141100860 wire u32
-        pub lookup_b: u32,    // sub_1410FF340 wire u32
-        pub flag_b: u8,
-        pub lookup_c: u32,    // sub_1411026F0 wire u32
-        pub raw_b: u64,
-        pub flag_c: u8,
-        pub flag_d: u8,
-    }
-}
+/// Disc 7 / 8 / 15 payload: the exe's `DropFriendlyData`, the same type the drop entries
+/// use (2.04.00: 34 bytes with the game's field names; see `DropTargetItemRef`).
+pub type StoreStockDataValueDisc7 = crate::binary::variants::drop_target::DropTargetItemRef;
+/// Disc 16 payload: the exe's `DropRegistLivingCharacterData` (2.04.00 +focus_character_info).
+pub type StoreStockDataValueDisc16 = crate::binary::variants::drop_target::DropRegistLivingCharacterData;
 
 #[derive(Debug)]
 pub enum StoreStockDataValuePayload {
@@ -127,6 +119,12 @@ pub enum StoreStockDataValuePayload {
     DiscC(u32),                          // sub_1410FEBE0
     DiscD { lookup: u32, flag: u8 },     // sub_141102E00 + u8
     DiscE { lookup: u16, flag: u8 },     // sub_14111D4C0 (u16 wire) + u8  [1.0.8]
+    /// 2.04.00: disc 15, the same DropFriendlyData payload as discs 7 and 8.
+    DiscF(StoreStockDataValueDisc7),
+    /// 1.18 tag 16 in the drop entries; DropRegistLivingCharacterData.
+    Disc16(StoreStockDataValueDisc16),
+    /// 2.04.00: disc 17, a FactionManagementKey (2 bytes).
+    Disc17(u16),
 }
 
 impl StoreStockDataValuePayload {
@@ -159,6 +157,9 @@ impl StoreStockDataValuePayload {
                 let flag = u8::read_from(data, offset)?;
                 Self::DiscE { lookup, flag }
             }
+            15 => Self::DiscF(StoreStockDataValueDisc7::read_from(data, offset)?),
+            16 => Self::Disc16(StoreStockDataValueDisc16::read_from(data, offset)?),
+            17 => Self::Disc17(u16::read_from(data, offset)?),
             other => return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("StoreStockDataValuePayload: unknown disc {}", other),
@@ -185,6 +186,9 @@ impl StoreStockDataValuePayload {
                 lookup.write_to(w)?;
                 flag.write_to(w)
             }
+            Self::DiscF(p) => p.write_to(w),
+            Self::Disc16(p) => p.write_to(w),
+            Self::Disc17(v) => v.write_to(w),
         }
     }
 
@@ -205,6 +209,9 @@ impl StoreStockDataValuePayload {
             Self::DiscC(_) => "DiscC",
             Self::DiscD { .. } => "DiscD",
             Self::DiscE { .. } => "DiscE",
+            Self::DiscF(_) => "DiscF",
+            Self::Disc16(_) => "Disc16",
+            Self::Disc17(_) => "Disc17",
         }
     }
 
@@ -235,6 +242,9 @@ impl StoreStockDataValuePayload {
                 body.insert("flag".to_string(), flag.to_json_value());
                 m.insert("body".to_string(), Value::Object(body));
             }
+            Self::DiscF(p) => { m.insert("body".to_string(), Value::Object(p.to_json_dict())); }
+            Self::Disc16(p) => { m.insert("body".to_string(), Value::Object(p.to_json_dict())); }
+            Self::Disc17(v) => { m.insert("body".to_string(), v.to_json_value()); }
         }
         Value::Object(m)
     }
@@ -250,11 +260,17 @@ impl StoreStockDataValuePayload {
         ))?;
         match disc {
             0..=6 | 9 | 12 => <u32 as WriteJsonValue>::write_from_json(w, body)?,
-            7 | 8 => {
+            7 | 8 | 15 => {
                 let body_obj = body.as_object().ok_or_else(|| io::Error::new(
-                    io::ErrorKind::InvalidData, "Disc7/8: expected object body"))?;
+                    io::ErrorKind::InvalidData, "Disc7/8/15: expected object body"))?;
                 StoreStockDataValueDisc7::write_from_json_dict(w, body_obj)?;
             }
+            16 => {
+                let body_obj = body.as_object().ok_or_else(|| io::Error::new(
+                    io::ErrorKind::InvalidData, "Disc16: expected object body"))?;
+                StoreStockDataValueDisc16::write_from_json_dict(w, body_obj)?;
+            }
+            17 => <u16 as WriteJsonValue>::write_from_json(w, body)?,
             10 => {
                 let body_obj = body.as_object().ok_or_else(|| io::Error::new(
                     io::ErrorKind::InvalidData, "DiscA: expected object body"))?;
@@ -700,29 +716,32 @@ impl<'a> StoreInfo<'a> {
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
         let start = *offset;
-        let key = track_read_field::<u16>(data, offset, path, ranges, "key", "u16")?;
+        // 2.04.00: field order of the Mac reader sub_1020423D0. Ours / the game's names:
+        // pre_reset_extra_111 = _hasRestoreItem, sellable_character_condition_logic =
+        // _hasSellableCharacter, enter_city_wagon_store_116 = _enterCityWagonStore.
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u16>(data, offset, path, ranges, "key", "u16")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let use_housing_gimmick = track_read_field::<u8>(data, offset, path, ranges, "use_housing_gimmick", "u8")?;
+        let enter_city_wagon_store_116 = track_read_field::<u8>(data, offset, path, ranges, "enter_city_wagon_store_116", "u8")?;
+        let sellable_type = track_read_field::<u8>(data, offset, path, ranges, "sellable_type", "u8")?;
+        let fixed_price = track_read_field::<u8>(data, offset, path, ranges, "fixed_price", "u8")?;
+        let has_stock_condition = track_read_field::<u8>(data, offset, path, ranges, "has_stock_condition", "u8")?;
+        let store_type = track_read_field::<u8>(data, offset, path, ranges, "store_type", "u8")?;
+        let reduce_price_by_looted_dead_body = track_read_field::<u8>(data, offset, path, ranges, "reduce_price_by_looted_dead_body", "u8")?;
+        let pre_reset_extra_111 = track_read_field::<u8>(data, offset, path, ranges, "pre_reset_extra_111", "u8")?;
+        let sellable_character_condition_logic = track_read_field::<u8>(data, offset, path, ranges, "sellable_character_condition_logic", "u8")?;
         let exchange_item_info_for_buy = track_read_field::<u32>(data, offset, path, ranges, "exchange_item_info_for_buy", "u32")?;
+        let reset_day = track_read_field::<u32>(data, offset, path, ranges, "reset_day", "u32")?;
+        let reset_hour = track_read_field::<u32>(data, offset, path, ranges, "reset_hour", "u32")?;
+        let sellable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "sellable_stock_count", "u32")?;
+        let buyable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "buyable_stock_count", "u32")?;
+        let custom_mesh_obb_max_length = track_read_field::<u32>(data, offset, path, ranges, "custom_mesh_obb_max_length", "u32")?;
         let exchange_item_info_list_for_sell = track_read_field::<CArray<u32>>(data, offset, path, ranges, "exchange_item_info_list_for_sell", "CArray<u32>")?;
         let sell_percents = track_read_field::<u64>(data, offset, path, ranges, "sell_percents", "u64")?;
-        let store_type = track_read_field::<u8>(data, offset, path, ranges, "store_type", "u8")?;
         let price_increase_percent_list = track_read_field::<CArray<u64>>(data, offset, path, ranges, "price_increase_percent_list", "CArray<u64>")?;
-        let sellable_character_condition_logic = track_read_field::<u8>(data, offset, path, ranges, "sellable_character_condition_logic", "u8")?;
-        let pre_reset_extra_111 = track_read_field::<u8>(data, offset, path, ranges, "pre_reset_extra_111", "u8")?;
-        let has_stock_condition = track_read_field::<u8>(data, offset, path, ranges, "has_stock_condition", "u8")?;
-        let enter_city_wagon_store_116 = track_read_field::<u8>(data, offset, path, ranges, "enter_city_wagon_store_116", "u8")?;
-        let reset_hour = track_read_field::<u32>(data, offset, path, ranges, "reset_hour", "u32")?;
-        let reset_day = track_read_field::<u32>(data, offset, path, ranges, "reset_day", "u32")?;
-        let buyable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "buyable_stock_count", "u32")?;
-        let sellable_stock_count = track_read_field::<u32>(data, offset, path, ranges, "sellable_stock_count", "u32")?;
-        let sellable_type = track_read_field::<u8>(data, offset, path, ranges, "sellable_type", "u8")?;
         let stock_data_list = track_read_with(offset, path, ranges, "stock_data_list", "Vec<StoreStockData>", |o| {
             let count = u32::read_from(data, o)?;
-            // Sanity clamp (mirrors CArray in binary/types.rs): each StoreStockData
-            // is >= 1 byte, so a count exceeding the remaining byte budget is a
-            // corrupted/misaligned stream. Returning Err here turns a garbage count
-            // into a clean blob-fallback instead of a >500GB Vec::with_capacity abort.
             let remaining = data.len().saturating_sub(*o);
             if count as usize > remaining {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -739,159 +758,148 @@ impl<'a> StoreInfo<'a> {
         })?;
         let sale_item_type_list = track_read_field::<CArray<u8>>(data, offset, path, ranges, "sale_item_type_list", "CArray<u8>")?;
         let not_sale_item_type_list = track_read_field::<CArray<u8>>(data, offset, path, ranges, "not_sale_item_type_list", "CArray<u8>")?;
-        let custom_mesh_obb_max_length = track_read_field::<u32>(data, offset, path, ranges, "custom_mesh_obb_max_length", "u32")?;
-        let fixed_price = track_read_field::<u8>(data, offset, path, ranges, "fixed_price", "u8")?;
-        let use_housing_gimmick = track_read_field::<u8>(data, offset, path, ranges, "use_housing_gimmick", "u8")?;
-        let reduce_price_by_looted_dead_body = track_read_field::<u8>(data, offset, path, ranges, "reduce_price_by_looted_dead_body", "u8")?;
         let consumed = *offset - start;
         if consumed != entry_size {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("StoreInfo: consumed {} bytes, expected {}", consumed, entry_size)));
         }
         Ok(Self {
-            key, string_key, is_blocked,
-            exchange_item_info_for_buy, exchange_item_info_list_for_sell,
-            sell_percents, store_type, price_increase_percent_list,
-            sellable_character_condition_logic, pre_reset_extra_111,
-            has_stock_condition, enter_city_wagon_store_116, reset_hour, reset_day,
-            buyable_stock_count, sellable_stock_count, sellable_type,
-            stock_data_list, sale_item_type_list, not_sale_item_type_list,
-            custom_mesh_obb_max_length,
-            fixed_price, use_housing_gimmick, reduce_price_by_looted_dead_body,
+            string_key, key, is_blocked, use_housing_gimmick, enter_city_wagon_store_116, sellable_type, fixed_price, has_stock_condition, store_type, reduce_price_by_looted_dead_body, pre_reset_extra_111, sellable_character_condition_logic, exchange_item_info_for_buy, reset_day, reset_hour, sellable_stock_count, buyable_stock_count, custom_mesh_obb_max_length, exchange_item_info_list_for_sell, sell_percents, price_increase_percent_list, stock_data_list, sale_item_type_list, not_sale_item_type_list,
         })
     }
 
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u16::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let exchange_item_info_for_buy = u32::read_from(data, offset)?;
-        let exchange_item_info_list_for_sell = CArray::<u32>::read_from(data, offset)?;
-        let sell_percents = u64::read_from(data, offset)?;
-        let store_type = u8::read_from(data, offset)?;
-        let price_increase_percent_list = CArray::<u64>::read_from(data, offset)?;
-        let sellable_character_condition_logic = u8::read_from(data, offset)?;
-        let pre_reset_extra_111 = u8::read_from(data, offset)?;
-        let has_stock_condition = u8::read_from(data, offset)?;
-        let enter_city_wagon_store_116 = u8::read_from(data, offset)?;
-        let reset_hour = u32::read_from(data, offset)?;
-        let reset_day = u32::read_from(data, offset)?;
-        let buyable_stock_count = u32::read_from(data, offset)?;
-        let sellable_stock_count = u32::read_from(data, offset)?;
-        let sellable_type = u8::read_from(data, offset)?;
-        let count = u32::read_from(data, offset)?;
-        // Sanity clamp (mirrors CArray in binary/types.rs): each StoreStockData
-        // is >= 1 byte, so a count exceeding the remaining byte budget is a
-        // corrupted/misaligned stream. Returning Err here turns a garbage count
-        // into a clean blob-fallback instead of a >500GB Vec::with_capacity abort.
-        let remaining = data.len().saturating_sub(*offset);
-        if count as usize > remaining {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!(
-                    "storeinfo stock_data_list count {} exceeds remaining {} at offset {}",
-                    count, remaining, *offset,
-                )));
-        }
-        let mut stock_data_list = Vec::with_capacity((count as usize).min(1 << 20));
-        for _ in 0..count {
-            stock_data_list.push(StoreStockData::read_from(data, offset)?);
-        }
-        let sale_item_type_list = CArray::<u8>::read_from(data, offset)?;
-        let not_sale_item_type_list = CArray::<u8>::read_from(data, offset)?;
-        let custom_mesh_obb_max_length = u32::read_from(data, offset)?;
-        let fixed_price = u8::read_from(data, offset)?;
-        let use_housing_gimmick = u8::read_from(data, offset)?;
-        let reduce_price_by_looted_dead_body = u8::read_from(data, offset)?;
+        // 2.04.00: field order of the Mac reader sub_1020423D0. Ours / the game's names:
+        // pre_reset_extra_111 = _hasRestoreItem, sellable_character_condition_logic =
+        // _hasSellableCharacter, enter_city_wagon_store_116 = _enterCityWagonStore.
+        let string_key = <CString<'a>>::read_from(data, offset)?;
+        let key = <u16>::read_from(data, offset)?;
+        let is_blocked = <u8>::read_from(data, offset)?;
+        let use_housing_gimmick = <u8>::read_from(data, offset)?;
+        let enter_city_wagon_store_116 = <u8>::read_from(data, offset)?;
+        let sellable_type = <u8>::read_from(data, offset)?;
+        let fixed_price = <u8>::read_from(data, offset)?;
+        let has_stock_condition = <u8>::read_from(data, offset)?;
+        let store_type = <u8>::read_from(data, offset)?;
+        let reduce_price_by_looted_dead_body = <u8>::read_from(data, offset)?;
+        let pre_reset_extra_111 = <u8>::read_from(data, offset)?;
+        let sellable_character_condition_logic = <u8>::read_from(data, offset)?;
+        let exchange_item_info_for_buy = <u32>::read_from(data, offset)?;
+        let reset_day = <u32>::read_from(data, offset)?;
+        let reset_hour = <u32>::read_from(data, offset)?;
+        let sellable_stock_count = <u32>::read_from(data, offset)?;
+        let buyable_stock_count = <u32>::read_from(data, offset)?;
+        let custom_mesh_obb_max_length = <u32>::read_from(data, offset)?;
+        let exchange_item_info_list_for_sell = <CArray<u32>>::read_from(data, offset)?;
+        let sell_percents = <u64>::read_from(data, offset)?;
+        let price_increase_percent_list = <CArray<u64>>::read_from(data, offset)?;
+        let stock_data_list = (|o: &mut usize| -> io::Result<Vec<StoreStockData>> {
+            let count = u32::read_from(data, o)?;
+            // Sanity clamp (mirrors CArray in binary/types.rs): a count above the
+            // remaining byte budget is a misaligned stream, not an allocation.
+            let remaining = data.len().saturating_sub(*o);
+            if count as usize > remaining {
+                return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!(
+                        "storeinfo stock_data_list count {} exceeds remaining {} at offset {}",
+                        count, remaining, *o,
+                    )));
+            }
+            let mut v = Vec::with_capacity((count as usize).min(1 << 20));
+            for _ in 0..count {
+                v.push(StoreStockData::read_from(data, o)?);
+            }
+            Ok(v)
+        })(offset)?;
+        let sale_item_type_list = <CArray<u8>>::read_from(data, offset)?;
+        let not_sale_item_type_list = <CArray<u8>>::read_from(data, offset)?;
         Ok(Self {
-            key, string_key, is_blocked,
-            exchange_item_info_for_buy, exchange_item_info_list_for_sell,
-            sell_percents, store_type, price_increase_percent_list,
-            sellable_character_condition_logic, pre_reset_extra_111,
-            has_stock_condition, enter_city_wagon_store_116, reset_hour, reset_day,
-            buyable_stock_count, sellable_stock_count, sellable_type,
-            stock_data_list, sale_item_type_list, not_sale_item_type_list,
-            custom_mesh_obb_max_length,
-            fixed_price, use_housing_gimmick, reduce_price_by_looted_dead_body,
+            string_key, key, is_blocked, use_housing_gimmick, enter_city_wagon_store_116, sellable_type, fixed_price, has_stock_condition, store_type, reduce_price_by_looted_dead_body, pre_reset_extra_111, sellable_character_condition_logic, exchange_item_info_for_buy, reset_day, reset_hour, sellable_stock_count, buyable_stock_count, custom_mesh_obb_max_length, exchange_item_info_list_for_sell, sell_percents, price_increase_percent_list, stock_data_list, sale_item_type_list, not_sale_item_type_list,
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.use_housing_gimmick.write_to(w)?;
+        self.enter_city_wagon_store_116.write_to(w)?;
+        self.sellable_type.write_to(w)?;
+        self.fixed_price.write_to(w)?;
+        self.has_stock_condition.write_to(w)?;
+        self.store_type.write_to(w)?;
+        self.reduce_price_by_looted_dead_body.write_to(w)?;
+        self.pre_reset_extra_111.write_to(w)?;
+        self.sellable_character_condition_logic.write_to(w)?;
         self.exchange_item_info_for_buy.write_to(w)?;
+        self.reset_day.write_to(w)?;
+        self.reset_hour.write_to(w)?;
+        self.sellable_stock_count.write_to(w)?;
+        self.buyable_stock_count.write_to(w)?;
+        self.custom_mesh_obb_max_length.write_to(w)?;
         self.exchange_item_info_list_for_sell.write_to(w)?;
         self.sell_percents.write_to(w)?;
-        self.store_type.write_to(w)?;
         self.price_increase_percent_list.write_to(w)?;
-        self.sellable_character_condition_logic.write_to(w)?;  // u8 in 1.0.8 (was u32 in 1.0.7)
-        self.pre_reset_extra_111.write_to(w)?;
-        self.has_stock_condition.write_to(w)?;
-        self.enter_city_wagon_store_116.write_to(w)?;
-        self.reset_hour.write_to(w)?;
-        self.reset_day.write_to(w)?;
-        self.buyable_stock_count.write_to(w)?;
-        self.sellable_stock_count.write_to(w)?;
-        self.sellable_type.write_to(w)?;
         (self.stock_data_list.len() as u32).write_to(w)?;
         for sd in &self.stock_data_list { sd.write_to(w)?; }
         self.sale_item_type_list.write_to(w)?;
         self.not_sale_item_type_list.write_to(w)?;
-        self.custom_mesh_obb_max_length.write_to(w)?;
-        self.fixed_price.write_to(w)?;
-        self.use_housing_gimmick.write_to(w)?;
-        self.reduce_price_by_looted_dead_body.write_to(w)
+        Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("use_housing_gimmick".to_string(), self.use_housing_gimmick.to_json_value());
+        m.insert("enter_city_wagon_store_116".to_string(), self.enter_city_wagon_store_116.to_json_value());
+        m.insert("sellable_type".to_string(), self.sellable_type.to_json_value());
+        m.insert("fixed_price".to_string(), self.fixed_price.to_json_value());
+        m.insert("has_stock_condition".to_string(), self.has_stock_condition.to_json_value());
+        m.insert("store_type".to_string(), self.store_type.to_json_value());
+        m.insert("reduce_price_by_looted_dead_body".to_string(), self.reduce_price_by_looted_dead_body.to_json_value());
+        m.insert("pre_reset_extra_111".to_string(), self.pre_reset_extra_111.to_json_value());
+        m.insert("sellable_character_condition_logic".to_string(), self.sellable_character_condition_logic.to_json_value());
         m.insert("exchange_item_info_for_buy".to_string(), self.exchange_item_info_for_buy.to_json_value());
+        m.insert("reset_day".to_string(), self.reset_day.to_json_value());
+        m.insert("reset_hour".to_string(), self.reset_hour.to_json_value());
+        m.insert("sellable_stock_count".to_string(), self.sellable_stock_count.to_json_value());
+        m.insert("buyable_stock_count".to_string(), self.buyable_stock_count.to_json_value());
+        m.insert("custom_mesh_obb_max_length".to_string(), self.custom_mesh_obb_max_length.to_json_value());
         m.insert("exchange_item_info_list_for_sell".to_string(), self.exchange_item_info_list_for_sell.to_json_value());
         m.insert("sell_percents".to_string(), self.sell_percents.to_json_value());
-        m.insert("store_type".to_string(), self.store_type.to_json_value());
         m.insert("price_increase_percent_list".to_string(), self.price_increase_percent_list.to_json_value());
-        m.insert("sellable_character_condition_logic".to_string(), self.sellable_character_condition_logic.to_json_value());
-        m.insert("pre_reset_extra_111".to_string(), self.pre_reset_extra_111.to_json_value());
-        m.insert("has_stock_condition".to_string(), self.has_stock_condition.to_json_value());
-        m.insert("enter_city_wagon_store_116".to_string(), self.enter_city_wagon_store_116.to_json_value());
-        m.insert("reset_hour".to_string(), self.reset_hour.to_json_value());
-        m.insert("reset_day".to_string(), self.reset_day.to_json_value());
-        m.insert("buyable_stock_count".to_string(), self.buyable_stock_count.to_json_value());
-        m.insert("sellable_stock_count".to_string(), self.sellable_stock_count.to_json_value());
-        m.insert("sellable_type".to_string(), self.sellable_type.to_json_value());
         let stock_list: Vec<Value> = self.stock_data_list.iter().map(|s| s.to_json_value()).collect();
         m.insert("stock_data_list".to_string(), Value::Array(stock_list));
         m.insert("sale_item_type_list".to_string(), self.sale_item_type_list.to_json_value());
         m.insert("not_sale_item_type_list".to_string(), self.not_sale_item_type_list.to_json_value());
-        m.insert("custom_mesh_obb_max_length".to_string(), self.custom_mesh_obb_max_length.to_json_value());
-        m.insert("fixed_price".to_string(), self.fixed_price.to_json_value());
-        m.insert("use_housing_gimmick".to_string(), self.use_housing_gimmick.to_json_value());
-        m.insert("reduce_price_by_looted_dead_body".to_string(), self.reduce_price_by_looted_dead_body.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_item_info_for_buy")?)?;
-        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_item_info_list_for_sell")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sell_percents")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_type")?)?;
-        <CArray<u64> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "price_increase_percent_list")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_character_condition_logic")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pre_reset_extra_111")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_housing_gimmick")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "enter_city_wagon_store_116")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fixed_price")?)?;
         // Null-tolerant: a V3 store mod authored before 2.01.00 has no key for this.
         <u8 as WriteJsonValue>::write_from_json(w, obj.get("has_stock_condition").unwrap_or(&Value::Null))?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "enter_city_wagon_store_116")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_hour")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reduce_price_by_looted_dead_body")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pre_reset_extra_111")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_character_condition_logic")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_item_info_for_buy")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_day")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buyable_stock_count")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reset_hour")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_stock_count")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sellable_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buyable_stock_count")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "custom_mesh_obb_max_length")?)?;
+        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_item_info_list_for_sell")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sell_percents")?)?;
+        <CArray<u64> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "price_increase_percent_list")?)?;
         let arr = json_get_field(obj, "stock_data_list")?
             .as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "stock_data_list: expected array"))?;
@@ -899,10 +907,6 @@ impl<'a> StoreInfo<'a> {
         for v in arr { StoreStockData::write_from_json(w, v)?; }
         <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sale_item_type_list")?)?;
         <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "not_sale_item_type_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "custom_mesh_obb_max_length")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fixed_price")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_housing_gimmick")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reduce_price_by_looted_dead_body")?)?;
         Ok(())
     }
 }

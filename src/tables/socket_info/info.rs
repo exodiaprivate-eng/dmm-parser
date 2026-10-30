@@ -33,11 +33,11 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct SocketInfo<'a> {
-        pub key: u8,
         pub string_key: CString<'a>,
+        pub key: u8,
         pub is_blocked: u8,
-        pub socket_name: LocalizableString<'a>,
         pub icon_path: u32,
+        pub socket_name: LocalizableString<'a>,
     }
 }
 

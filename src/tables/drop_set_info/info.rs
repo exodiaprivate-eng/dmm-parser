@@ -43,15 +43,18 @@ use std::io::{self, Write};
 
 #[derive(Debug)]
 pub struct DropSetInfo<'a> {
-    pub key: u32,
+    // 2.04.00: the fields are read in a new order (Mac reader sub_1020517C4): string_key
+    // first, is_equal_percent fourth, the two strings last.
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
+    // ── 1.18.00: `_isEqualPercent` (appended after original_string then; fourth since 2.04).
+    pub is_equal_percent: u8,
     pub drop_roll_type: u8,
-    pub drop_roll_count: u32,
-    pub drop_condition_string: CString<'a>,
-    pub drop_tag_name_hash: u32,
-    pub list: CArray<OptionalDropTarget>,
     pub nee_slot_count: u16,
+    pub drop_tag_name_hash: u32,
+    pub drop_roll_count: u32,
+    pub list: CArray<OptionalDropTarget>,
     /// Wire u64 — fixed-point weight value (vanilla data shows values
     /// always within u32 range with high u32 zero, suggesting fixed-point
     /// scaling rather than f64).
@@ -61,18 +64,13 @@ pub struct DropSetInfo<'a> {
     /// interpretation. Treat as opaque u64 for round-trip safety; the
     /// game side knows the scaling factor.
     pub total_drop_rate: u64,
-    // ── 2.01.00 (2026-09-03): `_rollDiceSkipRate`, 8 bytes between `_totalDropRate`
-    // and `_originalString`. bytediff: every one of 14,736 changed records grew by
-    // exactly 8 B; the Mac oracle places the field at index 11, right after
-    // totalDropRate. Same wire shape as its neighbours (u64 fixed-point), kept
-    // opaque for round-trip safety.
+    // ── 2.01.00 (2026-09-03): `_rollDiceSkipRate`, u64 fixed-point like its neighbours.
     pub roll_dice_skip_rate: u64,
+    // ── 2.04.00: a StringInfoKey (4 bytes: Pearl Abyss's checksum of the text, 0xEAC5E173 =
+    // none) where 2.00-2.03 stored the text itself. The JSON name is kept; JSON text from an
+    // older mod is converted (see `json_traits::write_string_info_key`).
+    pub drop_condition_string: u32,
     pub original_string: CString<'a>,
-    // ── 1.18.00: `_isEqualPercent`, one u8 appended after original_string.
-    // 13,547 of the shared records grew by exactly 1 byte at the very end, and
-    // the oracle places this field immediately after `_originalString` — the
-    // rare case where the byte evidence and the oracle's own ordering agree.
-    pub is_equal_percent: u8,
 }
 
 impl<'a> DropSetInfo<'a> {
@@ -83,25 +81,25 @@ impl<'a> DropSetInfo<'a> {
     ) -> io::Result<Self> {
         let _ = entry_size; // typed reader is byte-perfect; size is informational
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let is_equal_percent = u8::read_from(data, offset)?;
         let drop_roll_type = u8::read_from(data, offset)?;
-        let drop_roll_count = u32::read_from(data, offset)?;
-        let drop_condition_string = CString::read_from(data, offset)?;
-        let drop_tag_name_hash = u32::read_from(data, offset)?;
-        let list = <CArray<OptionalDropTarget>>::read_from(data, offset)?;
         let nee_slot_count = u16::read_from(data, offset)?;
+        let drop_tag_name_hash = u32::read_from(data, offset)?;
+        let drop_roll_count = u32::read_from(data, offset)?;
+        let list = <CArray<OptionalDropTarget>>::read_from(data, offset)?;
         let need_weight = u64::read_from(data, offset)?;
         let total_drop_rate = u64::read_from(data, offset)?;
         let roll_dice_skip_rate = u64::read_from(data, offset)?;
+        let drop_condition_string = u32::read_from(data, offset)?;
         let original_string = CString::read_from(data, offset)?;
-        let is_equal_percent = u8::read_from(data, offset)?;
 
         Ok(Self {
-            key, string_key, is_blocked, drop_roll_type, drop_roll_count,
-            drop_condition_string, drop_tag_name_hash, list, nee_slot_count,
-            need_weight, total_drop_rate, roll_dice_skip_rate, original_string, is_equal_percent,
+            string_key, key, is_blocked, is_equal_percent, drop_roll_type, nee_slot_count,
+            drop_tag_name_hash, drop_roll_count, list, need_weight, total_drop_rate,
+            roll_dice_skip_rate, drop_condition_string, original_string,
         })
     }
 
@@ -112,87 +110,88 @@ impl<'a> DropSetInfo<'a> {
         path: &mut String,
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let is_equal_percent = track_read_field::<u8>(data, offset, path, ranges, "is_equal_percent", "u8")?;
         let drop_roll_type = track_read_field::<u8>(data, offset, path, ranges, "drop_roll_type", "u8")?;
-        let drop_roll_count = track_read_field::<u32>(data, offset, path, ranges, "drop_roll_count", "u32")?;
-        let drop_condition_string = track_read_field::<CString<'a>>(data, offset, path, ranges, "drop_condition_string", "CString")?;
-        let drop_tag_name_hash = track_read_field::<u32>(data, offset, path, ranges, "drop_tag_name_hash", "u32")?;
-        let list = track_read_field::<CArray<OptionalDropTarget>>(data, offset, path, ranges, "list", "CArray<OptionalDropTarget>")?;
         let nee_slot_count = track_read_field::<u16>(data, offset, path, ranges, "nee_slot_count", "u16")?;
+        let drop_tag_name_hash = track_read_field::<u32>(data, offset, path, ranges, "drop_tag_name_hash", "u32")?;
+        let drop_roll_count = track_read_field::<u32>(data, offset, path, ranges, "drop_roll_count", "u32")?;
+        let list = track_read_field::<CArray<OptionalDropTarget>>(data, offset, path, ranges, "list", "CArray<OptionalDropTarget>")?;
         let need_weight = track_read_field::<u64>(data, offset, path, ranges, "need_weight", "u64")?;
         let total_drop_rate = track_read_field::<u64>(data, offset, path, ranges, "total_drop_rate", "u64")?;
         let roll_dice_skip_rate = track_read_field::<u64>(data, offset, path, ranges, "roll_dice_skip_rate", "u64")?;
+        let drop_condition_string = track_read_field::<u32>(data, offset, path, ranges, "drop_condition_string", "u32")?;
         let original_string = track_read_field::<CString<'a>>(data, offset, path, ranges, "original_string", "CString")?;
-        let is_equal_percent = track_read_field::<u8>(data, offset, path, ranges, "is_equal_percent", "u8")?;
         Ok(Self {
-            key, string_key, is_blocked, drop_roll_type, drop_roll_count,
-            drop_condition_string, drop_tag_name_hash, list, nee_slot_count,
-            need_weight, total_drop_rate, roll_dice_skip_rate, original_string, is_equal_percent,
+            string_key, key, is_blocked, is_equal_percent, drop_roll_type, nee_slot_count,
+            drop_tag_name_hash, drop_roll_count, list, need_weight, total_drop_rate,
+            roll_dice_skip_rate, drop_condition_string, original_string,
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.is_equal_percent.write_to(w)?;
         self.drop_roll_type.write_to(w)?;
-        self.drop_roll_count.write_to(w)?;
-        self.drop_condition_string.write_to(w)?;
-        self.drop_tag_name_hash.write_to(w)?;
-        self.list.write_to(w)?;
         self.nee_slot_count.write_to(w)?;
+        self.drop_tag_name_hash.write_to(w)?;
+        self.drop_roll_count.write_to(w)?;
+        self.list.write_to(w)?;
         self.need_weight.write_to(w)?;
         self.total_drop_rate.write_to(w)?;
         self.roll_dice_skip_rate.write_to(w)?;
+        self.drop_condition_string.write_to(w)?;
         self.original_string.write_to(w)?;
-        self.is_equal_percent.write_to(w)?;
         Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("is_equal_percent".to_string(), self.is_equal_percent.to_json_value());
         m.insert("drop_roll_type".to_string(), self.drop_roll_type.to_json_value());
-        m.insert("drop_roll_count".to_string(), self.drop_roll_count.to_json_value());
-        m.insert("drop_condition_string".to_string(), self.drop_condition_string.to_json_value());
-        m.insert("drop_tag_name_hash".to_string(), self.drop_tag_name_hash.to_json_value());
-        m.insert("list".to_string(), self.list.to_json_value());
         m.insert("nee_slot_count".to_string(), self.nee_slot_count.to_json_value());
+        m.insert("drop_tag_name_hash".to_string(), self.drop_tag_name_hash.to_json_value());
+        m.insert("drop_roll_count".to_string(), self.drop_roll_count.to_json_value());
+        m.insert("list".to_string(), self.list.to_json_value());
         m.insert("need_weight".to_string(), self.need_weight.to_json_value());
         m.insert("total_drop_rate".to_string(), self.total_drop_rate.to_json_value());
         m.insert("roll_dice_skip_rate".to_string(), self.roll_dice_skip_rate.to_json_value());
+        m.insert("drop_condition_string".to_string(), self.drop_condition_string.to_json_value());
         m.insert("original_string".to_string(), self.original_string.to_json_value());
-        m.insert("is_equal_percent".to_string(), self.is_equal_percent.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        // Null-tolerant: a V3 mod authored before 1.18 has no key for this.
+        <u8 as WriteJsonValue>::write_from_json(
+            w, obj.get("is_equal_percent").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_roll_type")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_roll_count")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_condition_string")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_tag_name_hash")?)?;
-        <CArray<OptionalDropTarget> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "nee_slot_count")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_tag_name_hash")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_roll_count")?)?;
+        <CArray<OptionalDropTarget> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_weight")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "total_drop_rate")?)?;
         // Null-tolerant: a V3 mod authored before 2.01.00 has no key for this (Stormsteel
         // 1.0 ships 585 whole-record dropset intents built on 2.00.02).
         <u64 as WriteJsonValue>::write_from_json(
             w, obj.get("roll_dice_skip_rate").unwrap_or(&Value::Null))?;
+        crate::json_traits::write_string_info_key(w, json_get_field(obj, "drop_condition_string")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "original_string")?)?;
-        // Null-tolerant: a V3 mod authored before 1.18 has no key for this.
-        <u8 as WriteJsonValue>::write_from_json(
-            w, obj.get("is_equal_percent").unwrap_or(&Value::Null))?;
         Ok(())
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -218,6 +217,24 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "dropsetinfo roundtrip bytes mismatch");
+    }
+
+    /// DIAG_KEY=<hex> cargo test --lib drop_set_info::info::tests::diag_tracked_one -- --ignored --nocapture
+    #[test]
+    #[ignore = "diagnostic"]
+    fn diag_tracked_one() {
+        let want = u32::from_str_radix(&std::env::var("DIAG_KEY").unwrap_or_default(), 16).ok();
+        let Ok(data) = std::fs::read(pabgb_path()) else { return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { return; };
+        for (k, s, e) in entry_ranges(&entries, data.len()) {
+            if want.map_or(false, |w| k as u32 != w) { continue; }
+            let (mut c, mut path, mut ranges) = (s, String::new(), Vec::new());
+            let r = DropSetInfo::read_tracked_with_size(&data, &mut c, e - s, &mut path, &mut ranges);
+            eprintln!("k=0x{:x} [{}..{}) len={} result={:?} consumed {}", k, s, e, e - s, r.as_ref().map(|_| "ok").map_err(|x| x.to_string()), c as i64 - s as i64);
+            for f in ranges.iter().take(120) { eprintln!("   rel {:>5}..{:<5} {:<14} {}", f.start - s, f.end - s, f.ty, f.path); }
+            eprintln!("   bytes: {:02x?}", &data[s..e.min(s + 200)]);
+            break;
+        }
     }
 
     #[test]

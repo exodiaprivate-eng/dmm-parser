@@ -41,8 +41,8 @@ use std::io::{self, Write};
 
 #[derive(Debug)]
 pub struct GameEventHandlerInfo<'a> {
-    pub key: u16,
     pub string_key: CString<'a>,
+    pub key: u16,
     pub is_blocked: u8,
     pub game_event_type: u8,
     pub player_condition: u32,
@@ -66,8 +66,8 @@ impl<'a> GameEventHandlerInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u16::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u16::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let game_event_type = u8::read_from(data, offset)?;
         let player_condition = u32::read_from(data, offset)?;
@@ -104,8 +104,8 @@ impl<'a> GameEventHandlerInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.game_event_type.write_to(w)?;
         self.player_condition.write_to(w)?;
@@ -125,8 +125,8 @@ impl<'a> GameEventHandlerInfo<'a> {
     ///   `GameEventHandlerData::to_json_value` for the per-variant schema.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("game_event_type".to_string(), self.game_event_type.to_json_value());
         m.insert(
@@ -150,8 +150,8 @@ impl<'a> GameEventHandlerInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_event_type")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "player_condition")?)?;

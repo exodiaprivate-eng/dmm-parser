@@ -46,9 +46,10 @@ py_binary_struct! {
     }
 }
 py_binary_struct! {
+    // 2.04.00 (Mac reader sub_102063984): stringKey now comes before key.
     pub struct AIMoveSpeedInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub slot_0: COptional<AIMoveSpeedData>,
         pub slot_1: COptional<AIMoveSpeedData>,

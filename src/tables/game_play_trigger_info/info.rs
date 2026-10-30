@@ -72,7 +72,7 @@
 // ✅ _worldMapColorR (direct_u8, stream=1)
 
 use crate::binary::*;
-use crate::py_binary_struct;
+use crate::pabgh_typed_blob_table;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use serde_json::{Map, Value};
 use std::io::{self, Write};
@@ -177,198 +177,28 @@ impl WriteJsonValue for TargetDataItem {
     }
 }
 
-py_binary_struct! {
-    pub struct GptTrailingItem {
-        pub tag: u8,
-        pub value: u32,
+pabgh_typed_blob_table! {
+    // 2.04.00 (Mac reader sub_10206C6C4). The record is now the game's 16 fields in this order:
+    // the simple ones below, then `_gameExpression` (a presence byte + an expression tree),
+    // `_targetDataList`, `_functionDataList`, `_gimmickAliasPointerList` and `_prefabName`.
+    // The pre-2.04 model here was fitted by width (position / rotation / skill fields that are
+    // not GamePlayTriggerInfo fields at all), so it is replaced: the fields up to `_tagList`
+    // are typed with the game's names and everything from `_gameExpression` on stays in
+    // `tail_blob`, byte-exact. Nothing in DMM addresses this table.
+    pub struct GamePlayTriggerInfo<'a> {
+        pub string_key: CString<'a>,
+        pub key: u32,
+        pub is_blocked: u8,
+        pub is_enable: u8,
+        pub world_map_color_r: u8,
+        pub use_trigger_event: u8,
+        pub player_condition_info: u32,
+        pub ui_map_texture_info: u32,
+        pub faction_management_info: u16,
+        pub trigger_type: u64,
+        pub tag_list: CArray<u32>,           // StringInfoKeys
     }
-}
-
-#[derive(Debug)]
-pub struct GamePlayTriggerInfo<'a> {
-    pub key: u32,
-    pub string_key: CString<'a>,
-    pub is_blocked: u8,
-    pub trigger_type: u8,
-    pub is_enable: u8,
-    pub safe_zone_type: u8,
-    pub player_condition_info: u32,
-    /// 2.03.00: `_tagList` (oracle GamePlayTriggerInfo 15 -> 16 fields; +4 B every
-    /// record = an empty count). Read and written at the record TAIL, after
-    /// target_data_list: the oracle lists it 4th, but reading it there under-reads
-    /// every record by 50 bytes.
-    pub tag_list: CArray<u32>,
-    pub ui_map_texture_info: u32,
-    pub position: [f32; 3],
-    pub rotation_y: f32,
-    pub world_map_color_r: u8,
-    /// NEW 1.10: `_playableChracterList` (Mac sub_10192405C @a2+48, reader
-    /// sub_1010A998C — CArray of CharacterKey, u32 wire). Inserted before
-    /// `_fieldReviveInfo`.
-    pub playable_character_list: CArray<u32>,
-    pub field_revive_info: u32,
-    /// NEW 1.10: `_contentsPhaseType` (@a2+68, u8 via vtable width 1).
-    pub contents_phase_type: u8,
-    /// NEW 1.10: `_skillInfo` (@a2+70, reader sub_1007807C0 — SkillKey u32 wire).
-    pub skill_info: u32,
-    /// NEW 1.10: `_skillLevel` (@a2+72, reader sub_1006E4328 — u32, width 4).
-    pub skill_level: u32,
-    pub target_data_list: CArray<TargetDataItem>,
-    // NEW 1.12: 22 fixed bytes + CArray of 5-byte {u8 tag, u32} items.
-    pub new_112_a: u32,
-    pub new_112_b: u32,
-    pub new_112_c: u32,
-    pub new_112_d: u32,
-    pub new_112_e: u32,
-    pub new_112_f: u16,
-    pub new_112_list: CArray<GptTrailingItem>,
-}
-
-impl<'a> GamePlayTriggerInfo<'a> {
-    /// Read with explicit entry size from pabgh (compat shim — Tier 1 means
-    /// every byte is consumed by typed reads, so the size is just verified).
-    pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_size: usize) -> io::Result<Self> {
-        let start = *offset;
-        let item = Self::read_from(data, offset)?;
-        let consumed = *offset - start;
-        if consumed != entry_size {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("GamePlayTriggerInfo: consumed {} bytes, expected {}", consumed, entry_size),
-            ));
-        }
-        Ok(item)
-    }
-
-    pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let trigger_type = u8::read_from(data, offset)?;
-        // 2.03.00: `_tagList` right after _triggerType, as the 2.03 reader-string order
-        // has it (_isBlocked _triggerType _tagList _playerConditionInfo ...). +4 B every
-        // record = an empty count; the byte diff shows the four new zero bytes inside
-        // the zero run that follows trigger_type. This table was already a standing
-        // roundtrip failure on 2.02 (under-read), so the test does not judge this line.
-        let tag_list = CArray::<u32>::read_from(data, offset)?;
-        let is_enable = u8::read_from(data, offset)?;
-        let safe_zone_type = u8::read_from(data, offset)?;
-        let player_condition_info = u32::read_from(data, offset)?;
-        let ui_map_texture_info = u32::read_from(data, offset)?;
-        let position = <[f32; 3]>::read_from(data, offset)?;
-        let rotation_y = f32::read_from(data, offset)?;
-        let world_map_color_r = u8::read_from(data, offset)?;
-        let playable_character_list = CArray::<u32>::read_from(data, offset)?;
-        let field_revive_info = u32::read_from(data, offset)?;
-        let contents_phase_type = u8::read_from(data, offset)?;
-        let skill_info = u32::read_from(data, offset)?;
-        let skill_level = u32::read_from(data, offset)?;
-        // NEW 1.12: 26-byte block (22 fixed + CArray<5B>) is inserted BEFORE
-        // target_data_list, not appended after it.
-        let new_112_a = u32::read_from(data, offset)?;
-        let new_112_b = u32::read_from(data, offset)?;
-        let new_112_c = u32::read_from(data, offset)?;
-        let new_112_d = u32::read_from(data, offset)?;
-        let new_112_e = u32::read_from(data, offset)?;
-        let new_112_f = u16::read_from(data, offset)?;
-        let new_112_list = CArray::<GptTrailingItem>::read_from(data, offset)?;
-        let target_data_list = CArray::<TargetDataItem>::read_from(data, offset)?;
-        Ok(Self {
-            key, string_key, is_blocked, trigger_type, tag_list, is_enable, safe_zone_type,
-            player_condition_info, ui_map_texture_info, position, rotation_y,
-            world_map_color_r, playable_character_list, field_revive_info,
-            contents_phase_type, skill_info, skill_level, target_data_list,
-            new_112_a, new_112_b, new_112_c, new_112_d, new_112_e, new_112_f, new_112_list,
-        })
-    }
-
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
-        self.string_key.write_to(w)?;
-        self.is_blocked.write_to(w)?;
-        self.trigger_type.write_to(w)?;
-        self.tag_list.write_to(w)?;
-        self.is_enable.write_to(w)?;
-        self.safe_zone_type.write_to(w)?;
-        self.player_condition_info.write_to(w)?;
-        self.ui_map_texture_info.write_to(w)?;
-        self.position.write_to(w)?;
-        self.rotation_y.write_to(w)?;
-        self.world_map_color_r.write_to(w)?;
-        self.playable_character_list.write_to(w)?;
-        self.field_revive_info.write_to(w)?;
-        self.contents_phase_type.write_to(w)?;
-        self.skill_info.write_to(w)?;
-        self.skill_level.write_to(w)?;
-        self.new_112_a.write_to(w)?;
-        self.new_112_b.write_to(w)?;
-        self.new_112_c.write_to(w)?;
-        self.new_112_d.write_to(w)?;
-        self.new_112_e.write_to(w)?;
-        self.new_112_f.write_to(w)?;
-        self.new_112_list.write_to(w)?;
-        self.target_data_list.write_to(w)?;
-        Ok(())
-    }
-
-    pub fn to_json_dict(&self) -> Map<String, Value> {
-        let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
-        m.insert("string_key".to_string(), self.string_key.to_json_value());
-        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("trigger_type".to_string(), self.trigger_type.to_json_value());
-        m.insert("is_enable".to_string(), self.is_enable.to_json_value());
-        m.insert("safe_zone_type".to_string(), self.safe_zone_type.to_json_value());
-        m.insert("player_condition_info".to_string(), self.player_condition_info.to_json_value());
-        m.insert("ui_map_texture_info".to_string(), self.ui_map_texture_info.to_json_value());
-        m.insert("position".to_string(), self.position.to_json_value());
-        m.insert("rotation_y".to_string(), self.rotation_y.to_json_value());
-        m.insert("world_map_color_r".to_string(), self.world_map_color_r.to_json_value());
-        m.insert("playable_character_list".to_string(), self.playable_character_list.to_json_value());
-        m.insert("field_revive_info".to_string(), self.field_revive_info.to_json_value());
-        m.insert("contents_phase_type".to_string(), self.contents_phase_type.to_json_value());
-        m.insert("skill_info".to_string(), self.skill_info.to_json_value());
-        m.insert("skill_level".to_string(), self.skill_level.to_json_value());
-        m.insert("target_data_list".to_string(), self.target_data_list.to_json_value());
-        m.insert("tag_list".to_string(), self.tag_list.to_json_value());
-        m.insert("new_112_a".to_string(), self.new_112_a.to_json_value());
-        m.insert("new_112_b".to_string(), self.new_112_b.to_json_value());
-        m.insert("new_112_c".to_string(), self.new_112_c.to_json_value());
-        m.insert("new_112_d".to_string(), self.new_112_d.to_json_value());
-        m.insert("new_112_e".to_string(), self.new_112_e.to_json_value());
-        m.insert("new_112_f".to_string(), self.new_112_f.to_json_value());
-        m.insert("new_112_list".to_string(), self.new_112_list.to_json_value());
-        m
-    }
-
-    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trigger_type")?)?;
-        <CArray<u32> as WriteJsonValue>::write_from_json(w, obj.get("tag_list").unwrap_or(&Value::Null))?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_enable")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "safe_zone_type")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "player_condition_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_map_texture_info")?)?;
-        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "position")?)?;
-        <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "rotation_y")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "world_map_color_r")?)?;
-        <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_character_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_revive_info")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contents_phase_type")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_level")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_a")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_c")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_d")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_e")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_f")?)?;
-        <CArray<GptTrailingItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_list")?)?;
-        <CArray<TargetDataItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_data_list")?)?;
-        Ok(())
-    }
+    tail: tail_blob;
 }
 
 #[cfg(test)]
@@ -385,10 +215,11 @@ mod tests {
         let mut items = Vec::new();
         for (i, (k, s, e)) in ranges.iter().enumerate() {
             let mut c = *s;
-            let item = GamePlayTriggerInfo::read_from(&data, &mut c)
-                .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er));
-            assert_eq!(c, *e, "e{} k=0x{:x}: under/over-read {}/{}", i, k, c - s, e - s);
-            items.push(item);
+            items.push(
+                GamePlayTriggerInfo::read_with_size(&data, &mut c, e - s)
+                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
+            );
+            assert_eq!(c, *e);
         }
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
@@ -397,12 +228,12 @@ mod tests {
 
     #[test]
     fn json_roundtrip() {
-        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
         let ranges = entry_ranges(&entries, data.len());
         for (i, (key, start, end)) in ranges.iter().enumerate() {
             let mut cursor = *start;
-            let item = GamePlayTriggerInfo::read_from(&data, &mut cursor).unwrap();
+            let item = GamePlayTriggerInfo::read_with_size(&data, &mut cursor, end - start).unwrap();
             assert_eq!(cursor, *end, "entry {} key=0x{:x}: under/over-read", i, key);
             let dict = item.to_json_dict();
             let mut from_typed = Vec::new();
@@ -410,29 +241,7 @@ mod tests {
             let mut from_json = Vec::new();
             GamePlayTriggerInfo::write_from_json_dict(&mut from_json, &dict)
                 .unwrap_or_else(|e| panic!("entry {} key=0x{:x}: write_from_json_dict: {}", i, key, e));
-            assert_eq!(
-                from_json, from_typed,
-                "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key
-            );
+            assert_eq!(from_json, from_typed, "entry {} key=0x{:x}: JSON round-trip diverges from typed write", i, key);
         }
-    }
-
-    #[test]
-    fn target_kinds_seen() {
-        // Confirm vanilla data exercises the variant — sanity check that
-        // we're not just shipping an unused enum.
-        use std::collections::HashMap;
-        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP"); return; };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP"); return; };
-        let ranges = entry_ranges(&entries, data.len());
-        let mut counts: HashMap<&'static str, usize> = HashMap::new();
-        for (_, s, _) in &ranges {
-            let mut c = *s;
-            let item = GamePlayTriggerInfo::read_from(&data, &mut c).unwrap();
-            for t in &item.target_data_list.items {
-                *counts.entry(t.kind_name()).or_insert(0) += 1;
-            }
-        }
-        eprintln!("game_play_trigger target_data kinds: {:?}", counts);
     }
 }

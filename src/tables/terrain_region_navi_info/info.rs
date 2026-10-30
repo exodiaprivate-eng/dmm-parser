@@ -32,8 +32,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct TerrainRegionNaviInfo<'a> {
-        pub key: u8,
         pub string_key: CString<'a>,
+        pub key: u8,
         pub is_blocked: u8,
         pub is_forest_region: u8,
     }

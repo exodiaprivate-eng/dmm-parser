@@ -37,15 +37,15 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct SkillTreeGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub faction_node_info: u32,
+        pub character_info: u32,
+        pub ui_texture_icon_path: u32,
         pub skill_tree_info_list: CArray<u32>,
         pub skill_group_name: LocalizableString<'a>,
         pub skill_group_desc: LocalizableString<'a>,
-        pub ui_texture_icon_path: u32,
-        pub character_info: u32,
-        pub faction_node_info: u32,
     }
 }
 

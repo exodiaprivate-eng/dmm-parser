@@ -1715,6 +1715,19 @@ pub enum GimmickTail<'a> {
 }
 
 impl<'a> GimmickTail<'a> {
+    /// The 2.04 path: everything after the typed prefix, byte-exact.
+    pub fn read_raw(data: &'a [u8], offset: &mut usize, entry_end: usize) -> io::Result<Self> {
+        if *offset > entry_end || entry_end > data.len() {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                "GimmickTail: prefix ends at {} past the record end {}", *offset, entry_end)));
+        }
+        let blob = data[*offset..entry_end].to_vec();
+        *offset = entry_end;
+        Ok(GimmickTail::Raw(blob))
+    }
+
+    /// The pre-2.04 decoder (2.03 field order). Not used on 2.04 data; kept for the RE
+    /// notes and the diagnostics below until the 2.04 tail is typed.
     pub fn read_with_size(data: &'a [u8], offset: &mut usize, entry_end: usize, group: u32) -> io::Result<Self> {
         let tail_start = *offset;
         let mut probe = tail_start;
@@ -2042,14 +2055,17 @@ impl<'a> GimmickTail<'a> {
     }
 }
 
+/// 2.04.00 (Mac reader `sub_10205A584`, 220 fields): stringKey, key, isBlocked, prefabPath, then
+/// the rest of the record re-sequenced (gimmickGroupInfo and breakableObjectInfo now sit among
+/// the lookups near the end). The pre-2.04 `GimmickTail::Decoded` walk is the 2.03 order, so
+/// on 2.04 the tail is always kept `Raw`; `drop_info_scan` still exposes the reward lists
+/// (`tail.drop_info_data_list`) from the raw bytes.
 #[derive(Debug)]
 pub struct GimmickInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub prefab_path: CString<'a>,
-    pub gimmick_group_info: u32,
-    pub breakable_object_info: u16,
     pub tail: GimmickTail<'a>,
 }
 
@@ -2062,18 +2078,13 @@ impl<'a> GimmickInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let prefab_path = CString::read_from(data, offset)?;
-        let gimmick_group_info = u32::read_from(data, offset)?;
-        let breakable_object_info = u16::read_from(data, offset)?;
-        let tail = GimmickTail::read_with_size(data, offset, entry_end, gimmick_group_info)?;
+        let tail = GimmickTail::read_raw(data, offset, entry_end)?;
 
-        Ok(Self {
-            key, string_key, is_blocked, prefab_path,
-            gimmick_group_info, breakable_object_info, tail,
-        })
+        Ok(Self { string_key, key, is_blocked, prefab_path, tail })
     }
 
     pub fn read_tracked_with_size(
@@ -2084,50 +2095,39 @@ impl<'a> GimmickInfo<'a> {
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
         let entry_end = *offset + entry_size;
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
         let prefab_path = track_read_field::<CString<'a>>(data, offset, path, ranges, "prefab_path", "CString")?;
-        let gimmick_group_info = track_read_field::<u32>(data, offset, path, ranges, "gimmick_group_info", "u32")?;
-        let breakable_object_info = track_read_field::<u16>(data, offset, path, ranges, "breakable_object_info", "u16")?;
         let tail = track_read_with(offset, path, ranges, "tail", "GimmickTail", |o| {
-            GimmickTail::read_with_size(data, o, entry_end, gimmick_group_info)
+            GimmickTail::read_raw(data, o, entry_end)
         })?;
-        Ok(Self {
-            key, string_key, is_blocked, prefab_path,
-            gimmick_group_info, breakable_object_info, tail,
-        })
+        Ok(Self { string_key, key, is_blocked, prefab_path, tail })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.prefab_path.write_to(w)?;
-        self.gimmick_group_info.write_to(w)?;
-        self.breakable_object_info.write_to(w)?;
         self.tail.write_to(w)
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("prefab_path".to_string(), self.prefab_path.to_json_value());
-        m.insert("gimmick_group_info".to_string(), self.gimmick_group_info.to_json_value());
-        m.insert("breakable_object_info".to_string(), self.breakable_object_info.to_json_value());
         m.insert("tail".to_string(), self.tail.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "prefab_path")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gimmick_group_info")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "breakable_object_info")?)?;
         GimmickTail::write_from_json(w, json_get_field(obj, "tail")?)?;
         Ok(())
     }
@@ -2139,32 +2139,8 @@ mod tests {
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets_from_bytes};
 
     fn find_fixture() -> Option<(Vec<u8>, Vec<u8>)> {
-        let candidates: &[(&str, &str)] = &[
-            (
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\gimmickinfo.pabgb",
-                r"C:\Users\corin\Desktop\CD DUMPING TOOLS\dmm-parser\pabgb-dumps-1.07\gimmickinfo.pabgh",
-            ),
-            (
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gimmickinfo.pabgb",
-                "/mnt/c/temp/GIT/CrimsonDesertUpdates/pabgb/2026-5-1/gimmickinfo.pabgh",
-            ),
-            (
-                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\gimmickinfo.pabgb",
-                r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-5-1\gimmickinfo.pabgh",
-            ),
-        ];
-        if let Ok(p) = std::env::var("DMM_PARSER_GIMMICKINFO_PABGB") {
-            let q = std::env::var("DMM_PARSER_GIMMICKINFO_PABGH").ok()?;
-            if let (Ok(d), Some(e)) = (std::fs::read(&p), std::fs::read(&q).ok()) {
-                return Some((d, e));
-            }
-        }
-        for (pb, pg) in candidates {
-            if let (Ok(d), Ok(e)) = (std::fs::read(pb), std::fs::read(pg)) {
-                return Some((d, e));
-            }
-        }
-        None
+        let pb = crate::testenv::resolve("gimmickinfo.pabgb");
+        Some((std::fs::read(&pb).ok()?, std::fs::read(pb.with_extension("pabgh")).ok()?))
     }
 
     macro_rules! load_or_skip {

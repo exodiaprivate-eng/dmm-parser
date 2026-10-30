@@ -58,14 +58,15 @@ fn write_cstring_array8(arr: &[CString; 8], w: &mut dyn Write) -> io::Result<()>
 
 impl<'a> PlatformAchievementInfo<'a> {
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
+        // 2.04.00 order (Mac reader sub_102065D80).
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
-        let mission_info = u32::read_from(data, offset)?;
-        let platform_achievement_ids = read_cstring_array8(data, offset)?;
         let type_ = u8::read_from(data, offset)?;
-        let questkey = u32::read_from(data, offset)?;
         let quest_group_key = u16::read_from(data, offset)?;
+        let mission_info = u32::read_from(data, offset)?;
+        let questkey = u32::read_from(data, offset)?;
+        let platform_achievement_ids = read_cstring_array8(data, offset)?;
         let quest_group_platform_id = read_cstring_array8(data, offset)?;
         let quest_link_info_list = CArray::<QuestLinkInfoEntry>::read_from(data, offset)?;
 
@@ -77,14 +78,14 @@ impl<'a> PlatformAchievementInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        self.mission_info.write_to(w)?;
-        write_cstring_array8(&self.platform_achievement_ids, w)?;
         self.type_.write_to(w)?;
-        self.questkey.write_to(w)?;
         self.quest_group_key.write_to(w)?;
+        self.mission_info.write_to(w)?;
+        self.questkey.write_to(w)?;
+        write_cstring_array8(&self.platform_achievement_ids, w)?;
         write_cstring_array8(&self.quest_group_platform_id, w)?;
         self.quest_link_info_list.write_to(w)?;
         Ok(())
@@ -112,14 +113,14 @@ impl<'a> PlatformAchievementInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mission_info")?)?;
-        write_cstring_array8_from_json(w, json_get_field(obj, "platform_achievement_ids")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "type_")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "questkey")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_group_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mission_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "questkey")?)?;
+        write_cstring_array8_from_json(w, json_get_field(obj, "platform_achievement_ids")?)?;
         write_cstring_array8_from_json(w, json_get_field(obj, "quest_group_platform_id")?)?;
         <CArray<QuestLinkInfoEntry> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_link_info_list")?)?;
         Ok(())

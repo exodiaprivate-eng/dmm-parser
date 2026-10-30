@@ -124,6 +124,7 @@ py_binary_struct! {
         pub height_fog_density: u32,
         pub height_fog_baseline: u32,
         pub height_fog_falloff: u32,
+        pub height_fog_noise_range: u32,     // 2.04.00
         pub volume_fog_scatter_color: u32,
         pub cloud_base_density: u32,
         pub cloud_base_contrast: u32,
@@ -228,23 +229,31 @@ impl<'a, T: BinaryRead<'a> + BinaryWrite + ToJsonValue + WriteJsonValue> Optiona
 
 #[derive(Debug)]
 pub struct GameGlobalEffectInfo<'a> {
-    pub key: u16,
+    // 2.04.00 order (Mac reader sub_102063C80). New: startDirectionType, projectileForwardOffset,
+    // projectileRandomRange, shotSpeed / shotYaw / shotPitch (8 bytes each, held raw).
     pub string_key: CString<'a>,
+    pub key: u16,
     pub is_blocked: u8,
-    pub condition: OptionalGameCondition<'a>,
+    pub projectile_shot_count: u8,
+    pub projectile_hit_rate: u8,
+    pub start_direction_type: u8,
+    pub is_advanced: u8,
+    pub projectile_create_delay_time: u32,
     pub projectile_key: u32,
     pub projectile_shot_key: u32,
     pub projectile_chase_physics_material_hash: u32,
-    pub projectile_shot_spread: [f32; 3],
-    pub projectile_shot_interval: u64,
     pub projectile_height_offset: u32,
-    pub projectile_create_delay_time: u32,
-    pub projectile_hit_rate: u8,
-    pub projectile_shot_count: u8,
+    pub projectile_forward_offset: f32,
+    pub projectile_random_range: [f32; 3],
+    pub projectile_shot_spread: [f32; 3],
+    pub condition: OptionalGameCondition<'a>,
+    pub projectile_shot_interval: u64,
+    pub shot_speed: u64,
+    pub shot_yaw: u64,
+    pub shot_pitch: u64,
     pub effect_data: OptionalFixed<EffectData>,
     pub weather_data: OptionalFixed<WeatherData>,
     pub post_process_data: OptionalFixed<PostProcessData>,
-    pub is_advanced: u8,
 }
 
 impl<'a> GameGlobalEffectInfo<'a> {
@@ -260,94 +269,113 @@ impl<'a> GameGlobalEffectInfo<'a> {
     }
 
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u16::read_from(data, offset)?;
-        let string_key = CString::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let condition = OptionalGameCondition::read_from(data, offset)?;
-        let projectile_key = u32::read_from(data, offset)?;
-        let projectile_shot_key = u32::read_from(data, offset)?;
-        let projectile_chase_physics_material_hash = u32::read_from(data, offset)?;
+        let string_key = <CString>::read_from(data, offset)?;
+        let key = <u16>::read_from(data, offset)?;
+        let is_blocked = <u8>::read_from(data, offset)?;
+        let projectile_shot_count = <u8>::read_from(data, offset)?;
+        let projectile_hit_rate = <u8>::read_from(data, offset)?;
+        let start_direction_type = <u8>::read_from(data, offset)?;
+        let is_advanced = <u8>::read_from(data, offset)?;
+        let projectile_create_delay_time = <u32>::read_from(data, offset)?;
+        let projectile_key = <u32>::read_from(data, offset)?;
+        let projectile_shot_key = <u32>::read_from(data, offset)?;
+        let projectile_chase_physics_material_hash = <u32>::read_from(data, offset)?;
+        let projectile_height_offset = <u32>::read_from(data, offset)?;
+        let projectile_forward_offset = <f32>::read_from(data, offset)?;
+        let projectile_random_range = <[f32; 3]>::read_from(data, offset)?;
         let projectile_shot_spread = <[f32; 3]>::read_from(data, offset)?;
-        let projectile_shot_interval = u64::read_from(data, offset)?;
-        let projectile_height_offset = u32::read_from(data, offset)?;
-        let projectile_create_delay_time = u32::read_from(data, offset)?;
-        let projectile_hit_rate = u8::read_from(data, offset)?;
-        let projectile_shot_count = u8::read_from(data, offset)?;
+        let condition = OptionalGameCondition::read_from(data, offset)?;
+        let projectile_shot_interval = <u64>::read_from(data, offset)?;
+        let shot_speed = <u64>::read_from(data, offset)?;
+        let shot_yaw = <u64>::read_from(data, offset)?;
+        let shot_pitch = <u64>::read_from(data, offset)?;
         let effect_data = OptionalFixed::<EffectData>::read_from(data, offset)?;
         let weather_data = OptionalFixed::<WeatherData>::read_from(data, offset)?;
         let post_process_data = OptionalFixed::<PostProcessData>::read_from(data, offset)?;
-        let is_advanced = u8::read_from(data, offset)?;
         Ok(Self {
-            key, string_key, is_blocked, condition,
-            projectile_key, projectile_shot_key, projectile_chase_physics_material_hash,
-            projectile_shot_spread, projectile_shot_interval,
-            projectile_height_offset, projectile_create_delay_time,
-            projectile_hit_rate, projectile_shot_count,
-            effect_data, weather_data, post_process_data, is_advanced,
+            string_key, key, is_blocked, projectile_shot_count, projectile_hit_rate, start_direction_type, is_advanced, projectile_create_delay_time, projectile_key, projectile_shot_key, projectile_chase_physics_material_hash, projectile_height_offset, projectile_forward_offset, projectile_random_range, projectile_shot_spread, condition, projectile_shot_interval, shot_speed, shot_yaw, shot_pitch, effect_data, weather_data, post_process_data,
         })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        self.condition.write_to(w)?;
+        self.projectile_shot_count.write_to(w)?;
+        self.projectile_hit_rate.write_to(w)?;
+        self.start_direction_type.write_to(w)?;
+        self.is_advanced.write_to(w)?;
+        self.projectile_create_delay_time.write_to(w)?;
         self.projectile_key.write_to(w)?;
         self.projectile_shot_key.write_to(w)?;
         self.projectile_chase_physics_material_hash.write_to(w)?;
-        self.projectile_shot_spread.write_to(w)?;
-        self.projectile_shot_interval.write_to(w)?;
         self.projectile_height_offset.write_to(w)?;
-        self.projectile_create_delay_time.write_to(w)?;
-        self.projectile_hit_rate.write_to(w)?;
-        self.projectile_shot_count.write_to(w)?;
+        self.projectile_forward_offset.write_to(w)?;
+        self.projectile_random_range.write_to(w)?;
+        self.projectile_shot_spread.write_to(w)?;
+        self.condition.write_to(w)?;
+        self.projectile_shot_interval.write_to(w)?;
+        self.shot_speed.write_to(w)?;
+        self.shot_yaw.write_to(w)?;
+        self.shot_pitch.write_to(w)?;
         self.effect_data.write_to(w)?;
         self.weather_data.write_to(w)?;
         self.post_process_data.write_to(w)?;
-        self.is_advanced.write_to(w)?;
         Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("condition".to_string(), self.condition.to_json_value());
+        m.insert("projectile_shot_count".to_string(), self.projectile_shot_count.to_json_value());
+        m.insert("projectile_hit_rate".to_string(), self.projectile_hit_rate.to_json_value());
+        m.insert("start_direction_type".to_string(), self.start_direction_type.to_json_value());
+        m.insert("is_advanced".to_string(), self.is_advanced.to_json_value());
+        m.insert("projectile_create_delay_time".to_string(), self.projectile_create_delay_time.to_json_value());
         m.insert("projectile_key".to_string(), self.projectile_key.to_json_value());
         m.insert("projectile_shot_key".to_string(), self.projectile_shot_key.to_json_value());
         m.insert("projectile_chase_physics_material_hash".to_string(), self.projectile_chase_physics_material_hash.to_json_value());
-        m.insert("projectile_shot_spread".to_string(), self.projectile_shot_spread.to_json_value());
-        m.insert("projectile_shot_interval".to_string(), self.projectile_shot_interval.to_json_value());
         m.insert("projectile_height_offset".to_string(), self.projectile_height_offset.to_json_value());
-        m.insert("projectile_create_delay_time".to_string(), self.projectile_create_delay_time.to_json_value());
-        m.insert("projectile_hit_rate".to_string(), self.projectile_hit_rate.to_json_value());
-        m.insert("projectile_shot_count".to_string(), self.projectile_shot_count.to_json_value());
+        m.insert("projectile_forward_offset".to_string(), self.projectile_forward_offset.to_json_value());
+        m.insert("projectile_random_range".to_string(), self.projectile_random_range.to_json_value());
+        m.insert("projectile_shot_spread".to_string(), self.projectile_shot_spread.to_json_value());
+        m.insert("condition".to_string(), self.condition.to_json_value());
+        m.insert("projectile_shot_interval".to_string(), self.projectile_shot_interval.to_json_value());
+        m.insert("shot_speed".to_string(), self.shot_speed.to_json_value());
+        m.insert("shot_yaw".to_string(), self.shot_yaw.to_json_value());
+        m.insert("shot_pitch".to_string(), self.shot_pitch.to_json_value());
         m.insert("effect_data".to_string(), self.effect_data.to_json_value());
         m.insert("weather_data".to_string(), self.weather_data.to_json_value());
         m.insert("post_process_data".to_string(), self.post_process_data.to_json_value());
-        m.insert("is_advanced".to_string(), self.is_advanced.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        OptionalGameCondition::write_from_json(w, json_get_field(obj, "condition")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_count")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_hit_rate")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_direction_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_advanced")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_create_delay_time")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_key")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_key")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_chase_physics_material_hash")?)?;
-        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_spread")?)?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_interval")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_height_offset")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_create_delay_time")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_hit_rate")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_count")?)?;
+        <f32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_forward_offset")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_random_range")?)?;
+        <[f32; 3] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_spread")?)?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "condition")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "projectile_shot_interval")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shot_speed")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shot_yaw")?)?;
+        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shot_pitch")?)?;
         OptionalFixed::<EffectData>::write_from_json(w, json_get_field(obj, "effect_data")?)?;
         OptionalFixed::<WeatherData>::write_from_json(w, json_get_field(obj, "weather_data")?)?;
         OptionalFixed::<PostProcessData>::write_from_json(w, json_get_field(obj, "post_process_data")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_advanced")?)?;
         Ok(())
     }
 }

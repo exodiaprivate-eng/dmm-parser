@@ -35,13 +35,13 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct GimmickEventTableInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub spawn_level_group_gimmick_on_stage: u8,
+        pub gimmick_index_matching_type: u8,
         pub using_type_flag: u32,
         pub description_text: CString<'a>,
-        pub gimmick_index_matching_type: u8,
-        pub spawn_level_group_gimmick_on_stage: u8,
     }
 }
 

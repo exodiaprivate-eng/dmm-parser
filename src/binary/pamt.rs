@@ -10,7 +10,7 @@
 use std::io::{self, Write};
 
 use super::{BinaryRead, BinaryWrite, check_remaining};
-use super::trie::TrieStringBuffer;
+use super::trie::{TrieFormat, TrieStringBuffer};
 use crate::binary_struct;
 use crate::crypto::checksum;
 
@@ -174,6 +174,18 @@ pub struct PackMeta {
     pub raw_directories: Vec<PackMetaDirectory>,
     /// Raw file entries (for roundtrip ordering).
     pub raw_files: Vec<PackMetaFileRaw>,
+    /// How the two name tries link entries to their parents (2.04.00 switched to `Delta`).
+    pub name_format: TrieFormat,
+    /// 2.04.00 on: the extension table after the file entries (NUL-separated, entry 0 = no
+    /// extension). File names in the trie carry no extension; each file entry's last byte
+    /// (`unknown0`) indexes this table. Empty for the legacy layout.
+    pub extensions_buffer: Vec<u8>,
+}
+
+/// Split a 2.04.00 extension table into its entries (index = the file entry's last byte).
+fn split_extensions(buffer: &[u8]) -> Vec<String> {
+    let body = buffer.strip_suffix(&[0]).unwrap_or(buffer);
+    body.split(|b| *b == 0).map(|e| String::from_utf8_lossy(e).into_owned()).collect()
 }
 
 impl PackMeta {
@@ -245,9 +257,34 @@ impl PackMeta {
             raw_files.push(PackMetaFileRaw::read_from(data, &mut offset)?);
         }
 
+        // a group with its files at the root (0016: one paconfig.txt) has an empty dir trie
+        let name_format = if dir_names_buffer.is_empty() {
+            TrieFormat::detect(&file_names_buffer)
+        } else {
+            TrieFormat::detect(&dir_names_buffer)
+        };
+        let extensions_buffer = if name_format == TrieFormat::Delta {
+            check_remaining(data, offset, 4)?;
+            let ext_len = u32::from_le_bytes(data[offset..offset + 4].try_into().unwrap()) as usize;
+            offset += 4;
+            check_remaining(data, offset, ext_len)?;
+            let buf = data[offset..offset + ext_len].to_vec();
+            offset += ext_len;
+            buf
+        } else {
+            Vec::new()
+        };
+        if offset != data.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{} bytes left after the PAMT's last table", data.len() - offset),
+            ));
+        }
+        let extensions = split_extensions(&extensions_buffer);
+
         // Resolve names
-        let mut dir_trie = TrieStringBuffer::new(dir_names_buffer.clone());
-        let mut file_trie = TrieStringBuffer::new(file_names_buffer.clone());
+        let mut dir_trie = TrieStringBuffer::with_format(dir_names_buffer.clone(), name_format);
+        let mut file_trie = TrieStringBuffer::with_format(file_names_buffer.clone(), name_format);
 
         let chunk_map: std::collections::HashMap<u32, &PackMetaChunk> =
             chunks.iter().map(|c| (c.id, c)).collect();
@@ -279,7 +316,7 @@ impl PackMeta {
 
             let mut resolved_files = Vec::with_capacity(dir.file_count as usize);
             for raw_file in &raw_files[start..end] {
-                if raw_file.unknown0 != 0 {
+                if name_format == TrieFormat::Legacy && raw_file.unknown0 != 0 {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         format!("PackMetaFile.unknown0 expected 0, got {}", raw_file.unknown0),
@@ -304,7 +341,21 @@ impl PackMeta {
                     ));
                 }
 
-                let file_name = file_trie.get_string(raw_file.name_offset as i32)?;
+                let mut file_name = file_trie.get_string(raw_file.name_offset as i32)?;
+                if name_format == TrieFormat::Delta {
+                    let ext = extensions.get(raw_file.unknown0 as usize).ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!(
+                                "'{}' names extension {} of {}",
+                                file_name,
+                                raw_file.unknown0,
+                                extensions.len()
+                            ),
+                        )
+                    })?;
+                    file_name.push_str(ext);
+                }
                 let file = PackMetaFile::from_raw(PackMetaFileRaw {
                     name_offset: raw_file.name_offset,
                     chunk_offset: raw_file.chunk_offset,
@@ -338,6 +389,8 @@ impl PackMeta {
             file_names_buffer,
             raw_directories,
             raw_files,
+            name_format,
+            extensions_buffer,
         })
     }
 
@@ -369,6 +422,12 @@ impl PackMeta {
         (self.raw_files.len() as u32).write_to(&mut post_header)?;
         for file in &self.raw_files {
             file.write_to(&mut post_header)?;
+        }
+
+        // 2.04.00 extension table
+        if self.name_format == TrieFormat::Delta {
+            (self.extensions_buffer.len() as u32).write_to(&mut post_header)?;
+            post_header.write_all(&self.extensions_buffer)?;
         }
 
         // Build full output
@@ -406,6 +465,11 @@ impl PackMeta {
         (self.raw_files.len() as u32).write_to(&mut post_header)?;
         for file in &self.raw_files {
             file.write_to(&mut post_header)?;
+        }
+
+        if self.name_format == TrieFormat::Delta {
+            (self.extensions_buffer.len() as u32).write_to(&mut post_header)?;
+            post_header.write_all(&self.extensions_buffer)?;
         }
 
         let computed_checksum = checksum::calculate_checksum(&post_header);

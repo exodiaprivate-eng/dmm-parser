@@ -44,8 +44,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct MaterialBloodDecalInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub skill_key: u32,
         pub blood_decal_variation_data: CArray<BloodDecalVariation<'a>>,

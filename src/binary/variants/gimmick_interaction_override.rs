@@ -33,17 +33,21 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    /// `sub_1410DF4C0` per-element (sub_141114FC0 inner). 48 mem bytes.
-    /// Wire: u32 + CString-hash + CString + u32 + Vec3 + 3× u32.
+    /// `InteractionPivotOverrideData`, 2.04.00 layout (Mac reader sub_10204AFFC): three socket
+    /// strings, `_aiActionChartString` (new), `_aiActionChart`, the goto offset, an 8-byte
+    /// `_targetGotoOffsetRadius`, the two heights and `_interactionDistance` (new). Comments
+    /// give the game's field names; the JSON names are the ones from before.
     pub struct InteractionOverrideField5Element<'a> {
-        pub raw_a: u32,
-        pub key_hash: CString<'a>,    // sub_1410A9D40 — wire CString
-        pub label: CString<'a>,
-        pub raw_b: u32,
-        pub vec_a: [f32; 3],
-        pub raw_c: u32,
-        pub raw_d: u32,
-        pub raw_e: u32,
+        pub raw_a: CString<'a>,       // _interactionPivotKey
+        pub key_hash: CString<'a>,    // _targetPivotSocketBone
+        pub label: CString<'a>,       // _targetGotoSocketBone
+        pub ai_action_chart_string: CString<'a>,
+        pub raw_b: u32,               // _aiActionChart
+        pub vec_a: [f32; 3],          // _targetGotoOffset
+        pub raw_c: u64,               // _targetGotoOffsetRadius
+        pub raw_d: u32,               // _interactionUpperHeight
+        pub raw_e: u32,               // _interactionLowerHeight
+        pub interaction_distance: u32,
     }
 }
 

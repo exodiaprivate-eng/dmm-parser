@@ -34,9 +34,10 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct MercenaryGroupInfo<'a> {
-        pub key: u8,
         pub string_key: CString<'a>,
+        pub key: u8,
         pub is_blocked: u8,
+        pub parent_mercenary_group_info: u8,
         // ★ ORDER CORRECTED 2.00.00. These three were listed
         // allow / mercenarye / child; the reader takes them
         // mercenarye / child / allow (`field_order.py MercenaryGroupInfo`,
@@ -53,19 +54,18 @@ py_binary_struct! {
         pub mercenarye_info_list: CArray<u8>,
         pub child_mercenary_group_info_list: CArray<u8>,
         pub allow_operation_type_list: CArray<u8>,
-        pub parent_mercenary_group_info: u8,
+        pub is_using_spawned_usable: u8,
+        // Typo preserved: `_useChanageMainMercenary` in the binary.
+        pub use_chanage_main_mercenary: u8,
+        pub use_vehicle_key: u8,
+        pub use_reserve_or_main: u8,
+        pub is_using_portrait_texture: u8,
         // ── 2.00.00: nine new trailing fields ─────────────────────
         // Appended after `_parentMercenaryGroupInfo`, read sites
         // 0x10202aaec..0x10202ab4c at a regular 0xc stride.
         pub is_dead_state_updatable: u8,
-        pub is_using_portrait_texture: u8,
-        pub is_item_contribution_countable: u8,
         pub is_hyosi_usable: u8,
-        // Typo preserved: `_useChanageMainMercenary` in the binary.
-        pub use_chanage_main_mercenary: u8,
-        pub is_using_spawned_usable: u8,
-        pub use_reserve_or_main: u8,
-        pub use_vehicle_key: u8,
+        pub is_item_contribution_countable: u8,
         // ── 2.01.00 REMOVED `_isReturnMainMercenaryData` (u8): all 11 records shrank by
         // exactly 1 byte. (`use_chanage_main_mercenary` keeps its historical spelling:
         // the game fixed the typo to `_useChangeMainMercenary` in 2.01.00, but the field

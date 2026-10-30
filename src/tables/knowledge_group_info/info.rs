@@ -11,30 +11,27 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_102061454). New: `_aiDialogTypeKey` (4 bytes).
+    // skill_point_owner_type stays u8 (the Mac EnumReflectPropertyBind says u32, but that is the
+    // save-data binding, not the table width; see dmm_enum_reflect_bind_is_savedata_not_tables).
     pub struct KnowledgeGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub is_meditation_learnable: u8,
+        pub is_show_ui: u8,
+        pub is_show_uialert: u8,
+        pub skill_point_owner_type: u8,
+        pub knowledge_group_icon_path: u32,
+        pub ui_texture_name: u32,
+        pub parent_knowledge_group_info: u32,
+        pub ui_component_name: u32,
+        pub ai_dialog_type_key: u32,
         pub knowledge_group_name: LocalizableString<'a>,
         pub knowledge_group_unknown_name: LocalizableString<'a>,
         pub knowledge_group_desc: LocalizableString<'a>,
-        pub ui_texture_name: u32,
-        pub knowledge_group_icon_path: u32,
-        pub ui_component_name: u32,
         pub knowledge_info_list: CArray<u32>,
         pub child_knowledge_group_info_list: CArray<u32>,
-        pub parent_knowledge_group_info: u32,
-        // game 2.00.00 — Korean field oracle put \_skillPointOwnerType here, right
-        // after \_parentKnowledgeGroupInfo. Width is u8, established against the live
-        // fixture: u16 and u32 both fail the roundtrip.
-        //
-        // ⚠ The Mac binary's `EnumReflectPropertyBind<..., SkillPointOwnerType, j>`
-        // symbol says u32 — it is SAVE-DATA binding and does NOT describe the table
-        // wire width. See dmm_enum_reflect_bind_is_savedata_not_tables.
-        pub skill_point_owner_type: u8,
-        pub is_show_ui: u8,
-        pub is_show_uialert: u8,
-        pub is_meditation_learnable: u8,
     }
 }
 

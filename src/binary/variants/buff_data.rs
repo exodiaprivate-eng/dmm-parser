@@ -313,6 +313,9 @@ py_binary_struct! {
         pub u32_40: u32,
         pub u32_44: u32,
         pub u8_48: u8,
+        // 2.04.00: SummonCharacterData `_spawnOffsetSocketName`, a socket-name string read
+        // after `_isDead` (Mac sub_10202DA34 @ +52).
+        pub spawn_offset_socket_name_204: CString<'a>,
         pub cstring_56: CString<'a>,
         pub u8_64: u8,
         pub u8_65: u8,
@@ -346,6 +349,12 @@ py_binary_struct! {
         pub u8_222: u8,
         pub u8_223: u8,
         pub u8_224: u8,
+        // 2.04.00: four SummonCharacterData fields between `_isUseOwnerStat` and
+        // `_logoutDistanceType` (sub_10202DA34 @ +233, +236, +240, +244).
+        pub ai_event_destination_204: u8,
+        pub ai_event_name_hash_204: u32,
+        pub single_target_type_204: u8,
+        pub single_target_type_param_204: u32,
         pub u8_225: u8,
         pub u8_outer_376: u8,
         pub u32_outer_380: u32,
@@ -630,9 +639,10 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    pub struct DisableElementalMaterialStateBuffDataPayload<'a> {
+    pub struct DisableElementalMaterialStateBuffDataPayload {
         pub f00: u32,
-        pub f01: CString<'a>,
+        // 2.04.00: a StringInfoKey (4 bytes) where 2.03 read a string (deserializer sub_101967A80).
+        pub f01: u32,
     }
 }
 
@@ -847,15 +857,18 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    pub struct SetGimmickComponentParameterBoolBuffDataPayload<'a> {
-        pub f00: CString<'a>,
+    pub struct SetGimmickComponentParameterBoolBuffDataPayload {
+        // 2.04.00: a StringInfoKey (4 bytes) where 2.03 read a string (sub_1019690E8).
+        pub f00: u32,
         pub f01: u8,
     }
 }
 
 py_binary_struct! {
-    pub struct SummonGimmickBuffDataPayload<'a> {
-        pub f00: CString<'a>,
+    pub struct SummonGimmickBuffDataPayload {
+        // 2.04.00: a StringInfoKey (4 bytes, Pearl Abyss checksum of the text) where 2.03
+        // read the string itself (sub_10196937C).
+        pub f00: u32,
         pub f01_a: u32,
         pub f01_b: u32,
         pub f01_c: u32,
@@ -970,10 +983,13 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// The 2.04 RTTI names this class `RegisterSoundBuffData` (sub_10196A19C).
     pub struct PlaySoundBuffDataPayload {
         pub f00: u32,
         pub f01: u32,
-        pub f02: u32,
+        pub f02: u32,   // a float in the reader; kept as its bits
+        // 2.04.00: one byte appended.
+        pub f03: u8,
     }
 }
 
@@ -1255,12 +1271,12 @@ py_binary_struct! {
     /// AddPercentInGameContentsBuffData payload. Total = 17 bytes (1 + 4×4).
     /// f02/f03/f04 were missing; empirically found from key=1000190 (10 entries,
     /// total body = 1480 bytes → 148 bytes/entry = 5(ll+af) + 126(base,ap=23) + 17(payload)).
+    /// 2.04.00 (sub_10196E618): one byte, a u64, then a list of i64 (sub_101971D20: u32
+    /// count + 8 bytes each). Up to 2.03 it was modelled as u8 + 4 x u32 (always zero).
     pub struct AddPercentInGameContentsBuffDataPayload {
         pub f00: u8,
-        pub f01: u32,
-        pub f02: u32,
-        pub f03: u32,
-        pub f04: u32,
+        pub f01: u64,
+        pub f02: CArray<i64>,
     }
 }
 
@@ -1286,14 +1302,15 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    pub struct UpdateShareValueBuffDataPayload<'a> {
+    pub struct UpdateShareValueBuffDataPayload {
         pub f00: u8,
         pub f01: u8,
         pub f02: u32,
         pub f03: u32,
         pub f04: u32,
         pub f05: u8,
-        pub f06: CString<'a>,
+        // 2.04.00: a StringInfoKey (4 bytes) where 2.03 read a string (sub_10196EF08).
+        pub f06: u32,
     }
 }
 
@@ -1511,6 +1528,38 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// 2.04.00 disc 124 `RestrictUseItemBuffData` (sub_1019700B0): two 2-byte keys.
+    pub struct RestrictUseItemBuffDataPayload {
+        pub f00: u16,
+        pub f01: u16,
+    }
+}
+
+py_binary_struct! {
+    /// 2.04.00 disc 125 `ChangeDetectKeyBuffData` (sub_101970340): one 2-byte key.
+    pub struct ChangeDetectKeyBuffDataPayload {
+        pub f00: u16,
+    }
+}
+
+py_binary_struct! {
+    /// 2.04.00 disc 126 `ShowMinimapIconBuffData` (sub_101970628): a byte, then two lists of
+    /// 4-byte keys (sub_101FE1F28 / sub_101FDCBA8 per element).
+    pub struct ShowMinimapIconBuffDataPayload {
+        pub f00: u8,
+        pub f01: CArray<u32>,
+        pub f02: CArray<u32>,
+    }
+}
+
+py_binary_struct! {
+    /// 2.04.00 disc 127 `FishingTerrainRegionOverrideBuffData` (sub_10197093C): one 4-byte key.
+    pub struct FishingTerrainRegionOverrideBuffDataPayload {
+        pub f00: u32,
+    }
+}
+
+py_binary_struct! {
     /// Disc 121, first on the wire 2.03.00: `Skill_PlayerLimitMainWeaponOnly` (key
     /// 0x128f2) carries two of them, asset strings "mainweapon_0 고정" and
     /// "mainweapon_1 고정". Measured against the record: 8 bytes between the base and
@@ -1570,7 +1619,7 @@ pub enum BuffDataVariant<'a> {
     SetElementalStatBuffData(SetElementalStatBuffDataPayload),
     AdditionalGoalElementalStatBuffData(AdditionalGoalElementalStatBuffDataPayload),
     ChangeElementalStatSpeedBuffData(ChangeElementalStatSpeedBuffDataPayload),
-    DisableElementalMaterialStateBuffData(DisableElementalMaterialStateBuffDataPayload<'a>),
+    DisableElementalMaterialStateBuffData(DisableElementalMaterialStateBuffDataPayload),
     ChangeMaterialKeyBuffData(ChangeMaterialKeyBuffDataPayload),
     ClothGravityBuffData(ClothGravityBuffDataPayload),
     WeatherEffectBuffData(WeatherEffectBuffDataPayload),
@@ -1588,8 +1637,8 @@ pub enum BuffDataVariant<'a> {
     DisableObstacleBuffData,
     RideLimitBuffData,
     ChangeFactionBuffData(ChangeFactionBuffDataPayload),
-    SetGimmickComponentParameterBoolBuffData(SetGimmickComponentParameterBoolBuffDataPayload<'a>),
-    SummonGimmickBuffData(SummonGimmickBuffDataPayload<'a>),
+    SetGimmickComponentParameterBoolBuffData(SetGimmickComponentParameterBoolBuffDataPayload),
+    SummonGimmickBuffData(SummonGimmickBuffDataPayload),
     SendGimmickEventBuffData(SendGimmickEventBuffDataPayload<'a>),
     DetachEquipItemBuffData(DetachEquipItemBuffDataPayload),
     DisableThrowEquipItemBuffData,
@@ -1652,7 +1701,7 @@ pub enum BuffDataVariant<'a> {
     VaryCustomIntInGameContentsBuffData(VaryCustomIntInGameContentsBuffDataPayload),
     TribeAdditionalDamageRateBuffData(TribeAdditionalDamageRateBuffDataPayload),
     AdditionalBreakingImpulseDamageBuffData(AdditionalBreakingImpulseDamageBuffDataPayload),
-    UpdateShareValueBuffData(UpdateShareValueBuffDataPayload<'a>),
+    UpdateShareValueBuffData(UpdateShareValueBuffDataPayload),
     AddDamageBonusFromComboBuffData(AddDamageBonusFromComboBuffDataPayload),
     ConvertOtherStatBuffData(ConvertOtherStatBuffDataPayload),
     IgnoreUseResourceStatBuffData(IgnoreUseResourceStatBuffDataPayload),
@@ -1681,6 +1730,14 @@ pub enum BuffDataVariant<'a> {
     /// appeared in the 2.02 -> 2.03 oracle, so it is a marker with no payload,
     /// like the two before it; the name is provisional.
     Tag123BuffData,
+    /// 2.04.00: disc 124.
+    RestrictUseItemBuffData(RestrictUseItemBuffDataPayload),
+    /// 2.04.00: disc 125.
+    ChangeDetectKeyBuffData(ChangeDetectKeyBuffDataPayload),
+    /// 2.04.00: disc 126.
+    ShowMinimapIconBuffData(ShowMinimapIconBuffDataPayload),
+    /// 2.04.00: disc 127.
+    FishingTerrainRegionOverrideBuffData(FishingTerrainRegionOverrideBuffDataPayload),
 }
 
 impl<'a> BuffDataVariant<'a> {
@@ -1810,6 +1867,10 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockChangeEquipBuffData(_) => 121,
             Self::BlockUnequipItemBuffData(_) => 122,
             Self::Tag123BuffData => 123,
+            Self::RestrictUseItemBuffData(_) => 124,
+            Self::ChangeDetectKeyBuffData(_) => 125,
+            Self::ShowMinimapIconBuffData(_) => 126,
+            Self::FishingTerrainRegionOverrideBuffData(_) => 127,
         }
     }
 
@@ -1940,6 +2001,10 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockChangeEquipBuffData(_) => "BlockChangeEquipBuffData",
             Self::BlockUnequipItemBuffData(_) => "BlockUnequipItemBuffData",
             Self::Tag123BuffData => "Tag123BuffData",
+            Self::RestrictUseItemBuffData(_) => "RestrictUseItemBuffData",
+            Self::ChangeDetectKeyBuffData(_) => "ChangeDetectKeyBuffData",
+            Self::ShowMinimapIconBuffData(_) => "ShowMinimapIconBuffData",
+            Self::FishingTerrainRegionOverrideBuffData(_) => "FishingTerrainRegionOverrideBuffData",
         }
     }
 
@@ -2073,6 +2138,10 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockChangeEquipBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::BlockUnequipItemBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::Tag123BuffData => {}
+            Self::RestrictUseItemBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ChangeDetectKeyBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::ShowMinimapIconBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::FishingTerrainRegionOverrideBuffData(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
         }
         Value::Object(m)
     }
@@ -2212,6 +2281,10 @@ impl<'a> BuffDataVariant<'a> {
             121 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockChangeEquipBuffData: missing body object"))?; BlockChangeEquipBuffDataPayload::write_from_json_dict(w, body)?; }
             122 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BlockUnequipItemBuffData: missing body object"))?; BlockUnequipItemBuffDataPayload::write_from_json_dict(w, body)?; }
             123 => {}
+            124 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "RestrictUseItemBuffData: missing body object"))?; RestrictUseItemBuffDataPayload::write_from_json_dict(w, body)?; }
+            125 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ChangeDetectKeyBuffData: missing body object"))?; ChangeDetectKeyBuffDataPayload::write_from_json_dict(w, body)?; }
+            126 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "ShowMinimapIconBuffData: missing body object"))?; ShowMinimapIconBuffDataPayload::write_from_json_dict(w, body)?; }
+            127 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "FishingTerrainRegionOverrideBuffData: missing body object"))?; FishingTerrainRegionOverrideBuffDataPayload::write_from_json_dict(w, body)?; }
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("BuffDataVariant: unknown disc {}", other))),
         }
@@ -2346,6 +2419,10 @@ impl<'a> BuffDataVariant<'a> {
             121 => Self::BlockChangeEquipBuffData(BlockChangeEquipBuffDataPayload::read_from(data, offset)?),
             122 => Self::BlockUnequipItemBuffData(BlockUnequipItemBuffDataPayload::read_from(data, offset)?),
             123 => Self::Tag123BuffData,
+            124 => Self::RestrictUseItemBuffData(RestrictUseItemBuffDataPayload::read_from(data, offset)?),
+            125 => Self::ChangeDetectKeyBuffData(ChangeDetectKeyBuffDataPayload::read_from(data, offset)?),
+            126 => Self::ShowMinimapIconBuffData(ShowMinimapIconBuffDataPayload::read_from(data, offset)?),
+            127 => Self::FishingTerrainRegionOverrideBuffData(FishingTerrainRegionOverrideBuffDataPayload::read_from(data, offset)?),
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown BuffData disc: {}", disc))),
         })
     }
@@ -2476,6 +2553,10 @@ impl<'a> BuffDataVariant<'a> {
             Self::BlockChangeEquipBuffData(p) => p.write_to(w),
             Self::BlockUnequipItemBuffData(p) => p.write_to(w),
             Self::Tag123BuffData => Ok(()),
+            Self::RestrictUseItemBuffData(p) => p.write_to(w),
+            Self::ChangeDetectKeyBuffData(p) => p.write_to(w),
+            Self::ShowMinimapIconBuffData(p) => p.write_to(w),
+            Self::FishingTerrainRegionOverrideBuffData(p) => p.write_to(w),
         }
     }
 }

@@ -56,20 +56,22 @@ use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 py_binary_struct! {
-    /// Tag 7 / Tag 8 payload for `DropTargetVariant`. 32 wire bytes
-    /// (sub_1410DB4C0 inner). Field names follow the wire order in
-    /// sub_1410DB4C0; mem offsets are documented in the master module
-    /// docstring.
+    /// Tag 7 / 8 / 0xF payload for `DropTargetVariant`: the exe's `DropFriendlyData`.
+    /// 2.04.00: 34 wire bytes in the order of the Mac reader sub_10202C8CC, with the
+    /// game's own field names (up to 2.03 it was 32 bytes and modelled as flag_a..flag_i).
+    /// `is_set_marital_state_dating` and `knowledge_prefer_type` are new in 2.04 (marriage).
     pub struct DropTargetItemRef {
-        pub flag_a: u8,        // 1 byte at  mem +8
-        pub raw_b: u64,        // 8 bytes at mem +16
-        pub lookup_c: u32,     // sub_141100860 (u32 wire / u16 mem)
-        pub lookup_d: u32,     // sub_1410FF340 (u32 wire / u16 mem)
-        pub flag_e: u8,        // 1 byte at  mem +28
-        pub lookup_f: u32,     // sub_1411026F0 (u32 wire / u16 mem)
-        pub raw_g: u64,        // 8 bytes at mem +32
-        pub flag_h: u8,        // 1 byte at  mem +40
-        pub flag_i: u8,        // 1 byte at  mem +41
+        pub to_mercenary_no: u64,
+        pub faction_info: u32,       // FactionKey (u32 wire / u16 mem)
+        pub character_info: u32,     // CharacterKey (u32 wire / u16 mem)
+        pub to_target_actor: u8,
+        pub is_set_marital_state_dating: u8,
+        pub interaction_info: u32,   // u32 wire / u16 mem
+        pub vary_friendly: u64,
+        pub vary_reason: u8,
+        pub npc_reward_type: u8,
+        pub knowledge_prefer_type: u8,
+        pub is_affinity: u8,
     }
 }
 
@@ -93,6 +95,8 @@ py_binary_struct! {
     /// character_info=0, to_target_actor=1, is_register=0.
     pub struct DropRegistLivingCharacterData {
         pub character_info: u32,
+        // 2.04.00: `_focusCharacterInfo`, a second CharacterKey (u32 wire), Mac sub_10202CD78.
+        pub focus_character_info: u32,
         pub to_target_actor: u8,
         pub is_register: u8,
     }
@@ -121,6 +125,12 @@ pub enum DropTargetVariant {
     /// reader `sub_101FD06E8`. Only one vanilla record uses it:
     /// `DropSet_Living_Together` (key 0xF809C) — a direct name match.
     Tag16(DropRegistLivingCharacterData),
+    /// 2.04.00: tag 0xE, a GlobalGameEventInfoKey (2 bytes) + one byte (sub_101F8C52C).
+    TagE { lookup: u16, flag: u8 },
+    /// 2.04.00: tag 0xF, the same DropFriendlyData payload as tags 7 and 8.
+    TagF(DropTargetItemRef),
+    /// 2.04.00: tag 0x11, a FactionManagementKey (2 bytes, sub_1019561B0).
+    Tag11(u16),
 }
 
 impl DropTargetVariant {
@@ -149,6 +159,13 @@ impl DropTargetVariant {
                 let flag = u8::read_from(data, offset)?;
                 Self::TagD { lookup, flag }
             }
+            0xE => {
+                let lookup = u16::read_from(data, offset)?;
+                let flag = u8::read_from(data, offset)?;
+                Self::TagE { lookup, flag }
+            }
+            0xF => Self::TagF(DropTargetItemRef::read_from(data, offset)?),
+            0x11 => Self::Tag11(u16::read_from(data, offset)?),
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("DropTargetVariant: unknown tag {}", other))),
         })
@@ -170,6 +187,12 @@ impl DropTargetVariant {
                 flag.write_to(w)
             }
             Self::Tag16(p) => p.write_to(w),
+            Self::TagE { lookup, flag } => {
+                lookup.write_to(w)?;
+                flag.write_to(w)
+            }
+            Self::TagF(p) => p.write_to(w),
+            Self::Tag11(v) => v.write_to(w),
         }
     }
 
@@ -202,6 +225,13 @@ impl DropTargetVariant {
                 m.insert("tag".into(), 16.into());
                 m.insert("data".into(), Value::Object(p.to_json_dict()));
             }
+            Self::TagE { lookup, flag } => {
+                m.insert("tag".into(), 0xE.into());
+                m.insert("lookup".into(), lookup.to_json_value());
+                m.insert("flag".into(), flag.to_json_value());
+            }
+            Self::TagF(p) => { m.insert("tag".into(), 0xF.into()); m.insert("data".into(), Value::Object(p.to_json_dict())); }
+            Self::Tag11(v) => { m.insert("tag".into(), 0x11.into()); m.insert("lookup".into(), v.to_json_value()); }
         }
         Value::Object(m)
     }
@@ -217,9 +247,14 @@ impl DropTargetVariant {
             0..=6 | 9 | 0xC => {
                 <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?)
             }
-            7 | 8 => {
+            7 | 8 | 0xF => {
                 <DropTargetItemRef as WriteJsonValue>::write_from_json(w, json_get_field(obj, "data")?)
             }
+            0xE => {
+                <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?)?;
+                <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag")?)
+            }
+            0x11 => <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup")?),
             0xA => {
                 <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
                 <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)

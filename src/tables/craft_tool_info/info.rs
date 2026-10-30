@@ -34,8 +34,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct CraftToolInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub craft_tool_group_info: u16,
         pub fail_item: u32,

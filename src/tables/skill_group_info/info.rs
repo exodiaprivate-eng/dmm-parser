@@ -33,8 +33,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct SkillGroupInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub group_name: CString<'a>,
         pub skill_key_list: CArray<u32>,

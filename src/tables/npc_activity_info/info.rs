@@ -69,8 +69,8 @@ use std::io::{self, Write};
 // mount/unmount on 1.12; only field-level modding of the task internals is
 // deferred (see the file header doc + the NOTE above for the prior layout).
 pub struct NpcActivityInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     /// Opaque 1.12 body (sequence/interaction/group/catch/flow task lists,
     /// reworked). Preserved verbatim for byte-exact round-trip.
@@ -93,8 +93,8 @@ impl<'a> NpcActivityInfo<'a> {
             return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
                 format!("NpcActivityInfo: record extends past body ({} > {})", end, data.len())));
         }
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         if *offset > end {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -106,8 +106,8 @@ impl<'a> NpcActivityInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         w.write_all(&self.tail_blob)?;
         Ok(())
@@ -115,16 +115,16 @@ impl<'a> NpcActivityInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut d = Map::new();
-        d.insert("key".to_string(), self.key.to_json_value());
         d.insert("string_key".to_string(), self.string_key.to_json_value());
+        d.insert("key".to_string(), self.key.to_json_value());
         d.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         d.insert("_tail_b64".to_string(), Value::from(B64.encode(&self.tail_blob)));
         d
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, map: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(map, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(map, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(map, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(map, "is_blocked")?)?;
         let b64 = json_get_field(map, "_tail_b64")?.as_str().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "NpcActivityInfo._tail_b64: expected base64 string"))?;
