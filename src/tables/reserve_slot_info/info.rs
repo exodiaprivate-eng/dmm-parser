@@ -111,49 +111,32 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_1020405D4). The 2.03 `trailing_u16_112` was two flags,
+    // now named: `_isShared` and `_autoChangeOnEmpty`. `_enableTribeList` elements are 4-byte
+    // TribeKeys (were read as u16). `target_item_group_list` is the game's `_enableItemGroupList`.
     pub struct ReserveSlotInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub time_limit: u64,
-        pub cool_time: u32,
+        pub is_self_player_only: u8,
+        pub is_shared: u8,
+        pub auto_change_on_empty: u8,
+        pub restore_on_retry: u8,
+        pub using_type: u8,
+        pub reserve_slot_type: u8,
         pub auto_use_item_info: u32,
         pub convert_item_info: u32,
+        pub cool_time: u32,
+        pub send_gimmick_event_key_for_slot_data_changed: u32,
+        pub time_limit: u64,
         pub fill_data_list: CArray<ReserveSlotPairA>,
         pub memo: CString<'a>,
-        pub reserve_slot_type: u8,
-        pub using_type: u8,
-        // FIX 2026-05-12: wire u16 per element (Mac reader sub_101942960 @a2+72).
-        pub enable_tribe_list: CArray<u16>,
-        // 1.10 REMOVED _enableVehicleList: the 1.10 Mac parser sub_10190E7B0 has
-        // NO vehicle reader between tribe (@a2+72) and mercenary (@a2+88). Present
-        // in 1.06 (old reader sub_10104DC90) but dropped in 1.10.
-        // Mac reader sub_1011DCCCC @a2+88 (wire u8 — mercenary index).
+        pub enable_tribe_list: CArray<u32>,
         pub enable_mercenary_list: CArray<u8>,
-        // Mac reader sub_101942BB8 @a2+104. Element ReserveSlotPairB {u32,u32} = 8B.
-        // Empty (count=0) for all vanilla entries.
         pub enable_special_name_hash_list: CArray<ReserveSlotPairB>,
-        // NEW 1.10: _enableReserveSlotList. Mac reader sub_101942F58 @a2+120:
-        // u32 count, then each element a ReserveSlotKey (u32 wire, resolved to a
-        // u16 index in memory). Empty for all vanilla entries.
         pub enable_reserve_slot_list: CArray<u32>,
-        // _enableItemGroupList. Mac reader sub_1010AA830 @a2+136 (wire u16).
         pub target_item_group_list: CArray<u16>,
-        // NEW 1.10: _reserveSlotTargetList. Same reader as _enableReserveSlotList
-        // (sub_101942F58 @a2+152) — u32-wire ReserveSlotKey elements. Empty in vanilla.
         pub reserve_slot_target_list: CArray<u32>,
-        // _sendGimmickEventKeyForSlotDataChanged. Mac reader sub_1010AEEC4 @a2+168 (u32).
-        pub send_gimmick_event_key_for_slot_data_changed: u32,
-        // _isSelfPlayerOnly. Mac @a2+172 (u8).
-        pub is_self_player_only: u8,
-        // _restoreOnRetry (1.10). Mac sub_10190E7B0 @a2+173 (u8). Was previously
-        // mislabeled `unk_trailing_108` — the Korean error string at 0x10190eaa0
-        // names it _restoreOnRetry (a Re-Blockade / retry feature flag).
-        pub restore_on_retry: u8,
-        // 1.12: trailing u16 (observed all-zero) appended to each record after
-        // restore_on_retry. Byte-diff decisive: +2B [00 00] once per record at
-        // the prior 1.11 record-end (offset 141/283/387/491).
-        pub trailing_u16_112: u16,
     }
 }
 

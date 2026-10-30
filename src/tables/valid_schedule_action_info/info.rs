@@ -79,11 +79,11 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct ValidScheduleActionInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub action_name_hash_list: CArray<u32>,
         pub type_: u8,
+        pub action_name_hash_list: CArray<u32>,
         pub keyword_lower_string_list: CArray<CString<'a>>,
         pub converting_data: NighScheduleConvertingConditionData<'a>,
     }

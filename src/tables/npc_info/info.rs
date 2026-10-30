@@ -95,8 +95,8 @@ py_binary_struct! {
 
 #[derive(Debug)]
 pub struct NpcInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub icon_path: u32,
     pub store_info: u16,
@@ -160,23 +160,23 @@ impl<'a> NpcInfo<'a> {
     }
 
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let contribution_sub_level_info = u32::read_from(data, offset)?;
+        let exchange_group_key = u16::read_from(data, offset)?;
+        let store_icon_texture = u32::read_from(data, offset)?;
         let icon_path = u32::read_from(data, offset)?;
         let store_info = u16::read_from(data, offset)?;
         let coupon_item_info = u32::read_from(data, offset)?;
-        let npc_greet_friendly = u32::read_from(data, offset)?;
         let npc_function_type_flag = u32::read_from(data, offset)?;
+        let npc_greet_friendly = u32::read_from(data, offset)?;
         let shop_scenekey = u32::read_from(data, offset)?;
-        let exchange_group_key = u16::read_from(data, offset)?;
         let exchange_button_text = LocalizableString::read_from(data, offset)?;
         let shop_name = LocalizableString::read_from(data, offset)?;
         let interaction_name = LocalizableString::read_from(data, offset)?;
-        let store_icon_texture = u32::read_from(data, offset)?;
         let store_title = LocalizableString::read_from(data, offset)?;
         let store_group_title = LocalizableString::read_from(data, offset)?;
-        let contribution_sub_level_info = u32::read_from(data, offset)?;
         let dye_color_group_data_list = CArray::<DyeColorGroupData>::read_from(data, offset)?;
         let dye_texture_set_data_list = CArray::<DyeTextureSetData>::read_from(data, offset)?;
         let bank_info_list = CArray::<u16>::read_from(data, offset)?;
@@ -191,23 +191,23 @@ impl<'a> NpcInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.contribution_sub_level_info.write_to(w)?;
+        self.exchange_group_key.write_to(w)?;
+        self.store_icon_texture.write_to(w)?;
         self.icon_path.write_to(w)?;
         self.store_info.write_to(w)?;
         self.coupon_item_info.write_to(w)?;
-        self.npc_greet_friendly.write_to(w)?;
         self.npc_function_type_flag.write_to(w)?;
+        self.npc_greet_friendly.write_to(w)?;
         self.shop_scenekey.write_to(w)?;
-        self.exchange_group_key.write_to(w)?;
         self.exchange_button_text.write_to(w)?;
         self.shop_name.write_to(w)?;
         self.interaction_name.write_to(w)?;
-        self.store_icon_texture.write_to(w)?;
         self.store_title.write_to(w)?;
         self.store_group_title.write_to(w)?;
-        self.contribution_sub_level_info.write_to(w)?;
         self.dye_color_group_data_list.write_to(w)?;
         self.dye_texture_set_data_list.write_to(w)?;
         self.bank_info_list.write_to(w)?;
@@ -216,50 +216,51 @@ impl<'a> NpcInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("contribution_sub_level_info".to_string(), self.contribution_sub_level_info.to_json_value());
+        m.insert("exchange_group_key".to_string(), self.exchange_group_key.to_json_value());
+        m.insert("store_icon_texture".to_string(), self.store_icon_texture.to_json_value());
         m.insert("icon_path".to_string(), self.icon_path.to_json_value());
         m.insert("store_info".to_string(), self.store_info.to_json_value());
         m.insert("coupon_item_info".to_string(), self.coupon_item_info.to_json_value());
-        m.insert("npc_greet_friendly".to_string(), self.npc_greet_friendly.to_json_value());
         m.insert("npc_function_type_flag".to_string(), self.npc_function_type_flag.to_json_value());
+        m.insert("npc_greet_friendly".to_string(), self.npc_greet_friendly.to_json_value());
         m.insert("shop_scenekey".to_string(), self.shop_scenekey.to_json_value());
-        m.insert("exchange_group_key".to_string(), self.exchange_group_key.to_json_value());
         m.insert("exchange_button_text".to_string(), self.exchange_button_text.to_json_value());
         m.insert("shop_name".to_string(), self.shop_name.to_json_value());
         m.insert("interaction_name".to_string(), self.interaction_name.to_json_value());
-        m.insert("store_icon_texture".to_string(), self.store_icon_texture.to_json_value());
-        m.insert("contribution_sub_level_info".to_string(), self.contribution_sub_level_info.to_json_value());
+        m.insert("store_title".to_string(), self.store_title.to_json_value());
+        m.insert("store_group_title".to_string(), self.store_group_title.to_json_value());
         m.insert("dye_color_group_data_list".to_string(), self.dye_color_group_data_list.to_json_value());
         m.insert("dye_texture_set_data_list".to_string(), self.dye_texture_set_data_list.to_json_value());
         m.insert("bank_info_list".to_string(), self.bank_info_list.to_json_value());
-        m.insert("store_title".to_string(), self.store_title.to_json_value());
-        m.insert("store_group_title".to_string(), self.store_group_title.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        // 2.04.00 order (Mac reader sub_10204728C).
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contribution_sub_level_info")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_group_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_icon_texture")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "icon_path")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "coupon_item_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_greet_friendly")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_function_type_flag")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_greet_friendly")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shop_scenekey")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_group_key")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exchange_button_text")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "shop_name")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "interaction_name")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "store_icon_texture")?)?;
         // Null-tolerant: pre-1.18 V3 mods carry no key for these.
         <LocalizableString as WriteJsonValue>::write_from_json(
             w, obj.get("store_title").unwrap_or(&Value::Null))?;
         <LocalizableString as WriteJsonValue>::write_from_json(
             w, obj.get("store_group_title").unwrap_or(&Value::Null))?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "contribution_sub_level_info")?)?;
         <CArray<DyeColorGroupData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_color_group_data_list")?)?;
         <CArray<DyeTextureSetData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dye_texture_set_data_list")?)?;
         <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bank_info_list")?)?;

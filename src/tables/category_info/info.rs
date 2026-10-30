@@ -34,8 +34,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct CategoryInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub main_category_index: u16,
         pub middle_category_index: u16,

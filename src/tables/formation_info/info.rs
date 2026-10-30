@@ -49,12 +49,12 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FormationInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub member_data_list: CArray<FormationMemberData>,
-        pub absolute_offset: u8,
         pub is_super_strict: u8,
+        pub absolute_offset: u8,
+        pub member_data_list: CArray<FormationMemberData>,
     }
 }
 

@@ -35,13 +35,13 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct UIFilterGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub filter_type: u8,
+        pub ui_icon_path: u32,
         pub ui_filter_data_list: CArray<UIFilterData<'a>>,
         pub ui_group_name: LocalizableString<'a>,
-        pub ui_icon_path: u32,
-        pub filter_type: u8,
     }
 }
 

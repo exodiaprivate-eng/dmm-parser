@@ -40,20 +40,20 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct ItemGroupInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
+        pub is_always_fold_item_group: u8,
+        pub is_group_item_lockable: u8,
+        pub is_monster_only_equip: u8,
+        pub is_show_category_string: u8,
+        pub item_cage_type: u8,
+        pub order_index: u16,
+        pub icon_path: u32,
         pub group_name: LocalizableString<'a>,
         pub item_group_info_list: CArray<u16>,
         pub item_info_list: CArray<u32>,
         pub category_type_list: CArray<u8>,
-        pub order_index: u16,
-        pub item_cage_type: u8,
-        pub icon_path: u32,
-        pub is_show_category_string: u8,
-        pub is_group_item_lockable: u8,
-        pub is_monster_only_equip: u8,
-        pub is_always_fold_item_group: u8,
     }
 }
 

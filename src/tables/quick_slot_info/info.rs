@@ -36,8 +36,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct QuickSlotInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub slot_count: u32,
         pub is_default: u8,

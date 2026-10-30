@@ -37,16 +37,16 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct EquipTypeInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        // [u8;12] composite split into 4 fields per empirical sweep across
-        // all 111 entries: head=0xFFFF, pad=0, hash u32 varies, tail=0xFFFFFFFF.
-        pub destroyed_ai_event_head: u16,
-        pub destroyed_ai_event_pad: u16,
-        pub destroyed_ai_event_hash: u32,
-        pub destroyed_ai_event_tail: u32,
-        pub use_resource_item_type: u32,
+        pub enable_transfer: u8,
+        pub show_helm_on_battle_stance: u8,
+        pub use_action_on_quick_slot: u8,
+        pub enable_enchant: u8,
+        pub is_show_stamina: u8,
+        pub is_critical_collidable: u8,
+        pub apply_passive_skill_on_activate: u8,
         // 1.16.00: `fake_equip_reserve_slot_data` (u32) was REMOVED by the game.
         // It is absent from the binary's own 19-field error-string list, and
         // dropping it makes every record land byte-exact (rec0 132/132,
@@ -54,19 +54,19 @@ py_binary_struct! {
         // anything that set that key, but the field no longer exists on the wire
         // — there is nothing to keep it pointing at.
         pub apply_status_group_info_on_activate: u32,
-        pub apply_passive_skill_on_activate: u8,
-        pub is_show_stamina: u8,
+        pub use_resource_item_type: u32,
+        pub dye_rotation_value: u32,
+        pub camera_preset_hash: u32,
+        // [u8;12] composite split into 4 fields per empirical sweep across
+        // all 111 entries: head=0xFFFF, pad=0, hash u32 varies, tail=0xFFFFFFFF.
+        pub destroyed_ai_event_head: u16,
+        pub destroyed_ai_event_pad: u16,
+        pub destroyed_ai_event_hash: u32,
+        pub destroyed_ai_event_tail: u32,
         pub decrease_endurance_percent: u64,
         pub on_guard_damage_reduction_percent: u64,
-        pub is_critical_collidable: u8,
-        pub enable_transfer: u8,
-        pub enable_enchant: u8,
-        pub use_action_on_quick_slot: u8,
-        pub camera_preset_hash: u32,
-        pub dye_rotation_value: u32,
         pub equip_able_hash_list: CArray<u32>,
         pub equip_type_name: LocalizableString<'a>,
-        pub show_helm_on_battle_stance: u8,
     }
 }
 

@@ -12,13 +12,13 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct AIDialogTypeInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub limit_distance: u32,
-        pub is_player_subtitle: u8,
         pub is_show_subtitle: u8,
         pub block_by_quest_dialog_must: u8,
+        pub is_player_subtitle: u8,
+        pub limit_distance: u32,
     }
 }
 

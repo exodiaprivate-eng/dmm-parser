@@ -563,6 +563,9 @@ impl PackGroupBuilder {
             file_names_buffer,
             raw_directories,
             raw_files,
+            // the builder writes the pre-2.04 layout (i32 parent links, extensions in the names)
+            name_format: super::trie::TrieFormat::Legacy,
+            extensions_buffer: Vec::new(),
         };
 
         pamt.to_bytes_with_checksum()

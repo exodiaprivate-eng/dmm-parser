@@ -28,11 +28,11 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct GameVersionDataInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub restore_item_data_by_game_version: CArray<RestoreItemData>,
         pub version_flag: u32,
+        pub restore_item_data_by_game_version: CArray<RestoreItemData>,
     }
 }
 

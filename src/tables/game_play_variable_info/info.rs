@@ -33,8 +33,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct GamePlayVariableInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub initial_variable: u8,
         pub dev_memo: CString<'a>,

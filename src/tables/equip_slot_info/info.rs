@@ -128,6 +128,8 @@ pub struct EquipInfoData {
     pub tail_byte_8: u8,
     pub tail_byte_9: u8,
     pub tail_byte_10: u8,
+    /// 2.04.00: `_equipSaveType`, one byte appended (Mac sub_10206A2D4 / sub_1019151F0).
+    pub equip_save_type_204: u8,
 }
 
 impl<'a> BinaryRead<'a> for EquipInfoData {
@@ -159,6 +161,7 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
         let tail_byte_8 = u8::read_from(data, offset)?;
         let tail_byte_9 = u8::read_from(data, offset)?;
         let tail_byte_10 = u8::read_from(data, offset)?;
+        let equip_save_type_204 = u8::read_from(data, offset)?;
         Ok(Self {
             etl_hashes, name_hash, slot_index,
             field_u64, name_hash_2, fields_u32, complex_u8, complex_u64,
@@ -167,6 +170,7 @@ impl<'a> BinaryRead<'a> for EquipInfoData {
             slot_name_hash_116,
             dyeing_field_a_113, dyeing_field_b_113, is_hide_equip_in_dyeing_process_113,
             tail_byte_6, tail_byte_7, tail_byte_8, tail_byte_9, tail_byte_10,
+            equip_save_type_204,
         })
     }
 }
@@ -192,6 +196,7 @@ impl BinaryWrite for EquipInfoData {
         self.tail_byte_8.write_to(w)?;
         self.tail_byte_9.write_to(w)?;
         self.tail_byte_10.write_to(w)?;
+        self.equip_save_type_204.write_to(w)?;
         Ok(())
     }
 }
@@ -218,6 +223,7 @@ impl ToJsonValue for EquipInfoData {
             "tail_byte_8": self.tail_byte_8,
             "tail_byte_9": self.tail_byte_9,
             "tail_byte_10": self.tail_byte_10,
+            "equip_save_type_204": self.equip_save_type_204,
         })
     }
 }
@@ -245,6 +251,8 @@ impl WriteJsonValue for EquipInfoData {
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_8")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_9")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_byte_10")?)?;
+        // Null-tolerant: new in 2.04.00, absent from older mods.
+        <u8 as WriteJsonValue>::write_from_json(w, obj.get("equip_save_type_204").unwrap_or(&Value::Null))?;
         Ok(())
     }
 }
@@ -317,9 +325,13 @@ impl EquipSlotInfo {
                 format!("EquipSlotInfo: record extends past body ({} > {})", entry_end, data.len())));
         }
 
-        let key = u32::read_from(data, offset)?;
+        // 2.04.00 order: stringKey (`header`), key, isBlocked (`flag_u8`), uiComponentName
+        // (`tail_magic`, a StringInfoKey: it was the LAST field up to 2.03), attackedMaterialSlotNo
+        // (`flag_u16`), list, ragdoll list.
         let header = CArray::<u8>::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let flag_u8 = u8::read_from(data, offset)?;
+        let tail_magic = u32::read_from(data, offset)?;
         let flag_u16 = u16::read_from(data, offset)?;
         let list_count = u32::read_from(data, offset)? as usize;
 
@@ -333,7 +345,6 @@ impl EquipSlotInfo {
         }
 
         let extra_entries = CArray::<EquipExtraEntry>::read_from(data, offset)?;
-        let tail_magic = u32::read_from(data, offset)?;
 
         if *offset != entry_end {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -350,16 +361,16 @@ impl EquipSlotInfo {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.header.write_to(w)?;
+        self.key.write_to(w)?;
         self.flag_u8.write_to(w)?;
+        self.tail_magic.write_to(w)?;
         self.flag_u16.write_to(w)?;
         (self.entries.len() as u32).write_to(w)?;
         for e in &self.entries {
             e.write_to(w)?;
         }
         self.extra_entries.write_to(w)?;
-        self.tail_magic.write_to(w)?;
         Ok(())
     }
 }
@@ -389,9 +400,10 @@ impl WriteJsonValue for EquipSlotInfo {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "EquipSlotInfo: expected object"))?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CArray<u8> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "header")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u8")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_magic")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_u16")?)?;
         // entries: explicit u32 count + EquipInfoData each (Vec<...>, not CArray).
         let entries = json_get_field(obj, "entries")?
@@ -404,7 +416,6 @@ impl WriteJsonValue for EquipSlotInfo {
         }
         <CArray<EquipExtraEntry> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "extra_entries")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tail_magic")?)?;
         Ok(())
     }
 }

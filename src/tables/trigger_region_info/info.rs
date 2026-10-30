@@ -33,6 +33,26 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
+    /// 2.04.00: SkillKey + level (Mac reader sub_10193A28C).
+    pub struct TriggerSkillPair {
+        pub skill: u32,
+        pub level: u32,
+    }
+}
+
+py_binary_struct! {
+    /// 2.04.00 list element (Mac reader sub_10193C890): two skill pairs and two floats.
+    pub struct TriggerPresetSkillEntry {
+        pub pair_a: TriggerSkillPair,
+        pub pair_b: TriggerSkillPair,
+        pub value_a: f32,
+        pub value_b: f32,
+    }
+}
+
+py_binary_struct! {
+    // 2.04.00 preset element (Mac reader sub_10193A0C4): the fixed hash/value slots of the
+    // pre-2.04 layout are four LISTS of skill-pair entries now, then two fixed pairs.
     pub struct PresetEntry<'a> {
         pub key_name: CString<'a>,
         pub field_b: u32,
@@ -42,29 +62,14 @@ py_binary_struct! {
         pub field_f: u32,
         pub field_g: u32,
         pub field_h: u32,
-        pub hash_a1: u32,
-        pub val_a1: u32,
-        pub hash_a2: u32,
-        pub val_a2: u32,
-        pub hash_a3: u32,
-        pub val_a3: u32,
-        pub hash_a4: u32,
-        pub val_a4: u32,
-        pub hash_b1: u32,
-        pub val_b1: u32,
-        pub hash_b2: u32,
-        pub val_b2: u32,
-        pub hash_b3: u32,
-        pub val_b3: u32,
-        pub hash_b4: u32,
-        pub val_b4: u32,
-        pub hash_c1: u32,
-        pub val_c1: u32,
-        pub hash_c2: u32,
-        pub val_c2: u32,
+        pub list_a: CArray<TriggerPresetSkillEntry>,
+        pub list_b: CArray<TriggerPresetSkillEntry>,
+        pub list_c: CArray<TriggerPresetSkillEntry>,
+        pub list_d: CArray<TriggerPresetSkillEntry>,
+        pub pair_x: TriggerSkillPair,
+        pub pair_y: TriggerSkillPair,
         pub field_x: u32,
         pub field_y: u32,
-        pub tail_u32: u32,
         pub tail_byte_a: u8,
         pub tail_byte_b: u8,
     }
@@ -72,18 +77,18 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct TriggerRegionInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        // game 2.00.00: `_isWater`, after `_physicsMaterialKey`. bytediff measured
+        // every changed record as exactly +1 byte, so u8 — no guessing needed.
+        pub is_water: u8,
         // ── 1.18.00: `_physicsMaterialKey`, one u32 between is_blocked and the
         // preset list. Unambiguous: the inserted bytes sit between a CString's
         // terminator region and the preset count, and one record carries a real
         // value (0x6963DF0E) while the other twelve hold the 0xFFFFFFFF unset
         // sentinel — so it is a key, not padding.
         pub physics_material_key: u32,
-        // game 2.00.00: `_isWater`, after `_physicsMaterialKey`. bytediff measured
-        // every changed record as exactly +1 byte, so u8 — no guessing needed.
-        pub is_water: u8,
         pub preset_list: CArray<PresetEntry<'a>>,
     }
 }

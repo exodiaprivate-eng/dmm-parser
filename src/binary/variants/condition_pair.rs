@@ -310,3 +310,19 @@ impl<'a> WriteJsonValue for BareConditionPairCArray<'a> {
         Ok(())
     }
 }
+
+// JSON is the supported path for condition lists (same as OptionalGameCondition); these stubs
+// let a ConditionPairCArray sit inside a `py_binary_struct!` (2.04.00 InteractionInfo).
+impl crate::python_traits::ToPyValue for ConditionPairCArray<'_> {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "ConditionPairCArray: use JSON path"))
+    }
+}
+
+impl crate::python_traits::WritePyValue for ConditionPairCArray<'_> {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "ConditionPairCArray: use JSON path"))
+    }
+}

@@ -167,11 +167,24 @@ py_binary_struct! {
 
 #[derive(Debug)]
 pub struct SubLevelInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
+    pub buff_add_percent_type: u8,
+    pub is_relative_with_camp: u8,
+    pub reward_drop_set_info: u32,
+    pub money_info: u32,
+    pub additional_buff_apply_mercenary_info: u8,
+    pub exp_icon_path: u32,
+    pub faction_info_for_contribution: u32,
+    pub alert_component_name: u32,
+    pub condition_info: u32,
+    pub alert_component_name_for_vary_exp: u32,
+    pub buff_info: u32,
+    pub knowledge_info: u32,
     pub min_level: u32,
     pub max_level: u32,
+    pub global_stage_sequencer_info: u32,
     /// 28-byte exp composite: 3× u64 + u32. Empirical sweep shows
     /// values like (100000, 10000000, 100000, 100) — looks like
     /// experience thresholds + count.
@@ -179,23 +192,10 @@ pub struct SubLevelInfo<'a> {
     pub exp_b: u64,
     pub exp_c: u64,
     pub exp_d: u32,
-    pub condition_info: u32,
-    pub alert_component_name: u32,
-    pub alert_component_name_for_vary_exp: u32,
-    pub knowledge_info: u32,
-    pub buff_info: u32,
-    pub money_info: u32,
-    pub reward_drop_set_info: u32,
     pub sub_level_exp_data_list: CArray<SubLevelExpData<'a>>,
     pub additional_reward_list: CArray<SubLevelAdditionalReward>,
     pub vary_experience_list: CArray<VaryExperienceData>,
     pub vary_exp_per_donation_data_list: CArray<VaryExpPerDonationData>,
-    pub additional_buff_apply_mercenary_info: u8,
-    pub faction_info_for_contribution: u32,
-    pub global_stage_sequencer_info: u32,
-    pub buff_add_percent_type: u8,
-    pub exp_icon_path: u32,
-    pub is_relative_with_camp: u8,
 }
 
 impl<'a> SubLevelInfo<'a> {
@@ -213,32 +213,32 @@ impl<'a> SubLevelInfo<'a> {
     }
 
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let buff_add_percent_type = u8::read_from(data, offset)?;
+        let is_relative_with_camp = u8::read_from(data, offset)?;
+        let reward_drop_set_info = u32::read_from(data, offset)?;
+        let money_info = u32::read_from(data, offset)?;
+        let additional_buff_apply_mercenary_info = u8::read_from(data, offset)?;
+        let exp_icon_path = u32::read_from(data, offset)?;
+        let faction_info_for_contribution = u32::read_from(data, offset)?;
+        let alert_component_name = u32::read_from(data, offset)?;
+        let condition_info = u32::read_from(data, offset)?;
+        let alert_component_name_for_vary_exp = u32::read_from(data, offset)?;
+        let buff_info = u32::read_from(data, offset)?;
+        let knowledge_info = u32::read_from(data, offset)?;
         let min_level = u32::read_from(data, offset)?;
         let max_level = u32::read_from(data, offset)?;
+        let global_stage_sequencer_info = u32::read_from(data, offset)?;
         let exp_a = u64::read_from(data, offset)?;
         let exp_b = u64::read_from(data, offset)?;
         let exp_c = u64::read_from(data, offset)?;
         let exp_d = u32::read_from(data, offset)?;
-        let condition_info = u32::read_from(data, offset)?;
-        let alert_component_name = u32::read_from(data, offset)?;
-        let alert_component_name_for_vary_exp = u32::read_from(data, offset)?;
-        let knowledge_info = u32::read_from(data, offset)?;
-        let buff_info = u32::read_from(data, offset)?;
-        let money_info = u32::read_from(data, offset)?;
-        let reward_drop_set_info = u32::read_from(data, offset)?;
         let sub_level_exp_data_list = CArray::<SubLevelExpData>::read_from(data, offset)?;
         let additional_reward_list = CArray::<SubLevelAdditionalReward>::read_from(data, offset)?;
         let vary_experience_list = CArray::<VaryExperienceData>::read_from(data, offset)?;
         let vary_exp_per_donation_data_list = CArray::<VaryExpPerDonationData>::read_from(data, offset)?;
-        let additional_buff_apply_mercenary_info = u8::read_from(data, offset)?;
-        let faction_info_for_contribution = u32::read_from(data, offset)?;
-        let global_stage_sequencer_info = u32::read_from(data, offset)?;
-        let buff_add_percent_type = u8::read_from(data, offset)?;
-        let exp_icon_path = u32::read_from(data, offset)?;
-        let is_relative_with_camp = u8::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, min_level, max_level, exp_a, exp_b, exp_c, exp_d,
             condition_info, alert_component_name, alert_component_name_for_vary_exp,
@@ -251,93 +251,93 @@ impl<'a> SubLevelInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.buff_add_percent_type.write_to(w)?;
+        self.is_relative_with_camp.write_to(w)?;
+        self.reward_drop_set_info.write_to(w)?;
+        self.money_info.write_to(w)?;
+        self.additional_buff_apply_mercenary_info.write_to(w)?;
+        self.exp_icon_path.write_to(w)?;
+        self.faction_info_for_contribution.write_to(w)?;
+        self.alert_component_name.write_to(w)?;
+        self.condition_info.write_to(w)?;
+        self.alert_component_name_for_vary_exp.write_to(w)?;
+        self.buff_info.write_to(w)?;
+        self.knowledge_info.write_to(w)?;
         self.min_level.write_to(w)?;
         self.max_level.write_to(w)?;
+        self.global_stage_sequencer_info.write_to(w)?;
         self.exp_a.write_to(w)?;
         self.exp_b.write_to(w)?;
         self.exp_c.write_to(w)?;
         self.exp_d.write_to(w)?;
-        self.condition_info.write_to(w)?;
-        self.alert_component_name.write_to(w)?;
-        self.alert_component_name_for_vary_exp.write_to(w)?;
-        self.knowledge_info.write_to(w)?;
-        self.buff_info.write_to(w)?;
-        self.money_info.write_to(w)?;
-        self.reward_drop_set_info.write_to(w)?;
         self.sub_level_exp_data_list.write_to(w)?;
         self.additional_reward_list.write_to(w)?;
         self.vary_experience_list.write_to(w)?;
         self.vary_exp_per_donation_data_list.write_to(w)?;
-        self.additional_buff_apply_mercenary_info.write_to(w)?;
-        self.faction_info_for_contribution.write_to(w)?;
-        self.global_stage_sequencer_info.write_to(w)?;
-        self.buff_add_percent_type.write_to(w)?;
-        self.exp_icon_path.write_to(w)?;
-        self.is_relative_with_camp.write_to(w)?;
         Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("buff_add_percent_type".to_string(), self.buff_add_percent_type.to_json_value());
+        m.insert("is_relative_with_camp".to_string(), self.is_relative_with_camp.to_json_value());
+        m.insert("reward_drop_set_info".to_string(), self.reward_drop_set_info.to_json_value());
+        m.insert("money_info".to_string(), self.money_info.to_json_value());
+        m.insert("additional_buff_apply_mercenary_info".to_string(), self.additional_buff_apply_mercenary_info.to_json_value());
+        m.insert("exp_icon_path".to_string(), self.exp_icon_path.to_json_value());
+        m.insert("faction_info_for_contribution".to_string(), self.faction_info_for_contribution.to_json_value());
+        m.insert("alert_component_name".to_string(), self.alert_component_name.to_json_value());
+        m.insert("condition_info".to_string(), self.condition_info.to_json_value());
+        m.insert("alert_component_name_for_vary_exp".to_string(), self.alert_component_name_for_vary_exp.to_json_value());
+        m.insert("buff_info".to_string(), self.buff_info.to_json_value());
+        m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
         m.insert("min_level".to_string(), self.min_level.to_json_value());
         m.insert("max_level".to_string(), self.max_level.to_json_value());
+        m.insert("global_stage_sequencer_info".to_string(), self.global_stage_sequencer_info.to_json_value());
         m.insert("exp_a".to_string(), self.exp_a.to_json_value());
         m.insert("exp_b".to_string(), self.exp_b.to_json_value());
         m.insert("exp_c".to_string(), self.exp_c.to_json_value());
         m.insert("exp_d".to_string(), self.exp_d.to_json_value());
-        m.insert("condition_info".to_string(), self.condition_info.to_json_value());
-        m.insert("alert_component_name".to_string(), self.alert_component_name.to_json_value());
-        m.insert("alert_component_name_for_vary_exp".to_string(), self.alert_component_name_for_vary_exp.to_json_value());
-        m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
-        m.insert("buff_info".to_string(), self.buff_info.to_json_value());
-        m.insert("money_info".to_string(), self.money_info.to_json_value());
-        m.insert("reward_drop_set_info".to_string(), self.reward_drop_set_info.to_json_value());
         m.insert("sub_level_exp_data_list".to_string(), self.sub_level_exp_data_list.to_json_value());
         m.insert("additional_reward_list".to_string(), self.additional_reward_list.to_json_value());
         m.insert("vary_experience_list".to_string(), self.vary_experience_list.to_json_value());
         m.insert("vary_exp_per_donation_data_list".to_string(), self.vary_exp_per_donation_data_list.to_json_value());
-        m.insert("additional_buff_apply_mercenary_info".to_string(), self.additional_buff_apply_mercenary_info.to_json_value());
-        m.insert("faction_info_for_contribution".to_string(), self.faction_info_for_contribution.to_json_value());
-        m.insert("global_stage_sequencer_info".to_string(), self.global_stage_sequencer_info.to_json_value());
-        m.insert("buff_add_percent_type".to_string(), self.buff_add_percent_type.to_json_value());
-        m.insert("exp_icon_path".to_string(), self.exp_icon_path.to_json_value());
-        m.insert("is_relative_with_camp".to_string(), self.is_relative_with_camp.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_add_percent_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_relative_with_camp")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reward_drop_set_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "money_info")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "additional_buff_apply_mercenary_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_icon_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info_for_contribution")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "alert_component_name")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "alert_component_name_for_vary_exp")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "min_level")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "global_stage_sequencer_info")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_a")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_b")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_c")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_d")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "alert_component_name")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "alert_component_name_for_vary_exp")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "money_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reward_drop_set_info")?)?;
         <CArray<SubLevelExpData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "sub_level_exp_data_list")?)?;
         <CArray<SubLevelAdditionalReward> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "additional_reward_list")?)?;
         <CArray<VaryExperienceData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "vary_experience_list")?)?;
         <CArray<VaryExpPerDonationData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "vary_exp_per_donation_data_list")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "additional_buff_apply_mercenary_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info_for_contribution")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "global_stage_sequencer_info")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_add_percent_type")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "exp_icon_path")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_relative_with_camp")?)?;
         Ok(())
     }
 }

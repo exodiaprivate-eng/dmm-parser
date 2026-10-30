@@ -18,21 +18,21 @@ use crate::py_binary_struct;
 //   - u32 trailing value (0xFFFFFFFF in 928/937, varies in 9)
 py_binary_struct! {
     pub struct AIEventTableInfo<'a> {
+        pub string_key: CString<'a>,
         pub key_head: u16,
         pub key_pad: u16,
         pub key_hash: u32,
         pub key_tail: u32,
-        pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub show_name: CString<'a>,
+        pub is_target_must_exist: u8,
+        pub is_sequencer_interrupt_event: u8,
+        pub is_must_handled: u8,
         pub delegate_event_handler: u32,
         pub reaction_level: u32,
         pub allow_type_flag: u32,
         pub event_type: u32,
+        pub show_name: CString<'a>,
         pub event_delay_type: u64,
-        pub is_sequencer_interrupt_event: u8,
-        pub is_target_must_exist: u8,
-        pub is_must_handled: u8,
     }
 }
 

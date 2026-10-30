@@ -81,8 +81,8 @@ py_binary_struct! {
 
 #[derive(Debug)]
 pub struct FrameEventAttrGroupInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub data_list: CArray<FrameEventAttr>,
 }
@@ -96,8 +96,8 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let data_list = <CArray<FrameEventAttr>>::read_from(data, offset)?;
         if *offset != entry_end {
@@ -117,8 +117,8 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
         let entry_end = *offset + entry_size;
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
         let data_list = track_read_field::<CArray<FrameEventAttr>>(data, offset, path, ranges, "data_list", "CArray<FrameEventAttr>")?;
         if *offset != entry_end {
@@ -129,8 +129,8 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.data_list.write_to(w)?;
         Ok(())
@@ -138,16 +138,16 @@ impl<'a> FrameEventAttrGroupInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("data_list".to_string(), self.data_list.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <CArray<FrameEventAttr> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "data_list")?)?;
         Ok(())

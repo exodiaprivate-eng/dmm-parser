@@ -89,8 +89,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct PartPrefabDyeSlotInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub sub_mesh_list: CArray<DyeSlotEntry<'a>>,
         pub mesh_file_name: CString<'a>,

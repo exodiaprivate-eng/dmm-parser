@@ -38,9 +38,15 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct AllyGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub is_main_ally_group: u8,
+        pub is_intruder: u8,
+        pub is_wild: u8,
+        pub killer_detection_time: u8,
+        pub apply_reporting: u8,
+        pub interesting_condition: u32,
         pub relation_type_list_0: CArray<u32>,
         pub relation_type_list_1: CArray<u32>,
         pub relation_type_list_2: CArray<u32>,
@@ -48,12 +54,6 @@ py_binary_struct! {
         pub relation_type_list_4: CArray<u32>,
         pub relation_type_list_5: CArray<u32>,
         pub relation_type_list_6: CArray<u32>,
-        pub killer_detection_time: u8,
-        pub apply_reporting: u8,
-        pub is_wild: u8,
-        pub is_main_ally_group: u8,
-        pub is_intruder: u8,
-        pub interesting_condition: u32,
         pub add_on_ally_group_list: CArray<u32>,
         pub interesting_order_list: CArray<u32>,
     }

@@ -36,8 +36,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct MaterialMatchInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub effect_weapon_key_hash: u32,
         pub effect_armor_key_hash: u32,

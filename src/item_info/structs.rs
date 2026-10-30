@@ -361,6 +361,8 @@ py_binary_struct! {
         pub enchant_stat_data: EnchantStatData,
         pub buy_price_list: CArray<ItemPriceInfo>,
         pub equip_buffs: CArray<EquipmentBuff>,
+        // 2.04.00: `_equipPassiveBuffs`, read with the same reader as `_equipBuffs`.
+        pub equip_passive_buffs: CArray<EquipmentBuff>,
         // 1.12 added a trailing u32 (=0 in all observed records) at the end of
         // each EnchantData entry, after equip_buffs. Verified byte-decisively:
         // record 2068 "Marni_Devotee_PlateArmor_Helm" (first enchanted item)
@@ -426,6 +428,9 @@ py_binary_struct! {
         pub refer_to_left_page_inspect_data: u8,
         pub inspect_effect_info_key: EffectKey,
         pub inspect_complete_effect_info_key: EffectKey,
+        // 2.04.00: two floats at the end (the same reader as ItemInfo's `_discardOffsetY`).
+        pub extract_max_distance_from_socket: f32,
+        pub extract_align_max_angle: f32,
     }
 }
 
@@ -600,7 +605,10 @@ py_binary_struct! {
         pub docking_type: u8,
         pub is_summoner_team: u8,
         pub is_player_only: u8,
-        pub is_npc_only: ConditionKey,
+        // 2.04.00: `_isNpcOnly` (a ConditionKey despite its name) became `_playerCondition`,
+        // and `_ownerCondition` (also a ConditionKey) follows it.
+        pub player_condition: ConditionKey,
+        pub owner_condition: ConditionKey,
         pub is_sync_break_parent: u8,
         pub hit_part: u8,
         pub detected_by_npc: u8,
@@ -625,6 +633,8 @@ py_binary_struct! {
         // game desynced on the next string read (Custom Equipment armour with an
         // attachment, Stormsteel clone 47; 2026-09-04).
         pub animation_root_bone_name: CString<'a>,
+        // 2.04.00: `_useCoolTime`, the last field.
+        pub use_cool_time: u8,
     }
 }
 
@@ -689,6 +699,8 @@ py_binary_struct! {
         // 2.00.00. Empty in all 6,810 vanilla records — see the type doc.
         pub price_list: CArray<FactionManagementData>,
         pub tier: u32,
+        // 2.04.00: `_synergyList`, a list of 2-byte keys.
+        pub synergy_list: CArray<u16>,
     }
 }
 
@@ -1260,9 +1272,12 @@ mod tests {
         bytes.extend_from_slice(&1u32.to_le_bytes()); // _priceList: 1 entry
         entry(&mut bytes, 20);
         bytes.extend_from_slice(&7u32.to_le_bytes()); // _tier
+        bytes.extend_from_slice(&2u32.to_le_bytes()); // _synergyList (2.04.00): 2 keys
+        bytes.extend_from_slice(&5u16.to_le_bytes());
+        bytes.extend_from_slice(&6u16.to_le_bytes());
 
-        // 1 + (4 + 2*28) + (4 + 1*28) + 4
-        assert_eq!(bytes.len(), 1 + 4 + 56 + 4 + 28 + 4);
+        // 1 + (4 + 2*28) + (4 + 1*28) + 4 + (4 + 2*2)
+        assert_eq!(bytes.len(), 1 + 4 + 56 + 4 + 28 + 4 + 8);
 
         let mut offset = 0;
         let f = ItemInfoFactionManagementData::read_from(&bytes, &mut offset).unwrap();
@@ -1272,21 +1287,22 @@ mod tests {
         assert_eq!(f.price_list.items.len(), 1, "_priceList must decode as an array");
         assert_eq!(f.price_list.items[0].faction_info, 20);
         assert_eq!(f.tier, 7);
+        assert_eq!(f.synergy_list.items, [5, 6]);
 
         let mut out = Vec::new();
         f.write_to(&mut out).unwrap();
         assert_eq!(out, bytes);
     }
 
-    /// The empty shape vanilla actually ships: 1 + 4 + 4 + 4 = 13 bytes.
-    /// On 1.18 the same block was 9 bytes (no `_priceList`) — that 4-byte step
-    /// is the whole of the 2.00.00 ItemInfo growth in this region.
+    /// An empty block: 1 + 4 + 4 + 4 + 4 = 17 bytes on 2.04.00 (`_synergyList` added).
+    /// It was 13 on 2.00-2.03 and 9 on 1.18 (no `_priceList`). Since 2.04 ItemInfo
+    /// holds the block behind a presence byte, so vanilla items mostly write a single 0.
     #[test]
-    fn empty_faction_block_is_thirteen_bytes() {
-        let bytes = vec![0u8; 13];
+    fn empty_faction_block_is_seventeen_bytes() {
+        let bytes = vec![0u8; 17];
         let mut offset = 0;
         let f = ItemInfoFactionManagementData::read_from(&bytes, &mut offset).unwrap();
-        assert_eq!(offset, 13);
+        assert_eq!(offset, 17);
         assert!(f.cost_list.items.is_empty() && f.price_list.items.is_empty());
         let mut out = Vec::new();
         f.write_to(&mut out).unwrap();

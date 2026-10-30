@@ -84,8 +84,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct BoardInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub board_data_list: CArray<BoardSubItem>,
         pub board_data_group_list: CArray<BoardDataGroup<'a>>,

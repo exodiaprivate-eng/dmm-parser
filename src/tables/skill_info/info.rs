@@ -278,38 +278,39 @@ impl<'a> SkillInfo<'a> {
         entry_size: usize,
     ) -> io::Result<Self> {
         let start = *offset;
-        let key = u32::read_from(data, offset)?;
+        // 2.04.00: field order of the Mac reader sub_10203F338.
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let is_learn_use_artifact = u8::read_from(data, offset)?;
+        let allow_skill_with_low_resource = u8::read_from(data, offset)?;
+        let ui_type = u8::read_from(data, offset)?;
+        let is_ui_use_allowed = u8::read_from(data, offset)?;
+        let apply_type = u8::read_from(data, offset)?;
+        let damage_type = u8::read_from(data, offset)?;
+        let is_no_alert = u8::read_from(data, offset)?;
+        let is_use_child_pattern_description_buff_data = u8::read_from(data, offset)?;
+        let faction_info = u32::read_from(data, offset)?;
+        let icon_path = u32::read_from(data, offset)?;
+        let parent_skill = u32::read_from(data, offset)?;
+        let learn_knowledge_info = u32::read_from(data, offset)?;
+        let need_upgrade_item_info = u32::read_from(data, offset)?;
+        let buff_sustain_flag = u32::read_from(data, offset)?;
+        let max_level = u32::read_from(data, offset)?;
+        let skill_group_key = u32::read_from(data, offset)?;
+        let learn_level = u32::read_from(data, offset)?;
         let cooltime = u32::read_from(data, offset)?;
         let buff_level_list = CArray::<CArray<BuffDataOptional>>::read_from(data, offset)?;
-        let skill_group_key = u32::read_from(data, offset)?;
-        let parent_skill = u32::read_from(data, offset)?;
-        let learn_level = u32::read_from(data, offset)?;
-        let apply_type = u8::read_from(data, offset)?;
-        let icon_path = u32::read_from(data, offset)?;
-        let need_upgrade_item_info = u32::read_from(data, offset)?;
         let need_upgrade_item_count_graph = GraphData::read_from(data, offset)?;
         let need_upgrade_experience_graph = GraphData::read_from(data, offset)?;
         let usable_character_info_list = CArray::<u32>::read_from(data, offset)?;
         let usable_condition = CArray::<u32>::read_from(data, offset)?;
-        let learn_knowledge_info = u32::read_from(data, offset)?;
-        let faction_info = u32::read_from(data, offset)?;
         let use_resource_stat_list = CArray::<ResourceStat>::read_from(data, offset)?;
         let use_resource_item_list = CArray::<ResourceItem>::read_from(data, offset)?;
         let use_driver_resource_stat_list = CArray::<ResourceStat>::read_from(data, offset)?;
         let use_battery_stat = u64::read_from(data, offset)?;
-        let is_ui_use_allowed = u8::read_from(data, offset)?;
-        let is_learn_use_artifact = u8::read_from(data, offset)?;
-        let allow_skill_with_low_resource = u8::read_from(data, offset)?;
-        let is_use_child_pattern_description_buff_data = u8::read_from(data, offset)?;
-        let is_no_alert = u8::read_from(data, offset)?;
-        let damage_type = u8::read_from(data, offset)?;
-        let ui_type = u8::read_from(data, offset)?;
         let reserve_slot_info_list = CArray::<u32>::read_from(data, offset)?;
-        let max_level = u32::read_from(data, offset)?;
         let skill_group_key_list = CArray::<u16>::read_from(data, offset)?;
-        let buff_sustain_flag = u32::read_from(data, offset)?;
         let dev_skill_name = CString::read_from(data, offset)?;
         let dev_skill_desc = CString::read_from(data, offset)?;
 
@@ -364,38 +365,38 @@ impl<'a> SkillInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.is_learn_use_artifact.write_to(w)?;
+        self.allow_skill_with_low_resource.write_to(w)?;
+        self.ui_type.write_to(w)?;
+        self.is_ui_use_allowed.write_to(w)?;
+        self.apply_type.write_to(w)?;
+        self.damage_type.write_to(w)?;
+        self.is_no_alert.write_to(w)?;
+        self.is_use_child_pattern_description_buff_data.write_to(w)?;
+        self.faction_info.write_to(w)?;
+        self.icon_path.write_to(w)?;
+        self.parent_skill.write_to(w)?;
+        self.learn_knowledge_info.write_to(w)?;
+        self.need_upgrade_item_info.write_to(w)?;
+        self.buff_sustain_flag.write_to(w)?;
+        self.max_level.write_to(w)?;
+        self.skill_group_key.write_to(w)?;
+        self.learn_level.write_to(w)?;
         self.cooltime.write_to(w)?;
         self.buff_level_list.write_to(w)?;
-        self.skill_group_key.write_to(w)?;
-        self.parent_skill.write_to(w)?;
-        self.learn_level.write_to(w)?;
-        self.apply_type.write_to(w)?;
-        self.icon_path.write_to(w)?;
-        self.need_upgrade_item_info.write_to(w)?;
         self.need_upgrade_item_count_graph.write_to(w)?;
         self.need_upgrade_experience_graph.write_to(w)?;
         self.usable_character_info_list.write_to(w)?;
         self.usable_condition.write_to(w)?;
-        self.learn_knowledge_info.write_to(w)?;
-        self.faction_info.write_to(w)?;
         self.use_resource_stat_list.write_to(w)?;
         self.use_resource_item_list.write_to(w)?;
         self.use_driver_resource_stat_list.write_to(w)?;
         self.use_battery_stat.write_to(w)?;
-        self.is_ui_use_allowed.write_to(w)?;
-        self.is_learn_use_artifact.write_to(w)?;
-        self.allow_skill_with_low_resource.write_to(w)?;
-        self.is_use_child_pattern_description_buff_data.write_to(w)?;
-        self.is_no_alert.write_to(w)?;
-        self.damage_type.write_to(w)?;
-        self.ui_type.write_to(w)?;
         self.reserve_slot_info_list.write_to(w)?;
-        self.max_level.write_to(w)?;
         self.skill_group_key_list.write_to(w)?;
-        self.buff_sustain_flag.write_to(w)?;
         self.dev_skill_name.write_to(w)?;
         self.dev_skill_desc.write_to(w)?;
         if let Some(a) = &self.dev_extra_a {
@@ -535,40 +536,38 @@ impl<'a> WriteJsonValue for SkillInfo<'a> {
     fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
         let obj = v.as_object().ok_or_else(|| io::Error::new(
             io::ErrorKind::InvalidData, "SkillInfo: expected object"))?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cooltime")?)?;
-        <CArray<CArray<BuffDataOptional>> as WriteJsonValue>::write_from_json(
-            w, json_get_field(obj, "buff_level_list")?,
-        )?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_group_key")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parent_skill")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "learn_level")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_learn_use_artifact")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "allow_skill_with_low_resource")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_ui_use_allowed")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "apply_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "damage_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_no_alert")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_use_child_pattern_description_buff_data")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "icon_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parent_skill")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "learn_knowledge_info")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_upgrade_item_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_sustain_flag")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_group_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "learn_level")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cooltime")?)?;
+        <CArray<CArray<BuffDataOptional>> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_level_list")?)?;
         <GraphData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_upgrade_item_count_graph")?)?;
         <GraphData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_upgrade_experience_graph")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "usable_character_info_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "usable_condition")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "learn_knowledge_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info")?)?;
         <CArray<ResourceStat> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_resource_stat_list")?)?;
         <CArray<ResourceItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_resource_item_list")?)?;
         <CArray<ResourceStat> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_driver_resource_stat_list")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "use_battery_stat")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_ui_use_allowed")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_learn_use_artifact")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "allow_skill_with_low_resource")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_use_child_pattern_description_buff_data")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_no_alert")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "damage_type")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_type")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "reserve_slot_info_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_level")?)?;
         <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "skill_group_key_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "buff_sustain_flag")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_name")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dev_skill_desc")?)?;
         // dev_extra_a / dev_extra_b are present only in newer-format entries.
@@ -678,6 +677,65 @@ pub fn serialize_skill_from_json(items: &[Value]) -> io::Result<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    /// DIAG_KEY=<hex> cargo test --lib skill_info::info::tests::diag_buffs -- --ignored --nocapture
+    /// Walks one skill's buff_level_list buff by buff (2.04 field order) and prints each
+    /// BuffData type and its byte span, stopping at the first that fails.
+    #[test]
+    #[ignore = "diagnostic"]
+    fn diag_buffs() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        use crate::binary::variants::buff_data::BuffData;
+        let want = u32::from_str_radix(&std::env::var("DIAG_KEY").unwrap_or_default(), 16).ok();
+        let p = crate::testenv::resolve("skill.pabgb");
+        let Ok(data) = std::fs::read(&p) else { return; };
+        let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { return; };
+        for (k, s, e) in entry_ranges(&entries, data.len()) {
+            if want.map_or(false, |w| k as u32 != w) { continue; }
+            let mut o = s;
+            let r = (|| -> io::Result<()> {
+                CString::read_from(&data, &mut o)?;
+                o += 4 + 9; // key + 9 one-byte fields
+                o += 4 * 10;
+                let levels = u32::read_from(&data, &mut o)?;
+                eprintln!("k=0x{:x} levels={} at rel {}", k, levels, o - s);
+                for l in 0..levels {
+                    let n = u32::read_from(&data, &mut o)?;
+                    for b in 0..n {
+                        let at = o;
+                        let absent = u8::read_from(&data, &mut o)?;
+                        if absent != 0 { continue; }
+                        let disc = data[o];
+                        let r = BuffData::read_from(&data, &mut o);
+                        eprintln!("   level {} buff {} type {} rel {}..{} {:?}", l, b, disc, at - s, o - s, r.as_ref().map(|_| ()).map_err(|x| x.to_string()));
+                        r?;
+                    }
+                }
+                macro_rules! step { ($name:literal, $t:ty) => {{
+                    let at = o;
+                    let r = <$t>::read_from(&data, &mut o);
+                    eprintln!("   {:<34} rel {}..{} {:?}", $name, at - s, o - s, r.as_ref().map(|_| ()).map_err(|x| x.to_string()));
+                    r?;
+                }}; }
+                step!("need_upgrade_item_count_graph", GraphData);
+                step!("need_upgrade_experience_graph", GraphData);
+                step!("usable_character_info_list", CArray<u32>);
+                step!("usable_condition", CArray<u32>);
+                step!("use_resource_stat_list", CArray<ResourceStat>);
+                step!("use_resource_item_list", CArray<ResourceItem>);
+                step!("use_driver_resource_stat_list", CArray<ResourceStat>);
+                step!("use_battery_stat", u64);
+                step!("reserve_slot_info_list", CArray<u32>);
+                step!("skill_group_key_list", CArray<u16>);
+                step!("dev_skill_name", CString);
+                step!("dev_skill_desc", CString);
+                if o < e { eprintln!("   bytes from rel {}: {:02x?}", o - s, &data[o..e.min(o + 48)]); }
+                Ok(())
+            })();
+            eprintln!("  -> {:?} (record {} bytes)", r.map_err(|x| x.to_string()), e - s);
+            if want.is_some() { break; }
+        }
+    }
+
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
 

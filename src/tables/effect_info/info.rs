@@ -69,7 +69,6 @@ use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_fiel
 use serde_json::{Map, Value};
 use std::io::{self, Write};
 
-const TAIL_SIZE: usize = 3;
 
 /// One entry in `EffectInfo._meshEffectDataList`. Wire format read by
 /// `sub_1410DBD90`: fixed 50 bytes per element. Typed below.
@@ -87,7 +86,8 @@ pub struct MeshEffectData {
     pub new_112_b: u32,
     pub field_h: u32,
     pub field_i: u32,
-    pub field_flag: u8,
+    // 2.04.00: `_meshEffectType` is 4 bytes (Mac reader sub_10206BA60; element 58 -> 61 B).
+    pub field_flag: u32,
     pub lookup_a: u32,
     pub lookup_b: u32,
     pub lookup_c: u32,
@@ -107,7 +107,7 @@ impl MeshEffectData {
         let new_112_b = u32::read_from(data, offset)?;
         let field_h = u32::read_from(data, offset)?;
         let field_i = u32::read_from(data, offset)?;
-        let field_flag = u8::read_from(data, offset)?;
+        let field_flag = u32::read_from(data, offset)?;
         let lookup_a = u32::read_from(data, offset)?;
         let lookup_b = u32::read_from(data, offset)?;
         let lookup_c = u32::read_from(data, offset)?;
@@ -172,7 +172,7 @@ impl MeshEffectData {
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "new_112_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_h")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_i")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_flag")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "field_flag")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
@@ -183,8 +183,8 @@ impl MeshEffectData {
 
 #[derive(Debug)]
 pub struct EffectInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     /// Effect-data CArray, fully typed per element. Each element exposes
     /// 10 named fields plus a typed `core_block` (47 sub-fields) and a
@@ -206,17 +206,15 @@ impl<'a> EffectInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
-
-        if *offset + TAIL_SIZE > entry_end {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "effectinfo: entry too small for tail",
-            ));
-        }
-        let blob_end = entry_end - TAIL_SIZE;
+        // 2.04.00 (Mac reader sub_10206BD90): the three flags follow isBlocked; the two
+        // lists now run to the end of the record.
+        let target_color_lerp_type = u8::read_from(data, offset)?;
+        let has_preset = u8::read_from(data, offset)?;
+        let has_equip_type = u8::read_from(data, offset)?;
+        let blob_end = entry_end;
 
         // Effect data list: u32 count + N × variable-size element. Read
         // linearly — each EffectDataElement is fully typed and byte-exact,
@@ -246,10 +244,6 @@ impl<'a> EffectInfo<'a> {
         }
         *offset = blob_end;
 
-        let has_equip_type = u8::read_from(data, offset)?;
-        let has_preset = u8::read_from(data, offset)?;
-        let target_color_lerp_type = u8::read_from(data, offset)?;
-
         Ok(Self {
             key, string_key, is_blocked, effect_data, mesh_effect_data,
             has_equip_type, has_preset, target_color_lerp_type,
@@ -266,15 +260,13 @@ impl<'a> EffectInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
-
-        if *offset + TAIL_SIZE > entry_end {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                "effectinfo: entry too small for tail"));
-        }
-        let blob_end = entry_end - TAIL_SIZE;
+        let target_color_lerp_type = track_read_field::<u8>(data, offset, path, ranges, "target_color_lerp_type", "u8")?;
+        let has_preset = track_read_field::<u8>(data, offset, path, ranges, "has_preset", "u8")?;
+        let has_equip_type = track_read_field::<u8>(data, offset, path, ranges, "has_equip_type", "u8")?;
+        let blob_end = entry_end;
 
         let effect_data = track_read_with(offset, path, ranges, "effect_data", "Vec<EffectDataElement>", |o| {
             let n_effect = u32::read_from(data, o)? as usize;
@@ -299,10 +291,6 @@ impl<'a> EffectInfo<'a> {
         })?;
         *offset = blob_end;
 
-        let has_equip_type = track_read_field::<u8>(data, offset, path, ranges, "has_equip_type", "u8")?;
-        let has_preset = track_read_field::<u8>(data, offset, path, ranges, "has_preset", "u8")?;
-        let target_color_lerp_type = track_read_field::<u8>(data, offset, path, ranges, "target_color_lerp_type", "u8")?;
-
         Ok(Self {
             key, string_key, is_blocked, effect_data, mesh_effect_data,
             has_equip_type, has_preset, target_color_lerp_type,
@@ -310,25 +298,25 @@ impl<'a> EffectInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.target_color_lerp_type.write_to(w)?;
+        self.has_preset.write_to(w)?;
+        self.has_equip_type.write_to(w)?;
         (self.effect_data.len() as u32).write_to(w)?;
         for e in &self.effect_data { e.write_to(w)?; }
         (self.mesh_effect_data.len() as u32).write_to(w)?;
         for m in &self.mesh_effect_data {
             m.write_to(w)?;
         }
-        self.has_equip_type.write_to(w)?;
-        self.has_preset.write_to(w)?;
-        self.target_color_lerp_type.write_to(w)?;
         Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert(
             "effect_data".to_string(),
@@ -349,9 +337,12 @@ impl<'a> EffectInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_color_lerp_type")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "has_preset")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "has_equip_type")?)?;
         let effects = json_get_field(obj, "effect_data")?
             .as_array()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
@@ -374,9 +365,6 @@ impl<'a> EffectInfo<'a> {
                 "EffectInfo: each mesh_effect_data entry must be an object"))?;
             MeshEffectData::write_from_json_dict(w, m)?;
         }
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "has_equip_type")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "has_preset")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_color_lerp_type")?)?;
         Ok(())
     }
 }
@@ -459,4 +447,34 @@ mod tests {
             entries_with_inner_map,
         );
     }
+    /// Per-element shape of the first failing records (counts of the variable lists).
+    #[test]
+    #[ignore = "diagnostic"]
+    fn diag_failing_shapes() {
+        let Ok(data) = std::fs::read(pabgb_path()) else { return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { return; };
+        let mut shown = 0;
+        for (k, s, e) in entry_ranges(&entries, data.len()) {
+            let mut c = s;
+            if EffectInfo::read_with_size(&data, &mut c, e - s).is_ok() { continue; }
+            let mut o = s;
+            let sk = CString::read_from(&data, &mut o).unwrap();
+            o += 4 + 1 + 3;
+            let n = u32::read_from(&data, &mut o).unwrap();
+            eprintln!("k=0x{:x} {:?} size={} n_effect={}", k, sk.to_json_value(), e - s, n);
+            for i in 0..n {
+                let st = o;
+                match EffectDataElement::read_from(&data, &mut o) {
+                    Ok(el) => eprintln!("  el{} {}..{} ({}) cstr={} d3={} nested={} inner={}", i, st, o, o - st,
+                        el.cstring_list.len(), el.fixed144_list.len(), el.nested_u32_lists.len(), el.inner_map.len()),
+                    Err(er) => { eprintln!("  el{} ERR {}", i, er); break; }
+                }
+            }
+            let nm = u32::read_from(&data, &mut o).unwrap_or(0);
+            eprintln!("  mesh n={} rest={}", nm, e as i64 - o as i64);
+            shown += 1;
+            if shown >= 4 { break; }
+        }
+    }
+
 }

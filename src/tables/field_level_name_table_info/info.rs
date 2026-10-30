@@ -48,8 +48,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FieldLevelNameTableInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub field_level_name: CString<'a>,
         pub level_name_info_data_list: CArray<LevelNameInfoData<'a>>,

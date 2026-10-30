@@ -12,8 +12,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct AIActionAttributeInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub passive_skill_key_list: CArray<u64>,
     }

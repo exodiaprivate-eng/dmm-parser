@@ -197,9 +197,9 @@ pub enum GameConditionNode<'a> {
     ScheduleCompleteConditionData(ScheduleCompleteConditionData<'a>),
     /// Case 6: leaf ConditionGimmickData_CheckProperty.
     ConditionGimmickData(ConditionGimmickData),
-    /// Case 7: ConditionData_StageChart / ConditionData_StageChart_Event.
+    /// Cases 7 (StageChart) and 8 (StageChart_Event) since 2.04.00.
     StageChart(ConditionDataStageChart<'a>),
-    /// Case 8: leaf GlobalEffectConditionData.
+    /// Case 9 since 2.04.00 (was 8): leaf GlobalEffectConditionData.
     GlobalEffectConditionData(GlobalEffectConditionData),
 }
 
@@ -234,8 +234,11 @@ impl<'a> GameConditionNode<'a> {
                 ScheduleCompleteConditionData::read_from(data, offset)?,
             )),
             6 => Ok(Self::ConditionGimmickData(ConditionGimmickData::read_from(data, offset)?)),
-            7 => Ok(Self::StageChart(ConditionDataStageChart::read_from(data, offset)?)),
-            8 => Ok(Self::GlobalEffectConditionData(GlobalEffectConditionData::read_from(data, offset)?)),
+            // 2.04.00 (Mac node dispatch sub_101D9C034): the old case 7 split in two, case 7 =
+            // ConditionData_StageChart and case 8 = ConditionData_StageChart_Event;
+            // GlobalEffectConditionData moved 8 -> 9.
+            7 | 8 => Ok(Self::StageChart(ConditionDataStageChart::read_from(data, offset, case_tag)?)),
+            9 => Ok(Self::GlobalEffectConditionData(GlobalEffectConditionData::read_from(data, offset)?)),
             other => {
                 // Capture surrounding wire bytes to help debug whether
                 // this is a real unhandled tag or a misalignment surfacing
@@ -290,11 +293,11 @@ impl<'a> GameConditionNode<'a> {
                 g.write_to(w)
             }
             Self::StageChart(s) => {
-                7u8.write_to(w)?;
+                s.case_tag().write_to(w)?;
                 s.write_to(w)
             }
             Self::GlobalEffectConditionData(g) => {
-                8u8.write_to(w)?;
+                9u8.write_to(w)?;
                 g.write_to(w)
             }
         }
@@ -409,15 +412,15 @@ impl<'a> GameConditionNode<'a> {
                 ConditionGimmickData::write_from_json_dict(w, data_obj)?;
             }
             "StageChart" => {
-                w.push(7u8);
                 let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
                     io::ErrorKind::InvalidData,
                     "StageChart.data: expected object",
                 ))?;
+                w.push(ConditionDataStageChart::case_tag_for_json(data_obj)?);
                 ConditionDataStageChart::write_from_json_dict(w, data_obj)?;
             }
             "GlobalEffectConditionData" => {
-                w.push(8u8);
+                w.push(9u8);
                 let data_obj = get_field(obj, "data")?.as_object().ok_or_else(|| io::Error::new(
                     io::ErrorKind::InvalidData,
                     "GlobalEffectConditionData.data: expected object",

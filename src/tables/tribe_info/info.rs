@@ -112,75 +112,45 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
+    // 2.04.00: rewritten from the Mac reader (sub_102072B28), whose assert strings name every
+    // read, so the fields carry the game's own names from here on. The pre-2.04 layout only
+    // had guessed `unk_*` names (nothing in DMM referred to them).
     pub struct TribeInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub lookup_a: u32,
-        pub lookup_b: u32,
-        pub unk_22: u8,
-        pub unk_24: u32,
-        pub unk_28: u8,
-        pub unk_29: u8,
-        // 1.12: new u8 (observed 0) between unk_29 and unk_30. Decisive via
-        // non-zero-anchored record 0x8d1578a0 (unk_30's value 0x01 shifts +1).
-        pub unk_112_a: u8,
-        // ── 1.18.00: `_factionPatrolSpawnDistanceType`, one u8 immediately
-        // before unk_30. This sits in a long zero run, so most records let the
-        // insert slide left (212 land on unk_28, 90 on unk_29, 42 on unk_24);
-        // the one record whose inserted byte is NON-zero pins it here, and
-        // every slide is leftward from this point, which is what a true
-        // position of "before unk_30" predicts.
+        pub is_wagon_detour: u8,
+        pub ignore_overlap_push: u8,
+        pub has_child: u8,
+        pub detect_mode_show_enemy: u8,
         pub faction_patrol_spawn_distance_type: u8,
-        pub unk_30: u8,
-        pub unk_31: u8,
-        pub unk_32: u8,
-        pub unk_33: u8,
-        pub unk_34: u8,
-        pub unk_35: u8,
-        // 1.0.8: was u8, now u32
-        pub unk_36: u32,
-        pub unk_40: u32,
-        pub unk_44: u32,
-        // 1.12: new u8 (observed 0) between unk_44 and unk_48. Decisive via
-        // non-zero record 0x8d1578a0 (unk_44's 0xbf and unk_48.len's 0x21
-        // bracket the inserted 0x00 — unambiguous, not a zero-run artifact).
-        pub unk_112_b: u8,
-        // 1.0.8: was u32, now CString
-        pub unk_48: CString<'a>,
-        pub unk_56: u32,
-        pub unk_60: u32,
-        pub unk_64: u32,
-        pub unk_68: u32,
-        // 1.0.8: was u32, now u8
-        pub unk_72: u8,
-        pub unk_73: u8,
-        pub unk_76: u32,
-        // 1.0.8: was u32 unk_84 + u64 unk_88, now 16B (2x u64)
-        //
-        // ── 1.18.00: that "2x u64" was always a guess — nothing had ever forced
-        // a boundary inside the first 8 bytes. 1.18 forces one: 322 of 364
-        // records place the new byte exactly 4 bytes into unk_80_lo, and 4 of
-        // those carry a non-zero `01`, so it cannot be a zero-run artifact.
-        // unk_80_lo is therefore split u32 + u32 with the new field between.
-        // The name is kept on the low half rather than retired, since parser
-        // field names are the mod contract.
-        pub unk_80_lo: u32,
-        // `_isSteeringMovement`. The oracle lists it immediately after
-        // `_isVehicle`, which is consistent with unk_80_lo (or its last byte)
-        // holding the vehicle flag.
+        pub wanted_crime_type: u8,
+        pub interaction_ui_distance_lv: u8,
+        pub is_use_rough_navi_movement: u8,
+        pub road_group_type: u8,
+        pub is_humanoid: u8,
+        pub tribe_mass_level: u8,
+        pub ignore_water_fall: u8,
+        pub is_bird: u8,
+        pub is_death_by_drowning: u8,
         pub is_steering_movement: u8,
-        pub unk_80_lo_b: u32,
-        pub unk_80_hi: u64,
-        // 1.16: one new u32 inserted immediately before ref_list. Decisive on the
-        // first 3 records (111/114/121 B) — rec0 is the anchor: it is the only one
-        // with a NON-empty ref_list (count=1, hash 75101), so the inserted u32 and
-        // the count cannot be swapped without breaking the terminator. Per the
-        // binary's 31-field list this sits among _characterPauseType /
-        // _activityPresetInfo / _ignoredReactionInSafeZoneFlag; placeholder name
-        // kept in the existing unk_<ver>_<n> style of this table.
-        pub unk_116_a: u32,
-        pub ref_list: CArray<u32>,
+        pub is_vehicle: u8,
+        pub activity_preset_info: u32,
+        pub parent_tribe_info: u32,
+        pub foot_step_type_effect_name: u32,   // StringInfoKey
+        pub character_pause_type: u32,
+        pub detour_max_degree: f32,
+        pub base_material_key: u32,
+        pub bump_type_hash: u32,
+        pub activity_water_depth: f32,
+        pub velocity_damp_speed: f32,
+        pub path_find_obstacle_clearance: f32,
+        pub weapon_material_key: u32,
+        pub foot_material_key: u32,
+        pub armor_material_key: u32,
+        pub tribe_name_for_editor: CString<'a>,
+        pub ignored_reaction_in_safe_zone_flag: [u8; 16],
+        pub tamed_skill_list: CArray<u32>,
     }
 }
 

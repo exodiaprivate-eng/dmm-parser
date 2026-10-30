@@ -113,37 +113,44 @@ py_binary_struct! {
 }
 
 #[derive(Debug)]
+/// 2.04.00 wire order (Mac reader sub_102047DC8). Several of our field names sit one slot off
+/// the game's (they were fitted by width); the names are the mod contract (DMM's
+/// `mounts_in_towns` preset writes three of them), so they stay. Game names by position:
+/// is_housing_region = _isUIMapDisable, is_ui_map_disable = _isWild, is_wild = _isTown,
+/// fog_clear_condition = _regionType, is_town = _limitVehicleRun, is_accompany_allowed =
+/// _accompanyAllowType, bitmap_color + overrided_max_height = _bitmapColor (r, g),
+/// limit_vehicle_run = _fogClearCondition, region_type = _overriedMaxHeight (f32).
 pub struct RegionInfo<'a> {
-    pub key: u16,
     pub string_key: CString<'a>,
+    pub key: u16,
     pub is_blocked: u8,
-    pub display_region_name: LocalizableString<'a>,
-    pub knowledge_info: u32,
-    pub region_enter_knowledge_info_list: CArray<RegionSubA>,
-    pub parent_region_info: u16,
-    pub child_region_info_list: CArray<u16>,
-    pub bitmap_color: u8,
-    pub overrided_max_height: u8,
-    pub region_type: u32,
-    pub fog_clear_condition: u8,
-    pub limit_vehicle_run: u32,
-    pub is_town: u8,
-    pub is_wild: u8,
-    pub is_ui_map_disable: u8,
     pub is_housing_region: u8,
     pub is_none_play_zone: u8,
+    pub is_ui_map_disable: u8,
+    pub is_wild: u8,
+    pub fog_clear_condition: u8,
+    pub is_town: u8,
+    pub is_accompany_allowed: u8,
+    pub is_world_map_road_path_findable: u8,
+    /// 2.03.00: `_regionInventoryInfo` after _isAccompanyAllowed (oracle RegionInfo
+    /// 22 -> 23 fields at index 20). bytediff: records grew by 2 or 6, so a u16
+    /// inventory key (inventory_info keys are u16, 21 records) plus data edits.
+    pub region_inventory_info: u16,
+    pub parent_region_info: u16,
+    pub bitmap_color: u8,
+    pub overrided_max_height: u8,
+    pub knowledge_info: u32,
+    pub limit_vehicle_run: u32,
+    pub region_type: u32,
+    pub display_region_name: LocalizableString<'a>,
+    pub region_enter_knowledge_info_list: CArray<RegionSubA>,
+    pub child_region_info_list: CArray<u16>,
     // 1.13.00 tail reorg (Mac reader sub_101FBDFF0 + Korean field errors):
     // vehicle_mercenary_allow_type(u8) -> _forbiddenMercenaryKeyList (CArray<u8> —
     // mercenary keys are u8; reader sub_101923C18 = u32 count + u8 elems widened to
     // u16 in memory); u8_123 + trailing_u8_112 removed; gimmick_alias_pointer_list
     // -> _isAccompanyAllowed(u8).
     pub forbidden_mercenary_key_list: CArray<u8>,
-    pub is_world_map_road_path_findable: u8,
-    pub is_accompany_allowed: u8,
-    /// 2.03.00: `_regionInventoryInfo` after _isAccompanyAllowed (oracle RegionInfo
-    /// 22 -> 23 fields at index 20). bytediff: records grew by 2 or 6, so a u16
-    /// inventory key (inventory_info keys are u16, 21 records) plus data edits.
-    pub region_inventory_info: u16,
     pub domain_faction_list: CArray<RegionDomainFactionItem>,
     pub tag_list: CArray<u32>,
 }
@@ -165,28 +172,28 @@ impl<'a> RegionInfo<'a> {
     }
 
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u16::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u16::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
-        let display_region_name = LocalizableString::read_from(data, offset)?;
-        let knowledge_info = u32::read_from(data, offset)?;
-        let region_enter_knowledge_info_list = CArray::<RegionSubA>::read_from(data, offset)?;
-        let parent_region_info = u16::read_from(data, offset)?;
-        let child_region_info_list = CArray::<u16>::read_from(data, offset)?;
-        let bitmap_color = u8::read_from(data, offset)?;
-        let overrided_max_height = u8::read_from(data, offset)?;
-        let region_type = u32::read_from(data, offset)?;
-        let fog_clear_condition = u8::read_from(data, offset)?;
-        let limit_vehicle_run = u32::read_from(data, offset)?;
-        let is_town = u8::read_from(data, offset)?;
-        let is_wild = u8::read_from(data, offset)?;
-        let is_ui_map_disable = u8::read_from(data, offset)?;
         let is_housing_region = u8::read_from(data, offset)?;
         let is_none_play_zone = u8::read_from(data, offset)?;
-        let forbidden_mercenary_key_list = CArray::<u8>::read_from(data, offset)?;
-        let is_world_map_road_path_findable = u8::read_from(data, offset)?;
+        let is_ui_map_disable = u8::read_from(data, offset)?;
+        let is_wild = u8::read_from(data, offset)?;
+        let fog_clear_condition = u8::read_from(data, offset)?;
+        let is_town = u8::read_from(data, offset)?;
         let is_accompany_allowed = u8::read_from(data, offset)?;
+        let is_world_map_road_path_findable = u8::read_from(data, offset)?;
         let region_inventory_info = u16::read_from(data, offset)?;
+        let parent_region_info = u16::read_from(data, offset)?;
+        let bitmap_color = u8::read_from(data, offset)?;
+        let overrided_max_height = u8::read_from(data, offset)?;
+        let knowledge_info = u32::read_from(data, offset)?;
+        let limit_vehicle_run = u32::read_from(data, offset)?;
+        let region_type = u32::read_from(data, offset)?;
+        let display_region_name = LocalizableString::read_from(data, offset)?;
+        let region_enter_knowledge_info_list = CArray::<RegionSubA>::read_from(data, offset)?;
+        let child_region_info_list = CArray::<u16>::read_from(data, offset)?;
+        let forbidden_mercenary_key_list = CArray::<u8>::read_from(data, offset)?;
         let domain_faction_list = CArray::<RegionDomainFactionItem>::read_from(data, offset)?;
         let tag_list = CArray::<u32>::read_from(data, offset)?;
         Ok(Self {
@@ -201,28 +208,28 @@ impl<'a> RegionInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        self.display_region_name.write_to(w)?;
-        self.knowledge_info.write_to(w)?;
-        self.region_enter_knowledge_info_list.write_to(w)?;
-        self.parent_region_info.write_to(w)?;
-        self.child_region_info_list.write_to(w)?;
-        self.bitmap_color.write_to(w)?;
-        self.overrided_max_height.write_to(w)?;
-        self.region_type.write_to(w)?;
-        self.fog_clear_condition.write_to(w)?;
-        self.limit_vehicle_run.write_to(w)?;
-        self.is_town.write_to(w)?;
-        self.is_wild.write_to(w)?;
-        self.is_ui_map_disable.write_to(w)?;
         self.is_housing_region.write_to(w)?;
         self.is_none_play_zone.write_to(w)?;
-        self.forbidden_mercenary_key_list.write_to(w)?;
-        self.is_world_map_road_path_findable.write_to(w)?;
+        self.is_ui_map_disable.write_to(w)?;
+        self.is_wild.write_to(w)?;
+        self.fog_clear_condition.write_to(w)?;
+        self.is_town.write_to(w)?;
         self.is_accompany_allowed.write_to(w)?;
+        self.is_world_map_road_path_findable.write_to(w)?;
         self.region_inventory_info.write_to(w)?;
+        self.parent_region_info.write_to(w)?;
+        self.bitmap_color.write_to(w)?;
+        self.overrided_max_height.write_to(w)?;
+        self.knowledge_info.write_to(w)?;
+        self.limit_vehicle_run.write_to(w)?;
+        self.region_type.write_to(w)?;
+        self.display_region_name.write_to(w)?;
+        self.region_enter_knowledge_info_list.write_to(w)?;
+        self.child_region_info_list.write_to(w)?;
+        self.forbidden_mercenary_key_list.write_to(w)?;
         self.domain_faction_list.write_to(w)?;
         self.tag_list.write_to(w)?;
         Ok(())
@@ -230,56 +237,56 @@ impl<'a> RegionInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("display_region_name".to_string(), self.display_region_name.to_json_value());
-        m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
-        m.insert("region_enter_knowledge_info_list".to_string(), self.region_enter_knowledge_info_list.to_json_value());
-        m.insert("parent_region_info".to_string(), self.parent_region_info.to_json_value());
-        m.insert("child_region_info_list".to_string(), self.child_region_info_list.to_json_value());
-        m.insert("bitmap_color".to_string(), self.bitmap_color.to_json_value());
-        m.insert("overrided_max_height".to_string(), self.overrided_max_height.to_json_value());
-        m.insert("region_type".to_string(), self.region_type.to_json_value());
-        m.insert("fog_clear_condition".to_string(), self.fog_clear_condition.to_json_value());
-        m.insert("limit_vehicle_run".to_string(), self.limit_vehicle_run.to_json_value());
-        m.insert("is_town".to_string(), self.is_town.to_json_value());
-        m.insert("is_wild".to_string(), self.is_wild.to_json_value());
-        m.insert("is_ui_map_disable".to_string(), self.is_ui_map_disable.to_json_value());
         m.insert("is_housing_region".to_string(), self.is_housing_region.to_json_value());
         m.insert("is_none_play_zone".to_string(), self.is_none_play_zone.to_json_value());
-        m.insert("forbidden_mercenary_key_list".to_string(), self.forbidden_mercenary_key_list.to_json_value());
-        m.insert("is_world_map_road_path_findable".to_string(), self.is_world_map_road_path_findable.to_json_value());
+        m.insert("is_ui_map_disable".to_string(), self.is_ui_map_disable.to_json_value());
+        m.insert("is_wild".to_string(), self.is_wild.to_json_value());
+        m.insert("fog_clear_condition".to_string(), self.fog_clear_condition.to_json_value());
+        m.insert("is_town".to_string(), self.is_town.to_json_value());
         m.insert("is_accompany_allowed".to_string(), self.is_accompany_allowed.to_json_value());
+        m.insert("is_world_map_road_path_findable".to_string(), self.is_world_map_road_path_findable.to_json_value());
         m.insert("region_inventory_info".to_string(), self.region_inventory_info.to_json_value());
+        m.insert("parent_region_info".to_string(), self.parent_region_info.to_json_value());
+        m.insert("bitmap_color".to_string(), self.bitmap_color.to_json_value());
+        m.insert("overrided_max_height".to_string(), self.overrided_max_height.to_json_value());
+        m.insert("knowledge_info".to_string(), self.knowledge_info.to_json_value());
+        m.insert("limit_vehicle_run".to_string(), self.limit_vehicle_run.to_json_value());
+        m.insert("region_type".to_string(), self.region_type.to_json_value());
+        m.insert("display_region_name".to_string(), self.display_region_name.to_json_value());
+        m.insert("region_enter_knowledge_info_list".to_string(), self.region_enter_knowledge_info_list.to_json_value());
+        m.insert("child_region_info_list".to_string(), self.child_region_info_list.to_json_value());
+        m.insert("forbidden_mercenary_key_list".to_string(), self.forbidden_mercenary_key_list.to_json_value());
         m.insert("domain_faction_list".to_string(), self.domain_faction_list.to_json_value());
         m.insert("tag_list".to_string(), self.tag_list.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "display_region_name")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
-        <CArray<RegionSubA> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "region_enter_knowledge_info_list")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parent_region_info")?)?;
-        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "child_region_info_list")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bitmap_color")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "overrided_max_height")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "region_type")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_clear_condition")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "limit_vehicle_run")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_town")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_wild")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_ui_map_disable")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_housing_region")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_none_play_zone")?)?;
-        <CArray<u8> as WriteJsonValue>::write_from_json(w, obj.get("forbidden_mercenary_key_list").unwrap_or(&Value::Null))?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_world_map_road_path_findable")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_ui_map_disable")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_wild")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "fog_clear_condition")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_town")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, obj.get("is_accompany_allowed").unwrap_or(&Value::Null))?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_world_map_road_path_findable")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, obj.get("region_inventory_info").unwrap_or(&Value::Null))?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "parent_region_info")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "bitmap_color")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "overrided_max_height")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "knowledge_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "limit_vehicle_run")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "region_type")?)?;
+        <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "display_region_name")?)?;
+        <CArray<RegionSubA> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "region_enter_knowledge_info_list")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "child_region_info_list")?)?;
+        <CArray<u8> as WriteJsonValue>::write_from_json(w, obj.get("forbidden_mercenary_key_list").unwrap_or(&Value::Null))?;
         <CArray<RegionDomainFactionItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "domain_faction_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "tag_list")?)?;
         Ok(())

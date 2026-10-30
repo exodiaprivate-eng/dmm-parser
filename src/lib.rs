@@ -220,6 +220,52 @@ mod tests {
         assert_eq!(written, data, "pamt roundtrip bytes mismatch");
     }
 
+    /// Every group folder's PAMT parses, writes back byte for byte, and (2.04.00 layout)
+    /// gives full file names: the trie holds the stem, the extension table the extension.
+    /// Walks the folders, not the PAPGT, so it does not depend on the PAPGT reader.
+    #[test]
+    fn test_every_group_pamt_parses_and_roundtrips() {
+        use crate::binary::TrieFormat;
+        let game_dir = fixture_or_skip!(find_game_dir, "game dir");
+        let mut groups: Vec<_> = std::fs::read_dir(&game_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.join("0.pamt").exists())
+            .collect();
+        groups.sort();
+        assert!(!groups.is_empty(), "no group folder with a 0.pamt under {}", game_dir.display());
+        for group in &groups {
+            let data = std::fs::read(group.join("0.pamt")).unwrap();
+            let pamt = PackMeta::parse(&data, None)
+                .unwrap_or_else(|e| panic!("{}: {}", group.display(), e));
+            assert_eq!(pamt.to_bytes().unwrap(), data, "{}: roundtrip bytes mismatch", group.display());
+            let files: Vec<&str> = pamt
+                .directories
+                .iter()
+                .flat_map(|d| d.files.iter().map(|f| f.name.as_str()))
+                .collect();
+            if pamt.name_format == TrieFormat::Delta {
+                let with_ext = files.iter().filter(|n| n.contains('.')).count();
+                assert!(
+                    with_ext * 10 >= files.len() * 9,
+                    "{}: only {} of {} file names have an extension",
+                    group.display(),
+                    with_ext,
+                    files.len()
+                );
+            }
+            println!(
+                "  {} {:?}: {} dirs, {} files, e.g. {:?}",
+                group.file_name().unwrap().to_string_lossy(),
+                pamt.name_format,
+                pamt.directories.len(),
+                files.len(),
+                files.first()
+            );
+        }
+    }
+
     fn extract_paloc_data() -> Option<Vec<u8>> {
         // 2.01.00 split the single per-language file into 39 per-table files; either
         // shape is a valid fixture for the format tests.

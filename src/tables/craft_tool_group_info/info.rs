@@ -34,12 +34,12 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct CraftToolGroupInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub craft_tool_info_list: CArray<u16>,
-        pub craft_tool_type: u8,
         pub ignore_reduce_material_count_buff: u8,
+        pub craft_tool_type: u8,
+        pub craft_tool_info_list: CArray<u16>,
         pub material_inventory_info_list: CArray<u16>,
     }
 }

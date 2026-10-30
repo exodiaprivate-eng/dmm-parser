@@ -53,86 +53,19 @@ pub fn serialize_iteminfo_from_json(items: &[::serde_json::Value]) -> io::Result
 // items that don't have it — no misalignment cascade).
 py_binary_struct! {
     pub struct ItemInfo<'a> {
-        pub key: ItemKey,
+        // 2.04.00: these fields are read behind a presence byte (0 = absent, 1 = the value
+        // follows): occupied_equip_slot_data_list, item_tag_list, item_use_info_list, equip_passive_skill_list, gimmick_tag_list, sealable_item_info_list, sealable_character_info_list, sealable_gimmick_info_list, sealable_gimmick_tag_list, sealable_tribe_info_list, sealable_money_info_list, transmutation_material_gimmick_list, transmutation_material_item_list, transmutation_material_item_group_list, multi_change_info_list, reserve_slot_target_data_list, drop_default_data, enchant_data_list, fixed_page_data_list, dynamic_page_data_list, inspect_data_list, inspect_action, cooltime, sharpness_data, hackable_character_group_info_list, pattern_description_data_list, item_bundle_data_list, faction_management_data, repair_data_list, item_desc2, docking_child_data, change_character_docking_child_data_list, inventory_change_data, money_type_define.
+        // In JSON an absent one is null. The plain lists left are item_icon_list,
+        // price_list, item_group_info_list and prefab_data_list.
+        // 2.04.00: the reader order changed completely (one-byte flags first, then keys and
+        // numbers, strings, lists, sub-structs). Order below = the 2.04 Mac reader
+        // sub_1020680B0 = the Korean field asserts' order. Removed in 2.04: consumable_type_list,
+        // quick_slot_index, is_important_item.
         pub string_key: CString<'a>,
+        pub key: ItemKey,
         pub is_blocked: u8,
+        pub max_endurance: u16,
         pub max_stack_count: u64,
-        pub item_name: LocalizableString<'a>,
-        pub broken_item_prefix_string: LocalStringInfoKey,
-        // 1.16.00: `inventory_info` (InventoryKey = u16) was REMOVED by the
-        // trading/inventory overhaul. It is absent from the binary's own
-        // 115-field error-string list, and every record's diff vs the v14 fixture
-        // contains exactly one 2-byte deletion at this offset carrying plausible
-        // inventory ids (2, 5, ...). Its role appears to have moved to the
-        // widened push-contents-type block at the record tail (below).
-        pub equip_type_info: EquipTypeKey,
-        pub occupied_equip_slot_data_list: CArray<OccupiedEquipSlotData>,
-        pub item_tag_list: CArray<u32>,
-        pub equipable_hash: u32,
-        pub consumable_type_list: CArray<u32>,
-        pub item_use_info_list: CArray<ItemUseKey>,
-        pub item_icon_list: CArray<ItemIconData>,
-        pub map_icon_path: StringInfoKey,
-        // 1.10: _moneyIconPath (StringInfoKey, u32) removed from ItemInfo.
-        // The wire region between item_icon_list and item_desc shrank by 4
-        // bytes (18→14): map_icon_path, use_map_icon_alert, item_type,
-        // material_key, material_match_info. Verified byte-identically across
-        // all 6325 records in the 2026-6-4 (1.10) iteminfo fixture
-        // (use_map_icon_alert stays {0,1}, item_type stays a small enum).
-        pub use_map_icon_alert: u8,
-        pub item_type: u8,
-        pub material_key: u32,
-        pub material_match_info: MaterialMatchKey,
-        pub item_desc: LocalizableString<'a>,
-        pub item_desc2: LocalizableString<'a>,
-        pub equipable_level: u32,
-        pub category_info: CategoryKey,
-        pub knowledge_info: KnowledgeKey,
-        pub knowledge_obtain_type: u8,
-        pub destroy_effec_info: EffectKey,
-        pub equip_passive_skill_list: CArray<PassiveSkillLevel>,
-        pub use_immediately: u8,
-        pub apply_max_stack_cap: u8,
-        // 1.0.8: _extractMultiChangeInfo removed
-        pub extract_additional_drop_set_info: u32,
-        pub minimum_extract_enchant_level: u16,
-        pub item_memo: CString<'a>,
-        pub filter_type: CString<'a>,
-        pub gimmick_info: GimmickInfoKey,
-        pub gimmick_tag_list: CArray<CString<'a>>,
-        pub max_drop_result_sub_item_count: u32,
-        pub use_drop_set_target: u8,
-        pub is_all_gimmick_sealable: u8,
-        pub sealable_item_info_list: CArray<SealableItemInfo<'a>>,
-        pub sealable_character_info_list: CArray<SealableItemInfo<'a>>,
-        pub sealable_gimmick_info_list: CArray<SealableItemInfo<'a>>,
-        pub sealable_gimmick_tag_list: CArray<SealableItemInfo<'a>>,
-        pub sealable_tribe_info_list: CArray<SealableItemInfo<'a>>,
-        pub sealable_money_info_list: CArray<ItemKey>,
-        pub delete_by_gimmick_unlock: u8,
-        pub gimmick_unlock_message_local_string_info: LocalStringInfoKey,
-        pub can_disassemble: u8,
-        pub transmutation_material_gimmick_list: CArray<GimmickInfoKey>,
-        pub transmutation_material_item_list: CArray<ItemKey>,
-        pub transmutation_material_item_group_list: CArray<ItemGroupKey>,
-        pub is_register_trade_market: u8,
-        pub multi_change_info_list: CArray<MultiChangeKey>,
-        pub is_editor_usable: u8,
-        pub discardable: u8,
-        pub is_dyeable: u8,
-        pub is_editable_grime: u8,
-        pub is_destroy_when_broken: u8,
-        // Restored 2026-05-06 per IDA decomp of sub_101885C38 in
-        // CrimsonDesert_Steam: ItemInfo의 _isHousingOnly is read between
-        // _isDestoryWhenBroken and _quickSlotIndex.
-        pub is_housing_only: u8,
-        // 1.0.8: new field between _isHousingOnly and _quickSlotIndex
-        pub is_extract_able_item: u8,
-        pub quick_slot_index: u8,
-        pub reserve_slot_target_data_list: CArray<ReserveSlotTargetData>,
-        pub item_tier: u8,
-        pub is_important_item: u8,
-        pub apply_drop_stat_type: u8,
         // 1.11: one new u8 read between _applyDropStatType and _dropDefaultData
         // (ItemInfo reader sub_101935168 @ a2+531, a 1-byte vtable read). Without
         // it the whole drop/prefab tail shifted by 1 — default_sub_item read the
@@ -143,67 +76,66 @@ py_binary_struct! {
         // immediately before `_applyDropStatType`. Semantic rename only; the
         // wire size and position are unchanged from the 1.11 discovery above.
         pub is_reward_loot_drop: u8,
-        pub drop_default_data: DropDefaultData,
-        // 1.13.00: prefab_data_list RELOCATED to the record tail (after
-        // repair_data_list) and unified with the old gimmick_visual_prefab_data_list
-        // (which is gone). enchant_data_list now sits directly after drop_default_data.
-        // See PrefabData (structs.rs) + WORKING_STATE 1.13.00 notes.
-        pub enchant_data_list: CArray<EnchantData>,
-        pub price_list: CArray<ItemPriceInfo>,
-        pub docking_child_data: COptional<DockingChildData<'a>>,
-        pub inventory_change_data: COptional<InventoryChangeData>,
-        pub unk_texture_path: CString<'a>,
-        pub fixed_page_data_list: CArray<PageData<'a>>,
-        pub dynamic_page_data_list: CArray<PageData<'a>>,
-        pub inspect_data_list: CArray<InspectData<'a>>,
-        pub inspect_action: InspectAction<'a>,
-        pub default_sub_item: SubItem,
-        // 24-byte struct in wire (3 × i64), not a single i64. See structs::Cooltime.
-        pub cooltime: Cooltime,
-        pub item_charge_type: u8,
+        // 2.04.00: `_lostItemRecoveryType`, one raw byte read straight after
+        // `_isRewardLootDrop`.
+        pub lost_item_recovery_type: u8,
+        pub is_editable_grime: u8,
+        pub is_dyeable: u8,
+        pub discardable: u8,
+        pub use_average_price: u8,
+        // Restored 2026-05-06 per IDA decomp of sub_101885C38 in
+        // CrimsonDesert_Steam: ItemInfo의 _isHousingOnly is read between
+        // _isDestoryWhenBroken and _quickSlotIndex.
+        pub is_housing_only: u8,
+        pub is_destroy_when_broken: u8,
+        // Restored 2026-05-06 per IDA decomp: _discardAttachTerrain between
+        // _discardOffsetY and _hideFromInventoryOnPopItem.
+        pub discard_attach_terrain: u8,
+        pub is_blocked_store_sell: u8,
+        pub enable_equip_in_clone_actor: u8,
+        pub is_logout_at_use_item: u8,
+        pub is_preserved_on_extract: u8,
+        // Restored 2026-05-06 per IDA decomp: _isHasItemUseDataInventoryBuff
+        // and _isPreservedOnExtract between _isPreorderItem and _respawnTimeSeconds.
+        pub is_has_item_use_data_inventory_buff: u8,
+        pub is_preorder_item: u8,
+        pub is_tower_shield_item: u8,
+        pub is_shield_item: u8,
+        pub hide_from_inventory_on_pop_item: u8,
+        pub is_save_game_data_at_use_item: u8,
+        pub enable_alert_system_to_ui: u8,
+        pub is_wild: u8,
+        pub is_editor_usable: u8,
+        // 1.10: _moneyIconPath (StringInfoKey, u32) removed from ItemInfo.
+        // The wire region between item_icon_list and item_desc shrank by 4
+        // bytes (18→14): map_icon_path, use_map_icon_alert, item_type,
+        // material_key, material_match_info. Verified byte-identically across
+        // all 6325 records in the 2026-6-4 (1.10) iteminfo fixture
+        // (use_map_icon_alert stays {0,1}, item_type stays a small enum).
+        pub use_map_icon_alert: u8,
+        // 1.0.8: new field between _isHousingOnly and _quickSlotIndex
+        pub is_extract_able_item: u8,
+        pub use_immediately: u8,
+        pub apply_max_stack_cap: u8,
+        pub is_all_gimmick_sealable: u8,
+        pub is_register_trade_market: u8,
+        pub can_disassemble: u8,
+        pub delete_by_gimmick_unlock: u8,
+        pub use_drop_set_target: u8,
+        pub item_type: u8,
+        pub knowledge_obtain_type: u8,
+        pub item_tier: u8,
         // Restored 2026-05-06 per IDA decomp: ItemInfo의 _usableAlertType is
         // read between _itemChargeType and _sharpnessData. The schema revert
         // had renamed this to `usable_alert` and placed it later in the
         // struct; both placement and name were wrong.
         pub usable_alert_type: u8,
-        pub sharpness_data: ItemInfoSharpnessData,
-        // 12-byte struct in wire (3 × u32), not single u32. See structs::MaxChargedUseableCount.
-        pub max_charged_useable_count: MaxChargedUseableCount,
-        // 1.0.8: wire u16 per element (IDA sub_1410F5E50 confirmed)
-        pub hackable_character_group_info_list: CArray<u16>,
-        // 1.0.8: wire u16 per element (was u32 ItemGroupKey in 1.05)
-        pub item_group_info_list: CArray<u16>,
-        pub discard_offset_y: f32,
-        // Restored 2026-05-06 per IDA decomp: _discardAttachTerrain between
-        // _discardOffsetY and _hideFromInventoryOnPopItem.
-        pub discard_attach_terrain: u8,
-        pub hide_from_inventory_on_pop_item: u8,
-        pub is_shield_item: u8,
-        pub is_tower_shield_item: u8,
-        pub is_wild: u8,
-        pub packed_item_info: ItemKey,
-        pub unpacked_item_info: ItemKey,
-        pub convert_item_info_by_drop_npc: ItemKey,
-        // Restored 2026-05-06 per IDA decomp: _stageInfo + _patternDescriptionDataList
-        // between _convertItemInfoByDropNPC and _lookDetailGameAdviceInfoWrapper.
-        pub stage_info: u32,
-        pub pattern_description_data_list: CArray<PatternDescriptionData<'a>>,
-        pub look_detail_game_advice_info_wrapper: GameAdviceInfoKey,
+        pub item_charge_type: u8,
+        pub apply_drop_stat_type: u8,
         pub look_detail_mission_info: MissionKey,
-        pub enable_alert_system_to_ui: u8,
-        pub is_save_game_data_at_use_item: u8,
-        pub is_logout_at_use_item: u8,
-        pub shared_cool_time_group_name_hash: u32,
-        pub item_bundle_data_list: CArray<ItemBundleData>,
-        pub money_type_define: COptional<MoneyTypeDefine<'a>>,
-        pub emoji_texture_id: CString<'a>,
-        pub enable_equip_in_clone_actor: u8,
-        pub is_blocked_store_sell: u8,
-        pub is_preorder_item: u8,
-        // Restored 2026-05-06 per IDA decomp: _isHasItemUseDataInventoryBuff
-        // and _isPreservedOnExtract between _isPreorderItem and _respawnTimeSeconds.
-        pub is_has_item_use_data_inventory_buff: u8,
-        pub is_preserved_on_extract: u8,
+        pub look_detail_game_advice_info_wrapper: GameAdviceInfoKey,
+        pub convert_item_info_by_drop_npc: ItemKey,
+        pub unpacked_item_info: ItemKey,
         // ── _itemEffectInfo + _factionManagementData ─────────────────────
         // Both were mis-modelled for three patches. The bytes were always right;
         // the NAMES and the nesting were not, and one of them hid a live hazard.
@@ -233,11 +165,93 @@ py_binary_struct! {
         // layout. Do not "verify" a change here against the data alone; check the
         // Korean asserts for the owner TYPE, not just for ItemInfo.
         pub item_effect_info: EffectKey,
-        pub faction_management_data: ItemInfoFactionManagementData,
-        pub use_average_price: u8,
+        pub broken_item_prefix_string: LocalStringInfoKey,
+        // 1.16.00: `inventory_info` (InventoryKey = u16) was REMOVED by the
+        // trading/inventory overhaul. It is absent from the binary's own
+        // 115-field error-string list, and every record's diff vs the v14 fixture
+        // contains exactly one 2-byte deletion at this offset carrying plausible
+        // inventory ids (2, 5, ...). Its role appears to have moved to the
+        // widened push-contents-type block at the record tail (below).
+        pub equip_type_info: EquipTypeKey,
+        pub material_match_info: MaterialMatchKey,
+        pub map_icon_path: StringInfoKey,
+        pub packed_item_info: ItemKey,
+        pub gimmick_info: GimmickInfoKey,
+        pub destroy_effec_info: EffectKey,
+        // 1.0.8: _extractMultiChangeInfo removed
+        pub extract_additional_drop_set_info: u32,
+        pub minimum_extract_enchant_level: u16,
+        pub category_info: CategoryKey,
+        pub gimmick_unlock_message_local_string_info: LocalStringInfoKey,
+        pub knowledge_info: KnowledgeKey,
+        pub max_drop_result_sub_item_count: u32,
+        pub equipable_hash: u32,
+        pub default_sub_item: SubItem,
+        pub discard_offset_y: f32,
+        // Restored 2026-05-06 per IDA decomp: _stageInfo + _patternDescriptionDataList
+        // between _convertItemInfoByDropNPC and _lookDetailGameAdviceInfoWrapper.
+        pub stage_info: u32,
+        pub material_key: u32,
+        pub shared_cool_time_group_name_hash: u32,
+        pub equipable_level: u32,
+        // 12-byte struct in wire (3 × u32), not single u32. See structs::MaxChargedUseableCount.
+        pub max_charged_useable_count: MaxChargedUseableCount,
+        pub item_name: LocalizableString<'a>,
+        pub item_desc: LocalizableString<'a>,
+        // 2.04.00: optional (a presence byte, then the string), unlike `item_desc`.
+        pub item_desc2: COptional<LocalizableString<'a>>,
+        pub item_memo: CString<'a>,
+        pub filter_type: CString<'a>,
+        // 2.04.00: read as a StringInfoKey (4 bytes), like `map_icon_path`; it was a string.
+        pub unk_texture_path: StringInfoKey,
+        // 2.04.00: read as a StringInfoKey (4 bytes); it was a string.
+        pub emoji_texture_id: StringInfoKey,
+        pub occupied_equip_slot_data_list: COptional<CArray<OccupiedEquipSlotData>>,
+        pub item_tag_list: COptional<CArray<u32>>,
+        pub item_use_info_list: COptional<CArray<ItemUseKey>>,
+        pub item_icon_list: CArray<ItemIconData>,
+        pub equip_passive_skill_list: COptional<CArray<PassiveSkillLevel>>,
+        pub gimmick_tag_list: COptional<CArray<CString<'a>>>,
+        pub sealable_item_info_list: COptional<CArray<SealableItemInfo<'a>>>,
+        pub sealable_character_info_list: COptional<CArray<SealableItemInfo<'a>>>,
+        pub sealable_gimmick_info_list: COptional<CArray<SealableItemInfo<'a>>>,
+        pub sealable_gimmick_tag_list: COptional<CArray<SealableItemInfo<'a>>>,
+        pub sealable_tribe_info_list: COptional<CArray<SealableItemInfo<'a>>>,
+        pub sealable_money_info_list: COptional<CArray<ItemKey>>,
+        pub transmutation_material_gimmick_list: COptional<CArray<GimmickInfoKey>>,
+        pub transmutation_material_item_list: COptional<CArray<ItemKey>>,
+        pub transmutation_material_item_group_list: COptional<CArray<ItemGroupKey>>,
+        pub multi_change_info_list: COptional<CArray<MultiChangeKey>>,
+        pub reserve_slot_target_data_list: COptional<CArray<ReserveSlotTargetData>>,
+        pub drop_default_data: COptional<DropDefaultData>,
+        // 1.13.00: prefab_data_list RELOCATED to the record tail (after
+        // repair_data_list) and unified with the old gimmick_visual_prefab_data_list
+        // (which is gone). enchant_data_list now sits directly after drop_default_data.
+        // See PrefabData (structs.rs) + WORKING_STATE 1.13.00 notes.
+        pub enchant_data_list: COptional<CArray<EnchantData>>,
+        pub price_list: CArray<ItemPriceInfo>,
+        pub docking_child_data: COptional<DockingChildData<'a>>,
+        // 2.04.00: `_changeCharacterDockingChildDataList`, an optional list of the same
+        // 84-byte DockingChildData as `docking_child_data` (reader sub_1020B02A4).
+        pub change_character_docking_child_data_list: COptional<CArray<DockingChildData<'a>>>,
+        pub inventory_change_data: COptional<InventoryChangeData>,
+        pub fixed_page_data_list: COptional<CArray<PageData<'a>>>,
+        pub dynamic_page_data_list: COptional<CArray<PageData<'a>>>,
+        pub inspect_data_list: COptional<CArray<InspectData<'a>>>,
+        pub inspect_action: COptional<InspectAction<'a>>,
+        // 24-byte struct in wire (3 × i64), not a single i64. See structs::Cooltime.
+        pub cooltime: COptional<Cooltime>,
+        pub sharpness_data: COptional<ItemInfoSharpnessData>,
+        // 1.0.8: wire u16 per element (IDA sub_1410F5E50 confirmed)
+        pub hackable_character_group_info_list: COptional<CArray<u16>>,
+        // 1.0.8: wire u16 per element (was u32 ItemGroupKey in 1.05)
+        pub item_group_info_list: CArray<u16>,
+        pub pattern_description_data_list: COptional<CArray<PatternDescriptionData<'a>>>,
+        pub item_bundle_data_list: COptional<CArray<ItemBundleData>>,
+        pub money_type_define: COptional<MoneyTypeDefine<'a>>,
+        pub faction_management_data: COptional<ItemInfoFactionManagementData>,
         pub respawn_time_seconds: i64,
-        pub max_endurance: u16,
-        pub repair_data_list: CArray<RepairData>,
+        pub repair_data_list: COptional<CArray<RepairData>>,
         // 1.13.00: prefab_data_list moved here (from after drop_default_data),
         // now the UNIFIED PrefabData type that also carries the old
         // gimmick_visual_prefab_data_list entries. Wire-order confirmed via the
@@ -272,6 +286,11 @@ py_binary_struct! {
         // 255 = unset in 6757 records; the 59 that carry 21 here carry 6 in the
         // slot before it. No reader string changed, so the name is by position.
         pub push_inventory_type_8_203: u16,
+        // 2.04.00: the block is 12 InventoryKeys (the reader sub_1020B1ED0 loops to 11), two
+        // more at the END: the first ten values are unchanged from 2.03 for the same items
+        // (0x898: 2,8,8,8,255,255,8,255,255,255 -> the same + 255,255).
+        pub push_inventory_type_9_204: u16,
+        pub push_inventory_type_10_204: u16,
     }
 }
 
@@ -372,6 +391,21 @@ mod tests {
     /// This asserts rather than reports, and it resolves through the normal
     /// fixture path, so a future patch that shifts iteminfo fails HERE instead of
     /// three layers downstream. Skips only when there is genuinely no fixture.
+    /// DMM applies V3 mods through the JSON form, not the structs: the whole table must
+    /// survive bytes -> JSON -> bytes unchanged (presence-byte fields as value / null).
+    #[test]
+    fn full_table_json_round_trip() {
+        let path = crate::testenv::resolve("iteminfo.pabgb");
+        let Ok(data) = std::fs::read(&path) else {
+            eprintln!("SKIP: no iteminfo fixture");
+            return;
+        };
+        let items = parse_iteminfo_to_json(&data).expect("table parses to JSON");
+        let out = serialize_iteminfo_from_json(&items).expect("JSON writes back");
+        assert_eq!(out.len(), data.len(), "JSON round trip changed the size");
+        assert!(out == data, "JSON round trip changed the bytes");
+    }
+
     #[test]
     fn full_table_every_record_consumes_its_range() {
         use crate::binary::variant::{entry_ranges, load_pabgh_offsets};

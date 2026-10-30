@@ -33,11 +33,11 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct WantedInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub increase_price: u64,
         pub use_target_price: u8,
+        pub increase_price: u64,
     }
 }
 

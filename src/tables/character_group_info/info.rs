@@ -43,21 +43,21 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct CharacterGroupInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub group_name: CString<'a>,
+        pub stop_anim_constraint_dead: u8,
+        pub group_name: u32,                         // 2.04.00: a StringInfoKey
         pub character_info_list: CArray<u32>,
         pub group_gender_list: CArray<u8>,
         pub group_tribe_list: CArray<u32>,
         pub group_region_info_list: CArray<u16>,
         pub group_age_list: CArray<u8>,
-        pub group_weapon_type_list: CArray<CString<'a>>,
+        pub group_weapon_type_list: CArray<u32>,     // 2.04.00: StringInfoKeys
         pub group_tier_list: CArray<u8>,
         pub group_ally_group_list: CArray<u32>,
         pub group_faction_list: CArray<u32>,
         pub group_job_info_list: CArray<u16>,
-        pub stop_anim_constraint_dead: u8,
     }
 }
 

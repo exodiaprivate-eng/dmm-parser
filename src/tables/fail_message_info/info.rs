@@ -36,8 +36,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FailMessageInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub fail_message_info_list: CArray<FailMessageEntry<'a>>,
     }

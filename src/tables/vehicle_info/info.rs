@@ -63,15 +63,39 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_102066244). Each seat / link entry is two StringInfoKeys
+    // (8 bytes, sub_101AD0694), kept as one u64 as before. New: ride-on/off crew audio
+    // states, two platform-shake thresholds and removeFogRadius. `_attachToDockingGimmickTag`
+    // is now `_seatGimmickDockingTag`; the two trailing u32s are callVehicleVoxelType and
+    // checkDistanceToGround.
     pub struct VehicleInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub vehicle_type_name_hash: u32,
-        pub icon_path: u32,
+        pub ride_on_crew_audio_state: u8,
+        pub show_count_on_ui: u8,
+        pub is_platform_vehicle: u8,
+        pub send_damage_to: u8,
+        pub platform_hit_event_min_attack_impulse_level: u8,
+        pub contact_impulse_event: u8,
+        pub character_switchable: u8,
+        pub ride_off_crew_audio_state: u8,
+        pub max_parent_link_attach_count: u8,
         pub max_vehicle_seat: u8,
-        // 16 × u64 fixed-loop slots per docstring's "× 16" annotation.
-        // Split into individual named fields for JSON-addressable access.
+        pub escape_road_group_type: u8,
+        pub icon_path: u32,
+        pub rider_detect_info: u16,
+        pub ui_map_texture_info: u32,
+        pub min_platform_shake_angular_acc_threshold: f32,
+        pub min_platform_shake_angular_vel_threshold: f32,
+        pub remove_fog_radius: f32,
+        pub trailing_u32_110: u32,      // _callVehicleVoxelType
+        pub vehicle_spawn_upper_action: u32,
+        pub rider_spawn_upper_action: u32,
+        pub trailing_u32_111: u32,      // _checkDistanceToGround
+        pub attach_to_docking_gimmick_tag: CString<'a>,   // _seatGimmickDockingTag
+        pub max_allowable_height: u32,
+        pub vehicle_type_name_hash: u32,
         pub vehicle_seat_data_00: u64,
         pub vehicle_seat_data_01: u64,
         pub vehicle_seat_data_02: u64,
@@ -88,76 +112,9 @@ py_binary_struct! {
         pub vehicle_seat_data_13: u64,
         pub vehicle_seat_data_14: u64,
         pub vehicle_seat_data_15: u64,
-        pub max_parent_link_attach_count: u8,
-        // Split 2 × 8-byte fixed-loop slots (per docstring "× 2") into u64 pair.
         pub parent_link_attach_data_a: u64,
         pub parent_link_attach_data_b: u64,
-        pub rider_spawn_upper_action: u32,
-        // GAME VERSION 14 (2026-07-16): `_riderSpawnLowerAction` was REMOVED — every
-        // record shrank by exactly 4 bytes and the drift localizes to this spawn-
-        // action trio (dropping any one of the three consecutive u32s reconciles
-        // the record boundaries; dropping a tail u32 does not). CONFIRMED against
-        // the 1.14 binary (IDA Professional 9.0/1.14/CrimsonDesert.exe md5 1454813b):
-        // the `_riderSpawnLower` reflection name is present in 1.13 and ABSENT in
-        // 1.14, while `_riderSpawnUpper` and `_vehicleSpawnUpper` remain in both.
-        // So the two survivors are rider_spawn_upper_action then
-        // vehicle_spawn_upper_action; byte-exact roundtrip is unchanged by the
-        // rename (same 2×u32 layout).
-        pub vehicle_spawn_upper_action: u32,
-        pub escape_road_group_type: u8,
         pub cargo_seat_index_list: CArray<u8>,
-        // 1.11: _callVehicleVoxelType widened from a single u32 to a CArray<u32>
-        // (count + N×u32). Verified via wire-walker: count=1 in most records,
-        // count=2 in the 0x424F record; all 34 reconcile.
-        // ── 2.01.00 REMOVED `_callVehicleSpawnVoxelTypeList` (this was it: a CArray<u32>
-        // that every record carried as count=1, value=4 — the 8 bytes bytediff saw
-        // deleted from all 34 records). Kept out rather than commented in: a V3 mod that
-        // names it gets an unresolved-field report, which is the truthful outcome.
-        pub show_count_on_ui: u8,
-        pub ui_map_texture_info: u32,
-        pub rider_detect_info: u16,
-        pub send_damage_to: u8,
-        pub character_switchable: u8,
-        pub max_allowable_height: u32,
-        // 1.10: one new u32 added to the fixed tail (position length-equivalent
-        // within the fixed-width tail). Verified via wire-walker: reconciles
-        // all 34 records (byte-exact roundtrip).
-        pub trailing_u32_110: u32,
-        // ── 1.18.00: `_contactImpulseEvent`, one u8 immediately before the
-        // FLT_MAX float below. Pinned by key 0x424A "Ship", whose tail is
-        // `… 00 | ff ff 7f 7f | 0a 00 00 00 "controller" | 01` — the new byte
-        // brackets the float on the left, and `isPlatformVehicle` on the right.
-        pub contact_impulse_event: u8,
-        // 1.11: one new 4-byte field appended to the fixed tail (a float —
-        // 0x7f7fffff = FLT_MAX default, or real values e.g. 0x44a8c000 = 1350.0);
-        // kept as u32 for bit-exact roundtrip. The other +4 bytes of the 1.11
-        // growth came from call_vehicle_voxel_type widening to a CArray (above).
-        // Verified via wire-walker: all 34 records byte-exact.
-        pub trailing_u32_111: u32,
-        // The binary's LAST field, `_attachToDockingGimmickTag` — a CString, not
-        // a u32. The 1.13 pass could not tell: it is empty (len 0 → the four
-        // bytes `00 00 00 00`) in every record that existed before 1.16, so a u32
-        // read consumed exactly the same 4 bytes and round-tripped.
-        //
-        // 1.16.00 added the first record that fills it: key 0x424a "Ship", whose
-        // tail is `0a 00 00 00` + "controller". Nothing else in this table drifted
-        // — all 33 pre-existing records are byte-identical to the v14 fixture, so
-        // this one type change is the whole 1.16 delta.
-        //
-        // ⚠ RENAME (deliberate, not silent): `trailing_u32_113` -> this. Changing
-        // u32 -> CString already breaks the JSON contract for that field, so the
-        // name had to move with it rather than keep "u32" in the name of a string
-        // field. Vanilla value was empty everywhere, so nothing could have set it
-        // meaningfully.
-        pub attach_to_docking_gimmick_tag: CString<'a>,
-        // ── 1.18.00: `_isPlatformVehicle`, one u8 appended after the docking
-        // tag string. 0 in 33 records and **1 in key 0x424A "Ship"** — the one
-        // vehicle you can walk around on. Semantic confirmation, not just a
-        // width that happens to fit.
-        pub is_platform_vehicle: u8,
-        // ── 2.03.00: `_platformHitEventMinAttackImpulseLevel`, one u8 appended
-        // after _isPlatformVehicle (oracle VehicleInfo 24 -> 25 fields, last).
-        pub platform_hit_event_min_attack_impulse_level: u8,
     }
 }
 

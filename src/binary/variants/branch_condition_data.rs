@@ -156,6 +156,8 @@ pub enum BranchConditionDataVariant<'a> {
     BranchConditionData_NearMission(BranchConditionData_NearMissionPayload),
     BranchConditionData_GameLevelState(BranchConditionData_GameLevelStatePayload<'a>),
     BranchConditionData_GamePlayVariable(BranchConditionData_GamePlayVariablePayload),
+    // 2.04.00: case 14 of the Mac factory (sub_101D94D38); no payload.
+    BranchConditionData_OncePlayStage,
 }
 
 impl<'a> BranchConditionDataVariant<'a> {
@@ -175,6 +177,7 @@ impl<'a> BranchConditionDataVariant<'a> {
             Self::BranchConditionData_NearMission(_) => 11,
             Self::BranchConditionData_GameLevelState(_) => 12,
             Self::BranchConditionData_GamePlayVariable(_) => 13,
+            Self::BranchConditionData_OncePlayStage => 14,
         }
     }
 
@@ -195,6 +198,7 @@ impl<'a> BranchConditionDataVariant<'a> {
             Self::BranchConditionData_NearMission(_) => "BranchConditionData_NearMission",
             Self::BranchConditionData_GameLevelState(_) => "BranchConditionData_GameLevelState",
             Self::BranchConditionData_GamePlayVariable(_) => "BranchConditionData_GamePlayVariable",
+            Self::BranchConditionData_OncePlayStage => "BranchConditionData_OncePlayStage",
         }
     }
 
@@ -217,6 +221,7 @@ impl<'a> BranchConditionDataVariant<'a> {
             Self::BranchConditionData_NearMission(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::BranchConditionData_GameLevelState(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
             Self::BranchConditionData_GamePlayVariable(p) => { m.insert("body".into(), Value::Object(p.to_json_dict())); }
+            Self::BranchConditionData_OncePlayStage => {}
         }
         Value::Object(m)
     }
@@ -245,6 +250,7 @@ impl<'a> BranchConditionDataVariant<'a> {
             11 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_NearMission: missing body object"))?; BranchConditionData_NearMissionPayload::write_from_json_dict(w, body)?; }
             12 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_GameLevelState: missing body object"))?; BranchConditionData_GameLevelStatePayload::write_from_json_dict(w, body)?; }
             13 => { let body = obj.get("body").and_then(|x| x.as_object()).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "BranchConditionData_GamePlayVariable: missing body object"))?; BranchConditionData_GamePlayVariablePayload::write_from_json_dict(w, body)?; }
+            14 => {}
             other => return Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("BranchConditionDataVariant: unknown disc {}", other))),
         }
@@ -268,6 +274,7 @@ impl<'a> BranchConditionDataVariant<'a> {
             11 => Self::BranchConditionData_NearMission(BranchConditionData_NearMissionPayload::read_from(data, offset)?),
             12 => Self::BranchConditionData_GameLevelState(BranchConditionData_GameLevelStatePayload::read_from(data, offset)?),
             13 => Self::BranchConditionData_GamePlayVariable(BranchConditionData_GamePlayVariablePayload::read_from(data, offset)?),
+            14 => Self::BranchConditionData_OncePlayStage,
             _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown BranchConditionData disc: {}", disc))),
         })
     }
@@ -288,6 +295,7 @@ impl<'a> BranchConditionDataVariant<'a> {
             Self::BranchConditionData_NearMission(p) => p.write_to(w),
             Self::BranchConditionData_GameLevelState(p) => p.write_to(w),
             Self::BranchConditionData_GamePlayVariable(p) => p.write_to(w),
+            Self::BranchConditionData_OncePlayStage => Ok(()),
         }
     }
 }

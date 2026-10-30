@@ -49,14 +49,14 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct FactionGroupInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
+        pub ui_daily_quest_image_path: u32,
+        pub ui_icon_path: u32,
+        pub knowledge_info: u32,
         pub faction_group_name: LocalizableString<'a>,
         pub faction_info_list: CArray<u32>,
-        pub knowledge_info: u32,
-        pub ui_icon_path: u32,
-        pub ui_daily_quest_image_path: u32,
     }
 }
 

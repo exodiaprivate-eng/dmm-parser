@@ -75,58 +75,53 @@ use serde_json::{Map, Value};
 use std::io::{self, Write};
 
 py_binary_struct! {
-    /// Inner element of `PatrolElement.nested` (sub_1411037E0 →
-    /// sub_1410DEF10). 12 wire bytes; runtime stride 10.
-    /// ── 1.18.00: this is the exe's `FactionPatrolCharacterData`, which went
-    /// **6 → 11 fields**; the element grew 14 → 28 bytes.
-    ///
-    /// The width is proven, not guessed: walking all 131 records with the
-    /// element size as an unknown reconciles every one at exactly +14 (and at
-    /// +1 for the enclosing PatrolPartyData) and at no other value.
-    ///
-    /// The two insert points are proven too. 93 element pairs carry a non-zero
-    /// `field_d`, and they pin the split as **9 bytes at offset 10** then
-    /// **5 bytes at offset 12** — the 536 all-zero pairs merely let difflib
-    /// merge those into one 14-byte run, which is why the zero cases must not
-    /// be trusted on their own.
-    ///
-    /// ⚠ The 9/5 split into names is the one inferred step: 9 = u32+u32+u8 and
-    /// 5 = u32+u8, matched to the oracle's five new names by the symmetry
-    /// (main gets reason + action-point tag + disable, sub gets reason +
-    /// disable). Existing fields keep their placeholder names deliberately —
-    /// renaming them would break the mod contract for anything already keyed
-    /// on `field_a`..`flag_b`.
+    /// 2.04.00 `PatrolCharacterData` (Mac reader sub_1020458F0), 28 wire bytes. Rewritten with
+    /// the game's names (the field order differs from the pre-2.04 placeholder layout).
     pub struct PatrolNestedElement {
-        pub field_a: u32,
-        pub field_b: u16,
-        pub field_c: u32,
+        pub character_info: u32,
+        pub character_group_info: u16,
         pub spawn_reason: u32,
         pub spawn_action_point_tag_hash: u32,
         pub disable_patrol: u8,
-        pub field_d: u16,
+        pub sub_character_info: u32,
+        pub sub_character_group_info: u16,
         pub sub_spawn_reason: u32,
         pub sub_disable_patrol: u8,
-        pub flag_a: u8,
-        pub flag_b: u8,
+        pub character_count: u8,
+        pub sub_character_count: u8,
     }
 }
 
 py_binary_struct! {
-    /// Per-element of `PatrolSpawnData.patrol_element_list` (sub_1410DF020,
-    /// 33 fixed bytes + 12*N nested).
-    pub struct PatrolElement {
-        pub field_a: u32,
-        pub field_b: u32,
-        pub field_c_hash: u32,
-        pub nested: CArray<PatrolNestedElement>,
-        pub field_d_hash: u32,
-        pub field_e: u32,
-        pub field_f: u32,
-        // ── 1.18.00: `_isPlatformParty` (the exe's `PatrolPartyData`, 8 → 9
-        // fields). Position is pinned, not assumed: 369 elements carry
-        // `flag = 01`, and the new byte lands before it in every one.
+    /// 2.04.00 `PatrolPartyData` (Mac reader sub_102045C8C).
+    pub struct PatrolPartyData<'a> {
+        pub spawn_group_type: u8,
+        pub formation_info: u32,
+        pub character_spawn_list: CArray<PatrolNestedElement>,
+        pub condition: u32,
+        pub move_type_share_value_hash: u32,
         pub is_platform_party: u8,
-        pub flag: u8,
+        pub is_party_same_team: u8,
+        pub spawn_offset: [f32; 3],
+        pub spawn_option_tag_list: CArray<PatrolNamedElement<'a>>,
+    }
+}
+
+py_binary_struct! {
+    /// 2.04.00 `PatrolGroupData` (Mac reader sub_102045F50), the element of
+    /// `_patrolGroupDataList`. The pre-2.04 `PatrolElement` folded the party level into the
+    /// group; 2.04 records carry real party lists, so the levels are modelled as the game has them.
+    pub struct PatrolElement<'a> {
+        pub spawn_party_name_hash: u32,
+        pub spawn_rate: u32,
+        pub spline_tag_hash: u32,
+        pub min_distance: f32,
+        pub max_spawn_height: f32,
+        pub height_diff_logout_distance: f32,
+        pub navigation_move_type: u32,
+        pub spawn_distance_type: u8,
+        pub party_data_list: CArray<PatrolPartyData<'a>>,
+        pub occupy_spline: u8,
     }
 }
 
@@ -142,7 +137,7 @@ py_binary_struct! {
     /// Patrol spawn data inner struct (sub_141115560 inner, 32B runtime).
     pub struct PatrolSpawnData<'a> {
         pub patrol_named_list: CArray<PatrolNamedElement<'a>>,
-        pub patrol_element_list: CArray<PatrolElement>,
+        pub patrol_element_list: CArray<PatrolElement<'a>>,
     }
 }
 
@@ -178,8 +173,8 @@ py_binary_struct! {
 
 #[derive(Debug)]
 pub struct FactionSpawnDataInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub patrol_spawn_data: COptional<PatrolSpawnData<'a>>,
     pub gimmick_spawn_data_list: CArray<GimmickElement<'a>>,
@@ -207,8 +202,8 @@ impl<'a> FactionSpawnDataInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let patrol_spawn_data = COptional::<PatrolSpawnData>::read_from(data, offset)?;
         let gimmick_spawn_data_list = CArray::<GimmickElement>::read_from(data, offset)?;
@@ -234,8 +229,8 @@ impl<'a> FactionSpawnDataInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.patrol_spawn_data.write_to(w)?;
         self.gimmick_spawn_data_list.write_to(w)?;
@@ -247,8 +242,8 @@ impl<'a> FactionSpawnDataInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("patrol_spawn_data".to_string(), self.patrol_spawn_data.to_json_value());
         m.insert("gimmick_spawn_data_list".to_string(), self.gimmick_spawn_data_list.to_json_value());
@@ -259,8 +254,8 @@ impl<'a> FactionSpawnDataInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <COptional<PatrolSpawnData> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "patrol_spawn_data")?,

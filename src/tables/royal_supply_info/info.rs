@@ -93,13 +93,13 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct RoyalSupplyInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
+        pub stage_info: u32,
         pub royal_supply_random_map_quest: CArray<RoyalSupplyMapEntry>,
         pub royal_supply_random_map_mission: CArray<RoyalSupplyMapEntry>,
         pub default_random_list: CArray<RoyalSupplyRandomData>,
-        pub stage_info: u32,
     }
 }
 

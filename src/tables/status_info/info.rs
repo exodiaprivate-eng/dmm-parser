@@ -27,6 +27,7 @@ py_binary_struct! {
         pub input_acc_max_speed: f32,
         pub move_acc: f32,
         pub move_deacc: f32,
+        pub move_acc_auto: f32,          // 2.04.00: `_moveAccAuto` (Mac reader sub_10205D454)
         pub inertia_brake_min_threshold: f32,
         pub inertia_brake_max_threshold: f32,
         pub inertia_brake_strength: f32,
@@ -44,56 +45,64 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    pub struct PassiveSkillEntry {
+        pub skill: u32,
+        pub level: u32,
+    }
+}
+
+py_binary_struct! {
     pub struct StatusInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub regenerate_type: u8,
-        pub status_index_xxxxx: u32,
-        pub is_hard_coded: u8,
-        pub use_init_value_zero: u8,
-        pub min_resistance_status_info: u32,
-        pub max_resistance_status_info: u32,
-        pub is_resistance_stat: u8,
+        pub use_limit_hit_min_stat: u8,
+        pub use_limit_hit_max_stat: u8,
+        pub elemental_stat_type: u8,
+        pub stat_type: u8,
+        pub static_stat_type: u8,
+        pub is_reset_on_revive: u8,
+        // ── 2.03.00: `_mustShowInUITooltip`, one u8 after _isResetOnRevive (oracle
+        // 2.02 -> 2.03 Mac, StatusInfo 37 -> 38 fields at index 32).
+        pub must_show_in_ui_tooltip: u8,
+        pub is_repeat_update_from_server: u8,
+        pub is_full_recover_when_revived: u8,
+        pub use_percent: u8,
         pub is_elemental_stat: u8,
+        pub is_hard_coded: u8,
+        pub is_resistance_stat: u8,
+        pub regenerate_type: u8,
+        // 2.04.00: the game calls this `_initValueType` now (was `_useInitValueZero`); still one byte.
+        pub use_init_value_zero: u8,
+        pub decrease_on_item_broken: u8,
+        pub max_resistance_status_info: u32,
+        pub active_knowledge_info: u32,
+        pub buff_info: u32,
+        pub min_resistance_status_info: u32,
+        pub not_enough_resource_message: u32,
+        pub status_index_xxxxx: u32,
+        pub send_gimmick_event_key_for_stat_changed: u32,
+        pub actual_status_key_to_refer: u32,
+        pub status_key_hash_code32: u32,
+        pub max_hash_code32: u32,
+        pub min_hash_code32: u32,
         // [u8;8] → u64 for field-level scalar access. Wire preserved;
         // semantic is a tick-timing value (fixed-point or u64 ID).
         pub block_regen_on_min_stat_tick: u64,
-        pub decrease_on_item_broken: u8,
-        pub buff_info: u32,
-        pub actual_status_key_to_refer: u32,
-        pub stat_type: u8,
-        pub static_stat_type: u8,
-        pub elemental_stat_type: u8,
-        pub active_knowledge_info: u32,
-        pub send_gimmick_event_key_for_stat_changed: u32,
         pub reserve_slot_info_list: CArray<ReserveSlotEntry>,
-        pub use_limit_hit_min_stat: u8,
-        pub use_limit_hit_max_stat: u8,
-        pub status_key_hash_code32: u32,
-        pub min_hash_code32: u32,
-        pub max_hash_code32: u32,
-        pub is_full_recover_when_revived: u8,
-        pub use_percent: u8,
-        pub is_repeat_update_from_server: u8,
         pub stat_level_data: CArray<u64>,
         // ── 2.01.00: `_frameEventAttributeListByLevel`. The 2.0 oracle already listed
         // it (and the two passive lists below) but the game did not serialize them
         // until 2.01.00: every record grew by exactly 12 bytes = three empty CArray
         // counts, at the positions the oracle gives.
         pub frame_event_attribute_list_by_level: CArray<FrameEventAttribute>,
-        pub is_reset_on_revive: u8,
-        // ── 2.03.00: `_mustShowInUITooltip`, one u8 after _isResetOnRevive (oracle
-        // 2.02 -> 2.03 Mac, StatusInfo 37 -> 38 fields at index 32).
-        pub must_show_in_ui_tooltip: u8,
-        pub not_enough_resource_message: u32,
-        pub ui_template_name: u32,
         pub ui_component_name: u32,
+        pub ui_template_name: u32,
         // ── 2.01.00: `_minPassiveSkillList` / `_maxPassiveSkillList` (see above).
-        // Skill keys are u32 everywhere else in the data; both lists are empty in
-        // every vanilla record, so the element type is the convention, not evidence.
-        pub min_passive_skill_list: CArray<u32>,
-        pub max_passive_skill_list: CArray<u32>,
+        // 2.04.00 Mac reader sub_1020A6A64: each element is a SkillKey + a u32 level (8 bytes),
+        // not a bare key.
+        pub min_passive_skill_list: CArray<PassiveSkillEntry>,
+        pub max_passive_skill_list: CArray<PassiveSkillEntry>,
     }
 }
 

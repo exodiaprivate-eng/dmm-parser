@@ -36,8 +36,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct BreakableObjectInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
         pub breaking_impulse_damage: u8,
         pub min_impulse_damage: u8,

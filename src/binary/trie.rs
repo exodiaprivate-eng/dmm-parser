@@ -10,10 +10,34 @@
 use std::collections::HashMap;
 use std::io;
 
+/// How a PAMT trie entry names its parent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrieFormat {
+    /// Up to 2.03: `i32` offset of the parent entry, `-1` for a root entry.
+    Legacy,
+    /// 2.04.00 on: LEB128 varint distance BACK from this entry's start to the parent's
+    /// start, `0` for a root entry.
+    Delta,
+}
+
+impl TrieFormat {
+    /// The first entry of a buffer is always a root: `-1` (`FF FF FF FF`) in the legacy
+    /// format, a `0` byte in the delta format.
+    pub fn detect(buffer: &[u8]) -> Self {
+        if buffer.len() >= 4 && buffer[..4] == [0xFF; 4] {
+            TrieFormat::Legacy
+        } else if buffer.is_empty() {
+            TrieFormat::Legacy
+        } else {
+            TrieFormat::Delta
+        }
+    }
+}
+
 /// Trie-encoded string buffer used by PAMT files.
 ///
 /// Each entry at a given offset consists of:
-///   - next_offset: i32 (LE) — offset of parent entry, or -1 for root
+///   - the parent link (see [`TrieFormat`])
 ///   - string_length: u8
 ///   - string_data: [u8; string_length]
 ///
@@ -22,15 +46,66 @@ use std::io;
 #[derive(Debug)]
 pub struct TrieStringBuffer {
     data: Vec<u8>,
+    format: TrieFormat,
     cache: HashMap<i32, String>,
 }
 
 impl TrieStringBuffer {
     pub fn new(data: Vec<u8>) -> Self {
+        Self::with_format(data, TrieFormat::Legacy)
+    }
+
+    pub fn with_format(data: Vec<u8>, format: TrieFormat) -> Self {
         TrieStringBuffer {
             data,
+            format,
             cache: HashMap::new(),
         }
+    }
+
+    /// The entry at `o`: (parent offset or -1, string start, string length).
+    fn entry_at(&self, o: usize) -> io::Result<(i32, usize, usize)> {
+        let out_of_bounds = || {
+            io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                format!("trie offset {} out of bounds (buf len {})", o, self.data.len()),
+            )
+        };
+        let (parent, len_at) = match self.format {
+            TrieFormat::Legacy => {
+                if o + 5 > self.data.len() {
+                    return Err(out_of_bounds());
+                }
+                (i32::from_le_bytes(self.data[o..o + 4].try_into().unwrap()), o + 4)
+            }
+            TrieFormat::Delta => {
+                let (mut delta, mut shift, mut i) = (0u64, 0u32, o);
+                loop {
+                    let b = *self.data.get(i).ok_or_else(out_of_bounds)?;
+                    i += 1;
+                    delta |= u64::from(b & 0x7F) << shift;
+                    if b & 0x80 == 0 {
+                        break;
+                    }
+                    shift += 7;
+                    if shift > 35 {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, "trie parent varint too long"));
+                    }
+                }
+                if delta as usize > o {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("trie entry at {} points {} bytes back, before the buffer", o, delta),
+                    ));
+                }
+                let parent = if delta == 0 { -1 } else { (o - delta as usize) as i32 };
+                if i >= self.data.len() {
+                    return Err(out_of_bounds());
+                }
+                (parent, i)
+            }
+        };
+        Ok((parent, len_at + 1, self.data[len_at] as usize))
     }
 
     pub fn get_string(&mut self, offset: i32) -> io::Result<String> {
@@ -42,18 +117,15 @@ impl TrieStringBuffer {
             return Ok(cached.clone());
         }
 
-        let o = offset as usize;
-        if o + 5 > self.data.len() {
+        if offset < 0 {
             return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                format!("trie offset {} out of bounds (buf len {})", offset, self.data.len()),
+                io::ErrorKind::InvalidData,
+                format!("trie offset {} is negative", offset),
             ));
         }
+        let (next_offset, start, string_length) = self.entry_at(offset as usize)?;
 
-        let next_offset = i32::from_le_bytes(self.data[o..o + 4].try_into().unwrap());
-        let string_length = self.data[o + 4] as usize;
-
-        if o + 5 + string_length > self.data.len() {
+        if start + string_length > self.data.len() {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "trie string data out of bounds",
@@ -61,7 +133,7 @@ impl TrieStringBuffer {
         }
 
         // Copy the string data to avoid borrow conflict with recursive call
-        let string_part = std::str::from_utf8(&self.data[o + 5..o + 5 + string_length])
+        let string_part = std::str::from_utf8(&self.data[start..start + string_length])
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?
             .to_string();
 

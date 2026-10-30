@@ -49,32 +49,20 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_102040E84). New: `_overridePlacementLimit`. `unk_f32_112`
+    // is the game's `_floorHeight`.
     pub struct HouseInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub house_name: LocalizableString<'a>,
-        pub unlock_condition_info: u32,
-        pub house_region_data_list: CArray<HouseRegionData<'a>>,
-        // 1.12: trailing f32 (observed constant 4.0 = `00 00 80 40`) appended
-        // to each HouseInfo record after the region list. Byte-diff decisive:
-        // +4B once per record at the prior record-end offset (146/292/438).
-        // ⓘ The 1.18 field-name oracle names this one `_floorHeight` (it is the
-        // 7th and last pre-1.18 field, and 4.0 is a plausible floor height).
-        // NOT renamed: parser field names are the mod contract, and a rename
-        // would silently drop `unk_f32_112` out of any mod already keyed on it.
-        pub unk_f32_112: f32,
-        // ── 1.18.00: three fields appended after the float, +9 bytes total,
-        // in this wire order: u8, u32, u32.
-        // The last one holds 9 / 15 / 24 in the eight new records and
-        // 0xFFFFFFFF in the four pre-existing ones — an index with an unset
-        // sentinel, which is what `…SceneObjectInfo` should look like.
-        // ⚠ The first two are 0 in every record, so the bytes cannot say which
-        // of the two names takes the u8. Assigned by convention: `…Type` is a
-        // u8 enum, `…Flag` a u32 bitfield. Round-trips either way.
         pub placement_system_type: u8,
+        pub unlock_condition_info: u32,
         pub usable_placement_type_flag: u32,
         pub housing_pivot_level_gimmick_scene_object_info: u32,
+        pub unk_f32_112: f32,
+        pub override_placement_limit: u32,
+        pub house_name: LocalizableString<'a>,
+        pub house_region_data_list: CArray<HouseRegionData<'a>>,
     }
 }
 

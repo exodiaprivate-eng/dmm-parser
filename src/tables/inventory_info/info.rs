@@ -58,7 +58,7 @@
 //!       (_collectionItemList, sub_141103310 — element wire = u32
 //!       _itemInfo + 8 raw bytes = 12 bytes)
 //!
-//! `InventoryMoveData` (sub_1410E0460) embeds an `OptionalGameConditionNoTail`
+//! `InventoryMoveData` (sub_1410E0460) embeds an `OptionalGameCondition`
 //! (sub_141103B30 → sub_141CEA810). Stream-mode reading uses lane A's
 //! public `GameConditionNode::read_from`; the 0.2% Raw fallback in
 //! `GameCondition::read_from` is unreachable here because we don't
@@ -66,7 +66,7 @@
 //! anti-disassembly variant (tags 54/286), parsing would fail; the
 //! roundtrip test below would catch it.
 
-use crate::binary::optional_game_condition::OptionalGameConditionNoTail;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::binary::*;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
@@ -122,7 +122,7 @@ py_binary_struct! {
 /// 10 fields matching canonical Mac names (`InventoryMoveData` in
 /// docs/449_TABLE_CATALOG.md).
 ///
-/// `move_condition` is an `OptionalGameConditionNoTail` — the
+/// `move_condition` is an `OptionalGameCondition` — the
 /// `GameConditionNode` is self-delimiting (tag dispatch, all leaf variants
 /// include their own payload). There is no separate tail after the node;
 /// `condition_fail_text` immediately follows.
@@ -142,7 +142,7 @@ pub struct InventoryMoveData<'a> {
     pub move_all_key_guide_text: LocalizableString<'a>,
     pub modal_text: LocalizableString<'a>,
     pub item_move_data_list: CArray<InventoryItemMoveData>,
-    pub move_condition: OptionalGameConditionNoTail<'a>,
+    pub move_condition: OptionalGameCondition<'a>,
     pub condition_fail_text: LocalizableString<'a>,
 }
 
@@ -156,7 +156,7 @@ impl<'a> InventoryMoveData<'a> {
         let move_all_key_guide_text = LocalizableString::read_from(data, offset)?;
         let modal_text = LocalizableString::read_from(data, offset)?;
         let item_move_data_list = CArray::<InventoryItemMoveData>::read_from(data, offset)?;
-        let move_condition = OptionalGameConditionNoTail::read_from(data, offset)?;
+        let move_condition = OptionalGameCondition::read_from(data, offset)?;
         let condition_fail_text = LocalizableString::read_from(data, offset)?;
         Ok(Self {
             type_, from_inventory_info, to_inventory_info, convert_money_item_info,
@@ -217,7 +217,7 @@ impl<'a> WriteJsonValue for InventoryMoveData<'a> {
         <CArray<InventoryItemMoveData> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "item_move_data_list")?,
         )?;
-        OptionalGameConditionNoTail::write_from_json(w, json_get_field(obj, "move_condition")?)?;
+        OptionalGameCondition::write_from_json(w, json_get_field(obj, "move_condition")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "condition_fail_text")?)?;
         Ok(())
     }
@@ -248,26 +248,26 @@ impl<'a> BinaryWrite for InventoryMoveData<'a> {
 
 #[derive(Debug)]
 pub struct InventoryInfo<'a> {
-    pub key: u16,
     pub string_key: CString<'a>,
+    pub key: u16,
     pub is_blocked: u8,
+    pub is_pushable_item_only_one: u8,
+    pub is_moveable_inventory: u8,
+    pub need_save_slot_count: u8,
+    pub pushable_check_type: u8,
+    pub default_slot_count: u16,
+    pub key_guide_local_string_info: u32,
+    pub max_slot_count: u16,
     pub pushable_item_type_list: CArray<InventoryPushableData>,
     pub excluded_item_type_list: CArray<InventoryPushableData>,
     pub inventory_move_data_list: CArray<InventoryMoveData<'a>>,
-    pub default_slot_count: u16,
-    pub max_slot_count: u16,
     pub push_item_alert_ui_text: LocalizableString<'a>,
     pub inventory_name_ui_text: LocalizableString<'a>,
-    pub key_guide_local_string_info: u32,
-    pub pushable_check_type: u8,
     /// `_npcUsableData` (8-byte struct: 2× u32 cooltime min/max).
     /// First half (`cooltime_min_in_game`).
     pub npc_usable_cooltime_min: u32,
     /// Second half (`cooltime_max_in_game`).
     pub npc_usable_cooltime_max: u32,
-    pub is_moveable_inventory: u8,
-    pub need_save_slot_count: u8,
-    pub is_pushable_item_only_one: u8,
     pub collection_item_list: CArray<InventoryCollectionItemData>,
 }
 
@@ -286,23 +286,23 @@ impl<'a> InventoryInfo<'a> {
     }
 
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u16::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u16::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let is_pushable_item_only_one = u8::read_from(data, offset)?;
+        let is_moveable_inventory = u8::read_from(data, offset)?;
+        let need_save_slot_count = u8::read_from(data, offset)?;
+        let pushable_check_type = u8::read_from(data, offset)?;
+        let default_slot_count = u16::read_from(data, offset)?;
+        let key_guide_local_string_info = u32::read_from(data, offset)?;
+        let max_slot_count = u16::read_from(data, offset)?;
         let pushable_item_type_list = CArray::<InventoryPushableData>::read_from(data, offset)?;
         let excluded_item_type_list = CArray::<InventoryPushableData>::read_from(data, offset)?;
         let inventory_move_data_list = CArray::<InventoryMoveData>::read_from(data, offset)?;
-        let default_slot_count = u16::read_from(data, offset)?;
-        let max_slot_count = u16::read_from(data, offset)?;
         let push_item_alert_ui_text = LocalizableString::read_from(data, offset)?;
         let inventory_name_ui_text = LocalizableString::read_from(data, offset)?;
-        let key_guide_local_string_info = u32::read_from(data, offset)?;
-        let pushable_check_type = u8::read_from(data, offset)?;
         let npc_usable_cooltime_min = u32::read_from(data, offset)?;
         let npc_usable_cooltime_max = u32::read_from(data, offset)?;
-        let is_moveable_inventory = u8::read_from(data, offset)?;
-        let need_save_slot_count = u8::read_from(data, offset)?;
-        let is_pushable_item_only_one = u8::read_from(data, offset)?;
         let collection_item_list = CArray::<InventoryCollectionItemData>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, pushable_item_type_list,
@@ -316,23 +316,23 @@ impl<'a> InventoryInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.is_pushable_item_only_one.write_to(w)?;
+        self.is_moveable_inventory.write_to(w)?;
+        self.need_save_slot_count.write_to(w)?;
+        self.pushable_check_type.write_to(w)?;
+        self.default_slot_count.write_to(w)?;
+        self.key_guide_local_string_info.write_to(w)?;
+        self.max_slot_count.write_to(w)?;
         self.pushable_item_type_list.write_to(w)?;
         self.excluded_item_type_list.write_to(w)?;
         self.inventory_move_data_list.write_to(w)?;
-        self.default_slot_count.write_to(w)?;
-        self.max_slot_count.write_to(w)?;
         self.push_item_alert_ui_text.write_to(w)?;
         self.inventory_name_ui_text.write_to(w)?;
-        self.key_guide_local_string_info.write_to(w)?;
-        self.pushable_check_type.write_to(w)?;
         self.npc_usable_cooltime_min.write_to(w)?;
         self.npc_usable_cooltime_max.write_to(w)?;
-        self.is_moveable_inventory.write_to(w)?;
-        self.need_save_slot_count.write_to(w)?;
-        self.is_pushable_item_only_one.write_to(w)?;
         self.collection_item_list.write_to(w)?;
         Ok(())
     }
@@ -346,23 +346,23 @@ impl<'a> InventoryInfo<'a> {
         ranges: &mut Vec<FieldRange>,
     ) -> io::Result<Self> {
         let start = *offset;
-        let key = track_read_field::<u16>(data, offset, path, ranges, "key", "u16")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u16>(data, offset, path, ranges, "key", "u16")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let is_pushable_item_only_one = track_read_field::<u8>(data, offset, path, ranges, "is_pushable_item_only_one", "u8")?;
+        let is_moveable_inventory = track_read_field::<u8>(data, offset, path, ranges, "is_moveable_inventory", "u8")?;
+        let need_save_slot_count = track_read_field::<u8>(data, offset, path, ranges, "need_save_slot_count", "u8")?;
+        let pushable_check_type = track_read_field::<u8>(data, offset, path, ranges, "pushable_check_type", "u8")?;
+        let default_slot_count = track_read_field::<u16>(data, offset, path, ranges, "default_slot_count", "u16")?;
+        let key_guide_local_string_info = track_read_field::<u32>(data, offset, path, ranges, "key_guide_local_string_info", "u32")?;
+        let max_slot_count = track_read_field::<u16>(data, offset, path, ranges, "max_slot_count", "u16")?;
         let pushable_item_type_list = track_read_field::<CArray<InventoryPushableData>>(data, offset, path, ranges, "pushable_item_type_list", "CArray<InventoryPushableData>")?;
         let excluded_item_type_list = track_read_field::<CArray<InventoryPushableData>>(data, offset, path, ranges, "excluded_item_type_list", "CArray<InventoryPushableData>")?;
         let inventory_move_data_list = track_read_field::<CArray<InventoryMoveData<'a>>>(data, offset, path, ranges, "inventory_move_data_list", "CArray<InventoryMoveData>")?;
-        let default_slot_count = track_read_field::<u16>(data, offset, path, ranges, "default_slot_count", "u16")?;
-        let max_slot_count = track_read_field::<u16>(data, offset, path, ranges, "max_slot_count", "u16")?;
         let push_item_alert_ui_text = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "push_item_alert_ui_text", "LocalizableString")?;
         let inventory_name_ui_text = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "inventory_name_ui_text", "LocalizableString")?;
-        let key_guide_local_string_info = track_read_field::<u32>(data, offset, path, ranges, "key_guide_local_string_info", "u32")?;
-        let pushable_check_type = track_read_field::<u8>(data, offset, path, ranges, "pushable_check_type", "u8")?;
         let npc_usable_cooltime_min = track_read_field::<u32>(data, offset, path, ranges, "npc_usable_cooltime_min", "u32")?;
         let npc_usable_cooltime_max = track_read_field::<u32>(data, offset, path, ranges, "npc_usable_cooltime_max", "u32")?;
-        let is_moveable_inventory = track_read_field::<u8>(data, offset, path, ranges, "is_moveable_inventory", "u8")?;
-        let need_save_slot_count = track_read_field::<u8>(data, offset, path, ranges, "need_save_slot_count", "u8")?;
-        let is_pushable_item_only_one = track_read_field::<u8>(data, offset, path, ranges, "is_pushable_item_only_one", "u8")?;
         let collection_item_list = track_read_field::<CArray<InventoryCollectionItemData>>(data, offset, path, ranges, "collection_item_list", "CArray<InventoryCollectionItemData>")?;
         let consumed = *offset - start;
         if consumed != entry_size {
@@ -382,45 +382,45 @@ impl<'a> InventoryInfo<'a> {
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("is_pushable_item_only_one".to_string(), self.is_pushable_item_only_one.to_json_value());
+        m.insert("is_moveable_inventory".to_string(), self.is_moveable_inventory.to_json_value());
+        m.insert("need_save_slot_count".to_string(), self.need_save_slot_count.to_json_value());
+        m.insert("pushable_check_type".to_string(), self.pushable_check_type.to_json_value());
+        m.insert("default_slot_count".to_string(), self.default_slot_count.to_json_value());
+        m.insert("key_guide_local_string_info".to_string(), self.key_guide_local_string_info.to_json_value());
+        m.insert("max_slot_count".to_string(), self.max_slot_count.to_json_value());
         m.insert("pushable_item_type_list".to_string(), self.pushable_item_type_list.to_json_value());
         m.insert("excluded_item_type_list".to_string(), self.excluded_item_type_list.to_json_value());
         m.insert("inventory_move_data_list".to_string(), self.inventory_move_data_list.to_json_value());
-        m.insert("default_slot_count".to_string(), self.default_slot_count.to_json_value());
-        m.insert("max_slot_count".to_string(), self.max_slot_count.to_json_value());
         m.insert("push_item_alert_ui_text".to_string(), self.push_item_alert_ui_text.to_json_value());
         m.insert("inventory_name_ui_text".to_string(), self.inventory_name_ui_text.to_json_value());
-        m.insert("key_guide_local_string_info".to_string(), self.key_guide_local_string_info.to_json_value());
-        m.insert("pushable_check_type".to_string(), self.pushable_check_type.to_json_value());
         m.insert("npc_usable_cooltime_min".to_string(), self.npc_usable_cooltime_min.to_json_value());
         m.insert("npc_usable_cooltime_max".to_string(), self.npc_usable_cooltime_max.to_json_value());
-        m.insert("is_moveable_inventory".to_string(), self.is_moveable_inventory.to_json_value());
-        m.insert("need_save_slot_count".to_string(), self.need_save_slot_count.to_json_value());
-        m.insert("is_pushable_item_only_one".to_string(), self.is_pushable_item_only_one.to_json_value());
         m.insert("collection_item_list".to_string(), self.collection_item_list.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_pushable_item_only_one")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_moveable_inventory")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_save_slot_count")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pushable_check_type")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "default_slot_count")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key_guide_local_string_info")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_slot_count")?)?;
         <CArray<InventoryPushableData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pushable_item_type_list")?)?;
         <CArray<InventoryPushableData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "excluded_item_type_list")?)?;
         <CArray<InventoryMoveData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "inventory_move_data_list")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "default_slot_count")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_slot_count")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "push_item_alert_ui_text")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "inventory_name_ui_text")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key_guide_local_string_info")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "pushable_check_type")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_usable_cooltime_min")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_usable_cooltime_max")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_moveable_inventory")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "need_save_slot_count")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_pushable_item_only_one")?)?;
         <CArray<InventoryCollectionItemData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "collection_item_list")?)?;
         Ok(())
     }
@@ -430,7 +430,7 @@ impl<'a> InventoryInfo<'a> {
 mod tests {
     use super::*;
     use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("inventoryinfo.pabgb") }
+    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("inventory.pabgb") }
 
     #[test]
     fn roundtrip() {
@@ -474,187 +474,21 @@ mod tests {
         }
     }
 
-    fn read_u8_at(data: &[u8], offset: &mut usize) -> u8 {
-        let v = data[*offset];
-        *offset += 1;
-        v
-    }
-    fn read_u16_at(data: &[u8], offset: &mut usize) -> u16 {
-        let v = u16::from_le_bytes(data[*offset..*offset+2].try_into().unwrap());
-        *offset += 2;
-        v
-    }
-    fn read_u32_at(data: &[u8], offset: &mut usize) -> u32 {
-        let v = u32::from_le_bytes(data[*offset..*offset+4].try_into().unwrap());
-        *offset += 4;
-        v
-    }
-    fn read_u64_at(data: &[u8], offset: &mut usize) -> u64 {
-        let v = u64::from_le_bytes(data[*offset..*offset+8].try_into().unwrap());
-        *offset += 8;
-        v
-    }
-    fn read_cstring_len(data: &[u8], offset: &mut usize) -> u32 {
-        // reads len and skips content, returns len
-        if *offset + 4 > data.len() {
-            eprintln!("  read_cstring_len: TRUNCATED at {}", *offset);
-            return 0;
-        }
-        let len = read_u32_at(data, offset);
-        let advance = (len as usize).min(data.len() - *offset);
-        if advance < len as usize {
-            eprintln!("  read_cstring_len: len={} but only {} bytes remain — clamping", len, data.len() - *offset);
-        }
-        *offset += advance;
-        len
-    }
-    fn read_localizable_string(data: &[u8], offset: &mut usize, label: &str) {
-        let start = *offset;
-        if *offset + 13 > data.len() {
-            eprintln!("  {} at {}: TRUNCATED (only {} remain)", label, start, data.len() - *offset);
-            return;
-        }
-        let cat = read_u8_at(data, offset);
-        let idx = read_u64_at(data, offset);
-        // peek clen before consuming
-        let clen = u32::from_le_bytes(data[*offset..*offset+4].try_into().unwrap());
-        *offset += 4;
-        let content_end = (*offset + clen as usize).min(data.len());
-        let valid_utf8 = std::str::from_utf8(&data[*offset..content_end]).is_ok();
-        if *offset + clen as usize > data.len() {
-            eprintln!("  {} at {}: cat={} idx={} clen={} UTF8={} OVERFLOW (only {} remain)",
-                      label, start, cat, idx, clen, valid_utf8, data.len() - *offset);
-        } else {
-            eprintln!("  {} at {}: cat={} idx={} clen={} UTF8={} end={}",
-                      label, start, cat, idx, clen, valid_utf8, *offset + clen as usize);
-            *offset += clen as usize;
-        }
-    }
-
+    /// "I Like Space" edits the Character inventory's slot counts; it must decode typed.
     #[test]
-    fn diag_character_entry() {
+    fn character_entry_slot_counts() {
         let p = pabgb_path();
         let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP: {}", p.display()); return; };
         let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP pabgh"); return; };
         let ranges = entry_ranges(&entries, data.len());
-        let Some(&(_, s, e)) = ranges.iter().find(|(k,_,_)| *k == 2) else {
+        let Some(&(_, s, e)) = ranges.iter().find(|(k, _, _)| *k == 2) else {
             panic!("Character entry (k=2) not found");
         };
-        eprintln!("Character: s={} e={} size={}", s, e, e - s);
-
-        // ── Manual header walk ───────────────────────────────────────────────
         let mut c = s;
-        let key        = read_u16_at(&data, &mut c);
-        let sk_len     = read_cstring_len(&data, &mut c);
-        let is_blocked = read_u8_at(&data, &mut c);
-        let push_count = read_u32_at(&data, &mut c);
-        c += push_count as usize * 3;      // InventoryPushableData = u16 + u8 = 3 bytes
-        let excl_count = read_u32_at(&data, &mut c);
-        c += excl_count as usize * 3;
-        eprintln!("header: key={} sk_len={} is_blocked={} push={} excl={} → cursor={}",
-                  key, sk_len, is_blocked, push_count, excl_count, c);
-
-        // ── inventory_move_data_list ─────────────────────────────────────────
-        let move_count = read_u32_at(&data, &mut c);
-        eprintln!("inventory_move_data_list count={} cursor={}", move_count, c);
-
-        for i in 0..move_count as usize {
-            let elem_start = c;
-            let saved_c = c;
-            match InventoryMoveData::read_from(&data, &mut c) {
-                Ok(elem) => {
-                    let cft_len = elem.condition_fail_text.default.length;
-                    let kgt_len = elem.key_guide_text.default.length;
-                    let mak_len = elem.move_all_key_guide_text.default.length;
-                    let mod_len = elem.modal_text.default.length;
-                    let imd_ct  = elem.item_move_data_list.items.len();
-                    let cond_p  = elem.move_condition.inner.is_some();
-                    eprintln!("[{}] OK  start={} end={} size={}  type_={} from_={} to_={} conv={}",
-                              i, elem_start, c, c - elem_start,
-                              elem.type_, elem.from_inventory_info, elem.to_inventory_info,
-                              elem.convert_money_item_info);
-                    eprintln!("     kgt_len={} mak_len={} mod_len={} imd_ct={} cond={} cft_len={}",
-                              kgt_len, mak_len, mod_len, imd_ct, cond_p, cft_len);
-                }
-                Err(er) => {
-                    eprintln!("[{}] FAIL start={} cursor_at_fail={} err={}", i, elem_start, c, er);
-                    // ── Per-field manual trace ───────────────────────────────
-                    let mut mc = saved_c;
-                    let type_  = read_u8_at(&data, &mut mc);
-                    let from_  = read_u16_at(&data, &mut mc);
-                    let to_    = read_u16_at(&data, &mut mc);
-                    let conv   = read_u32_at(&data, &mut mc);
-                    eprintln!("  type_={} from_={} to_={} conv={} mc={}", type_, from_, to_, conv, mc);
-                    read_localizable_string(&data, &mut mc, "key_guide_text");
-                    read_localizable_string(&data, &mut mc, "move_all_key_guide_text");
-                    read_localizable_string(&data, &mut mc, "modal_text");
-                    if mc + 4 <= data.len() {
-                        let imd_count = read_u32_at(&data, &mut mc);
-                        let imd_advance = (imd_count as usize * 13).min(data.len() - mc);
-                        mc += imd_advance;
-                        eprintln!("  item_move_data_list count={} mc={}", imd_count, mc);
-                    }
-                    if mc < data.len() {
-                        let presence = read_u8_at(&data, &mut mc);
-                        eprintln!("  move_condition presence={} mc={}", presence, mc);
-                        if presence != 0 {
-                            let mut cond_c = mc;
-                            match crate::binary::variants::game_condition::GameConditionNode::read_from(&data, &mut cond_c) {
-                                Ok(_) => {
-                                    eprintln!("  GameConditionNode OK  start={} end={} size={}", mc, cond_c, cond_c - mc);
-                                    mc = cond_c;
-                                }
-                                Err(er2) => {
-                                    eprintln!("  GameConditionNode FAIL at={}: {}", cond_c, er2);
-                                    let lo = mc;
-                                    let hi = (cond_c + 16).min(data.len());
-                                    eprintln!("  bytes[{}..{}]: {:02x?}", lo, hi, &data[lo..hi]);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    read_localizable_string(&data, &mut mc, "condition_fail_text");
-                    eprintln!("  mc after condition_fail_text={} (expected end={})", mc, e);
-                    break;
-                }
-            }
-        }
-
-        // ── Raw hex dump of key areas ────────────────────────────────────────
-        // Element 6 starts at 2345. Its condition node should be near 2418.
-        // Dump the 60 bytes around cft (condition_fail_text) to verify structure.
-        {
-            let lo = 2410usize;
-            let hi = (lo + 80).min(data.len());
-            eprintln!("--- hex[{}..{}]:", lo, hi);
-            for (i, chunk) in data[lo..hi].chunks(16).enumerate() {
-                let addr = lo + i * 16;
-                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02x}", b)).collect();
-                let ascii: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
-                eprintln!("  {:04x}: {}  {}", addr, hex.join(" "), ascii);
-            }
-        }
-        // Dump last 128 bytes of the Character entry (for post-list analysis)
-        {
-            let lo = e.saturating_sub(128);
-            let hi = e.min(data.len());
-            eprintln!("--- hex[{}..{}] (end of entry):", lo, hi);
-            for (i, chunk) in data[lo..hi].chunks(16).enumerate() {
-                let addr = lo + i * 16;
-                let hex: Vec<String> = chunk.iter().map(|b| format!("{:02x}", b)).collect();
-                let ascii: String = chunk.iter().map(|&b| if b.is_ascii_graphic() { b as char } else { '.' }).collect();
-                eprintln!("  {:04x}: {}  {}", addr, hex.join(" "), ascii);
-            }
-        }
-
-        // ── Also try the full typed parse so we have a reference error line ──
-        eprintln!("---");
-        let mut c2 = s;
-        match InventoryInfo::read_from(&data, &mut c2) {
-            Ok(_)  => eprintln!("read_from: OK consumed={} expected={}", c2 - s, e - s),
-            Err(er) => eprintln!("read_from: ERR {} (cursor={})", er, c2),
-        }
+        let item = InventoryInfo::read_with_size(&data, &mut c, e - s).unwrap();
+        assert_eq!(item.string_key.data, "Character");
+        assert!(item.default_slot_count > 0 && item.default_slot_count <= item.max_slot_count,
+            "implausible slot counts {} / {}", item.default_slot_count, item.max_slot_count);
     }
 
     #[test]

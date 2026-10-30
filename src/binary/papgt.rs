@@ -85,12 +85,27 @@ pub struct ResolvedEntry {
 
 // ── Top-level PAPGT ────────────────────────────────────────────────────────
 
+/// 2.04.00 on: the PAPGT carries no checksum in its header and ends in a 64-byte Ed25519
+/// signature over everything before it. The game checks the signature with a key compiled
+/// into the exe and refuses to start when it fails, so a changed signed PAPGT cannot be
+/// written: `to_bytes` returns the original bytes or an error.
+#[derive(Debug, Clone)]
+pub struct SignedPapgt {
+    /// The first two header bytes (`81 16` on 2.04.00), meaning unknown, kept as read.
+    pub prefix: u16,
+    pub signature: [u8; 64],
+    /// The signed bytes as read (everything but the signature).
+    pub signed_body: Vec<u8>,
+}
+
 #[derive(Debug)]
 pub struct PackGroupTreeMeta {
     pub header: PackGroupTreeMetaHeader,
     pub entries: Vec<ResolvedEntry>,
     /// Raw group names buffer (for roundtrip writing).
     pub group_names_buffer: Vec<u8>,
+    /// `Some` for the signed 2.04.00 layout.
+    pub signed: Option<SignedPapgt>,
 }
 
 impl Default for PackGroupTreeMeta {
@@ -113,18 +128,53 @@ impl PackGroupTreeMeta {
             },
             entries: Vec::new(),
             group_names_buffer: Vec::new(),
+            signed: None,
         }
+    }
+
+    /// True for the signed 2.04.00 layout: a 4-byte header (u16, entry count, u8), the
+    /// entries, the names and exactly 64 bytes of signature after them.
+    fn is_signed_layout(data: &[u8]) -> bool {
+        if data.len() < 4 + 4 + 64 {
+            return false;
+        }
+        let count = data[2] as usize;
+        let names_at = 4 + 12 * count;
+        if data.len() < names_at + 4 {
+            return false;
+        }
+        let names_len = i32::from_le_bytes(data[names_at..names_at + 4].try_into().unwrap());
+        names_len >= 0 && names_at + 4 + names_len as usize + 64 == data.len()
     }
 
     /// Parse a PAPGT from raw bytes (the entire file contents).
     pub fn parse(data: &[u8]) -> io::Result<Self> {
         let mut offset = 0;
-        let header = PackGroupTreeMetaHeader::read_from(data, &mut offset)?;
+        let (header, signed) = if Self::is_signed_layout(data) {
+            offset = 4;
+            let body_len = data.len() - 64;
+            let signed = SignedPapgt {
+                prefix: u16::from_le_bytes([data[0], data[1]]),
+                signature: data[body_len..].try_into().unwrap(),
+                signed_body: data[..body_len].to_vec(),
+            };
+            let header = PackGroupTreeMetaHeader {
+                unknown0: 0,
+                checksum: 0,
+                entry_count: data[2],
+                unknown1: data[3],
+                unknown2: 0,
+            };
+            (header, Some(signed))
+        } else {
+            let header = PackGroupTreeMetaHeader::read_from(data, &mut offset)?;
 
-        // Everything after the header is checksummed
-        let post_header_data = &data[offset..];
-        checksum::validate_checksum(post_header_data, header.checksum)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            // Everything after the header is checksummed
+            let post_header_data = &data[offset..];
+            checksum::validate_checksum(post_header_data, header.checksum)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            (header, None)
+        };
 
         // Read entries
         let mut raw_entries = Vec::with_capacity(header.entry_count as usize);
@@ -150,6 +200,7 @@ impl PackGroupTreeMeta {
             header,
             entries,
             group_names_buffer,
+            signed,
         })
     }
 
@@ -211,6 +262,23 @@ impl PackGroupTreeMeta {
         (self.group_names_buffer.len() as i32).write_to(&mut post_header)?;
         post_header.write_all(&self.group_names_buffer)?;
 
+        if let Some(signed) = &self.signed {
+            let mut body = Vec::with_capacity(4 + post_header.len());
+            body.write_all(&signed.prefix.to_le_bytes())?;
+            body.push(self.entries.len() as u8);
+            body.push(self.header.unknown1);
+            body.write_all(&post_header)?;
+            if body != signed.signed_body {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "this PAPGT is signed (game 2.04.00 or later): a changed copy fails the game's \
+                     signature check and the game will not start, so it is not written",
+                ));
+            }
+            body.write_all(&signed.signature)?;
+            return Ok(body);
+        }
+
         // Now build the full output with recalculated checksum
         let computed_checksum = checksum::calculate_checksum(&post_header);
 
@@ -230,5 +298,47 @@ impl PackGroupTreeMeta {
         out.write_all(&post_header)?;
 
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A signed 2.04.00-shaped PAPGT: 4-byte header, two entries, names, 64-byte signature.
+    fn signed_papgt() -> Vec<u8> {
+        let mut b = vec![0x81, 0x16, 2, 2];
+        for (name_off, ck) in [(0u32, 0x1111_1111u32), (5, 0x2222_2222)] {
+            b.extend_from_slice(&[0, 0xFF, 0x7F, 0]);
+            b.extend_from_slice(&name_off.to_le_bytes());
+            b.extend_from_slice(&ck.to_le_bytes());
+        }
+        let names = b"0000\x000001\x00";
+        b.extend_from_slice(&(names.len() as i32).to_le_bytes());
+        b.extend_from_slice(names);
+        b.extend_from_slice(&[0xAB; 64]);
+        b
+    }
+
+    #[test]
+    fn a_signed_papgt_parses_and_writes_back_unchanged() {
+        let data = signed_papgt();
+        let papgt = PackGroupTreeMeta::parse(&data).unwrap();
+        assert!(papgt.signed.is_some());
+        let names: Vec<&str> = papgt.entries.iter().map(|e| e.group_name.as_str()).collect();
+        assert_eq!(names, ["0000", "0001"]);
+        assert_eq!(papgt.entries[1].entry.pack_meta_checksum, 0x2222_2222);
+        assert_eq!(papgt.to_bytes().unwrap(), data);
+    }
+
+    #[test]
+    fn a_changed_signed_papgt_is_never_written() {
+        let mut papgt = PackGroupTreeMeta::parse(&signed_papgt()).unwrap();
+        papgt.entries[0].entry.pack_meta_checksum = 0x3333_3333;
+        assert!(papgt.to_bytes().is_err(), "a changed checksum must not be written");
+
+        let mut papgt = PackGroupTreeMeta::parse(&signed_papgt()).unwrap();
+        papgt.add_entry("0036", 0x4444_4444, 0, LanguageType::ALL);
+        assert!(papgt.to_bytes().is_err(), "an added group must not be written");
     }
 }

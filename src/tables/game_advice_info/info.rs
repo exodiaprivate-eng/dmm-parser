@@ -42,28 +42,27 @@ use crate::binary::*;
 use crate::py_binary_struct;
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_10204081C). The four StringInfoKeys carry the game's names
+    // now: the 2.03 `widget_id_string_info` / `ui_extra_string_info_110` / `sort_order` slots were
+    // narrationAudioPath / widgetId / groupRelativeIndex.
     pub struct GameAdviceInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub is_once: u8,
+        pub is_show_guide_list: u8,
+        pub is_use_loading_view: u8,
+        pub is_default: u8,
+        pub game_advice_group_info: u32,
+        pub narration_audio_path_string_info: u32,
+        pub ui_video_path_string_info: u32,
+        pub ui_texture_name_string_info: u32,
+        pub widget_id_string_info: u32,
+        pub group_relative_index: u32,
         pub title_local_string_info: LocalizableString<'a>,
         pub desc_local_string_info: LocalizableString<'a>,
         pub key_mouse_input_desc_local_string_info: LocalizableString<'a>,
         pub game_advice_unknown_name: LocalizableString<'a>,
-        pub ui_texture_name_string_info: u32,
-        pub ui_video_path_string_info: u32,
-        pub widget_id_string_info: u32,
-        // 1.10: one new u32 (string-info name-hash; 0xEAC5E173 sentinel when
-        // empty) added to the fixed tail. Position within the fixed-width tail
-        // is length-equivalent; placed among the ui *_string_info hashes.
-        // Verified via wire-walker: reconciles all 470 records (byte-exact).
-        pub ui_extra_string_info_110: u32,
-        pub sort_order: u32,
-        pub is_once: u8,
-        pub is_show_guide_list: u8,
-        pub game_advice_group_info: u32,
-        pub is_default: u8,
-        pub is_use_loading_view: u8,
     }
 }
 

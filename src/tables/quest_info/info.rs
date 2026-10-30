@@ -202,20 +202,24 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 `QuestBranchData` (Mac reader sub_10205AA38): the two delay times now precede
+    // the flags, and `_isOnClose` was added (19 bytes). u32_a/u32_b = from/toDelayTime,
+    // byte_a/byte_b = useDelay/useDelay_loading.
     pub struct BranchData {
         pub quest_key: u32,
         pub condition_key: u32,
-        pub byte_a: u8,
-        pub byte_b: u8,
         pub u32_a: u32,
         pub u32_b: u32,
+        pub byte_a: u8,
+        pub byte_b: u8,
+        pub is_on_close: u8,
     }
 }
 
 #[derive(Debug)]
 pub struct QuestInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub quest_type: u8,
     pub quest_category: u8,
@@ -239,7 +243,6 @@ pub struct QuestInfo<'a> {
     pub stage_image_path: u32,
     pub playable_mission_count: u32,
     pub playable_stage_count: u32,
-    pub test_tag: CString<'a>,
     pub game_start_stage: u32,
     pub game_start_sub_timeline: CString<'a>,
     pub memo: CString<'a>,
@@ -274,22 +277,8 @@ fn try_read_trailer(data: &[u8], start: usize, end: usize) -> Option<usize> {
     if cnt > 4096 { return None; }
     if cursor + cnt * 4 > end { return None; }
     cursor += cnt * 4;
-    // u32 npc_dialog_must_condition
-    if cursor + 4 > end { return None; }
-    cursor += 4;
-    // u8 is_save, is_continuous_mission, is_repeatable, enable_new_game_plus
-    //
-    // 2.00.00 added `_enableNewGamePlus` here. This probe decides where the
-    // polymorphic blob ends by testing whether the trailer fits exactly, so a
-    // missed field does not just mis-read four bytes — it moves the accepted
-    // boundary and takes the blob with it.
-    if cursor + 4 > end { return None; }
-    let flags = &data[cursor..cursor + 4];
-    // Boolean fields are 0 or 1 only — this is the probe's whole discriminator.
-    if flags.iter().any(|&b| b > 1) {
-        return None;
-    }
-    cursor += 4;
+    // 2.04.00: only `_debugColor` follows the list now; the condition and the four flags
+    // moved to the front of the record.
     // u32 debug_color
     if cursor + 4 > end { return None; }
     cursor += 4;
@@ -326,34 +315,38 @@ impl<'a> QuestInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let is_save = u8::read_from(data, offset)?;
+        let enable_new_game_plus = u8::read_from(data, offset)?;
+        let is_repeatable = u8::read_from(data, offset)?;
+        let is_continuous_mission = u8::read_from(data, offset)?;
         let quest_type = u8::read_from(data, offset)?;
         let quest_category = u8::read_from(data, offset)?;
+        let stage_image_path = u32::read_from(data, offset)?;
+        let quest_group_info = u16::read_from(data, offset)?;
+        let npc_dialog_must_condition = u32::read_from(data, offset)?;
+        let faction_info = u32::read_from(data, offset)?;
+        let global_game_event_info = u16::read_from(data, offset)?;
+        let stage_text_icon_path = u32::read_from(data, offset)?;
+        let stage_icon_path = u32::read_from(data, offset)?;
+        let start_mission = u32::read_from(data, offset)?;
+        let game_start_sub_timeline = CString::read_from(data, offset)?;
+        let playable_mission_count = u32::read_from(data, offset)?;
+        let start_stage = u32::read_from(data, offset)?;
+        let game_start_stage = u32::read_from(data, offset)?;
+        let playable_stage_count = u32::read_from(data, offset)?;
+        let branch_data = BranchData::read_from(data, offset)?;
         let name = LocalizableString::read_from(data, offset)?;
         let desc = LocalizableString::read_from(data, offset)?;
-        let quest_group_info = u16::read_from(data, offset)?;
-        let faction_info = u32::read_from(data, offset)?;
         let faction_state_data = FactionStateData::read_from(data, offset)?;
-        let branch_data = BranchData::read_from(data, offset)?;
-        let global_game_event_info = u16::read_from(data, offset)?;
         let start_player_list = CArray::<u32>::read_from(data, offset)?;
         let branch_data_list = CArray::<BranchData>::read_from(data, offset)?;
         let executor_quest_list = CArray::<u32>::read_from(data, offset)?;
         let gauge_list = CArray::<u32>::read_from(data, offset)?;
         let mission_list = CArray::<u32>::read_from(data, offset)?;
         let stage_list = CArray::<u32>::read_from(data, offset)?;
-        let start_mission = u32::read_from(data, offset)?;
-        let start_stage = u32::read_from(data, offset)?;
-        let stage_icon_path = u32::read_from(data, offset)?;
-        let stage_text_icon_path = u32::read_from(data, offset)?;
-        let stage_image_path = u32::read_from(data, offset)?;
-        let playable_mission_count = u32::read_from(data, offset)?;
-        let playable_stage_count = u32::read_from(data, offset)?;
-        let test_tag = CString::read_from(data, offset)?;
-        let game_start_stage = u32::read_from(data, offset)?;
-        let game_start_sub_timeline = CString::read_from(data, offset)?;
         let memo = CString::read_from(data, offset)?;
 
         // Probe for the boundary: scan forward through the polymorphic
@@ -366,11 +359,6 @@ impl<'a> QuestInfo<'a> {
             QuestDialogFilterDataList::read_with_size(data, offset, region_end)?;
 
         let dialog_must_mission_info_list = CArray::<u32>::read_from(data, offset)?;
-        let npc_dialog_must_condition = u32::read_from(data, offset)?;
-        let is_save = u8::read_from(data, offset)?;
-        let is_continuous_mission = u8::read_from(data, offset)?;
-        let is_repeatable = u8::read_from(data, offset)?;
-        let enable_new_game_plus = u8::read_from(data, offset)?;
         let debug_color = u32::read_from(data, offset)?;
 
         Ok(Self {
@@ -399,7 +387,6 @@ impl<'a> QuestInfo<'a> {
             stage_image_path,
             playable_mission_count,
             playable_stage_count,
-            test_tag,
             game_start_stage,
             game_start_sub_timeline,
             memo,
@@ -424,34 +411,38 @@ impl<'a> QuestInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
+        let is_save = track_read_field::<u8>(data, offset, path, ranges, "is_save", "u8")?;
+        let enable_new_game_plus = track_read_field::<u8>(data, offset, path, ranges, "enable_new_game_plus", "u8")?;
+        let is_repeatable = track_read_field::<u8>(data, offset, path, ranges, "is_repeatable", "u8")?;
+        let is_continuous_mission = track_read_field::<u8>(data, offset, path, ranges, "is_continuous_mission", "u8")?;
         let quest_type = track_read_field::<u8>(data, offset, path, ranges, "quest_type", "u8")?;
         let quest_category = track_read_field::<u8>(data, offset, path, ranges, "quest_category", "u8")?;
+        let stage_image_path = track_read_field::<u32>(data, offset, path, ranges, "stage_image_path", "u32")?;
+        let quest_group_info = track_read_field::<u16>(data, offset, path, ranges, "quest_group_info", "u16")?;
+        let npc_dialog_must_condition = track_read_field::<u32>(data, offset, path, ranges, "npc_dialog_must_condition", "u32")?;
+        let faction_info = track_read_field::<u32>(data, offset, path, ranges, "faction_info", "u32")?;
+        let global_game_event_info = track_read_field::<u16>(data, offset, path, ranges, "global_game_event_info", "u16")?;
+        let stage_text_icon_path = track_read_field::<u32>(data, offset, path, ranges, "stage_text_icon_path", "u32")?;
+        let stage_icon_path = track_read_field::<u32>(data, offset, path, ranges, "stage_icon_path", "u32")?;
+        let start_mission = track_read_field::<u32>(data, offset, path, ranges, "start_mission", "u32")?;
+        let game_start_sub_timeline = track_read_field::<CString<'a>>(data, offset, path, ranges, "game_start_sub_timeline", "CString")?;
+        let playable_mission_count = track_read_field::<u32>(data, offset, path, ranges, "playable_mission_count", "u32")?;
+        let start_stage = track_read_field::<u32>(data, offset, path, ranges, "start_stage", "u32")?;
+        let game_start_stage = track_read_field::<u32>(data, offset, path, ranges, "game_start_stage", "u32")?;
+        let playable_stage_count = track_read_field::<u32>(data, offset, path, ranges, "playable_stage_count", "u32")?;
+        let branch_data = track_read_field::<BranchData>(data, offset, path, ranges, "branch_data", "BranchData")?;
         let name = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "name", "LocalizableString")?;
         let desc = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "desc", "LocalizableString")?;
-        let quest_group_info = track_read_field::<u16>(data, offset, path, ranges, "quest_group_info", "u16")?;
-        let faction_info = track_read_field::<u32>(data, offset, path, ranges, "faction_info", "u32")?;
         let faction_state_data = track_read_field::<FactionStateData>(data, offset, path, ranges, "faction_state_data", "FactionStateData")?;
-        let branch_data = track_read_field::<BranchData>(data, offset, path, ranges, "branch_data", "BranchData")?;
-        let global_game_event_info = track_read_field::<u16>(data, offset, path, ranges, "global_game_event_info", "u16")?;
         let start_player_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "start_player_list", "CArray<u32>")?;
         let branch_data_list = track_read_field::<CArray<BranchData>>(data, offset, path, ranges, "branch_data_list", "CArray<BranchData>")?;
         let executor_quest_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "executor_quest_list", "CArray<u32>")?;
         let gauge_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "gauge_list", "CArray<u32>")?;
         let mission_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "mission_list", "CArray<u32>")?;
         let stage_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "stage_list", "CArray<u32>")?;
-        let start_mission = track_read_field::<u32>(data, offset, path, ranges, "start_mission", "u32")?;
-        let start_stage = track_read_field::<u32>(data, offset, path, ranges, "start_stage", "u32")?;
-        let stage_icon_path = track_read_field::<u32>(data, offset, path, ranges, "stage_icon_path", "u32")?;
-        let stage_text_icon_path = track_read_field::<u32>(data, offset, path, ranges, "stage_text_icon_path", "u32")?;
-        let stage_image_path = track_read_field::<u32>(data, offset, path, ranges, "stage_image_path", "u32")?;
-        let playable_mission_count = track_read_field::<u32>(data, offset, path, ranges, "playable_mission_count", "u32")?;
-        let playable_stage_count = track_read_field::<u32>(data, offset, path, ranges, "playable_stage_count", "u32")?;
-        let test_tag = track_read_field::<CString<'a>>(data, offset, path, ranges, "test_tag", "CString")?;
-        let game_start_stage = track_read_field::<u32>(data, offset, path, ranges, "game_start_stage", "u32")?;
-        let game_start_sub_timeline = track_read_field::<CString<'a>>(data, offset, path, ranges, "game_start_sub_timeline", "CString")?;
         let memo = track_read_field::<CString<'a>>(data, offset, path, ranges, "memo", "CString")?;
 
         let quest_dialog_filter_data_list = track_read_with(offset, path, ranges, "quest_dialog_filter_data_list", "QuestDialogFilterDataList", |o| {
@@ -462,11 +453,6 @@ impl<'a> QuestInfo<'a> {
         })?;
 
         let dialog_must_mission_info_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "dialog_must_mission_info_list", "CArray<u32>")?;
-        let npc_dialog_must_condition = track_read_field::<u32>(data, offset, path, ranges, "npc_dialog_must_condition", "u32")?;
-        let is_save = track_read_field::<u8>(data, offset, path, ranges, "is_save", "u8")?;
-        let is_continuous_mission = track_read_field::<u8>(data, offset, path, ranges, "is_continuous_mission", "u8")?;
-        let is_repeatable = track_read_field::<u8>(data, offset, path, ranges, "is_repeatable", "u8")?;
-        let enable_new_game_plus = track_read_field::<u8>(data, offset, path, ranges, "enable_new_game_plus", "u8")?;
         let debug_color = track_read_field::<u32>(data, offset, path, ranges, "debug_color", "u32")?;
 
         Ok(Self {
@@ -476,7 +462,7 @@ impl<'a> QuestInfo<'a> {
             executor_quest_list, gauge_list, mission_list, stage_list,
             start_mission, start_stage, stage_icon_path, stage_text_icon_path,
             stage_image_path, playable_mission_count, playable_stage_count,
-            test_tag, game_start_stage, game_start_sub_timeline, memo,
+            game_start_stage, game_start_sub_timeline, memo,
             quest_dialog_filter_data_list,
             dialog_must_mission_info_list, npc_dialog_must_condition,
             is_save, is_continuous_mission, is_repeatable, enable_new_game_plus, debug_color,
@@ -484,42 +470,41 @@ impl<'a> QuestInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.is_save.write_to(w)?;
+        self.enable_new_game_plus.write_to(w)?;
+        self.is_repeatable.write_to(w)?;
+        self.is_continuous_mission.write_to(w)?;
         self.quest_type.write_to(w)?;
         self.quest_category.write_to(w)?;
+        self.stage_image_path.write_to(w)?;
+        self.quest_group_info.write_to(w)?;
+        self.npc_dialog_must_condition.write_to(w)?;
+        self.faction_info.write_to(w)?;
+        self.global_game_event_info.write_to(w)?;
+        self.stage_text_icon_path.write_to(w)?;
+        self.stage_icon_path.write_to(w)?;
+        self.start_mission.write_to(w)?;
+        self.game_start_sub_timeline.write_to(w)?;
+        self.playable_mission_count.write_to(w)?;
+        self.start_stage.write_to(w)?;
+        self.game_start_stage.write_to(w)?;
+        self.playable_stage_count.write_to(w)?;
+        self.branch_data.write_to(w)?;
         self.name.write_to(w)?;
         self.desc.write_to(w)?;
-        self.quest_group_info.write_to(w)?;
-        self.faction_info.write_to(w)?;
         self.faction_state_data.write_to(w)?;
-        self.branch_data.write_to(w)?;
-        self.global_game_event_info.write_to(w)?;
         self.start_player_list.write_to(w)?;
         self.branch_data_list.write_to(w)?;
         self.executor_quest_list.write_to(w)?;
         self.gauge_list.write_to(w)?;
         self.mission_list.write_to(w)?;
         self.stage_list.write_to(w)?;
-        self.start_mission.write_to(w)?;
-        self.start_stage.write_to(w)?;
-        self.stage_icon_path.write_to(w)?;
-        self.stage_text_icon_path.write_to(w)?;
-        self.stage_image_path.write_to(w)?;
-        self.playable_mission_count.write_to(w)?;
-        self.playable_stage_count.write_to(w)?;
-        self.test_tag.write_to(w)?;
-        self.game_start_stage.write_to(w)?;
-        self.game_start_sub_timeline.write_to(w)?;
         self.memo.write_to(w)?;
         self.quest_dialog_filter_data_list.write_to(w)?;
         self.dialog_must_mission_info_list.write_to(w)?;
-        self.npc_dialog_must_condition.write_to(w)?;
-        self.is_save.write_to(w)?;
-        self.is_continuous_mission.write_to(w)?;
-        self.is_repeatable.write_to(w)?;
-        self.enable_new_game_plus.write_to(w)?;
         self.debug_color.write_to(w)?;
         Ok(())
     }
@@ -531,8 +516,8 @@ impl<'a> QuestInfo<'a> {
     /// decoder (task #66, see header doc).
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("quest_type".to_string(), self.quest_type.to_json_value());
         m.insert("quest_category".to_string(), self.quest_category.to_json_value());
@@ -556,7 +541,6 @@ impl<'a> QuestInfo<'a> {
         m.insert("stage_image_path".to_string(), self.stage_image_path.to_json_value());
         m.insert("playable_mission_count".to_string(), self.playable_mission_count.to_json_value());
         m.insert("playable_stage_count".to_string(), self.playable_stage_count.to_json_value());
-        m.insert("test_tag".to_string(), self.test_tag.to_json_value());
         m.insert("game_start_stage".to_string(), self.game_start_stage.to_json_value());
         m.insert("game_start_sub_timeline".to_string(), self.game_start_sub_timeline.to_json_value());
         m.insert("memo".to_string(), self.memo.to_json_value());
@@ -575,44 +559,43 @@ impl<'a> QuestInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_save")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "enable_new_game_plus")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_repeatable")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_continuous_mission")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_type")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_category")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_image_path")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_group_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_dialog_must_condition")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "global_game_event_info")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_text_icon_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_icon_path")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_mission")?)?;
+        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_start_sub_timeline")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_mission_count")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_stage")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_start_stage")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_stage_count")?)?;
+        <BranchData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "name")?)?;
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "desc")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "quest_group_info")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_info")?)?;
         <FactionStateData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_state_data")?)?;
-        <BranchData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "global_game_event_info")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_player_list")?)?;
         <CArray<BranchData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "executor_quest_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gauge_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mission_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_mission")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_stage")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_icon_path")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_text_icon_path")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "stage_image_path")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_mission_count")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "playable_stage_count")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "test_tag")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_start_stage")?)?;
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "game_start_sub_timeline")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "memo")?)?;
         QuestDialogFilterDataList::write_from_json(
             w, json_get_field(obj, "quest_dialog_filter_data_list")?,
         )?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "dialog_must_mission_info_list")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "npc_dialog_must_condition")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_save")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_continuous_mission")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_repeatable")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "enable_new_game_plus")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "debug_color")?)?;
         Ok(())
     }
@@ -663,4 +646,27 @@ mod tests {
             );
         }
     }
+
+    /// How many records' `_questDialogFilterDataList` decode (vs fall back to Raw bytes).
+    /// A Raw list still round-trips, so only this count shows a FilterCondition drift.
+    #[test]
+    #[ignore = "diagnostic"]
+    fn diag_filter_list_decode_rate() {
+        let Ok(data) = std::fs::read(pabgb_path()) else { return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { return; };
+        let (mut dec, mut raw) = (0usize, 0usize);
+        for (k, s, e) in entry_ranges(&entries, data.len()) {
+            let mut c = s;
+            let q = QuestInfo::read_with_size(&data, &mut c, e - s).unwrap();
+            match q.quest_dialog_filter_data_list {
+                QuestDialogFilterDataList::Decoded(_) => dec += 1,
+                QuestDialogFilterDataList::Raw(ref b) => {
+                    if raw < 5 { eprintln!("raw k=0x{:x} len={} head={:02x?}", k, b.len(), &b[..b.len().min(24)]); }
+                    raw += 1;
+                }
+            }
+        }
+        eprintln!("questinfo filter lists: decoded={} raw={}", dec, raw);
+    }
+
 }

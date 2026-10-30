@@ -48,6 +48,20 @@ py_binary_struct! {
         pub sub_spawn_reason: u32,  // 1.18 `_subSpawnReason`
         pub flag_a: u8,
         pub flag_b: u8,
+        // 2.04.00 (Mac reader sub_10206C718): two zone fields after the counts.
+        pub zone_tag: u32,
+        pub sub_zone_tag_hash: u32,
+    }
+}
+
+py_binary_struct! {
+    /// 2.04.00 `_waterSpawnList` element (Mac reader sub_10206CB3C), 24 bytes.
+    pub struct AutoSpawnWaterData {
+        pub min_water_depth: f32,
+        pub max_water_depth: f32,
+        pub min_height_from_water_ground: f32,
+        pub max_height_from_water_ground: f32,
+        pub spawn_percent: u64,
     }
 }
 
@@ -60,6 +74,9 @@ py_binary_struct! {
         // 0x33: the new 00 sits between the spline_list count and inner_list's count.
         pub auto_spawn_group_type: u8,
         pub inner_list: CArray<PoolSplineInnerEntry>,
+        // 2.04.00 (Mac reader sub_10206CC34): the four 1.16 water floats moved into this list,
+        // each entry with its own spawnPercent (Mac element reader sub_10206CB3C).
+        pub water_spawn_list: CArray<AutoSpawnWaterData>,
         pub raw_a: u32,        // u32 wire → hash → u32 mem (qword_1ADD0)
         pub raw_b: u32,        // sub_141100740 (u32 wire / u16 mem)
         pub raw_c: u32,        // sub_1410FF5C0 (u32 wire / u16 mem)
@@ -85,10 +102,6 @@ py_binary_struct! {
         // in this struct were never semantic, and the table has no field-level
         // mod surface, so this is a deliberate accuracy fix rather than churn.
         pub spawn_rate: u32,   // formerly block[0]
-        pub min_water_depth_116: u32,
-        pub max_water_depth_116: u32,
-        pub min_height_from_water_ground_116: u32,
-        pub max_height_from_water_ground_116: u32,
         // game 2.00.00: `_heightOffset`, named by the Korean field oracle and placed
         // right after `_maxHeightFromWaterGround`. 4 bytes — u8 fails the roundtrip on
         // both tables that embed this struct. Held as u32 like its neighbours (they are
@@ -104,10 +117,11 @@ py_binary_struct! {
         // desyncing the rest of the record and breaking byte round-trip. Kept as a
         // separate u32 (not block[5]) so existing [u32;4]/u32 trait impls suffice.
         pub block_extra: u32,  // 1.10: new field at mem +60 (float, 1.0f)
+        // 2.04.00: `_spawnPercentMax` (u64) now precedes the three flags.
+        pub raw_qword: u64,
         pub flag_a: u8,        // mem +64
         pub flag_b: u8,        // mem +65
         pub flag_c: u8,        // mem +66
-        pub raw_qword: u64,    // mem +68
     }
 }
 
@@ -124,6 +138,10 @@ py_binary_struct! {
         pub raw_b: u32,
         pub raw_c: u32,
         pub raw_d: u32,
+        // 2.04.00 (Mac reader sub_10206D198): `_temperatureRange` is two floats; raw_d is the
+        // first, this the second. raw_a..c = spawnTerrainType / weatherStateFlag /
+        // blockedWeatherStateFlag, raw_e = metersPerSpawn, raw_f = spawnSafetyDistance.
+        pub raw_d_hi: u32,
         pub raw_e: u32,
         pub raw_f: u32,
         pub flag_a: u8,
@@ -132,6 +150,8 @@ py_binary_struct! {
         pub flag_d: u8,
         pub flag_e: u8,
         pub flag_f: u8,
+        // 2.04.00: `_indoorType`, one byte before `_spawnLimitCount` (final_u16).
+        pub indoor_type: u8,
         pub final_u16: u16,
     }
 }

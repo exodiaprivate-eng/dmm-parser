@@ -163,8 +163,8 @@ impl BitmapPositionValues {
 
 #[derive(Debug)]
 pub struct BitmapPositionInfo<'a> {
-    pub key: u32,
     pub string_key: CString<'a>,
+    pub key: u32,
     pub is_blocked: u8,
     pub scale_type: u8,
     pub values: BitmapPositionValues,
@@ -197,17 +197,17 @@ impl<'a> BitmapPositionInfo<'a> {
     }
 
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
+        let export_texture_on_editing = u8::read_from(data, offset)?;
         let scale_type = u8::read_from(data, offset)?;
+        let scale_per_pixel = u32::read_from(data, offset)?;
+        let max_using_height = u32::read_from(data, offset)?;
         let values = BitmapPositionValues::read_from(data, offset)?;
         let boundary_position_min = <[f32; 2]>::read_from(data, offset)?;
         let boundary_position_max = <[f32; 2]>::read_from(data, offset)?;
         let center_position = <[f32; 2]>::read_from(data, offset)?;
-        let scale_per_pixel = u32::read_from(data, offset)?;
-        let max_using_height = u32::read_from(data, offset)?;
-        let export_texture_on_editing = u8::read_from(data, offset)?;
         let bitmap_cook_data_list = CArray::<u32>::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, scale_type, values,
@@ -218,50 +218,50 @@ impl<'a> BitmapPositionInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
+        self.export_texture_on_editing.write_to(w)?;
         self.scale_type.write_to(w)?;
+        self.scale_per_pixel.write_to(w)?;
+        self.max_using_height.write_to(w)?;
         self.values.write_to(w)?;
         self.boundary_position_min.write_to(w)?;
         self.boundary_position_max.write_to(w)?;
         self.center_position.write_to(w)?;
-        self.scale_per_pixel.write_to(w)?;
-        self.max_using_height.write_to(w)?;
-        self.export_texture_on_editing.write_to(w)?;
         self.bitmap_cook_data_list.write_to(w)?;
         Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
+        m.insert("export_texture_on_editing".to_string(), self.export_texture_on_editing.to_json_value());
         m.insert("scale_type".to_string(), self.scale_type.to_json_value());
+        m.insert("scale_per_pixel".to_string(), self.scale_per_pixel.to_json_value());
+        m.insert("max_using_height".to_string(), self.max_using_height.to_json_value());
         m.insert("values".to_string(), self.values.to_json_value());
         m.insert("boundary_position_min".to_string(), self.boundary_position_min.to_json_value());
         m.insert("boundary_position_max".to_string(), self.boundary_position_max.to_json_value());
         m.insert("center_position".to_string(), self.center_position.to_json_value());
-        m.insert("scale_per_pixel".to_string(), self.scale_per_pixel.to_json_value());
-        m.insert("max_using_height".to_string(), self.max_using_height.to_json_value());
-        m.insert("export_texture_on_editing".to_string(), self.export_texture_on_editing.to_json_value());
         m.insert("bitmap_cook_data_list".to_string(), self.bitmap_cook_data_list.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "export_texture_on_editing")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "scale_type")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "scale_per_pixel")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_using_height")?)?;
         BitmapPositionValues::write_from_json(w, json_get_field(obj, "values")?)?;
         <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_position_min")?)?;
         <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_position_max")?)?;
         <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "center_position")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "scale_per_pixel")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "max_using_height")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "export_texture_on_editing")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, obj.get("bitmap_cook_data_list").unwrap_or(&Value::Null))?;
         Ok(())
     }

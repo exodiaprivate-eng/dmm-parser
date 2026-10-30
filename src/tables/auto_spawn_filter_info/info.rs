@@ -35,8 +35,8 @@ use crate::py_binary_struct;
 // presence flag (u8) precedes the CArray, allowing the field to be omitted.
 py_binary_struct! {
     pub struct AutoSpawnFilterInfo<'a> {
-        pub key: u8,
         pub string_key: CString<'a>,
+        pub key: u8,
         pub is_blocked: u8,
         pub share_value_index: COptional<CArray<u32>>,
     }

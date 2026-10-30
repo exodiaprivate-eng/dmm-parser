@@ -70,6 +70,7 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct DialogVoiceInfo<'a> {
+        pub string_key: CString<'a>,
         // 2026-05-12: confirmed u16 wire via Mac reader sub_100F39E0C
         // (`__int16 v4` BYREF, vtbl call with `2LL` size arg). An
         // earlier mid-day commit briefly changed this to u8 — that was
@@ -77,13 +78,11 @@ py_binary_struct! {
         // IS u8 with `1LL` arg; dialog_voice uses a different reader
         // with `2LL`). 1.06 fixture roundtrip confirms u16.
         pub key: u16,
-        pub string_key: CString<'a>,
         pub is_blocked: u8,
-        pub sound_event: CString<'a>,
-        pub foot_step_sound_event: CString<'a>,
-        pub foot_step_crouch_sound_event: CString<'a>,
-        pub foot_step_land_sound_event: CString<'a>,
-        pub foot_step_ground_sound_event: CString<'a>,
+        pub foot_step_ground_sound_offset: u8,
+        pub gender: u8,
+        pub character_age: u8,
+        pub foot_step_land_sound_offset: u8,
         // NEW 2026-05-12: Mac canonical wire position #9, reader
         // sub_1006BED20 (u8). dmm-parser was always missing this
         // field; pre-2026-05-12 the missing byte was hidden by the
@@ -91,10 +90,11 @@ py_binary_struct! {
         pub foot_step_disable_collide_impact_sound: u8,
         pub foot_step_sound_offset: u8,
         pub foot_step_crouch_sound_offset: u8,
-        pub foot_step_land_sound_offset: u8,
-        pub foot_step_ground_sound_offset: u8,
-        pub gender: u8,
-        pub character_age: u8,
+        pub sound_event: CString<'a>,
+        pub foot_step_sound_event: CString<'a>,
+        pub foot_step_crouch_sound_event: CString<'a>,
+        pub foot_step_land_sound_event: CString<'a>,
+        pub foot_step_ground_sound_event: CString<'a>,
         pub job_info_list: CArray<u16>,
     }
 }

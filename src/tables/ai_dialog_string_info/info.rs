@@ -125,6 +125,10 @@ impl WriteJsonValue for AIDialogExtraData {
 }
 
 #[derive(Debug)]
+/// 2.04.00 wire order (Mac reader sub_1020568FC): string_key, key, is_blocked, trailing_byte
+/// (`_isOnce`), flag_b (`_isOverrideData`), flag_a (`_aiDialogStringInfoType`), lookup_a
+/// (`_regionInfo`), lookup_b (`_aiDialogTypeInfo`), list_a (`_characterGroupInfoList`),
+/// dialog_map (`_aiDialogTextList`), extra_data (`_characterThreatData`).
 pub struct AIDialogStringInfo<'a> {
     pub key: u32,
     pub string_key: CString<'a>,
@@ -148,16 +152,16 @@ impl<'a> AIDialogStringInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u32::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
-        let flag_a = u8::read_from(data, offset)?;
+        let trailing_byte = u8::read_from(data, offset)?;
         let flag_b = u8::read_from(data, offset)?;
-        let list_a = CArray::<u16>::read_from(data, offset)?;
+        let flag_a = u8::read_from(data, offset)?;
         let lookup_a = u16::read_from(data, offset)?;
         let lookup_b = u32::read_from(data, offset)?;
+        let list_a = CArray::<u16>::read_from(data, offset)?;
         let dialog_map = CArray::<AIDialogMapEntry>::read_from(data, offset)?;
-        let trailing_byte = u8::read_from(data, offset)?;
         let extra_data = COptional::<AIDialogExtraData>::read_from(data, offset)?;
 
         if *offset != entry_end {
@@ -186,16 +190,16 @@ impl<'a> AIDialogStringInfo<'a> {
     ) -> io::Result<Self> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
-        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let string_key = track_read_field::<CString<'a>>(data, offset, path, ranges, "string_key", "CString")?;
+        let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
-        let flag_a = track_read_field::<u8>(data, offset, path, ranges, "flag_a", "u8")?;
+        let trailing_byte = track_read_field::<u8>(data, offset, path, ranges, "trailing_byte", "u8")?;
         let flag_b = track_read_field::<u8>(data, offset, path, ranges, "flag_b", "u8")?;
-        let list_a = track_read_field::<CArray<u16>>(data, offset, path, ranges, "list_a", "CArray<u16>")?;
+        let flag_a = track_read_field::<u8>(data, offset, path, ranges, "flag_a", "u8")?;
         let lookup_a = track_read_field::<u16>(data, offset, path, ranges, "lookup_a", "u16")?;
         let lookup_b = track_read_field::<u32>(data, offset, path, ranges, "lookup_b", "u32")?;
+        let list_a = track_read_field::<CArray<u16>>(data, offset, path, ranges, "list_a", "CArray<u16>")?;
         let dialog_map = track_read_field::<CArray<AIDialogMapEntry<'a>>>(data, offset, path, ranges, "dialog_map", "CArray<AIDialogMapEntry>")?;
-        let trailing_byte = track_read_field::<u8>(data, offset, path, ranges, "trailing_byte", "u8")?;
         let extra_data = track_read_field::<COptional<AIDialogExtraData>>(data, offset, path, ranges, "extra_data", "COptional<AIDialogExtraData>")?;
         if *offset != entry_end {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -209,49 +213,50 @@ impl<'a> AIDialogStringInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
-        self.flag_a.write_to(w)?;
+        self.trailing_byte.write_to(w)?;
         self.flag_b.write_to(w)?;
-        self.list_a.write_to(w)?;
+        self.flag_a.write_to(w)?;
         self.lookup_a.write_to(w)?;
         self.lookup_b.write_to(w)?;
+        self.list_a.write_to(w)?;
         self.dialog_map.write_to(w)?;
-        self.trailing_byte.write_to(w)?;
         self.extra_data.write_to(w)?;
         Ok(())
     }
 
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
+        m.insert("trailing_byte".to_string(), self.trailing_byte.to_json_value());
         m.insert("flag_b".to_string(), self.flag_b.to_json_value());
-        m.insert("list_a".to_string(), self.list_a.to_json_value());
+        m.insert("flag_a".to_string(), self.flag_a.to_json_value());
         m.insert("lookup_a".to_string(), self.lookup_a.to_json_value());
         m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
+        m.insert("list_a".to_string(), self.list_a.to_json_value());
         m.insert("dialog_map".to_string(), self.dialog_map.to_json_value());
-        m.insert("trailing_byte".to_string(), self.trailing_byte.to_json_value());
         m.insert("extra_data".to_string(), self.extra_data.to_json_value());
         m
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
+        // 2.04.00 order (Mac reader sub_1020568FC).
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing_byte")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;
-        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_a")?)?;
+        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
+        <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_a")?)?;
         <CArray<AIDialogMapEntry> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "dialog_map")?,
         )?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "trailing_byte")?)?;
         <COptional<AIDialogExtraData> as WriteJsonValue>::write_from_json(
             w, json_get_field(obj, "extra_data")?,
         )?;

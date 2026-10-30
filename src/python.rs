@@ -295,6 +295,17 @@ pub fn to_py_papgt<'py>(
     d.set_item("checksum", papgt.header.checksum)?;
     d.set_item("unknown1", papgt.header.unknown1)?;
     d.set_item("unknown2", papgt.header.unknown2)?;
+    // 2.04.00 signed layout (None before): written back only unchanged
+    match &papgt.signed {
+        Some(signed) => {
+            let sd = PyDict::new(py);
+            sd.set_item("prefix", signed.prefix)?;
+            sd.set_item("signature", PyBytes::new(py, &signed.signature))?;
+            sd.set_item("signed_body", PyBytes::new(py, &signed.signed_body))?;
+            d.set_item("signed", sd)?;
+        }
+        None => d.set_item("signed", py.None())?,
+    }
 
     let entries = PyList::empty(py);
     for entry in &papgt.entries {
@@ -356,6 +367,21 @@ pub fn wr_papgt_from_dict(d: &Bound<'_, PyDict>) -> PyResult<Vec<u8>> {
         });
     }
 
+    let signed = match d.get_item("signed")? {
+        Some(v) if !v.is_none() => {
+            let sd = v.cast::<PyDict>()?;
+            let signature: Vec<u8> = get(sd, "signature")?;
+            Some(SignedPapgt {
+                prefix: get(sd, "prefix")?,
+                signature: signature
+                    .try_into()
+                    .map_err(|_| PyValueError::new_err("signature must be 64 bytes"))?,
+                signed_body: get(sd, "signed_body")?,
+            })
+        }
+        _ => None,
+    };
+
     let papgt = PackGroupTreeMeta {
         header: PackGroupTreeMetaHeader {
             unknown0,
@@ -366,6 +392,7 @@ pub fn wr_papgt_from_dict(d: &Bound<'_, PyDict>) -> PyResult<Vec<u8>> {
         },
         entries,
         group_names_buffer,
+        signed,
     };
 
     papgt
@@ -466,6 +493,11 @@ pub fn to_py_pamt<'py>(py: Python<'py>, pamt: &PackMeta) -> PyResult<Bound<'py, 
         "_file_names_buffer",
         PyBytes::new(py, &pamt.file_names_buffer),
     )?;
+    // 2.04.00 extension table (empty for the legacy layout)
+    d.set_item(
+        "_extensions_buffer",
+        PyBytes::new(py, &pamt.extensions_buffer),
+    )?;
 
     Ok(d)
 }
@@ -558,6 +590,15 @@ pub fn wr_pamt_from_dict(d: &Bound<'_, PyDict>) -> PyResult<Vec<u8>> {
     // Get trie buffers for roundtrip
     let dir_names_buffer: Vec<u8> = get(d, "_dir_names_buffer")?;
     let file_names_buffer: Vec<u8> = get(d, "_file_names_buffer")?;
+    let extensions_buffer: Vec<u8> = match d.get_item("_extensions_buffer")? {
+        Some(v) => v.extract()?,
+        None => Vec::new(),
+    };
+    let name_format = crate::binary::trie::TrieFormat::detect(if dir_names_buffer.is_empty() {
+        &file_names_buffer
+    } else {
+        &dir_names_buffer
+    });
 
     let pamt = PackMeta {
         header: PackMetaHeader {
@@ -575,6 +616,8 @@ pub fn wr_pamt_from_dict(d: &Bound<'_, PyDict>) -> PyResult<Vec<u8>> {
         file_names_buffer,
         raw_directories,
         raw_files,
+        name_format,
+        extensions_buffer,
     };
 
     pamt.to_bytes()

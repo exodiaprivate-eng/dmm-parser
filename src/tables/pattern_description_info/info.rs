@@ -38,16 +38,16 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct PatternDescriptionInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub string_format: LocalizableString<'a>,
-        pub description_parsed: CString<'a>,
-        pub icon_name: u32,
-        pub priority_color_type: u8,
-        pub param_list: CArray<u16>,
         pub ui_passive_show_level: u8,
         pub ui_active_show_level: u8,
+        pub priority_color_type: u8,
+        pub icon_name: u32,
+        pub string_format: LocalizableString<'a>,
+        pub description_parsed: CString<'a>,
+        pub param_list: CArray<u16>,
     }
 }
 

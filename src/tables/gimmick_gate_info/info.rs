@@ -34,8 +34,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct GimmickGateInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub position: [f32; 3],
         pub rotation: f32,

@@ -94,8 +94,8 @@ py_binary_struct! {
 
 #[derive(Debug)]
 pub struct GlobalGameEventInfo<'a> {
-    pub key: u16,
     pub string_key: CString<'a>,
+    pub key: u16,
     pub is_blocked: u8,
     pub global_game_event_group_info: u16,
     /// `_eventDesc` — 8 raw bytes read directly after group_info
@@ -119,8 +119,8 @@ impl<'a> GlobalGameEventInfo<'a> {
         let entry_start = *offset;
         let entry_end = entry_start + entry_size;
 
-        let key = u16::read_from(data, offset)?;
         let string_key = CString::read_from(data, offset)?;
+        let key = u16::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let global_game_event_group_info = u16::read_from(data, offset)?;
         let event_desc = u64::read_from(data, offset)?;
@@ -145,8 +145,8 @@ impl<'a> GlobalGameEventInfo<'a> {
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.key.write_to(w)?;
         self.string_key.write_to(w)?;
+        self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.global_game_event_group_info.write_to(w)?;
         self.event_desc.write_to(w)?;
@@ -164,8 +164,8 @@ impl<'a> GlobalGameEventInfo<'a> {
     ///   schema.
     pub fn to_json_dict(&self) -> Map<String, Value> {
         let mut m = Map::new();
-        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("string_key".to_string(), self.string_key.to_json_value());
+        m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert(
             "global_game_event_group_info".to_string(),
@@ -178,8 +178,8 @@ impl<'a> GlobalGameEventInfo<'a> {
     }
 
     pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
+        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
         <u16 as WriteJsonValue>::write_from_json(
             w,

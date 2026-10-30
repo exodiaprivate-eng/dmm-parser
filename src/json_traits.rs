@@ -590,3 +590,21 @@ mod clamp_tests {
         assert_eq!(w, 1_000_000u32.to_le_bytes());
     }
 }
+
+/// The value 2.04.00 writes for a StringInfoKey that names no string.
+pub const STRING_INFO_KEY_NONE: u32 = 0xEAC5_E173;
+
+/// A StringInfoKey from JSON: a number as is; TEXT (what a mod authored before 2.04.00
+/// carries, when the field was a string) becomes the key the game uses for that text,
+/// Pearl Abyss's checksum of it, and "" becomes `STRING_INFO_KEY_NONE`.
+pub fn write_string_info_key(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+    let key = match v {
+        Value::String(s) if s.is_empty() => STRING_INFO_KEY_NONE,
+        Value::String(s) => crate::crypto::checksum::calculate_checksum(s.as_bytes()),
+        Value::Null => STRING_INFO_KEY_NONE,
+        other => other.as_u64().and_then(|n| u32::try_from(n).ok()).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, format!("StringInfoKey: expected a number or text, got {other}"))
+        })?,
+    };
+    crate::binary::BinaryWrite::write_to(&key, w)
+}

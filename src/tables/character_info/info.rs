@@ -766,6 +766,9 @@ py_binary_struct! {
         pub refer_to_left_page_inspect_data: u8,
         pub inspect_effect_info_key: u32,           // EffectKey
         pub inspect_complete_effect_info_key: u32,  // EffectKey
+        // 2.04.00: two floats at the end (the same InspectData reader ItemInfo uses).
+        pub extract_max_distance_from_socket: f32,
+        pub extract_align_max_angle: f32,
     }
 }
 
@@ -824,7 +827,10 @@ py_binary_struct! {
         pub docking_type: u8,                        // sub_101A732D4 (1B)
         pub is_summoner_team: u8,
         pub is_player_only: u8,
-        pub is_npc_only_condition: u32,              // sub_1013631B4 ConditionKey u32 wire
+        // 2.04.00: `_isNpcOnly` (a ConditionKey) became `_playerCondition`, and `_ownerCondition`
+        // follows it, as in ItemInfo's DockingChildData.
+        pub player_condition: u32,
+        pub owner_condition: u32,
         pub is_sync_break_parent: u8,
         pub hit_part: u8,
         pub detected_by_npc: u8,
@@ -842,6 +848,8 @@ py_binary_struct! {
         // Every docking child grew by 2 (an empty string) — the 2/4-byte deltas bytediff
         // saw on iteminfo and characterinfo.
         pub animation_root_bone_name: CString<'a>,
+        // 2.04.00: `_useCoolTime`, the last field.
+        pub use_cool_time: u8,
     }
 }
 
@@ -859,6 +867,7 @@ py_binary_struct! {
         pub friendly_item_reward_drop_set_info_list: CArray<u32>, // DropSetKey list
         pub knowledge_info: u32,              // KnowledgeKey
         pub reward_friendly: u64,
+        pub reward_affinity: u64,             // 2.04.00
     }
 }
 
@@ -887,19 +896,50 @@ py_binary_struct! {
     }
 }
 
-// 2.01.00 — `ShipStationData` (Mac reader sub_102048A34): `_strKey` is a 4-byte read
-// (sub_101FCF954), `_spawnSocketName` a CString, `_name` goes through sub_100E37990 which
-// reads a 1-byte kind, an 8-byte hash and then a CString, `_count` is u32 and
-// `_uiPosition` an 8-byte read (sub_100E1383C), held opaque.
+// `ShipStationData`, rebuilt in 2.04.00 (Mac reader sub_10206FCF0): the 2.01 `_name` is gone and
+// a skill, a knowledge, three StringInfoKey textures and three flags were added.
 py_binary_struct! {
     pub struct ShipStationData<'a> {
         pub str_key: u32,
-        pub spawn_socket_name: CString<'a>,
-        pub name_kind: u8,
-        pub name_hash: u64,
-        pub name_text: CString<'a>,
+        pub spawn_socket_name: CString<'a>,          // _spawnGimmickSocketPrefix
         pub count: u32,
+        pub passive_skill_info: u32,
         pub ui_position: u64,
+        pub knowledge_info: u32,
+        pub ui_icon_texture: u32,
+        pub ui_background_texture: u32,
+        pub ui_check_icon_texture: u32,
+        pub is_default_station: u8,
+        pub is_spawn: u8,
+        pub is_must_selected: u8,
+    }
+}
+
+// `CharacterInfoOverridableFlags` (Mac reader sub_10206FA24). The Origin copy is inlined in
+// CharacterInfo (of_origin_* + the two game-difficulty fields) to keep its JSON names; the
+// Mercenary copy is optional in 2.04 and uses this struct.
+py_binary_struct! {
+    pub struct CharacterInfoOverridableFlags {
+        pub ally_group: u32,
+        pub detect: u16,
+        pub skills: CArray<SkillPair>,
+        pub invincibility: u8,
+        pub is_attackable: u8,
+        pub is_aggro_targetable: u8,
+        pub is_valid: u8,
+        pub game_difficulty_buff_info: u32,
+        pub game_difficulty_buff_level_list: GameDifficultyBuffLevel,
+    }
+}
+
+// 2.04.00 `_managementBuffData` (Mac reader sub_10198141C): two texts, a duration and a
+// ManagementBuffKey (u16) list.
+py_binary_struct! {
+    pub struct ManagementBuffData<'a> {
+        pub name: LocalizableString<'a>,
+        pub desc: LocalizableString<'a>,
+        pub duration: i64,
+        pub management_buff_info_list: CArray<u16>,
     }
 }
 
@@ -938,14 +978,22 @@ py_binary_struct! {
         pub e: StatBalance,
     }
 }
-// Field 184 stat-list element `DataDefinedDefaultStatData` (sub_101F96718): 5× u64.
+// `DataDefinedDefaultStatData` (2.04 Mac sub_10205CE70): max, min, initial, red zone, regen.
 py_binary_struct! {
     pub struct StatEntry40 {
         pub max_stat: u64,
         pub min_stat: u64,
-        pub regen_stat: u64,
         pub initial_stat: u64,
         pub red_zone_stat: u64,
+        pub regen_stat: u64,
+    }
+}
+// `DataDefinedStaticStatData` (2.04 Mac sub_1020B67E4): max, min, initial.
+py_binary_struct! {
+    pub struct StatEntry24 {
+        pub max_stat: u64,
+        pub min_stat: u64,
+        pub initial_stat: u64,
     }
 }
 // Field 184 element `CharacterLevelData` (sub_101FAEE38), wire read order.
@@ -961,7 +1009,7 @@ py_binary_struct! {
         pub frame_event_attr_group_info_name: u32,
         pub learn_skill_list: CArray<u32>,            // SkillKey
         pub hidden_skill_list: CArray<u32>,           // SkillKey
-        pub stat_list_data_defined_static: CArray<StatEntry40>,
+        pub stat_list_data_defined_static: CArray<StatEntry24>,
         pub stat_list_data_defined_regenerate: CArray<StatEntry40>,
         pub stat_list_static_stat_level: CArray<u8>,
         pub show_level_up_ui: u8,
@@ -1124,260 +1172,230 @@ impl<'a> BinaryReadTracked<'a> for VisioningData {
 }
 
 pabgh_typed_blob_table! {
-    // S41 (1.12): fully wire-RE'd via charinfo_refparser.py (Mac deser sub_101FAFE34).
-    // All 7089 records walk byte-exact through interaction_info_list (idx93).
-    // overridable_flags structs inlined (CArray<SkillPair> + 4 u8). Field names f<N>
-    // are generic for un-semantically-named reads; widths are wire-accurate.
+    // 2.04.00: the game re-sequenced every field (Mac reader sub_102071680) and put a presence
+    // byte in front of most lists and sub-structs (COptional). The JSON names are the ones mods
+    // and DMM already use; where they are not the game's own name, the game's name is in the
+    // comment. Those differences were found by pairing 2.03 and 2.04 values on the same records:
+    // several of our names had been one or more fields off since 1.12 (e.g. our
+    // `appearance_name` is the game's _upperActionChartPackageGroupName).
     pub struct CharacterInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub name: LocalizableString<'a>,
-        pub desc: LocalizableString<'a>,
-        // Wire fields 5–26: canonical PA names (from Korean error strings in
-        // CrimsonDesert.exe, mirrored in field_aliases_v3_1.rs). The 1.12 RE
-        // regenerated these as generic f<N>; restored here byte-neutrally so the
-        // app's transmog (appearance_name/skeleton_name/lookup_22/24/25 +
-        // character_prefab_path) and Mounts-Everywhere (call_mercenary_*) keep
-        // working. Wire order/widths unchanged — pure rename.
-        pub ui_icon_path: u32,
-        pub category: u32,
-        pub character_edit_name: CString<'a>,
-        pub spawn_actor_type: u8,
+        pub f63: u8,                                         // _isHudHpEnabled
+        pub f64: u8,                                         // _isEquipDropable
+        pub f61: u8,                                         // _sendKillEventOnDead
+        pub f62: u8,                                         // _isShowHpWhenFocusActor
+        pub f65: u8,                                         // _isEditorUsable
+        pub f68: u8,                                         // _isVisibleWhenDetectModeOnly
+        pub f69: u8,                                         // _obstacleDisableByDead
+        pub f66: u8,                                         // _isEditorUsableAppearance
+        pub f67: u8,                                         // _disableFootStepOptimize
+        pub f59: u8,                                         // _isHirable
+        pub f52: u8,                                         // _isUseScheduleInfo_Dev
+        pub f53: u8,                                         // _isGlobalSchedule
+        pub f50: u8,                                         // _isLookable
+        pub f51: u8,                                         // _isLogoutAtLooted
+        pub f54: u8,                                         // _isSealable
+        pub f57: u8,                                         // _isRandomCharacter
+        pub f58: u8,                                         // _isRandomCharacter_IgnoreScale
+        pub f55: u8,                                         // _isRandomAppearance
+        pub f56: u8,                                         // _isRandomAppearance_IgnoreScale
+        pub f70: u8,                                         // _isGhost
+        pub f83: u8,                                         // _mercenaryFireableType
+        pub f84: u8,                                         // _isMercenaryCountAble
+        pub f82: u8,                                         // _enableDockingGimmickAutoWallUp
+        pub is_marriageable: u8,                             // NEW
+        pub f85: u8,                                         // _isDisplayLevelForUI
+        pub character_type: u8,
+        pub battle_order_type: u8,
+        pub knowledge_obtain_type: u8,
+        pub map_icon_display_type: u8,
+        pub f81: u8,                                         // _isCreatableDetectIcon
+        pub f73: u8,                                         // _isMapIconAlwaysShow
+        pub f74: u8,                                         // _isWallSwingable
+        pub f71: u8,                                         // _ignoreTriggerRegion
+        pub f72: u8,                                         // _isTerrainCharacter
+        pub f75: u8,                                         // _isItemSocketContents
+        pub f79: u8,                                         // _refillHPWhenCooltimeEnd
+        pub f80: u8,                                         // _ignoreWaterFall
+        pub f76: u8,                                         // _isClimbable
+        pub f77: u8,                                         // _isEnableFriendly
+        pub use_hide_camera_overlap: u8,
+        pub spawn_on_demand_equip_docking_on_battle: u8,     // NEW
+        pub force_field_target_type: u8,
+        pub interaction_ui_distance_lv: u8,
+        pub character_collision_type: u8,
+        pub owner_follow_type: u8,
+        pub is_reward_drop_roll_by_create_actor: u8,
+        pub path_trail_type: u8,
+        pub is_farm_animal: u8,
         pub none_player_sub_type: u8,
+        pub spawn_actor_type: u8,
+        pub f78: u8,                                         // _allowFarAttackTarget
+        pub wall_hit_rebound: u8,
+        pub use_level_inheritance: u8,
+        pub skill_point_owner_type: u8,
+        pub mercenary_cool_time_type: u8,
+        pub personality_type: u8,
+        pub f41: u8,                                         // _spawnFixType
+        pub f49: u8,                                         // _isPushable
+        pub f45: u8,                                         // _isCatchable
+        pub f48: u8,                                         // _isUnique
+        pub f47: u8,                                         // _isAttackThrowable
+        pub f46: u8,                                         // _isRemoteCatchable
+        pub is_teleportable: u8,                             // NEW
+        pub teleport_equip_slot_name: u32,                   // NEW
+        pub teleport_socket_name: u32,                       // NEW, StringInfoKey
+        pub revive_socket_name: u32,                         // NEW, StringInfoKey
+        pub character_age: u8,
+        pub f35: u8,                                         // _playerLockOnType
+        pub character_tier: u8,
+        pub f36: u8,                                         // _gender
+        pub f34: u8,                                         // _playerTargetableType
+        pub daily_routine_info: u32,
+        pub interaction_category_group_info: u16,
+        pub activity_preset_info: u32,
+        pub stat_change_info_wrapper: u32,                   // NEW
+        pub detect_reaction_info: u32,
+        pub knowledge_info: u32,
+        pub ui_map_texture_info: u32,
+        pub talk_tree_info: u16,
+        pub max_aggro_count: u16,
+        pub job_info: u16,
+        pub call_vehicle_gimmick_info: u32,
+        pub breakable_object_info: u16,
+        pub convert_item_info: u32,
+        pub dialog_voice_info: u16,
+        pub f29: u32,                                        // _tribeInfoWrapper
+        pub f28: u32,                                        // _memo
+        pub character_prefab_path: u32,                      // _lowerActionChartPackageGroupName
+        pub appearance_name: u32,                            // _upperActionChartPackageGroupName
+        pub f31: u32,                                        // _characterTribeAndGenderString
+        pub lookup_25: u32,                                  // _skeletonVariationName
+        pub character_game_play_data_name: u32,              // _factionInfo
+        pub lookup_23: u32,                                  // _characterPrefabPath
+        pub socket_file_name: u32,                           // NEW, StringInfoKey
+        pub lookup_24: u32,                                  // _skeletonName
+        pub f25: u32,                                        // _uiDisplayLevelIconTexture
+        pub f27: u32,                                        // _projectileInfoPackage
+        pub skeleton_name: u32,                              // _characterGamePlayDataName
+        pub lookup_22: u32,                                  // _appearanceName
+        pub ui_icon_path: u32,
+        pub f42: u16,                                        // _playerIndex
+        pub f40: u32,                                        // _ownedMercenaryCharacterInfo
+        pub f87: u32,                                        // _uiPortraitPath
+        pub f88: u32,                                        // _symbolImage
+        pub category: u32,
         pub equip_info: u32,
-        pub npc_info: u32,
         pub vehicle_info: u16,
+        pub personality_info: u16,
+        pub npc_info: u32,
+        pub f37: u8,                                         // _mercenaryInfo
+        pub empowered_overlay_color: u32,
+        pub character_weight: u32,
+        pub sub_zone_tag_hash: u32,                          // NEW, replaces the 2.03 _subZoneTagList
+        pub empowered_overlay_color_ratio: u32,
+        pub grown_level: u32,
+        pub game_play_trigger_zone: u32,                     // a single key in 2.04, a list in 1.18-2.03
+        pub base_material_key_override: u32,
+        pub armor_material_key_override: u32,
+        pub character_pause_type: u32,
+        pub f32: u32,                                        // _aiScriptPathHash
+        pub f30: u32,                                        // _tribeEffectHash
+        pub farm_breeding_cool_time: u32,
+        pub f33: u32,                                        // _aiScriptPathFocusHash
+        pub interaction_distance: u32,
+        pub default_action_action_index: u32,
+        pub visioning_data: VisioningData,
+        pub f86: u32,                                        // _vanishTickCount
+        pub terrain_region_auto_spawn_info: u32,
+        pub weather_weight: u32,
+        pub character_scale: u32,
+        pub attack_by_collision_info_list_key: u32,
+        pub f26: u32,                                        // _shareValueNameHash
+        pub terrain_region_spawn_per_count: u32,
+        pub character_threat_dialog_info: u32,
+        pub bump_type_hash: u32,
+        pub path_find_table_name: u32,
+        pub name: LocalizableString<'a>,                     // _characterName
+        pub desc: LocalizableString<'a>,                     // _characterDesc
+        pub character_edit_name: CString<'a>,
         pub call_mercenary_cool_time: u64,
         pub call_mercenary_spawn_duration: u64,
-        pub mercenary_cool_time_type: u8,
-        pub f16_cv0_char: u32,
-        pub f16_cv0_group: u16,
-        pub f16_cv1_char: u32,
-        pub f16_cv1_group: u16,
-        pub character_game_play_data_name: u32,
-        pub appearance_name: u32,
-        pub character_prefab_path: u32,
-        pub skeleton_name: u32,
-        pub lookup_22: u32,
-        pub lookup_23: u32,
-        pub lookup_24: u32,
-        pub lookup_25: u32,
-        pub f25: u32,
-        pub f26: u32,
-        pub f27: u32,
-        pub f28: u32,
-        pub f29: u32,
-        pub f30: u32,
-        pub f31: u32,
-        pub f32: u32,
-        pub f33: u32,
-        pub f34: u8,
-        pub f35: u8,
-        pub f36: u8,
-        pub personality_info: u16,
-        pub f37: u8,
-        pub f38: LocalizableString<'a>,
-        pub f39: LocalizableString<'a>,
-        pub f40: u32,
-        pub f41: u8,
-        pub f42: u16,
-        pub of_origin_ally_group: u32,
+        pub default_friendly_value: u64,
+        pub mini_game_param: MiniGameParam,
+        pub bullet_item: BulletItem,
+        pub camp_guest_data: COptional<CampGuestData>,
+        pub catch_spawn_data: CatchSpawnData,
+        pub f16_cv0_char: u32,                               // _childVehicleList[0].characterInfo
+        pub f16_cv0_group: u16,                              // _childVehicleList[0].characterGroupInfo
+        pub f16_cv1_char: u32,                               // _childVehicleList[1].characterInfo
+        pub f16_cv1_group: u16,                              // _childVehicleList[1].characterGroupInfo
+        pub f38: COptional<LocalizableString<'a>>,           // _mercenaryHireMessage
+        pub f39: COptional<LocalizableString<'a>>,           // _displayLevelName
+        pub of_origin_ally_group: u32,                       // _characterInfoOverridableFlags_Origin
         pub of_origin_detect: u16,
         pub of_origin_skills: CArray<SkillPair>,
         pub of_origin_invincibility: u8,
         pub of_origin_is_attackable: u8,
         pub of_origin_is_aggro_targetable: u8,
         pub of_origin_is_valid: u8,
-        pub of_mercenary_ally_group: u32,
-        pub of_mercenary_detect: u16,
-        pub of_mercenary_skills: CArray<SkillPair>,
-        pub of_mercenary_invincibility: u8,
-        pub of_mercenary_is_attackable: u8,
-        pub of_mercenary_is_aggro_targetable: u8,
-        pub of_mercenary_is_valid: u8,
-        pub f45: u8,
-        pub f46: u8,
-        pub f47: u8,
-        pub f48: u8,
-        pub f49: u8,
-        pub f50: u8,
-        pub f51: u8,
-        pub f52: u8,
-        pub f53: u8,
-        pub f54: u8,
-        pub f55: u8,
-        pub f56: u8,
-        pub f57: u8,
-        pub f58: u8,
-        pub f59: u8,
-        pub f61: u8,
-        pub f62: u8,
-        pub f63: u8,
-        pub f64: u8,
-        pub f65: u8,
-        pub f66: u8,
-        pub f67: u8,
-        pub f68: u8,
-        pub f69: u8,
-        pub f70: u8,
-        pub f71: u8,
-        pub f72: u8,
-        pub f73: u8,
-        pub f74: u8,
-        pub f75: u8,
-        pub f76: u8,
-        pub f77: u8,
-        pub f78: u8,
-        pub f79: u8,
-        pub f80: u8,
-        pub f81: u8,
-        pub f82: u8,
-        pub f83: u8,
-        pub f84: u8,
-        pub f85: u8,
-        pub f86: u32,
-        pub f87: u32,
-        pub f88: u32,
-        pub f89_skills: CArray<SkillPair>,
-        pub f90_skills: CArray<SkillPair>,
-        pub f91_skills: CArray<SkillPair>,
-        pub f92_skills: CArray<SkillPair>,
+        pub game_difficulty_buff_info: u32,                  // moved INTO the Origin flags in 2.04
+        pub game_difficulty_buff_level_list: GameDifficultyBuffLevel, // moved INTO the Origin flags in 2.04
+        pub of_mercenary: COptional<CharacterInfoOverridableFlags>, // _characterInfoOverridableFlags_Mercenary
+        pub f89_skills: COptional<CArray<SkillPair>>,        // _skillInfoBySpawnList
+        pub f90_skills: COptional<CArray<SkillPair>>,        // _skillInfoByReviveList
+        pub f91_skills: COptional<CArray<SkillPair>>,        // _playerSkillInfoList
+        pub f92_skills: COptional<CArray<SkillPair>>,        // _hiredNotFocusActorSkillInfoList
         pub interaction_info_list: CArray<u32>,
-        // === Fields 95-104 (authoritative map CHARINFO_FIELDMAP.json, byte-walk validated) ===
-        pub interaction_distance: u32,               // 95 f32 (2.0) — sub_100D392D8
-        pub default_action_action_index: u32,        // 96 sub_101623904
-        pub default_share_value_index: CArray<u32>,  // 97 sub_101A611A8
-        pub character_weight: u32,                   // 98 f32 — sub_100D392D8
-        pub battle_order_type: u8,                   // 99 sub_101378554
-        pub character_type: u8,                      // 100 sub_101378504
-        pub ui_map_texture_info: u32,                // 101 lookup — sub_101F766DC
-        pub map_icon_display_type: u8,               // 102 sub_101378564
-        pub knowledge_info: u32,                     // 103 KnowledgeKey — sub_100DCD97C
-        pub knowledge_obtain_type: u8,               // 104 sub_101A733C4
-        pub inspect_data_list: CArray<InspectData<'a>>, // 105 sub_101FD756C
-        pub character_group_info_list: CArray<u16>,  // 106 CharacterGroupKey u16 — sub_101FDABC0
-        pub visioning_data: VisioningData,           // 107 conditional — sub_10138917C
-        pub max_aggro_count: u16,                    // 109 sub_100D39238
-        pub personality_type: u8,                    // 110 sub_101A72E34
-        pub character_tier: u8,                      // 111 sub_101378480
-        pub character_region_info_list: CArray<u16>, // 112 RegionKey u16 — sub_101638358
-        pub character_age: u8,                       // 113 sub INLINE
-        pub character_weapon_type: CString<'a>,      // 114 sub_100D39448
-        pub dialog_voice_info: u16,                  // 115 DialogVoiceKey — sub_101D7C614
-        pub interaction_category_group_info: u16,    // 116 CategoryGroupKey — sub_101FB1524
-        pub detect_reaction_info: u32,               // 117 DetectReactionKey — sub_101EA4114
-        pub character_pause_type: u32,               // 119 sub_101A730E4 (INLINE 4)
-        pub owner_follow_type: u8,                   // 120 sub_101378514
-        pub farm_drop_info_list: CArray<u32>,        // 121 DropSetKey — sub_10185DCAC
-        pub farm_breeding_target_list: CArray<u32>,  // 122 sub_101727770
-        pub farm_breeding_result_list: CArray<u32>,  // 123 sub_101727770
-        pub farm_breeding_cool_time: u32,            // 124 sub_100D39278
-        pub character_reward_data_list: CArray<CharacterRewardData>, // 125 sub_101FE71E4
-        pub is_reward_drop_roll_by_create_actor: u8, // 126 sub_100D391B8
-        pub mercenary_drop_info_list: CArray<u32>,   // 127 DropSetKey — sub_10185DCAC
-        pub equip_item_info_list: CArray<CharacterEquipmentData>, // 128 sub_101FCFFB4
-        pub minigame_seed_list: CArray<MinigameSeed>, // 129 sub_101FB4980
-        pub price_list: CArray<PriceListEntry>,       // 130 sub_101FD3B98
-        pub wanted_price_list: CArray<PriceListEntry>,// 131 sub_101FD3B98
-        pub terrain_region_auto_spawn_info: u32,      // 132 u32 key — sub_101FB161C
-        pub terrain_region_spawn_per_count: u32,      // 133 sub_100D39278
-        pub convert_item_info: u32,                   // 134 ItemKey — sub_100DCD78C
-        pub path_trail_type: u8,                      // 135 sub_101378420
-        pub inventory_info_list: CArray<u32>,         // 136 sub_101FE73F0
-        pub path_find_table_name: u32,                // 137 sub_100D39278
-        pub docking_child_data_list: CArray<DockingChildData<'a>>, // 138 sub_101FE76A8
-        pub docking_child_event_list: CArray<DockingChildEvent>, // 139 sub_101FE79A0
-        // 140 — game v16: was an unconditional DockingChildData; the engine now
-        // writes a u8 presence flag and only emits the body when set. The
-        // element's old trailing `has_bag_docking_data` byte is gone with it
-        // (docking_child_data_list elements shrank by 1 each), which is why the
-        // record delta is exactly `-len(docking_child_data_list) + 19`.
+        pub interaction_info_list_with_recursive_child: CArray<u32>, // NEW
+        pub default_share_value_index: CArray<u32>,
+        pub inspect_data_list: COptional<CArray<InspectData<'a>>>,
+        pub character_group_info_list: CArray<u16>,
+        pub character_region_info_list: CArray<u16>,
+        pub character_weapon_type: u32,                      // StringInfoKey in 2.04, a CString before
+        pub farm_drop_info_list: COptional<CArray<u32>>,
+        pub farm_breeding_target_list: COptional<CArray<u32>>,
+        pub farm_breeding_result_list: COptional<CArray<u32>>,
+        pub character_reward_data_list: CArray<CharacterRewardData>,
+        pub mercenary_drop_info_list: COptional<CArray<u32>>,
+        pub equip_item_info_list: CArray<CharacterEquipmentData>,
+        pub minigame_seed_list: COptional<CArray<MinigameSeed>>,
+        pub price_list: COptional<CArray<PriceListEntry>>,
+        pub wanted_price_list: COptional<CArray<PriceListEntry>>,
+        pub inventory_info_list: COptional<CArray<u32>>,     // element = InventoryKey u16 + u16, kept as one u32
+        pub docking_child_data_list: COptional<CArray<DockingChildData<'a>>>,
+        pub docking_child_event_list: COptional<CArray<DockingChildEvent>>,
         pub bag_docking_data: COptional<DockingChildData<'a>>,
-        pub character_interaction_override_data_list: GimmickInteractionOverrideCArray<'a>, // 141 sub_101AB3118
-        pub character_collision_type: u8,            // 142 sub_101378594
-        pub bump_type_hash: u32,                     // 143 sub_100D39278
-        pub character_friendly_item_data_list: CArray<CharacterFriendlyItemData>, // 144 sub_101FE7B98
-        // 2.01.00 — three knowledge lists; see CharacterFriendlyKnowledgeDataLists.
+        pub character_interaction_override_data_list: COptional<GimmickInteractionOverrideCArray<'a>>,
+        pub character_friendly_item_data_list: CArray<CharacterFriendlyItemData>,
         pub character_friendly_knowledge_data_list: CharacterFriendlyKnowledgeDataLists,
-        pub character_threat_dialog_info: u32,       // 145 AIDialogStringKey — sub_101FB1714
-        pub ai_dialog_override_list: CArray<AiDialogOverride>, // 146 sub_101FE7E28
-        pub trap_food_data: TrapFoodData,            // 147 sub_101FAED78
-        pub weather_weight: u32,                     // 148 sub_100D392D8 (f32)
-        pub use_hide_camera_overlap: u8,             // 149 sub_100D391B8
-        pub force_field_target_type: u8,             // 150 sub_101A733B4
-        pub additional_parts_data_list: CArray<CharacterAdditionalPartsData>, // 151 sub_101FE81D0
-        pub attack_by_collision_info_list_key: u32,  // 152 sub_100D39278
-        pub interaction_ui_distance_lv: u8,          // 153 INLINE
-        pub detect_reaction_override_list: CArray<DetectReactionOverride>, // 154 sub_101FE8334
-        pub stage_info_for_npc_shop_list: CArray<u32>, // 155 sub_101D905F4
-        pub game_play_object_share_data: GamePlayObjectShareData, // 156 sub_101FA1998
-        pub character_scale: u32,                    // 157 sub_100D392D8 (f32)
-        pub breakable_object_info: u16,              // 158 BreakableObjectInfoKey — sub_101FA17A8
-        pub weak_point_effect_data_list: CArray<WeakPointEffectData<'a>>, // 159 sub_101FD8074
-        pub mini_game_param: MiniGameParam,          // 160 sub_1013786EC
-        pub bullet_item: BulletItem,                 // 161 sub_10137866C
-        pub job_info: u16,                           // 162 JobKey — sub_101F8B5DC
-        pub call_vehicle_gimmick_info: u32,          // 163 GimmickInfoKey — sub_100DCDC64
-        // 2.01.00 — `_callMercenarySpawnVoxelType`: despite the singular name its reader
-        // (sub_10208567C) reads a u32 count and 4-byte elements, i.e. a CArray<u32>.
-        pub call_mercenary_spawn_voxel_type: CArray<u32>,
-        pub camp_guest_data: CampGuestData,          // 164 sub_101FAF2F0
-        pub talk_tree_info: u16,                     // 165 TalkTreeKey — sub_101F89C3C
-        pub base_material_key_override: u32,         // 166 sub_100D39278
-        pub armor_material_key_override: u32,        // game v16 — _armorMaterialKeyOverride (sub_100DDB838, 4B)
-        pub is_farm_animal: u8,                      // 167 sub_100D391B8
-        pub use_level_inheritance: u8,               // 168 sub_100D391B8
-        pub catch_spawn_data: CatchSpawnData,        // 169 sub_101FAFC28
-        pub grown_target_key_list: CArray<u32>,      // 170 CharacterKey — sub_101FE852C
-        pub grown_level: u32,                        // 171 sub_100D39258
-        pub default_friendly_value: u64,             // 172 sub_100D39298
-        pub game_difficulty_buff_level_list: GameDifficultyBuffLevel, // 173 sub_101FB180C
-        pub game_difficulty_buff_info: u32,          // 174 BuffKey — sub_101F96C40 (inner reads 4B!)
-        // game 2.00.00 — the Korean field oracle puts _skillPointOwnerType here,
-        // immediately after _gameDifficultyBuffInfo. ONE field, but at index 173 of
-        // 191, so everything after it shifted and the whole table fell to 100%
-        // blob fallback (2.4% -> 100%). u8, matching knowledge_group_info, which
-        // gained the same field and is small enough to pin the width on.
-        pub skill_point_owner_type: u8,
-        pub empowered_overlay_color: u32,            // 175 sub_100D3A1C8
-        pub empowered_overlay_color_ratio: u32,      // 176 sub_100D392D8
-        pub buff_overlay_color_data_map: CArray<BuffOverlayColorEntry>, // 177 sub_101FE86DC
-        pub wall_hit_rebound: u8,                    // 178 sub_100D391B8
-        // game v16 — four new fields between _wallHitRebound and
-        // _balanceDifficultyLevel (Korean field oracle + reader widths):
-        pub activity_preset_info: u32,               // _activityPresetInfo   sub_101FEA2BC (int)
-        pub daily_routine_info: u32,                 // _dailyRoutineInfo     sub_1020001F0 (int)
-        // ── 1.18.00: `_zoneInfo` (u16 ZoneKey) was REMOVED and replaced here by
-        // `_gamePlayTriggerZone`, a CArray<u32>. The whole `zoneinfo` TABLE was
-        // deleted in 1.18 — which is also why `zoneinfo.pabgb` disappeared from
-        // the fixture set — so the key it referenced no longer exists.
-        //
-        // Proven by arithmetic over all 7,226 shared records: every per-record
-        // delta fits `-2 + 4 + 4n` (= 2 + 4n) exactly —
-        //   +2  x1800 (empty list)   +6 x5349 (1)   +10 (2)
-        //   +34 (8)   +50 (12)   +70 (17)
-        // i.e. lose the u16, gain a count plus n u32 entries. No other shape fits.
-        //
-        // ⚠ This one break made EVERY characterinfo record fall to blob-fallback
-        // on 1.18 (7226/7226 opaque, vs 232 on 1.17), which silently killed every
-        // characterinfo mod — Random Boss Encounters Reborn applied 4 of 1061
-        // intents. Byte round-trip stayed true throughout, so nothing corrupted;
-        // the records just stopped being addressable.
-        pub game_play_trigger_zone: CArray<u32>,     // _gamePlayTriggerZone  (1.18)
-        pub sub_zone_tag_list: CArray<u32>,          // _subZoneTagList       sub_10111CDFC (count + 4*n)
-        // 2.01.00 — `_shipStationDataList` (reader sub_102085CD8: u32 count + ShipStationData).
-        pub ship_station_data_list: CArray<ShipStationData<'a>>,
-        pub balance_difficulty_level: u32,           // 179 sub_100D39258
-        pub is_apply_stat_control_data: u8,          // 180 sub_100D391B8
-        pub apply_stat_balace_data: ApplyStatBalance,     // 181 sub_101FB185C
-        pub apply_max_stat_balace_data: ApplyStatBalance, // 182 sub_101FB185C
-        pub status_group_info: u32,                  // 183 StatusGroupKey — sub_101F9AA64 (inner 4B)
-        pub character_level_data_list: CArray<CharacterLevelData>, // 184 sub_101FE89BC
-        pub detectable_gimmick_tag_name_hash_list: CArray<u32>,    // 185 sub_10131FF98
-        pub mercenary_detectable_gimmick_tag_hash_list: CArray<u32>, // 186 sub_10131FF98
-        pub elemental_material_info_list: CArray<ElementalMaterialInfo>, // 187 sub_101FBC528
-        // ✅ ALL 187 FIELDS TYPED.
+        pub ai_dialog_override_list: COptional<CArray<AiDialogOverride>>,
+        pub trap_food_data: COptional<TrapFoodData>,
+        pub additional_parts_data_list: COptional<CArray<CharacterAdditionalPartsData>>,
+        pub detect_reaction_override_list: CArray<DetectReactionOverride>,
+        pub stage_info_for_npc_shop_list: COptional<CArray<u32>>,
+        pub game_play_object_share_data: COptional<GamePlayObjectShareData>,
+        pub weak_point_effect_data_list: COptional<CArray<WeakPointEffectData<'a>>>,
+        pub call_mercenary_spawn_voxel_type: COptional<CArray<u32>>,
+        pub grown_target_key_list: COptional<CArray<u32>>,
+        pub buff_overlay_color_data_map: CArray<BuffOverlayColorEntry>,
+        pub ship_station_data_list: COptional<CArray<ShipStationData<'a>>>,
+        pub management_buff_data: COptional<ManagementBuffData<'a>>, // NEW
+        pub mercenary_usage_type_0: u8,                      // NEW, mercenaryUsageTypeList (4 x u8)
+        pub mercenary_usage_type_1: u8,
+        pub mercenary_usage_type_2: u8,
+        pub mercenary_usage_type_3: u8,
+        pub is_apply_stat_control_data: u8,
+        pub status_group_info: u32,
+        pub balance_difficulty_level: u32,
+        pub apply_stat_balace_data: COptional<ApplyStatBalance>,
+        pub apply_max_stat_balace_data: COptional<ApplyStatBalance>,
+        pub character_level_data_list: CArray<CharacterLevelData>,
+        pub detectable_gimmick_tag_name_hash_list: CArray<u32>,
+        pub mercenary_detectable_gimmick_tag_hash_list: COptional<CArray<u32>>,
+        pub elemental_material_info_list: CArray<ElementalMaterialInfo>,
     }
     tail: tail_blob;
 }
@@ -1415,6 +1433,25 @@ mod tests {
     /// Diagnostic: name the field a failing record dies on. `read_tracked_with_size`
     /// fills `ranges` as it walks, and the caller keeps them when it returns Err,
     /// so the tail of that vec is the last field read before the failure.
+    /// DIAG_KEY=<hex> cargo test --lib character_info::info::tests::diag_dump_json -- --ignored --nocapture
+    /// Prints one record as JSON with whatever layout this parser has (used to pair 2.03 values
+    /// with 2.04 fields by value).
+    #[test]
+    #[ignore = "diagnostic"]
+    fn diag_dump_json() {
+        use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
+        let want = u32::from_str_radix(&std::env::var("DIAG_KEY").unwrap_or_else(|_| "1".into()), 16).unwrap();
+        let Ok(data) = std::fs::read(pabgb_path()) else { return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { return; };
+        for (k, s, e) in entry_ranges(&entries, data.len()) {
+            if k as u32 != want { continue; }
+            let mut c = s;
+            let r = CharacterInfo::read_with_size(&data, &mut c, e - s).expect("record parses");
+            eprintln!("{}", serde_json::to_string(&r.to_json_dict()).unwrap());
+            eprintln!("consumed {} of {}", c - s, e - s);
+        }
+    }
+
     #[test]
     #[ignore]
     fn diag_first_failure() {

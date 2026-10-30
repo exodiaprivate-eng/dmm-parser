@@ -41,6 +41,9 @@ py_binary_struct! {
         pub field_f: u32,
         pub field_g: u32,
         pub field_h: u32,
+        // 2.04.00: `_globalDetectTargetDistance` moved here from DetectInfo (Mac reader
+        // sub_102072234, the ninth float before the two flags).
+        pub global_detect_target_distance: u32,
         pub flag_a: u8,
         pub flag_b: u8,
         pub children: CArray<DetectSenseData>,
@@ -48,16 +51,15 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_1020724E8). New: `_underWaterDetectionType`; the 2.03
+    // `_globalDetectTargetDistance` moved into DetectSenseData.
     pub struct DetectInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
-        pub decrease_value_per_sec: u32,
+        pub under_water_detection_type: u8,
         pub is_detectable_attached_docking: u8,
-        // ── 2.03.00: `_globalDetectTargetDistance` after _isDetectableAttachedDocking
-        // (oracle DetectInfo 7 -> 8 fields at index 5; +4 B every record). Distances
-        // in this table are u32, as _targetLostDistance next to it.
-        pub global_detect_target_distance: u32,
+        pub decrease_value_per_sec: u32,
         pub target_lost_distance: u32,
         pub detect_sense_data: DetectSenseData,
     }

@@ -35,12 +35,12 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct JobInfo<'a> {
-        pub key: u16,
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
+        pub has_child: u8,
         pub parent_info: u16,
         pub child_list: CArray<u16>,
-        pub has_child: u8,
         pub name: CString<'a>,
     }
 }

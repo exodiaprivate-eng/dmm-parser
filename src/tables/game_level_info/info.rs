@@ -63,12 +63,17 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_102055AA8). New: `_teleportTransform`, 40 bytes read as
+    // 12 + 4x4 + 12 (sub_100EAC8E4).
     pub struct GameLevelInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub default_level_data_name: u32,
         pub update_region_info: u16,
+        pub teleport_transform_a: [f32; 3],
+        pub teleport_transform_rotation: [f32; 4],
+        pub teleport_transform_b: [f32; 3],
         pub level_data_list: CArray<GameLevelData>,
     }
 }

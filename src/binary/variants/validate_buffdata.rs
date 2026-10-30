@@ -13,30 +13,14 @@ use crate::binary::*;
 use std::collections::BTreeMap;
 
     fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("buffinfo.pabgb") }
-/// Tail layout (post buff_data_list) per sub_1410D6510:
-///   u32 min_level (4) + u32 max_level (4) + CString sequencer_file_name +
-///   u8 + u32 + u32 + u32 + u8 + u8
-/// Fixed bytes = 4+4+4+1+4+4+4+1+1 = 27
-const POST_TAIL_FIXED: usize = 27;
+/// 2.04.00: after the BuffData list only `_sequencerFileName` follows, a 4-byte
+/// StringInfoKey (Mac reader sub_1020726DC); the fields that used to trail the list
+/// moved in front of it.
+const POST_TAIL_FIXED: usize = 4;
 
-/// Validate that bytes at [probe..entry_end] form a valid post-tail (matches
-/// the BuffInfo post-list schema). Returns true if so.
-fn is_valid_post_tail(data: &[u8], probe: usize, entry_end: usize) -> bool {
-    if probe + POST_TAIL_FIXED > entry_end {
-        return false;
-    }
-    let cs_off = probe + 8;
-    let Some(cs_len_bytes) = data.get(cs_off..cs_off + 4) else { return false };
-    let Ok(cs_len_arr) = cs_len_bytes.try_into() else { return false };
-    let cs_len = u32::from_le_bytes(cs_len_arr) as usize;
-    let total = POST_TAIL_FIXED + cs_len;
-    if probe + total != entry_end {
-        return false;
-    }
-    let cs_content_start = cs_off + 4;
-    let cs_content_end = cs_content_start + cs_len;
-    let Some(cs_bytes) = data.get(cs_content_start..cs_content_end) else { return false };
-    std::str::from_utf8(cs_bytes).is_ok()
+/// Validate that bytes at [probe..entry_end] form a valid post-tail.
+fn is_valid_post_tail(_data: &[u8], probe: usize, entry_end: usize) -> bool {
+    probe + POST_TAIL_FIXED == entry_end
 }
 
 #[test]
@@ -64,9 +48,10 @@ fn validate_buffdata_manifest() {
     for (key, start, end) in &ranges {
         // Read pre-fields manually to find buff_data_list start.
         let mut o = *start;
-        let _key = u32::read_from(&data, &mut o).unwrap();
+        // 2.04.00 header: string_key, key, is_blocked, four u8 flags, five u32.
         let _string_key = CString::read_from(&data, &mut o).unwrap();
-        let _is_blocked = u8::read_from(&data, &mut o).unwrap();
+        let _key = u32::read_from(&data, &mut o).unwrap();
+        o += 1 + 4 + 5 * 4;
 
         // Read the CArray<BuffDataEntry> count
         let count = u32::read_from(&data, &mut o).unwrap() as usize;

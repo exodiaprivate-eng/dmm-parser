@@ -43,26 +43,26 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct QuestGroupInfo<'a> {
-        pub key: u16,
+        // 2.04.00 order (Mac reader sub_102050574). Value pairing 2.03 vs 2.04 showed two of
+        // our flag names sit one slot off the game's: `is_show_quest_list` holds `_isAutoSave`
+        // and `is_auto_save` holds `_isCompletable`. The JSON names stay (mod contract).
         pub string_key: CString<'a>,
+        pub key: u16,
         pub is_blocked: u8,
+        pub is_save: u8,
+        pub disable_give_up: u8,
+        pub is_dev: u8,
+        pub is_auto_save: u8,          // _isCompletable
+        pub is_show_quest_list: u8,    // _isAutoSave
         pub quest_type: u8,
+        pub faction_group_info: u16,
+        pub stage_icon_path: u32,
+        pub stage_image_path: u32,
+        pub stage_text_icon_path: u32,
+        pub debug_color: u32,
         pub name: LocalizableString<'a>,
         pub quest_group_desc: LocalizableString<'a>,
         pub quest_list: CArray<u32>,
-        pub debug_color: u32,
-        pub stage_icon_path: u32,
-        pub stage_text_icon_path: u32,
-        pub stage_image_path: u32,
-        pub faction_group_info: u16,
-        pub is_save: u8,
-        pub is_dev: u8,
-        pub is_show_quest_list: u8,
-        pub is_auto_save: u8,
-        // game 2.00.00: `_disableGiveUp`, last field. The oracle says "after
-        // _isCompletable" — our name for that field differs, but idx 16 of 17 is
-        // unambiguously the tail.
-        pub disable_give_up: u8,
     }
 }
 

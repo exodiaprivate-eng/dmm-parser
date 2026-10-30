@@ -36,8 +36,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct StatusGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub regenerate_status_info_list: CArray<u32>,
         pub status_info_list: CArray<u32>,

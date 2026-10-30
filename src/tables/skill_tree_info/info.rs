@@ -167,16 +167,18 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct SkillTreeInfo<'a> {
+        pub string_key: CString<'a>,
         // Prefix (10 fields)
         pub key: u32,
-        pub string_key: CString<'a>,
         pub is_blocked: u8,
+        pub first_focus_skill_info: u32,
+        pub ui_texture_icon_path: u32,
+        pub item_info: u32,
         pub character_info: u32,
         pub faction_info: u32,
-        pub item_info: u32,
+        pub first_focus_zoom: f32,
         pub ui_grid_size_x: u32,
         pub ui_grid_size_y: u32,
-        pub ui_texture_icon_path: u32,
         pub ui_page_name: LocalizableString<'a>,
         // NEW 1.10: _filterTypeDataList (Mac sub_101919D48 reads it @a2+36 via
         // sub_10194BF70, between _uiPageName and _skillNodeList). The current
@@ -188,10 +190,8 @@ py_binary_struct! {
         // Body (6 fields)
         pub skill_node_list: CArray<SkillTreeSkillNode>,
         pub stat_node_list: CArray<SkillTreeStatNode<'a>>,
-        pub first_focus_skill_info: u32,
         // game 2.00.00: `_unlockEffectKnowledgeList`, after `_firstFocusSkillInfo`.
         pub unlock_effect_knowledge_list: CArray<u32>,
-        pub first_focus_zoom: f32,
         pub first_focus_position: [f32; 2],
         pub skill_tree_area: u64,
     }

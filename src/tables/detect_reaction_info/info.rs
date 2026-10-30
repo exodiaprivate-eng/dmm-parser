@@ -44,18 +44,19 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    // 2.04.00 order (Mac reader sub_102072C58): the three reaction types moved before the table.
     pub struct DetectReactionInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub player_sensible_reaction_type: u8,
+        pub strong_buff_reaction_type: u8,
+        pub buff_reaction_type: u8,
         pub reaction_row_0: DetectReactionRow,
         pub reaction_row_1: DetectReactionRow,
         pub reaction_row_2: DetectReactionRow,
         pub reaction_row_3: DetectReactionRow,
         pub reaction_row_4: DetectReactionRow,
-        pub buff_reaction_type: u8,
-        pub strong_buff_reaction_type: u8,
-        pub player_sensible_reaction_type: u8,
     }
 }
 

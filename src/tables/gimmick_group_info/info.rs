@@ -1,379 +1,240 @@
 //! Tier 1 — fully typed (no _tail_b64).
 //!
-//! Reader: `sub_1410E4450` in CrimsonDesert.exe (Win build).
+//! 2.04.00 reader: Mac `sub_102045548`, names from its Korean assert strings. 2.04 moved
+//! stringKey first and gathered the 41 one-byte fields (bools and small enums) right after
+//! isBlocked; `_gimmickChartPath` became a StringInfoKey (was a CString),
+//! `_gimmickRemoteCatchableData` gained a presence byte, `_applyFurnitureObstacleInHousing`
+//! and `_equipDockingGimmickType` are new, and `_levelAliasNameList[].activeExpression` is
+//! the 2.04 flattened GameExpression (`GameExpression204`).
 //!
-//! Wire reads, in order (canonical names from Mac Korean error strings):
-//!   1. u32 key                                  (_key)
-//!   2. CString string_key                       (_stringKey)
-//!   3. u8 is_blocked                            (_isBlocked)
-//!   4. u32 main_gimmick_group_info_of_combination
-//!      (_mainGimmickGroupInfoOfCombination, sub_141104AE0 →
-//!      qword_145F11D70 lookup)
-//!   5. u64 battery_init_capacity            (_batteryInitCapacity)
-//!   6. u64 battery_total_capacity           (_batteryTotalCapacity)
-//!   7. CArray<GimmickProperty> link_signal_group_list
-//!      (_linkSignalGroupList, sub_141113BF0 wraps sub_1410E3D20;
-//!      per element: CString name + u8 + u32 + u8 + u32 + u32 +
-//!      u64 + u64 — 30 + variable wire bytes)
-//!   8. CArray<u32> property_list                (_propertyList,
-//!      sub_141101AB0 — wire u32 per element, mem u32)
-//!   9. CArray<CString> gimmick_tag_list         (_gimmickTagList,
-//!      sub_141102990 — runtime hashes each tag to u32 via
-//!      sub_1410A9D40, wire is CString)
-//!  10. CString gimmick_chart_path               (_gimmickChartPath)
-//!  11. u8 gimmick_type                          (_gimmickType)
-//!  12. u8 gimmick_placement_style               (_gimmickPlacementStyle)
-//!  13. u8 gimmick_interface_type                (_gimmickInterfaceType)
-//!  14. [f32; 3] gimmick_remote_catchable_data
-//!      (_gimmickRemoteCatchableData, Vec3 — 12 raw wire bytes)
-//!  15. u8 use_attack_target_owner_constraint
-//!  16. u8 use_self_constraint
-//!      ← TAIL STARTS HERE
-//!  17. _autoTargetingConstraintDataList (sub_141113A50 → CArray<64-byte
-//!      composite via sub_1410E3E90>; 11-field GimmickConstraintData
-//!      with 2 CString-hash + 5 u8 + u32 + 2 Vec3 + CArray<CString>)
-//!  18. _gimmickConstraintDataList (sub_141113A50 — same composite)
-//!  19. _gimmickInfoList, _gameEventHandlerList,
-//!      _unlockableIDataList, _defaultSpawnReasonHash,
-//!      _initialBodyMotionType,
-//!      _sequencerLevelAllowGimmickEventKeyList,
-//!      _sequencerLevelConnectAliasNameList, _gimmickAliasDataList,
-//!      _logoutTimeAfterBreak, _attackByCollisionInfoListKey,
-//!      _useSlidingMotionProperty, _isEditorUseable,
-//!      _isGetKnowledgeWhenGetItem, _isUseConstrainSound, …
-//!
-//! Steps 1-16 are typed (16 fields). Body has 80+ wire reads with
-//! several deep composites; reopens cleanly when those are decoded.
-//!
-//! Helper: `sub_141104AE0` = u32 lookup at qword_145F11D70.
-//! `sub_141113BF0` = CArray<GimmickProperty> (48 mem bytes/element
-//! via sub_1410E3D20).
-//! `sub_1410E3D20` = inner GimmickProperty reader (8 wire fields).
-//! `sub_141101AB0` = CArray<u32> (4 wire bytes/element).
-//! `sub_141102990` = CArray<CString> via sub_1410A9D40
-//! (CString-hash; wire bytes are u32 length + N raw bytes).
-
-
-// ─────────────────────────────────────────────────────────────────────────
-// CANONICAL FIELD CATALOG — pa::GimmickGroupInfo
-// ─────────────────────────────────────────────────────────────────────────
-//
-// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
-// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
-//
-// Total canonical fields:  70
-// Decoded by dmm-parser:   25
-// Missing in this struct:  45
-//
-// ✅ = present in this struct (round-trips via shape='v3.1')
-// ⏳ = in canonical schema but not yet decoded by dmm-parser
-//
-// ⏳ _spawnDistanceLevel (direct_u32, stream=4)
-// ⏳ _isMacroGimmick (direct_u8, stream=1)
-// ⏳ _isPiercedAllyProjectile (direct_u8, stream=1)
-// ⏳ _isDefaultSpawnDistanceLevel (direct_u8, stream=1)
-// ⏳ _useParentGimmickPoint (direct_u8, stream=1)
-// ⏳ _isSpawnComponentInLevel (direct_u8, stream=1)
-// ⏳ _isSpawnedOnPlatformKeyFrame (direct_u8, stream=1)
-// ⏳ _isDockingCombinationKeyFrame (direct_u8, stream=1)
-// ⏳ _isAttackByCollisionDynamic (direct_u8, stream=1)
-// ⏳ _isAttackByCollisionKeyFrame (direct_u8, stream=1)
-// ⏳ _isSpreadBreakInCombination (direct_u8, stream=1)
-// ⏳ _isAttackByCollisionDocking (direct_u8, stream=1)
-// ⏳ _saveLevelData (direct_u8, stream=1)
-// ⏳ _remoteCatchPullOutUseAction (direct_u8, stream=1)
-// ⏳ _gimmickNodeData (array_or_complex, stream=4)
-// ⏳ _isScaleable (direct_u8, stream=1)
-// ⏳ _isAutoPartialBreak (direct_u8, stream=1)
-// ⏳ _isTargetable (direct_u8, stream=1)
-// ⏳ _isKeepAnchor (direct_u8, stream=1)
-// ⏳ _isAnchorEdgeDisable (direct_u8, stream=1)
-// ⏳ _useConstraintAchorEdge (direct_u8, stream=1)
-// ⏳ _isIsolatedAnchorBreakable (direct_u8, stream=1)
-// ⏳ _isBreakMainPartOnBreak (direct_u8, stream=1)
-// ⏳ _isSubPart (direct_u8, stream=1)
-// ✅ _gimmickAliasDataList
-// ✅ _sequencerLevelConnectAliasNameList
-// ✅ _attackByCollisionInfoListKey (direct_u32, stream=4)
-// ✅ _logoutTimeAfterBreak (direct_u64, stream=8)
-// ⏳ _isEditorUseable (direct_u8, stream=1)
-// ⏳ _useSlidingMotionProperty (direct_u8, stream=1)
-// ⏳ _isUseConstrainSound (direct_u8, stream=1)
-// ⏳ _isGetKnowledgeWhenGetItem (direct_u8, stream=1)
-// ✅ _gimmickConstraintDataList
-// ✅ _autoTargetingConstraintDataList
-// ✅ _gameEventHandlerList (reader_4B, stream=4)
-// ✅ _gimmickInfoList (reader_4B, stream=4)
-// ✅ _defaultSpawnReasonHash (direct_u32, stream=4)
-// ⏳ _unlockableIDataList
-// ✅ _sequencerLevelAllowGimmickEventKeyList (reader_4B, stream=4)
-// ✅ _initialBodyMotionType (direct_u8, stream=1)
-// ✅ _propertyList (reader_4B, stream=4)
-// ✅ _linkSignalGroupList
-// ✅ _gimmickChartPath
-// ✅ _gimmickTagList
-// ✅ _gimmickPlacementStyle (direct_u8, stream=1)
-// ✅ _gimmickType (direct_u8, stream=1)
-// ✅ _gimmickRemoteCatchableData
-// ✅ _gimmickInterfaceType (direct_u8, stream=1)
-// ✅ _stringKey
-// ✅ _key
-// ✅ _mainGimmickGroupInfoOfCombination (reader_4B, stream=4)
-// ✅ _isBlocked (direct_u8, stream=1)
-// ✅ _batteryTotalCapacity (direct_u64, stream=8)
-// ✅ _batteryInitCapacity (direct_u64, stream=8)
-// ⏳ _combinationAliasDataList
-// ⏳ _pushObjectSocketList
-// ⏳ _stickToObjectType (direct_u8, stream=1)
-// ⏳ _combinationLinkDataList
-// ⏳ _targetableRange (direct_u8, stream=1)
-// ⏳ _interactionUIDistanceLv (direct_u8, stream=1)
-// ⏳ _elementalStatusInitialStatList
-// ⏳ _elementalMaterialInfoList (reader_4B, stream=4)
-// ⏳ _useRemoteCatchFishing (direct_u8, stream=1)
-// ⏳ _useBuoyancyRestoringCenterOfMass (direct_u8, stream=1)
-// ⏳ _isLinkDecoGimmick (direct_u8, stream=1)
-// ⏳ _isHousingGimmick (direct_u8, stream=1)
-// ⏳ _isBuyable (direct_u8, stream=1)
-// ⏳ _isWild (direct_u8, stream=1)
-// ⏳ _stickToObjectSocketList
-// ⏳ _excludeSequencerBoundary (direct_u8, stream=1)
+//! The pre-2.04 model named about half the record by position (`flag_28_4`, `raw_340`, ...);
+//! nothing in DMM addressed it, so the game's names are used throughout.
 
 use crate::binary::*;
-use crate::binary::optional_game_condition::OptionalGameCondition;
+use crate::binary::variants::game_expression_204::GameExpression204;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    /// 2.00.00 — element of `_levelAliasNameList`, which REPLACED
-    /// `_sequencerLevelConnectAliasNameList`.
-    ///
-    /// The old field was a `CArray<CString>`; the new one is a list of
-    /// three-field records. Mac element reader `sub_10205A744`: count, then per
-    /// element two CString reads (`sub_100E4BE74`) and `sub_1025A6734`, which is
-    /// the u8-presence + tag + body shape of an optional condition tree.
+    /// `_linkSignalGroupList` element (Mac sub_1020442BC).
+    pub struct GimmickLinkSignalGroupData<'a> {
+        pub link_signal_group_name: CString<'a>,
+        pub type_: u8,
+        pub complete_count: u32,
+        pub counter_filter_type: u8,
+        pub link_signal_on_event_key: u32,        // StringInfoKey
+        pub link_signal_off_event_key: u32,       // StringInfoKey
+        pub random_delay_min: u64,
+        pub random_delay_max: u64,
+    }
+}
+
+py_binary_struct! {
+    /// `_gimmickRemoteCatchableData` body (Mac sub_102083714, inside a presence byte).
+    pub struct GimmickRemoteCatchableData {
+        pub control_base_direction: [f32; 3],
+        pub gimmick_remote_catch_type: u8,
+        pub use_cross_hair_position: u8,
+    }
+}
+
+py_binary_struct! {
+    /// `_autoTargetingConstraintDataList` / `_gimmickConstraintDataList` element
+    /// (Mac sub_102044420).
+    pub struct GimmickConstraintData<'a> {
+        pub constraint_name: CString<'a>,
+        pub constraint_type: u8,
+        pub target_type: u8,
+        pub use_trigger_auto_target: u8,
+        pub disable_collide_with_target: u8,
+        pub failable: u8,
+        pub breaking_threshold: f32,
+        pub pivot_position: [f32; 3],
+        pub pivot_rotation: [f32; 3],
+        pub self_socket_name: CString<'a>,
+        pub target_socket_name_list: CArray<CString<'a>>,
+    }
+}
+
+py_binary_struct! {
+    /// `_gameEventHandlerList` element (Mac sub_102044BBC).
+    pub struct GimmickGameEventHandlerData {
+        pub game_event_type: u8,
+        pub condition_info: u32,
+        pub gimmick_event_key: u32,
+    }
+}
+
+py_binary_struct! {
+    /// `_unlockableIDataList` element (Mac sub_102084124).
+    pub struct UnlockableData {
+        pub key: u32,
+        pub unlockable_item_info_list: CArray<u32>,
+        pub unlockable_mission_info_list: CArray<u32>,
+        pub default_locked: u8,
+    }
+}
+
+py_binary_struct! {
+    /// `_levelAliasNameList` element (Mac sub_102084748).
     pub struct GimmickLevelAliasData<'a> {
         pub level_name: CString<'a>,
         pub level_alias_name: CString<'a>,
-        pub active_expression: OptionalGameCondition<'a>,
+        pub active_expression: GameExpression204<'a>,
     }
 }
 
 py_binary_struct! {
-    pub struct GimmickProperty<'a> {
-        pub name: CString<'a>,
-        pub flag_a: u8,
-        pub raw_a: u32,
-        pub flag_b: u8,
-        pub raw_b: u32,
-        pub raw_c: u32,
-        pub raw_d: u64,
-        pub raw_e: u64,
+    /// `_uiMapTextureEnableDataList` element (Mac sub_1020831B0): a GameEventExecuteData
+    /// (sub_10203D6C4) then a u8.
+    pub struct UiMapTextureEnableData {
+        pub game_event_type: u8,
+        pub player_condition: u32,
+        pub target_condition: u32,
+        pub event_condition: u32,
+        pub enable: u8,
     }
 }
 
-// GameEventHandler — sub_1411138C0 inner, 8 mem bytes.
-// Wire: u8 + sub_1410FF430 (u32 wire) + u32 raw = 9 wire bytes.
 py_binary_struct! {
-    pub struct GameEventHandler {
-        pub kind: u8,
-        pub lookup: u32,
-        pub raw: u32,
-    }
-}
-
-// UnlockableData — sub_1411135E0 outer per element. The reader uses
-// hash-table sizing (prime numbers) at runtime, but wire shape per
-// element is just: u32 hash key + 2 nested CArrays + u8 trailing.
-py_binary_struct! {
-    pub struct UnlockableData {
-        pub key: u32,
-        pub item_info_list: CArray<u32>,    // sub_1410FFF10 → qword_145F0DA00
-        pub mission_info_list: CArray<u32>, // sub_1411049D0 → qword_145F0EF00
-        pub flag: u8,
-    }
-}
-
-// GimmickAliasInner — sub_1410E2030 + trailing u8.
-// Wire: u8 + 3× u32 lookup + u8 = 14 wire bytes per element.
-py_binary_struct! {
-    pub struct GimmickAliasInnerEntry {
-        pub flag: u8,
-        pub lookup_a: u32,
-        pub lookup_b: u32,
-        pub lookup_c: u32,
-        pub raw: u8,
-    }
-}
-
-// GimmickCollisionTagData — sub_141113220 inner, 24 mem bytes.
-// Wire: CString name + u8 + 2× CString-hash (sub_1410A9D40).
-py_binary_struct! {
-    pub struct GimmickCollisionTagData<'a> {
-        pub name: CString<'a>,
-        pub flag: u8,
-        pub tag_a: CString<'a>,
-        pub tag_b: CString<'a>,
-    }
-}
-
-// GimmickInteractionData — sub_1411130A0 inner via sub_1410E4050,
-// 56 mem bytes / 10 wire fields.
-py_binary_struct! {
-    pub struct GimmickInteractionData<'a> {
-        pub lookup_a: u32,    // sub_141104AE0
-        pub raw_a: u32,
-        pub name_a: CString<'a>,
-        pub flag_a: u8,
-        pub lookup_b: u32,    // sub_141104AE0
-        pub raw_b: u32,
-        pub name_b: CString<'a>,
-        pub flag_b: u8,
-        pub name_c: CString<'a>,
-        pub raw_c: u32,
-    }
-}
-
-// GimmickFieldEntry — sub_141101B80 inner, 8 mem bytes / 2 wire fields.
-// Wire: u32 raw + u32 (hashed via sub_141BF6840 → qword_145F11478 lookup).
-py_binary_struct! {
-    pub struct GimmickFieldEntry {
-        pub raw: u32,
-        pub lookup_hash: u32,
-    }
-}
-
-// GimmickU32Pair — sub_141104B50 inner, 8 mem bytes / 2 u32 raw.
-py_binary_struct! {
-    pub struct GimmickU32Pair {
-        pub a: u32,
-        pub b: u32,
-    }
-}
-
-// GimmickAttackByCollisionData — sub_141C79D00 flat struct.
-// Wire: CString + CString + u32 + u32 + u32 = variable + 12 bytes.
-py_binary_struct! {
-    pub struct GimmickAttackByCollisionData<'a> {
-        pub name: CString<'a>,
-        pub material: CString<'a>,
-        pub raw_a: u32,
-        pub raw_b: u32,
-        pub raw_c: u32,
-    }
-}
-
-// GimmickAliasData — sub_1410E41E0 inner, 40 mem bytes.
-// Wire: 2× u32 raw + 2× u32 lookup + u32 raw + u16 region lookup +
-// CArray<GimmickAliasInnerEntry>.
-py_binary_struct! {
+    /// `_gimmickAliasDataList` element (Mac sub_1020448A0).
     pub struct GimmickAliasData {
-        pub raw_a: u32,
-        pub raw_b: u32,
-        pub knowledge_info: u32,        // sub_1411006D0
-        pub condition_logic: u32,       // sub_1410FF430
-        pub raw_c: u32,
-        pub region_info: u16,           // sub_1410FF220 (wire u16)
-        pub aliases: CArray<GimmickAliasInnerEntry>,
+        pub self_spawn_reason: u32,
+        pub target_spawn_reason: u32,
+        pub need_knowledge_info: u32,
+        pub condition_info: u32,
+        pub need_knowledge_level: u32,
+        pub target_game_play_trigger_info: u32,
+        pub ui_map_texture_enable_data_list: CArray<UiMapTextureEnableData>,
     }
 }
 
-// GimmickConstraintData — sub_1410E3E90 inner, 64 mem bytes.
-// Wire: CString (sub_1410A9D40) + 5 u8 + u32 + 2× Vec3 +
-// CString (sub_1410A9D40) + CArray<CString> (sub_141102990).
 py_binary_struct! {
-    pub struct GimmickConstraintData<'a> {
-        pub name: CString<'a>,
-        pub flag_a: u8,
-        pub flag_b: u8,
-        pub flag_c: u8,
-        pub flag_d: u8,
-        pub flag_e: u8,
-        pub raw: u32,
-        pub vec_a: [f32; 3],
-        pub vec_b: [f32; 3],
-        pub tag: CString<'a>,
-        pub tag_list: CArray<CString<'a>>,
+    /// `_gimmickNodeData` (Mac sub_101EC910C).
+    pub struct GimmickNodeData<'a> {
+        pub name_a: CString<'a>,
+        pub name_b: CString<'a>,
+        pub u32_16: u32,
+        pub u32_20: u32,
+        pub u32_24: u32,
+    }
+}
+
+py_binary_struct! {
+    /// `_combinationAliasDataList` element (Mac sub_102084E14 inline).
+    pub struct GimmickCombinationAliasData<'a> {
+        pub combination_alias_name: CString<'a>,
+        pub collide_with_parent: u8,
+        pub parent_socket_name: CString<'a>,
+        pub child_socket_name: CString<'a>,
+    }
+}
+
+py_binary_struct! {
+    /// `_combinationLinkDataList` element (Mac sub_1020445C0).
+    pub struct GimmickCombinationLinkData<'a> {
+        pub from_gimmick_group_info: u32,
+        pub from_gimmick_group_index: u32,
+        pub from_gimmick_alias_name: CString<'a>,
+        pub is_from_self: u8,
+        pub to_gimmick_group_info: u32,
+        pub to_gimmick_group_index: u32,
+        pub to_gimmick_alias_name: CString<'a>,
+        pub is_to_self: u8,
+        pub link_signal_group_name: CString<'a>,
+        pub from_state_hash: u32,
+    }
+}
+
+py_binary_struct! {
+    /// `_elementalMaterialInfoList` element (Mac sub_102085624): two 4-byte keys.
+    pub struct GimmickElementalMaterialEntry {
+        pub key_a: u32,
+        pub key_b: u32,
+    }
+}
+
+py_binary_struct! {
+    /// `_elementalStatusInitialStatList` element (Mac sub_102085724): key + f32.
+    pub struct GimmickElementalStatusInitialStat {
+        pub stat: u32,
+        pub value: f32,
     }
 }
 
 py_binary_struct! {
     pub struct GimmickGroupInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
+        pub is_default_spawn_distance_level: u8,
+        pub is_macro_gimmick: u8,
+        pub is_pierced_ally_projectile: u8,
+        pub use_parent_gimmick_point: u8,
+        pub is_spawn_component_in_level: u8,
+        pub is_spread_break_in_combination: u8,
+        pub targetable_range: u8,
+        pub remote_catch_pull_out_use_action: u8,
+        pub is_scaleable: u8,
+        pub save_level_data: u8,
+        pub is_docking_combination_key_frame: u8,
+        pub exclude_sequencer_boundary: u8,
+        pub is_buyable: u8,
+        pub apply_furniture_obstacle_in_housing: u8,
+        pub interaction_ui_distance_lv: u8,
+        pub stick_to_object_type: u8,
+        pub use_remote_catch_fishing: u8,
+        pub is_spawned_on_platform_key_frame: u8,
+        pub is_housing_gimmick: u8,
+        pub is_wild: u8,
+        pub is_link_deco_gimmick: u8,
+        pub is_attack_by_collision_dynamic: u8,
+        pub use_sliding_motion_property: u8,
+        pub initial_body_motion_type: u8,
+        pub is_editor_usable: u8,
+        pub is_use_constrain_sound: u8,
+        pub is_get_knowledge_when_get_item: u8,
+        pub gimmick_type: u8,
+        pub is_attack_by_collision_docking: u8,
+        pub equip_docking_gimmick_type: u8,
+        pub gimmick_interface_type: u8,
+        pub gimmick_placement_style: u8,
+        pub is_sub_part: u8,
+        pub is_keep_anchor: u8,
+        pub use_constraint_achor_edge: u8,
+        pub is_isolated_anchor_breakable: u8,
+        pub is_break_main_part_on_break: u8,
+        pub is_auto_partial_break: u8,
+        pub is_targetable: u8,
+        pub is_attack_by_collision_key_frame: u8,
+        pub is_anchor_edge_disable: u8,
         pub main_gimmick_group_info_of_combination: u32,
+        pub default_spawn_reason_hash: u32,
+        pub spawn_distance_level: u32,
+        pub attack_by_collision_info_list_key: u32,
         pub battery_init_capacity: u64,
         pub battery_total_capacity: u64,
-        pub link_signal_group_list: CArray<GimmickProperty<'a>>,
+        pub link_signal_group_list: CArray<GimmickLinkSignalGroupData<'a>>,
         pub property_list: CArray<u32>,
         pub gimmick_tag_list: CArray<CString<'a>>,
-        pub gimmick_chart_path: CString<'a>,
-        pub gimmick_type: u8,
-        pub gimmick_placement_style: u8,
-        pub gimmick_interface_type: u8,
-        pub gimmick_remote_catchable_data: [f32; 3],
-        pub use_attack_target_owner_constraint: u8,
-        pub use_self_constraint: u8,
+        pub gimmick_chart_path: u32,              // StringInfoKey
+        pub gimmick_remote_catchable_data: COptional<GimmickRemoteCatchableData>,
         pub auto_targeting_constraint_data_list: CArray<GimmickConstraintData<'a>>,
         pub gimmick_constraint_data_list: CArray<GimmickConstraintData<'a>>,
         pub gimmick_info_list: CArray<u32>,
-        pub game_event_handler_list: CArray<GameEventHandler>,
+        pub game_event_handler_list: CArray<GimmickGameEventHandlerData>,
         pub unlockable_data_list: CArray<UnlockableData>,
-        pub default_spawn_reason_hash: u32,
-        pub initial_body_motion_type: u8,
         pub sequencer_level_allow_gimmick_event_key_list: CArray<u32>,
-        // 2.00.00 renamed AND re-typed: `_sequencerLevelConnectAliasNameList`
-        // (a `CArray<CString>`) became `_levelAliasNameList`, a list of
-        // `GimmickLevelAliasData`. Not a rename to wave through — the element
-        // grew from one string to two plus an optional expression.
         pub level_alias_name_list: CArray<GimmickLevelAliasData<'a>>,
+        pub child_scene_object_alias_name_list: CArray<CString<'a>>,
         pub gimmick_alias_data_list: CArray<GimmickAliasData>,
         pub logout_time_after_break: u64,
-        pub attack_by_collision_info_list_key: u32,
-        pub flag_28_4: u8,
-        pub flag_28_5: u8,
-        pub flag_28_6: u8,
-        pub flag_28_7: u8,
-        pub flag_29_0: u8,
-        pub flag_29_1: u8,
-        pub flag_29_2: u8,
-        pub flag_29_3: u8,
-        pub flag_29_4: u8,
-        pub flag_29_5: u8,
-        pub flag_29_6: u8,
-        pub flag_29_7: u8,
-        pub flag_30_0: u8,
-        pub flag_30_1: u8,
-        pub flag_30_2: u8,
-        pub flag_30_3: u8,
-        pub flag_30_4: u8,
-        pub flag_30_5: u8,
-        pub flag_30_6: u8,
-        pub attack_by_collision: GimmickAttackByCollisionData<'a>,
-        pub flag_336: u8,
-        pub raw_340: u32,
-        pub flag_344: u8,
-        pub flag_345: u8,
-        pub flag_346: u8,
-        pub flag_347: u8,
-        pub flag_348: u8,
-        pub flag_349: u8,
-        pub flag_350: u8,
-        pub flag_351: u8,
-        pub flag_352: u8,
-        pub flag_353: u8,
-        pub flag_354: u8,
-        pub flag_355: u8,
-        pub flag_356: u8,
-        pub allow_event_keys: CArray<CString<'a>>,
-        pub block_event_keys: CArray<CString<'a>>,
-        pub collision_tag_data_list: CArray<GimmickCollisionTagData<'a>>,
-        pub interaction_data_list: CArray<GimmickInteractionData<'a>>,
-        pub flag_424: u8,
-        pub flag_425: u8,
-        pub flag_426: u8,
-        pub field_list: CArray<GimmickFieldEntry>,
-        pub u32_pair_list: CArray<GimmickU32Pair>,
+        pub gimmick_node_data: GimmickNodeData<'a>,
+        pub stick_to_object_socket_list: CArray<CString<'a>>,
+        pub push_object_socket_list: CArray<CString<'a>>,
+        pub combination_alias_data_list: CArray<GimmickCombinationAliasData<'a>>,
+        pub combination_link_data_list: CArray<GimmickCombinationLinkData<'a>>,
+        pub elemental_material_info_list: CArray<GimmickElementalMaterialEntry>,
+        pub elemental_status_initial_stat_list: CArray<GimmickElementalStatusInitialStat>,
     }
 }
 

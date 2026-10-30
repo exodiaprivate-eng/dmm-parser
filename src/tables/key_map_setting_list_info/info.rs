@@ -48,8 +48,8 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct KeyMapSettingListInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
         pub key_map_setting_list: CArray<KeySetting<'a>>,
     }
