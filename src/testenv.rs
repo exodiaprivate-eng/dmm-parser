@@ -32,6 +32,18 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.04.02 - 2026-10-30 (Steam build 26329202, paver 0200040002000100...): content
+    // only. Tables: skill +1 record, value edits in gimmick/gimmickgroup/condition/uimaptexture/
+    // localstringinfo. No field-set change (Mac oracle 581 tables / 5034 fields both).
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-10-30-hotfix2",
+    // GAME VERSION 2.04.00 hotfix - 2026-10-30 (Steam build 26317560): the paver did NOT change
+    // (still 0200040000000100...), 146 game files did. Tables: value edits in 10, tribeinfo +1
+    // record (enum renumber), action_point/game_level/global_stage_sequencer grew (already 100%
+    // opaque). No field-set change (Mac oracle 581 tables / 5034 fields both). 714 pass / 0 fail.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-10-30-hotfix",
+    // GAME VERSION 2.04.00 - 2026-10-29 (Steam build 26308950, paver 0200040000000100...):
+    // the re-sequenced table layer + signed papgt. 714 pass / 0 fail.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-10-29-base",
     // GAME VERSION 2.03.02 hotfix - 2026-09-23 (Steam build 25477059, paver 020003000200e3cc19cb):
     // content only. 5 of 268 files changed, all gimmick tables (gimmickinfo +77 B, the rest
     // value edits), no new tables, no layout drift. Same 680 pass / 20 standing failures as

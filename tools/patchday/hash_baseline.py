@@ -5,8 +5,13 @@ this file so they never read a mounted game as vanilla.
 Refuses a mounted game (dmm* folders present), same rule as prepatch_capture.py.
     python tools/patchday/hash_baseline.py            # version read from meta/0.paver
     python tools/patchday/hash_baseline.py --diff     # also diff against the previous baseline
+
+A hotfix can ship WITHOUT changing meta/0.paver (2.04.00 -> Steam build 26317560 did). Then the
+file name is the same, so an existing baseline whose hashes differ is first kept as
+hashes_<ver>_b<steam build>_baseline.json and the diff runs against it. The plain name always
+describes the installed game, which is what the mod builders gate on.
 """
-import argparse, hashlib, io, json, os, struct, sys, time
+import argparse, hashlib, io, json, os, re, struct, sys, time
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 GAME = r"D:\SteamLibrary\steamapps\common\Crimson Desert"
 TOOLS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,13 +48,34 @@ for root, dirs, fs in os.walk(GAME):
         p = os.path.join(root, f)
         key = f if rel == "." else rel + "/" + f
         files[key] = {"sha256": sha(p), "size": os.path.getsize(p)}
-doc = {"file_count": len(files), "files": files, "game_dir": GAME, "paver": pv.hex(),
+def steam_build():
+    acf = os.path.join(os.path.dirname(os.path.dirname(GAME)), "appmanifest_3321460.acf")
+    try:
+        m = re.search(r'"buildid"\s+"(\d+)"', io.open(acf, encoding="utf-8").read())
+        return m.group(1) if m else None
+    except OSError:
+        return None
+
+build = steam_build()
+kept = None
+if os.path.exists(out):
+    old = json.load(io.open(out, encoding="utf-8"))
+    if {k: v["sha256"] for k, v in old["files"].items()} != {k: v["sha256"] for k, v in files.items()}:
+        tag = old.get("steam_buildid") or "pre" + old.get("timestamp", "unknown")[:10].replace("-", "")
+        kept = os.path.join(TOOLS, "hashes_%s_b%s_baseline.json" % (ver, tag))
+        if not os.path.exists(kept):
+            os.replace(out, kept)
+        print("same version %s, different files (a hotfix that kept the paver): the old baseline is kept as %s"
+              % (ver, os.path.basename(kept)))
+doc = {"file_count": len(files), "files": files, "game_dir": GAME, "paver": pv.hex(), "steam_buildid": build,
        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")}
 io.open(out, "w", encoding="utf-8").write(json.dumps(doc, indent=1, sort_keys=True))
-print("wrote %s  (%d files, game %s, paver %s)" % (out, len(files), ver, pv.hex()))
+print("wrote %s  (%d files, game %s, paver %s, Steam build %s)" % (out, len(files), ver, pv.hex(), build))
 
 if a.diff:
-    prev = sorted(x for x in os.listdir(TOOLS) if x.startswith("hashes_") and x.endswith("_baseline.json") and x != os.path.basename(out))
+    prev = [os.path.basename(kept)] if kept else sorted(
+        x for x in os.listdir(TOOLS)
+        if re.fullmatch(r"hashes_\d+\.\d+\.\d+(_hotfix)?_baseline\.json", x) and x != os.path.basename(out))
     if prev:
         pf = json.load(io.open(os.path.join(TOOLS, prev[-1]), encoding="utf-8"))["files"]
         ch = [k for k in files if k in pf and pf[k]["sha256"] != files[k]["sha256"]]
