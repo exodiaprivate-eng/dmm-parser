@@ -258,7 +258,15 @@ impl PackMeta {
         }
 
         // a group with its files at the root (0016: one paconfig.txt) has an empty dir trie
-        let name_format = if dir_names_buffer.is_empty() {
+        let name_format = if dir_names_buffer.is_empty() && file_names_buffer.is_empty() {
+            // No names to tell the layouts apart (the DLC's file-less groups, 2.04.00): what
+            // follows decides. The 2.04.00 layout still ends with its extension table (length,
+            // then that many bytes); the legacy layout ends here.
+            let rest = &data[offset..];
+            let tail_is_ext_table = rest.len() >= 4
+                && u32::from_le_bytes(rest[..4].try_into().unwrap()) as usize == rest.len() - 4;
+            if tail_is_ext_table { TrieFormat::Delta } else { TrieFormat::Legacy }
+        } else if dir_names_buffer.is_empty() {
             TrieFormat::detect(&file_names_buffer)
         } else {
             TrieFormat::detect(&dir_names_buffer)
@@ -488,5 +496,26 @@ impl PackMeta {
         out.write_all(&post_header)?;
 
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The DLC's file-less groups (2.04.00, `dlc/dlc_01/0001/0.pamt` and eight more): no
+    /// names to detect the layout from, but the file still ends with the 2.04.00 extension
+    /// table (length 1, one NUL). Read as legacy it left "5 bytes after the last table".
+    #[test]
+    fn a_file_less_204_pamt_reads_and_round_trips() {
+        let data: [u8; 33] = [
+            0xf3, 0xa2, 0xb5, 0x99, 0, 0, 0, 0, 0x32, 0x02, 0x0e, 0x61, 0, 0, 0, 0, //
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+        ];
+        let meta = PackMeta::parse(&data, None).expect("a file-less 2.04 PAMT parses");
+        assert!(meta.directories.is_empty() && meta.raw_files.is_empty());
+        assert_eq!(meta.name_format, TrieFormat::Delta);
+        assert_eq!(meta.extensions_buffer, vec![0]);
+        assert_eq!(meta.to_bytes().unwrap(), data.to_vec(), "byte-exact round trip");
     }
 }

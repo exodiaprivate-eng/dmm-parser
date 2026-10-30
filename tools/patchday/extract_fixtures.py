@@ -30,6 +30,7 @@ Usage
 """
 import argparse
 import os
+import re
 import sys
 import time
 
@@ -82,6 +83,19 @@ def live_name(dump_name_):
     return dump_name_
 ROOT = r"C:\temp\GIT\CrimsonDesertUpdates\pabgb"
 PAVER_NOTE = "paver.hex"
+# A hotfix can keep the paver (2.04.00 -> Steam build 26317560 changed 146 files, paver
+# byte-identical), so each set also records Steam's build id; a different one is a new build.
+STEAM_NOTE = "steam_build.txt"
+NOTES = (PAVER_NOTE, STEAM_NOTE)
+
+
+def read_steam_build():
+    acf = os.path.join(os.path.dirname(os.path.dirname(GAME)), "appmanifest_3321460.acf")
+    try:
+        m = re.search(r'"buildid"\s+"(\d+)"', open(acf, encoding="utf-8").read())
+        return m.group(1) if m else None
+    except OSError:
+        return None
 
 
 def read_paver():
@@ -162,16 +176,22 @@ def main():
     out = os.path.join(ROOT, out_name)
 
     paver = read_paver()
+    build = read_steam_build()
     print(f"game   {GAME}")
-    print(f"paver  {paver[:8].hex()}  = {describe(paver)}")
+    print(f"paver  {paver[:8].hex()}  = {describe(paver)}, Steam build {build}")
     print(f"prior  {prior_name}")
     print(f"out    {out_name}\n")
     assert_unmounted()
 
     prior_paver_path = os.path.join(prior, PAVER_NOTE)
+    prior_steam_path = os.path.join(prior, STEAM_NOTE)
+    prior_build = open(prior_steam_path).read().strip() if os.path.isfile(prior_steam_path) else None
+    new_steam_build = bool(build and prior_build and build != prior_build)
     if os.path.isfile(prior_paver_path):
         was = bytes.fromhex(open(prior_paver_path).read().strip())
-        if was[:6] == paver[:6] and not a.force:
+        if was[:6] == paver[:6] and new_steam_build:
+            print(f"same paver as '{prior_name}' but Steam build {prior_build} -> {build}: a hotfix that kept the paver\n")
+        elif was[:6] == paver[:6] and not a.force:
             sys.exit(
                 f"REFUSING: the live game is still {describe(paver)}, the same build "
                 f"'{prior_name}' was captured from.\n"
@@ -185,7 +205,7 @@ def main():
         sys.exit("REFUSING: output and prior are the same directory")
     os.makedirs(out, exist_ok=True)
 
-    names = sorted(n for n in os.listdir(prior) if n != PAVER_NOTE)
+    names = sorted(n for n in os.listdir(prior) if n not in NOTES)
     ok, miss, err = 0, [], []
     for name in names:
         try:
@@ -200,6 +220,8 @@ def main():
                 err.append((name, msg[:90]))
 
     open(os.path.join(out, PAVER_NOTE), "w").write(paver.hex())
+    if build:
+        open(os.path.join(out, STEAM_NOTE), "w").write(build)
     print(f"extracted {ok}/{len(names)} into {out}")
     if miss:
         print(f"\nMISSING from the patched game ({len(miss)}) "

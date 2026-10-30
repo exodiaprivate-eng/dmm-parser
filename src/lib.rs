@@ -227,10 +227,15 @@ mod tests {
     fn test_every_group_pamt_parses_and_roundtrips() {
         use crate::binary::TrieFormat;
         let game_dir = fixture_or_skip!(find_game_dir, "game dir");
-        let mut groups: Vec<_> = std::fs::read_dir(&game_dir)
-            .unwrap()
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
+        // The base root, plus every installed DLC root (`dlc/dlc_01/`, 2.04.00 on), which
+        // carries its own numbered groups, some of them file-less.
+        let mut roots = vec![game_dir.clone()];
+        if let Ok(dlcs) = std::fs::read_dir(game_dir.join("dlc")) {
+            roots.extend(dlcs.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.is_dir()));
+        }
+        let mut groups: Vec<_> = roots
+            .iter()
+            .flat_map(|root| std::fs::read_dir(root).unwrap().filter_map(|e| e.ok()).map(|e| e.path()))
             .filter(|p| p.join("0.pamt").exists())
             .collect();
         groups.sort();
