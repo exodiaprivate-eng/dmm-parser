@@ -15,6 +15,10 @@ use std::io::{self, Write};
 
 macro_rules! define_key {
     ($name:ident, $inner:ty) => {
+        define_key!($name, $inner, json_from = <$inner as WriteJsonValue>::write_from_json);
+    };
+    // `json_from` = how a JSON value becomes the key's bytes.
+    ($name:ident, $inner:ty, json_from = $json_from:expr) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub struct $name(pub $inner);
 
@@ -66,7 +70,7 @@ macro_rules! define_key {
 
         impl WriteJsonValue for $name {
             fn write_from_json(w: &mut Vec<u8>, v: &::serde_json::Value) -> ::std::io::Result<()> {
-                <$inner as WriteJsonValue>::write_from_json(w, v)
+                $json_from(w, v)
             }
         }
     };
@@ -90,7 +94,10 @@ define_key!(MultiChangeKey, u32);
 define_key!(ReserveSlotKey, u32);
 define_key!(SkillKey, u32);
 define_key!(StatusKey, u32);
-define_key!(StringInfoKey, u32);
+// A StringInfoKey also accepts TEXT from JSON: game 2.04.00 turned many string fields into
+// StringInfoKeys (ItemInfo `emoji_texture_id`, `unk_texture_path`, ...), and a mod authored
+// before that carries the text ("" for none). It becomes the key the game uses for that text.
+define_key!(StringInfoKey, u32, json_from = crate::json_traits::write_string_info_key);
 define_key!(TribeInfoKey, u32);
 
 // u16 keys
@@ -116,6 +123,16 @@ mod tests {
         let mut out = Vec::new();
         key.write_to(&mut out).unwrap();
         assert_eq!(out, bytes);
+    }
+
+    #[test]
+    fn a_string_info_key_takes_text_from_json() {
+        let mut w = Vec::new();
+        StringInfoKey::write_from_json(&mut w, &serde_json::json!("")).unwrap();
+        assert_eq!(w, crate::json_traits::STRING_INFO_KEY_NONE.to_le_bytes(), "\"\" is the none key");
+        let mut w = Vec::new();
+        StringInfoKey::write_from_json(&mut w, &serde_json::json!(1423435371u32)).unwrap();
+        assert_eq!(w, 1423435371u32.to_le_bytes(), "a number passes through");
     }
 
     #[test]

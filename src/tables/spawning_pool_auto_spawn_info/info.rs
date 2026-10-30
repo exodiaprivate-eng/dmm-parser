@@ -21,7 +21,7 @@ py_binary_struct! {
     // 2.04.00 order (Mac reader sub_10206A8A8), with the game's names. The pre-2.04 model was
     // a width fit: its `terminator` byte after the spawn list (and the N-1 "separators"
     // between entries) were each AutoSpawnEntry's `_indoorType`, which the entry reads itself
-    // now. DMM's wildlife preset only addresses `spawn_list[*]`, whose names are unchanged.
+    // now.
     pub struct SpawningPoolAutoSpawnInfo<'a> {
         pub string_key: CString<'a>,
         pub key: u32,
