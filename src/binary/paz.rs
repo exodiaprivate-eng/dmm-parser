@@ -642,36 +642,72 @@ pub fn extract_file(
             return Ok(decrypted);
         }
         let total = file.file.uncompressed_size as usize;
-        let looks_dds = decrypted.len() >= 128 && &decrypted[..4] == b"DDS ";
-        if looks_dds {
-            let hdr_sz = if decrypted.len() >= 88 && &decrypted[84..88] == b"DX10" {
-                148
-            } else {
-                128
-            };
-            if hdr_sz < total && decrypted.len() > hdr_sz {
-                let body_uncomp = total - hdr_sz;
-                match lz4_flex::block::decompress(&decrypted[hdr_sz..], body_uncomp) {
-                    Ok(body) => {
-                        let mut out = Vec::with_capacity(total);
-                        out.extend_from_slice(&decrypted[..hdr_sz]);
-                        out.extend_from_slice(&body);
-                        return Ok(out);
-                    }
-                    // Multi-mip / per-mip layout we don't model: return the raw
-                    // bytes so callers can still read the DDS header (dims, format,
-                    // mip count) for inspection rather than failing outright.
-                    Err(_) => return Ok(decrypted),
-                }
-            }
+        if let Some(out) = decode_partial(&decrypted, total) {
+            return Ok(out);
         }
-        // Non-DDS `is_partial` with comp != decomp: best-effort whole-buffer LZ4,
-        // falling back to raw bytes rather than erroring.
+        // A layout we don't model (`.pamlod`, multi-mip DDS): best-effort whole-buffer
+        // LZ4, falling back to the stored bytes so a DDS header can still be read.
         return Ok(
             decompress(&decrypted, Compression::Lz4, total).unwrap_or(decrypted)
         );
     }
     decompress(&decrypted, file.file.compression, file.file.uncompressed_size as usize)
+}
+
+/// A partial-stored entry (compression nibble 1, stored size != real size): the file's own
+/// header kept as it is and only its bulk LZ4-compressed, in the file's own layout. `total` is
+/// the entry's real size; `None` for a layout not modelled here (`.pamlod`) or bytes that do not
+/// add up to it exactly. Measured on game 2.04.02: every partial `.pac` (3,003) and `.pam`
+/// (5,581 base) decodes to exactly its real size.
+///
+/// * DDS: the 128-byte header (148 with DX10) as is, then one LZ4 block of the mips.
+/// * `.pac` (`PAR `, version `0x01000903`): a 0x50-byte header whose 8 entries at 0x10 are
+///   (stored size, real size) per section; stored size 0 = the section is stored as is,
+///   else it is one LZ4 block. Decoded, every stored size reads 0, as in a `.pac` the game
+///   stores uncompressed.
+/// * `.pam` (`PAR `, versions `0x1802` / `0x01001806`): (data offset, real size, stored size)
+///   at 0x3C; the header up to the data offset as is, one LZ4 block, then the rest as is.
+///   Decoded, the stored size reads 0, as in a `.pam` stored uncompressed.
+pub fn decode_partial(stored: &[u8], total: usize) -> Option<Vec<u8>> {
+    let u32_at = |o: usize| stored.get(o..o + 4).map(|b| u32::from_le_bytes(b.try_into().unwrap()) as usize);
+    let lz4 = |data: &[u8], size: usize| lz4_flex::block::decompress(data, size).ok().filter(|b| b.len() == size);
+    if stored.len() >= 128 && &stored[..4] == b"DDS " {
+        let hdr = if &stored[84..88] == b"DX10" { 148 } else { 128 };
+        let body = lz4(stored.get(hdr..)?, total.checked_sub(hdr)?)?;
+        return Some([&stored[..hdr], &body[..]].concat());
+    }
+    if stored.len() < 0x50 || &stored[..4] != b"PAR " {
+        return None;
+    }
+    // `.pac`: the section table accounts for every stored and every real byte.
+    let sections: Vec<(usize, usize)> = (0..8).map(|i| Some((u32_at(0x10 + 8 * i)?, u32_at(0x14 + 8 * i)?))).collect::<Option<_>>()?;
+    let stored_sum = sections.iter().map(|&(c, s)| if c == 0 { s } else { c }).sum::<usize>();
+    let real_sum = sections.iter().map(|&(_, s)| s).sum::<usize>();
+    if 0x50 + stored_sum == stored.len() && 0x50 + real_sum == total && sections.iter().any(|&(c, _)| c != 0) {
+        let mut out = Vec::with_capacity(total);
+        out.extend_from_slice(&stored[..0x50]);
+        let mut at = 0x50;
+        for (i, &(comp, size)) in sections.iter().enumerate() {
+            if comp == 0 {
+                out.extend_from_slice(&stored[at..at + size]);
+                at += size;
+            } else {
+                out.extend_from_slice(&lz4(&stored[at..at + comp], size)?);
+                out[0x10 + 8 * i..0x14 + 8 * i].fill(0);
+                at += comp;
+            }
+        }
+        return Some(out);
+    }
+    // `.pam`: one block at the data offset.
+    let (off, size, comp) = (u32_at(0x3C)?, u32_at(0x40)?, u32_at(0x44)?);
+    if comp != 0 && off >= 0x48 && off + comp <= stored.len() && stored.len() - comp + size == total {
+        let body = lz4(&stored[off..off + comp], size)?;
+        let mut out = [&stored[..off], &body[..], &stored[off + comp..]].concat();
+        out[0x44..0x48].fill(0);
+        return Some(out);
+    }
+    None
 }
 
 #[cfg(test)]
@@ -681,6 +717,50 @@ mod tests {
 
     fn make_tempdir() -> tempfile::TempDir {
         tempdir().expect("failed to create temp dir")
+    }
+
+    /// A partial `.pac`: header, a section stored as is, a section as one LZ4 block. Decoded,
+    /// the sections follow the header and every stored size reads 0.
+    #[test]
+    fn partial_pac_sections_decode() {
+        let raw_section = b"skeleton".to_vec();
+        let mesh: Vec<u8> = (0..4000u32).flat_map(|i| (i % 97).to_le_bytes()).collect();
+        let packed = lz4_flex::block::compress(&mesh);
+        let mut stored = vec![0u8; 0x50];
+        stored[..8].copy_from_slice(b"PAR \x03\x09\x00\x01");
+        stored[0x14..0x18].copy_from_slice(&(raw_section.len() as u32).to_le_bytes());
+        stored[0x18..0x1C].copy_from_slice(&(packed.len() as u32).to_le_bytes());
+        stored[0x1C..0x20].copy_from_slice(&(mesh.len() as u32).to_le_bytes());
+        stored.extend_from_slice(&raw_section);
+        stored.extend_from_slice(&packed);
+        let total = 0x50 + raw_section.len() + mesh.len();
+        let out = decode_partial(&stored, total).unwrap();
+        assert_eq!(out.len(), total);
+        assert_eq!(&out[0x50..0x58], b"skeleton");
+        assert_eq!(&out[0x58..], &mesh[..]);
+        assert_eq!(&out[0x18..0x1C], &[0, 0, 0, 0], "the section reads as stored uncompressed");
+        // Sizes that do not add up: not guessed at.
+        assert!(decode_partial(&stored, total + 1).is_none());
+    }
+
+    /// A partial `.pam`: the header to the data offset as is, one LZ4 block, the rest as is.
+    #[test]
+    fn partial_pam_block_decodes() {
+        let body: Vec<u8> = (0..3000u32).flat_map(|i| (i % 13).to_le_bytes()).collect();
+        let packed = lz4_flex::block::compress(&body);
+        let off = 0x60;
+        let mut stored = vec![0u8; off];
+        stored[..8].copy_from_slice(b"PAR \x02\x18\x00\x00");
+        stored[0x3C..0x40].copy_from_slice(&(off as u32).to_le_bytes());
+        stored[0x40..0x44].copy_from_slice(&(body.len() as u32).to_le_bytes());
+        stored[0x44..0x48].copy_from_slice(&(packed.len() as u32).to_le_bytes());
+        stored.extend_from_slice(&packed);
+        stored.extend_from_slice(&[7u8; 12]);
+        let total = off + body.len() + 12;
+        let out = decode_partial(&stored, total).unwrap();
+        assert_eq!(&out[off..off + body.len()], &body[..]);
+        assert_eq!(&out[off + body.len()..], &[7u8; 12]);
+        assert_eq!(&out[0x44..0x48], &[0, 0, 0, 0]);
     }
 
     #[test]

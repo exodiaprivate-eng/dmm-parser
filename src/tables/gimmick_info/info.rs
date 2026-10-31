@@ -1971,6 +1971,7 @@ impl<'a> GimmickTail<'a> {
                 // values scanned out of the raw post-body blob (see drop_info_scan).
                 m.insert("drop_info_data_list".to_string(),
                          super::drop_info_scan::reward_list_json(post_blob));
+                insert_buyable(&mut m, post_blob);
                 Value::Object(m)
             }
             GimmickTail::Raw(b) => {
@@ -1979,6 +1980,7 @@ impl<'a> GimmickTail<'a> {
                 m.insert("_b64".to_string(), Value::String(B64.encode(b)));
                 m.insert("drop_info_data_list".to_string(),
                          super::drop_info_scan::reward_list_json(b));
+                insert_buyable(&mut m, b);
                 Value::Object(m)
             }
         }
@@ -2034,6 +2036,9 @@ impl<'a> GimmickTail<'a> {
                 if let Some(list) = obj.get("drop_info_data_list") {
                     super::drop_info_scan::patch_blob_from_json(&mut bytes, list);
                 }
+                if let Some(list) = obj.get("buyable_drop_item") {
+                    super::drop_info_scan::patch_buyable_from_json(&mut bytes, list);
+                }
                 w.extend_from_slice(&bytes);
                 Ok(())
             }
@@ -2046,12 +2051,24 @@ impl<'a> GimmickTail<'a> {
                 if let Some(list) = obj.get("drop_info_data_list") {
                     super::drop_info_scan::patch_blob_from_json(&mut bytes, list);
                 }
+                if let Some(list) = obj.get("buyable_drop_item") {
+                    super::drop_info_scan::patch_buyable_from_json(&mut bytes, list);
+                }
                 w.extend_from_slice(&bytes);
                 Ok(())
             }
             other => Err(io::Error::new(io::ErrorKind::InvalidData,
                 format!("GimmickTail.kind: unknown variant {:?}", other))),
         }
+    }
+}
+
+/// `_buyableDropItem`, the optional reward row after the drop list (see `drop_info_scan`), as
+/// `buyable_drop_item`: only on records that have one (227 on game 2.04), so the rest read as before.
+fn insert_buyable(m: &mut Map<String, Value>, blob: &[u8]) {
+    let rows = super::drop_info_scan::buyable_drop_json(blob);
+    if rows.as_array().is_some_and(|a| !a.is_empty()) {
+        m.insert("buyable_drop_item".to_string(), rows);
     }
 }
 
