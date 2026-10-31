@@ -6321,10 +6321,15 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// Tag 36 (CheckKnowledge) on game 2.04: the 9-byte body named the way mods already address
+    /// it (`game_condition.tree.data.variant.body.knowledge_key`): field names are part of the
+    /// mod contract, and the generic f0/f1/f2 made a clone's knowledge patch land nowhere.
+    /// knowledge_key = the knowledgeinfo key (checked on 2.04.02: Knowledge_Delesyia 35246,
+    /// Knowledge_Camp_Worker 1003312).
     pub struct ConditionData_CheckKnowledgePayload204 {
-        pub f0: u32,
-        pub f1: u32,
-        pub f2: u8,
+        pub knowledge_key: u32,
+        pub field_at_28: u32,
+        pub field_at_32: u8,
     }
 }
 
