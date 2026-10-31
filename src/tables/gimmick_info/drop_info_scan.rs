@@ -97,12 +97,17 @@ pub struct RewardEntry {
     pub off_vary: Option<usize>,
 }
 
-/// A reward list found at `offset` in the blob (either `_dropInfoDataList` or
-/// `_buyableDropItem` — indistinguishable by content, both editable the same way).
+/// A reward list found at `offset` in the blob (`_dropInfoDataList`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct RewardList {
     pub offset: usize,
     pub entries: Vec<RewardEntry>,
+    /// `_buyableDropItem`: the optional `DropInfoData` stored right after the list
+    /// (`present:u8` + `DropInfoData`). Game 2.04 has it on 227 records, all
+    /// shop/loot containers (fruit baskets, potion boxes, sacks), always the same
+    /// item as the list's first row. Not part of `entries`, so the list's indices
+    /// stay what they were.
+    pub buyable: Option<RewardEntry>,
 }
 
 #[inline]
@@ -198,7 +203,19 @@ fn try_read_list(
     if item_hits == 0 {
         return None;
     }
-    Some((RewardList { offset: off, entries }, p))
+    let buyable = read_buyable(b, p, ly, is_real_item);
+    Some((RewardList { offset: off, entries, buyable }, p))
+}
+
+/// The `_buyableDropItem` after a list ending at `off`: accepted only when present,
+/// an item tag with a real key and a plausible count, the same guards a list row passes.
+fn read_buyable(b: &[u8], off: usize, ly: Layout, is_real_item: &dyn Fn(u32) -> bool) -> Option<RewardEntry> {
+    if *b.get(off)? != 1 {
+        return None;
+    }
+    let (e, _) = read_drop_info(b, off + 1, ly)?;
+    let plausible = (0..=COUNT_CAP).contains(&e.min_value) && (e.min_value..=COUNT_CAP).contains(&e.max_value);
+    (plausible && is_item_tag(e.type_tag) && is_real_item(e.item_key)).then_some(e)
 }
 
 /// Scan a blob for every non-overlapping, iteminfo-validated reward list.
@@ -286,21 +303,26 @@ fn is_real_item_default(k: u32) -> bool {
 /// flattened across every found list (order-stable = scan order).
 pub fn reward_list_json(blob: &[u8]) -> Value {
     let lists = scan_reward_lists(blob, &is_real_item_default);
-    let mut arr = Vec::new();
-    for list in &lists {
-        for e in &list.entries {
-            let mut m = Map::new();
-            m.insert("item_key".into(), Value::from(e.item_key));
-            m.insert("type_tag".into(), Value::from(e.type_tag));
-            m.insert("min_value".into(), Value::from(e.min_value));
-            m.insert("max_value".into(), Value::from(e.max_value));
-            if let Some(v) = e.vary_friendly {
-                m.insert("vary_friendly".into(), Value::from(v));
-            }
-            arr.push(Value::Object(m));
-        }
+    Value::Array(lists.iter().flat_map(|l| l.entries.iter()).map(entry_json).collect())
+}
+
+/// The `_buyableDropItem` rows of a blob as a JSON array, in scan order (one per
+/// reward list that has one; empty when none). Shape as [`reward_list_json`].
+pub fn buyable_drop_json(blob: &[u8]) -> Value {
+    let lists = scan_reward_lists(blob, &is_real_item_default);
+    Value::Array(lists.iter().filter_map(|l| l.buyable.as_ref()).map(entry_json).collect())
+}
+
+fn entry_json(e: &RewardEntry) -> Value {
+    let mut m = Map::new();
+    m.insert("item_key".into(), Value::from(e.item_key));
+    m.insert("type_tag".into(), Value::from(e.type_tag));
+    m.insert("min_value".into(), Value::from(e.min_value));
+    m.insert("max_value".into(), Value::from(e.max_value));
+    if let Some(v) = e.vary_friendly {
+        m.insert("vary_friendly".into(), Value::from(v));
     }
-    Value::Array(arr)
+    Value::Object(m)
 }
 
 /// Patch a blob in place from an edited `drop_info_data_list` JSON array. The
@@ -309,13 +331,21 @@ pub fn reward_list_json(blob: &[u8]) -> Value {
 /// `max_value` / `vary_friendly` is written back positionally. A shape mismatch
 /// (count differs) leaves the blob untouched — a safe no-op rather than a guess.
 pub fn patch_blob_from_json(blob: &mut [u8], list_json: &Value) {
-    let Some(edits) = list_json.as_array() else { return };
-    // Recover the same flattened entry order the read produced.
     let lists = scan_reward_lists(blob, &is_real_item_default);
-    let mut flat: Vec<RewardEntry> = Vec::new();
-    for l in &lists {
-        flat.extend(l.entries.iter().cloned());
-    }
+    // Recover the same flattened entry order the read produced.
+    let flat: Vec<RewardEntry> = lists.iter().flat_map(|l| l.entries.iter().cloned()).collect();
+    patch_entries(blob, flat, list_json);
+}
+
+/// [`patch_blob_from_json`] for an edited `buyable_drop_item` array.
+pub fn patch_buyable_from_json(blob: &mut [u8], list_json: &Value) {
+    let lists = scan_reward_lists(blob, &is_real_item_default);
+    let flat: Vec<RewardEntry> = lists.iter().filter_map(|l| l.buyable.clone()).collect();
+    patch_entries(blob, flat, list_json);
+}
+
+fn patch_entries(blob: &mut [u8], flat: Vec<RewardEntry>, list_json: &Value) {
+    let Some(edits) = list_json.as_array() else { return };
     if flat.len() != edits.len() {
         return; // structure drifted — don't risk a mispatch
     }
@@ -386,6 +416,32 @@ mod tests {
         patch_entry(&mut b, &e);
         let after = scan_reward_lists(&b, &real)[0].entries[0].clone();
         assert_eq!((after.min_value, after.max_value), (5, 10));
+    }
+
+    /// shops_fruitlbasket_04 on game 2.04: a one-row list, then `present=1` and the
+    /// same row again as `_buyableDropItem`. Read and patched apart from the list.
+    #[test]
+    fn buyable_drop_item_after_the_list() {
+        let mut b = item_drop_blob(750006, 4, 4);
+        let row = b[5..b.len() - 4].to_vec();
+        b.push(1);
+        b.extend_from_slice(&row);
+        b.extend_from_slice(&0u32.to_le_bytes());
+        let real = |k: u32| k == 750006;
+        let lists = scan_reward_lists(&b, &real);
+        assert_eq!(lists.len(), 1);
+        assert_eq!(lists[0].entries.len(), 1);
+        let buy = lists[0].buyable.clone().unwrap();
+        assert_eq!((buy.item_key, buy.min_value, buy.max_value), (750006, 4, 4));
+        // Patched alone: the list row keeps its values.
+        let mut e = buy.clone();
+        e.min_value = 20;
+        e.max_value = 20;
+        patch_entry(&mut b, &e);
+        let after = scan_reward_lists(&b, &real);
+        assert_eq!((after[0].entries[0].min_value, after[0].buyable.as_ref().unwrap().max_value), (4, 20));
+        // No presence byte: no buyable row.
+        assert!(scan_reward_lists(&item_drop_blob(750006, 1, 2), &real)[0].buyable.is_none());
     }
 
     #[test]

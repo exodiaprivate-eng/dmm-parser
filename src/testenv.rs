@@ -32,6 +32,10 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.04.03 - 2026-10-31 (Steam build 26345091, paver 0200040003000100...): content
+    // only. Tables: localstringinfo +1 record, value edits in skill/uimaptextureinfo. No field-set
+    // change (Mac oracle 581 tables / 5034 fields both).
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-10-31-hotfix3",
     // GAME VERSION 2.04.02 - 2026-10-30 (Steam build 26329202, paver 0200040002000100...): content
     // only. Tables: skill +1 record, value edits in gimmick/gimmickgroup/condition/uimaptexture/
     // localstringinfo. No field-set change (Mac oracle 581 tables / 5034 fields both).
