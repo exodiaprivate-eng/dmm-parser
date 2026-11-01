@@ -159,6 +159,7 @@ fn apply_single(
                 return Ok(Some(reason));
             }
             set_value_at_path(&mut records[idx], field, new.clone())?;
+            refresh_views_of_raw_bytes(&mut records[idx], field);
             index.refresh(records, idx);
             Ok(None)
         }
@@ -362,12 +363,30 @@ fn blob_fallback_skip(
 
 /// Apply each `Patch` to `record`. Defaults to `set` per
 /// [`crate::intents::types::Patch`].
+/// After a set on raw bytes that other fields of the same object are read from (gimmickinfo's
+/// `tail._b64`), those fields are read again from the new bytes (see `refresh_tail_views`).
+fn refresh_views_of_raw_bytes(record: &mut Value, path: &str) {
+    let Some((parent, last)) = path.rsplit_once('.') else { return };
+    if !last.ends_with("_b64") {
+        return;
+    }
+    // `tail` / `a.b[2].c` as a JSON pointer (`/tail`, `/a/b/2/c`)
+    let pointer: String = parent.split('.').flat_map(|s| s.split(['[', ']'])).filter(|s| !s.is_empty())
+        .map(|s| format!("/{}", s.replace('~', "~0").replace('/', "~1"))).collect();
+    if let Some(Value::Object(obj)) = record.pointer_mut(&pointer) {
+        if obj.contains_key("drop_info_data_list") {
+            crate::tables::gimmick_info::info::refresh_tail_views(obj);
+        }
+    }
+}
+
 fn apply_patches(record: &mut Value, patches: &[Patch]) -> Result<(), ApplyError> {
     for p in patches {
         let op = p.op.as_deref().unwrap_or("set");
         match op {
             "set" => {
                 set_value_at_path(record, &p.path, p.new.clone())?;
+                refresh_views_of_raw_bytes(record, &p.path);
             }
             "array_append" => {
                 array_append_at_path(record, &p.path, p.new.clone())?;

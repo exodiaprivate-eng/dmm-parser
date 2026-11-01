@@ -2072,6 +2072,23 @@ fn insert_buyable(m: &mut Map<String, Value>, blob: &[u8]) {
     }
 }
 
+/// A set on the tail's raw bytes (`_b64`, `_post_blob_b64`) leaves `drop_info_data_list` and
+/// `buyable_drop_item` as read from the game's bytes, and the write patches those views back over
+/// the blob: the game's values went over the mod's edit while it counted as applied (Lucifyyz,
+/// DMM 4.6.1: 450 values on 225 records). The views are read again from the new bytes, so writing
+/// them back changes nothing; a later edit of a view still lands on top.
+pub fn refresh_tail_views(tail: &mut Map<String, Value>) {
+    let Some(b64) = ["_b64", "_post_blob_b64"].iter().find_map(|k| tail.get(*k).and_then(Value::as_str)) else {
+        return;
+    };
+    let Ok(bytes) = B64.decode(b64) else { return };
+    if tail.contains_key("drop_info_data_list") {
+        tail.insert("drop_info_data_list".to_string(), super::drop_info_scan::reward_list_json(&bytes));
+    }
+    tail.remove("buyable_drop_item");
+    insert_buyable(tail, &bytes);
+}
+
 /// 2.04.00 (Mac reader `sub_10205A584`, 220 fields): stringKey, key, isBlocked, prefabPath, then
 /// the rest of the record re-sequenced (gimmickGroupInfo and breakableObjectInfo now sit among
 /// the lookups near the end). The pre-2.04 `GimmickTail::Decoded` walk is the 2.03 order, so
@@ -2169,6 +2186,37 @@ mod tests {
         };
     }
 
+
+    /// A mod that edits `_buyableDropItem` through the raw tail (`tail._b64`, the form used before
+    /// `buyable_drop_item` was named) must keep its edit: the write used to patch the game's values
+    /// back from the stale view, while the edit counted as applied (Lucifyyz, DMM 4.6.1).
+    #[test]
+    fn a_raw_tail_edit_of_the_buyable_row_survives_the_write() {
+        let (data, pabgh_data) = load_or_skip!();
+        let records = crate::dispatch::parse_table_to_json("gimmick_info", &data, Some(&pabgh_data)).unwrap();
+        let Some(rec) = records.iter().find(|r| r["tail"].get("buyable_drop_item").is_some() && r["tail"].get("_b64").is_some())
+        else { eprintln!("SKIP: no Raw record with a buyable row"); return; };
+        let name = rec["string_key"].as_str().unwrap().to_string();
+        let mut view = rec["tail"]["buyable_drop_item"].clone();
+        let old = view[0]["max_value"].as_i64().unwrap();
+        let want = if old == 77 { 78 } else { 77 };
+        view[0]["min_value"] = want.into();
+        view[0]["max_value"] = want.into();
+        let mut bytes = B64.decode(rec["tail"]["_b64"].as_str().unwrap()).unwrap();
+        super::super::drop_info_scan::patch_buyable_from_json(&mut bytes, &view);
+        let intent = crate::intents::Intent {
+            entry: Some(name.clone()),
+            field: Some("tail._b64".into()),
+            new: Some(Value::String(B64.encode(&bytes))),
+            ..Default::default()
+        };
+        let (body, head, _) =
+            crate::dispatch::apply_intents_to_table_body("gimmick_info", &data, Some(&pabgh_data), &[intent]).unwrap();
+        let after = crate::dispatch::parse_table_to_json("gimmick_info", &body, head.as_deref().or(Some(&pabgh_data))).unwrap();
+        let rec = after.iter().find(|r| r["string_key"] == name.as_str()).unwrap();
+        assert_eq!(rec["tail"]["buyable_drop_item"][0]["max_value"], want, "{name}: the raw edit was undone");
+        assert_eq!(rec["tail"]["buyable_drop_item"][0]["min_value"], want);
+    }
 
     #[test]
     fn roundtrip() {
