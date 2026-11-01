@@ -32,6 +32,10 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.04.05 - 2026-11-01 (Steam build 26361232, paver 0200040005000100...): content
+    // only. Tables: value edits in uimaptextureinfo; the DLC's stage (+2 records), condition,
+    // mission, quest and string tables changed. No table changed size in the base game.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-11-01-hotfix5",
     // GAME VERSION 2.04.04 - 2026-10-31 (Steam build 26356046, paver 0200040004000100...): content
     // only. Tables: value edits in gimmick (one record +525 B)/gimmickgroup/uimaptextureinfo. No
     // field-set change (Mac oracle 581 tables / 5034 fields both).
