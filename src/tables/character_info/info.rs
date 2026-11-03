@@ -978,14 +978,17 @@ py_binary_struct! {
         pub e: StatBalance,
     }
 }
-// `DataDefinedDefaultStatData` (2.04 Mac sub_10205CE70): max, min, initial, red zone, regen.
+// `DataDefinedDefaultStatData` (2.04 Mac sub_10205CE70): max, min, initial, regen, red zone.
+// Regen is the signed rate per tick: 1000 on the player's health, -50 and -1000 on gauges that
+// drain. Red zone is a threshold (65000 on the rows that have one). Zeroing the 4th field on the
+// player's health row stops health coming back in game; the 5th is already 0 there.
 py_binary_struct! {
     pub struct StatEntry40 {
         pub max_stat: u64,
         pub min_stat: u64,
         pub initial_stat: u64,
-        pub red_zone_stat: u64,
         pub regen_stat: u64,
+        pub red_zone_stat: u64,
     }
 }
 // `DataDefinedStaticStatData` (2.04 Mac sub_1020B67E4): max, min, initial.
@@ -1428,6 +1431,21 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for item in &items { item.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "characterinfo roundtrip mismatch");
+    }
+
+    /// The player's health regenerates at a positive rate, and a red zone is a threshold.
+    #[test]
+    fn a_stat_row_reads_regen_before_red_zone() {
+        let Ok(data) = std::fs::read(pabgb_path()) else { eprintln!("SKIP: fixture not found"); return; };
+        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP: pabgh not found"); return; };
+        let ranges = entry_ranges(&entries, data.len());
+        let (_, s, e) = ranges.iter().find(|(k, _, _)| *k as u64 == 1).expect("the player's record");
+        let mut c = *s;
+        let item = CharacterInfo::read_with_size(&data, &mut c, e - s).unwrap();
+        let rows = &item.character_level_data_list.items[0].stat_list_data_defined_regenerate.items;
+        assert_eq!((rows[0].max_stat, rows[0].regen_stat, rows[0].red_zone_stat), (300000, 1000, 0));
+        assert_eq!((rows[12].regen_stat, rows[12].red_zone_stat), (0, 65000));
+        assert_eq!(rows[3].regen_stat as i64, -50);
     }
 
     /// Diagnostic: name the field a failing record dies on. `read_tracked_with_size`
