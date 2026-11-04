@@ -16,6 +16,7 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("is_blocked", "_isBlocked"),
     ("spawn_list", "_spawnList"),
     ("mesh_name_list", "_meshNameList"),
+    ("use_scene_collect_spawn", "_useSceneCollectSpawn"),
     ("spawning_pool_data", "_spawningPoolData"),
     ("type_", "_type"),
     ("near_inner_radius", "_nearInnerRadius"),

@@ -398,6 +398,8 @@ class ItemInfo(TypedDict):
     """MultiChangeKey (u32)."""
     item_memo: str
     filter_type: str
+    sound_name_on_max_charged: int
+    sound_socket_name_on_max_charged: int
     gimmick_info: int
     """GimmickInfoKey (u32)."""
     gimmick_tag_list: list[str]
