@@ -32,6 +32,10 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.04.06 - 2026-11-03 (Steam build 26423880, paver 0200040006000100...): ItemInfo
+    // +2 fields (8 bytes per record), SpawningPoolAutoSpawnInfo +1 field (1 byte per record), five
+    // item keys replaced, new records in condition, gameplaytrigger and string.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-11-03-hotfix6",
     // GAME VERSION 2.04.05 - 2026-11-01 (Steam build 26361232, paver 0200040005000100...): content
     // only. Tables: value edits in uimaptextureinfo; the DLC's stage (+2 records), condition,
     // mission, quest and string tables changed. No table changed size in the base game.

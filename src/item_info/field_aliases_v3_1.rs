@@ -44,6 +44,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("extract_multi_change_info", "_extractMultiChangeInfo"),
     ("item_memo", "_itemMemo"),
     ("filter_type", "_filterType"),
+    ("sound_name_on_max_charged", "_soundNameOnMaxCharged"),
+    ("sound_socket_name_on_max_charged", "_soundSocketNameOnMaxCharged"),
     ("gimmick_info", "_gimmickInfo"),
     ("gimmick_tag_list", "_gimmickTagList"),
     ("max_drop_result_sub_item_count", "_maxDropResultSubItemCount"),

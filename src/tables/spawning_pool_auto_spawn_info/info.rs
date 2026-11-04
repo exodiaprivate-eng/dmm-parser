@@ -40,6 +40,7 @@ py_binary_struct! {
         pub mesh_group_spawn_offset: [f32; 3],
         pub spawn_list: CArray<AutoSpawnEntry>,
         pub mesh_name_list: CArray<u32>,          // StringInfoKeys
+        pub use_scene_collect_spawn: u8,          // 2.04.06
         pub spawning_pool_data: u32,              // StringInfoKey
     }
 }
