@@ -202,9 +202,10 @@ py_binary_struct! {
         pub item_desc2: COptional<LocalizableString<'a>>,
         pub item_memo: CString<'a>,
         pub filter_type: CString<'a>,
-        // 2.04.06: 4 bytes each, 0 on every vanilla record, so a StringInfoKey like its neighbours.
-        pub sound_name_on_max_charged: StringInfoKey,
-        pub sound_socket_name_on_max_charged: StringInfoKey,
+        // 2.04.06: strings. Empty on every base game record; the DLC's table fills them
+        // (`env_walla_ship_combat_cannon_ready`), so only the DLC table shows the type.
+        pub sound_name_on_max_charged: CString<'a>,
+        pub sound_socket_name_on_max_charged: CString<'a>,
         // 2.04.00: read as a StringInfoKey (4 bytes), like `map_icon_path`; it was a string.
         pub unk_texture_path: StringInfoKey,
         // 2.04.00: read as a StringInfoKey (4 bytes); it was a string.
