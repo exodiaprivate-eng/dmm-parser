@@ -127,6 +127,16 @@ impl<'a> LocalizationFile<'a> {
             data[count_offset..].try_into().unwrap(),
         ) as usize;
 
+        // An entry is at least a u64 and two length-prefixed strings. Bytes that are not a string
+        // file end in a random "count": reserving for it asked for hundreds of GB, and a failed
+        // allocation ends the program with no error to report.
+        if entry_count.saturating_mul(16) > count_offset {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("not a string file: it claims {} strings in {} bytes", entry_count, data.len()),
+            ));
+        }
+
         let mut offset = 0;
         let mut entries = Vec::with_capacity(entry_count);
         for _ in 0..entry_count {
@@ -309,6 +319,14 @@ mod json_tests {
 
     fn build(entries: Vec<LocalizationEntry>) -> Vec<u8> {
         LocalizationFile { entries }.to_bytes().unwrap()
+    }
+
+    #[test]
+    fn bytes_that_are_not_a_string_file_are_an_error_not_a_huge_allocation() {
+        let mut junk = vec![0x41u8; 64];
+        junk.extend_from_slice(&0xF9F8_387Eu32.to_le_bytes());
+        let e = LocalizationFile::parse(&junk).unwrap_err();
+        assert!(e.to_string().contains("claims 4193794174 strings"), "{e}");
     }
 
     #[test]
