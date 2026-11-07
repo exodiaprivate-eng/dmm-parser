@@ -158,3 +158,8 @@ pub mod paac;
 pub mod paatt;
 pub mod pamhc;
 pub mod pappt;
+pub mod housing_object_group_info;
+pub mod housing_object_info;
+pub mod management_needs_synergy_info;
+pub mod management_buff_info;
+pub mod faction_management_info;
