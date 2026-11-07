@@ -551,6 +551,10 @@ pub fn apply_intents_to_table_body(
         .iter()
         .map(|i| {
             let mut c = i.clone();
+            // v3.1 canonical names (`_camelCase`) first: without this, a
+            // v3.1-named set inserted a junk key and changed nothing on every
+            // table except iteminfo (which normalizes in its own path).
+            crate::intents::normalize_intent_v3_1(&mut c, table_name);
             crate::intents::normalize_intent_community(&mut c, table_name);
             c
         })
@@ -1134,6 +1138,46 @@ pub fn serialize_table_from_json_shaped(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+    /// factionnode, game 2.04.08: a v3.1 (canonical `_camelCase`) set must
+    /// land like its snake twin, and a set on a name the table does not
+    /// have must come back Skipped instead of Applied-with-no-change.
+    /// Skips when the fixture is absent.
+    #[test]
+    fn apply_intents_v3_1_names_land_and_unknown_names_are_reported() {
+        use crate::intents::{ApplyStatus, Intent};
+        let body_p = crate::testenv::resolve("factionnode.pabgb");
+        let Ok(body) = std::fs::read(&body_p) else { eprintln!("SKIP: factionnode fixture"); return; };
+        let Ok(pabgh) = std::fs::read(body_p.with_extension("pabgh")) else { eprintln!("SKIP: pabgh"); return; };
+        let recs = parse_table_to_json("faction_node_info", &body, Some(&pabgh)).unwrap();
+        let key = recs[0]["key"].as_i64().unwrap();
+        let was = recs[0]["node_radius"].as_f64().unwrap();
+        let set = |field: &str, v: serde_json::Value| Intent {
+            op: Some("set".into()),
+            key: Some(key),
+            field: Some(field.into()),
+            new: Some(v),
+            ..Default::default()
+        };
+
+        // Canonical name -> same bytes as the snake name.
+        let (snake, _, o1) = apply_intents_to_table_body(
+            "factionnode", &body, Some(&pabgh), &[set("node_radius", serde_json::json!(was + 1.0))]).unwrap();
+        let (canon, _, o2) = apply_intents_to_table_body(
+            "factionnode", &body, Some(&pabgh), &[set("_nodeRadius", serde_json::json!(was + 1.0))]).unwrap();
+        assert!(matches!(o1[0].status, ApplyStatus::Applied));
+        assert!(matches!(o2[0].status, ApplyStatus::Applied));
+        assert_ne!(snake, body, "snake set must change the body");
+        assert_eq!(canon, snake, "v3.1 name must land like the snake name");
+
+        // Unknown name -> Skipped, body unchanged.
+        let (same, _, o3) = apply_intents_to_table_body(
+            "factionnode", &body, Some(&pabgh), &[set("node_radius_typo", serde_json::json!(1.0))]).unwrap();
+        assert!(matches!(&o3[0].status, ApplyStatus::Skipped(r) if r.contains("node_radius_typo")),
+            "got {:?}", o3[0].status);
+        assert_eq!(same, body);
+    }
 
     /// Resolve a sister-pabgh fixture path for a pabgh-bounded fixture
     /// candidate. Searches the same dirs as the lib.rs tests do.
