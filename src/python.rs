@@ -1543,6 +1543,89 @@ pub fn apply_intents(
     Ok(result.into_any().unbind())
 }
 
+/// Decode a whole `.paschedule` (`kind="paschedule"`) or
+/// `.paschedulepath` (`kind="paschedulepath"`) file to a dict of named
+/// fields (see `binary::paschedule_body`). Round-trips byte-exact with
+/// [`encode_paschedule_body`].
+#[pyfunction]
+pub fn decode_paschedule_body(py: Python<'_>, kind: &str, data: &[u8]) -> PyResult<Py<PyAny>> {
+    use crate::binary::paschedule_body as pb;
+    let v = match kind {
+        "paschedule" => pb::decode_paschedule(data),
+        "paschedulepath" => pb::decode_paschedulepath(data),
+        _ => return Err(PyValueError::new_err("kind must be 'paschedule' or 'paschedulepath'")),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &v)
+}
+
+/// Encode a dict from [`decode_paschedule_body`] back to file bytes.
+#[pyfunction]
+pub fn encode_paschedule_body(py: Python<'_>, kind: &str, doc: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    use crate::binary::paschedule_body as pb;
+    let v = py_to_json(doc)?;
+    let b = match kind {
+        "paschedule" => pb::encode_paschedule(&v),
+        "paschedulepath" => pb::encode_paschedulepath(&v),
+        _ => return Err(PyValueError::new_err("kind must be 'paschedule' or 'paschedulepath'")),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &b).into_any().unbind())
+}
+
+/// Apply intents to a `.paschedule` / `.paschedulepath` file.
+/// Returns `{"body": bytes, "outcomes": [{"op", "status", "reason"?}]}`.
+#[pyfunction]
+pub fn apply_paschedule_intents(
+    py: Python<'_>,
+    kind: &str,
+    data: &[u8],
+    intents: &Bound<'_, PyList>,
+) -> PyResult<Py<PyAny>> {
+    use crate::binary::paschedule_body as pb;
+    let intent_list: Vec<crate::intents::Intent> = intents
+        .iter()
+        .map(|item| {
+            let v = py_to_json(&item)?;
+            crate::intents::Intent::from_value(&v)
+                .map_err(|e| PyValueError::new_err(format!("intent: {}", e)))
+        })
+        .collect::<PyResult<_>>()?;
+    let (body, outcomes) = match kind {
+        "paschedule" => pb::apply_paschedule_intents(data, &intent_list),
+        "paschedulepath" => pb::apply_paschedulepath_intents(data, &intent_list),
+        _ => return Err(PyValueError::new_err("kind must be 'paschedule' or 'paschedulepath'")),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, &body))?;
+    let outcome_list = PyList::empty(py);
+    for o in outcomes {
+        let d = PyDict::new(py);
+        d.set_item("op", &o.op)?;
+        match o.status {
+            crate::intents::ApplyStatus::Applied => d.set_item("status", "applied")?,
+            crate::intents::ApplyStatus::Skipped(reason) => {
+                d.set_item("status", "skipped")?;
+                d.set_item("reason", &reason)?;
+            }
+        }
+        outcome_list.append(d)?;
+    }
+    result.set_item("outcomes", outcome_list)?;
+    Ok(result.into_any().unbind())
+}
+
+/// Cross-file rules between a `.paschedule` and its `.paschedulepath`
+/// (raw bytes). Returns a list of problems; empty = consistent.
+#[pyfunction]
+pub fn check_paschedule_pair(schedule: &[u8], path: &[u8]) -> PyResult<Vec<String>> {
+    use crate::binary::paschedule_body as pb;
+    let s = pb::decode_paschedule(schedule).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let p = pb::decode_paschedulepath(path).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(pb::check_schedule_path_pair(&s, &p))
+}
+
 /// Apply string-rebind intents to a single `.prefab` body via the fail-safe
 /// Phase-2 editor (same-length in-place, or differing-length with FILE_LEN +
 /// absolute-offset fixups and structural re-validation; on ANY doubt the edit
@@ -2356,6 +2439,10 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_table, m)?)?;
     m.add_function(wrap_pyfunction!(write_table_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(apply_intents, m)?)?;
+    m.add_function(wrap_pyfunction!(decode_paschedule_body, m)?)?;
+    m.add_function(wrap_pyfunction!(encode_paschedule_body, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_paschedule_intents, m)?)?;
+    m.add_function(wrap_pyfunction!(check_paschedule_pair, m)?)?;
     m.add_function(wrap_pyfunction!(apply_prefab_intents, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_target_name, m)?)?;
     m.add_function(wrap_pyfunction!(item_paloc_indices, m)?)?;
