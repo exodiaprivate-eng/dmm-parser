@@ -1,105 +1,215 @@
-//! Fully typed parser for `LevelGimmickSceneObjectInfo.pabgb` (165 records).
+//! Hand-corrected: typed parser for `LevelGimmickSceneObjectInfo.pabgb`,
+//! game 2.04.08.
 //!
-//! THE additive-NPC spawn lever — record 1000011 "Shop" holds ~500 town shop
-//! placements in `_levelGimmickSceneObjectDataList`. Reverse-engineered from the
-//! 1.12.02 Mac binary (ida-pro-mcp): record reader `sub_101F76270`, element
-//! reader `sub_101F75C18`. Field names from the Korean error strings, wire types
-//! from the per-field byte-count readers. Element wire = 221B for the Hernand
-//! butcher (matches the hand-decoded byte layout exactly). See
-//! `src/tables/LEVELGIMMICK_112_RE.md` for the full map.
+//! The 1.18 typed-blob layout (see `src/tables/LEVELGIMMICK_112_RE.md`) reads
+//! `key` first, but game 2.04 writes `string_key` FIRST (the same key-order
+//! change as npcactivitygroupinfo / contentsphaseinfo / actionpointinfo), so on
+//! 2.04.08 every record failed and came back as a whole-record `_blob_b64`
+//! fallback (249 of 249 base records, 79 of 79 dlc_01 records).
+//!
+//! 2.04 also reshaped the record: the per-record placement list
+//! (`_levelGimmickSceneObjectDataList`) is no longer in this table, the
+//! map-icon / distance scalars come first, and `level_name` moved behind
+//! `guide_effect_socket_name`. Decoded from the 2.04.08 game data (Steam build
+//! 26480954), not from the exe; names reuse the 1.18 canonical names where the
+//! values fit.
+//!
+//! Byte layout: confirmed. A fixed 65-byte head (key 4, is_blocked 1, 60 bytes
+//! of scalars), `ore_vein_index`, two CStrings and a 13-byte-element list.
+//! Every record round-trips byte for byte, and through JSON (tests below);
+//! the .pabgh offsets match the body.
+//!
+//! Comment tags: `C` = confirmed by the values / record names; `inferred` =
+//! meaning read from the values; `unk_` = meaning unknown (width confirmed by
+//! the round-trip). Offsets in field comments count from the first byte after
+//! `is_blocked`.
 
 use crate::binary::*;
 use crate::py_binary_struct;
-use crate::pabgh_typed_blob_table;
 
-// `LevelGimmickSceneObject_LinkedCompleteGimmick` element (sub_101FB3AA8 body):
-// 16B UUID + u32. Wire 20B/elem.
 py_binary_struct! {
-    pub struct LinkedCompleteGimmick {
-        pub scene_object_uuid: [u32; 4],
-        pub complete_gimmick_index: u32,
+    /// 13-byte element of `unk_entry_list` (same wire shape as
+    /// `GlobalGameEventListEntry`: u32, u8, u32, u32). Present only on the 18
+    /// dlc_01 `Management_Structure_*` records (2 entries each).
+    pub struct LevelGimmickSceneObjectEntry {
+        // a key in the 1,000,000+ range (1000064, 1001228, 1015521, ...)
+        pub unk_key: u32,
+        pub unk_u8: u8,
+        // hash-like value
+        pub unk_hash: u32,
+        pub unk_u32: u32,
     }
 }
 
-// `_worldTransform` / `_teleportOffsetTransform` (sub_100D39CD4) — 40 wire bytes,
-// read order: Vec3 + [u32;4] + Vec3.
 py_binary_struct! {
-    pub struct WorldTransform {
-        pub vec_a: [f32; 3],
-        pub raw: [u32; 4],
-        pub vec_b: [f32; 3],
-    }
-}
-
-// `LevelGimmickSceneObjectData` — one placement (element reader sub_101F75C18).
-py_binary_struct! {
-    pub struct LevelGimmickSceneObjectData<'a> {
-        pub level_gimmick_scene_object_info: u32,   // LevelGimmickSceneObjectInfoKey
-        pub gimmick_info: u32,                      // GimmickInfoKey
-        pub item_info: u32,                         // ItemKey
-        pub parent_spawning_pool_auto_spawn_info: u32,
-        // ── 1.18.00: `_prefabPath`, 4 bytes per ELEMENT, right after
-        // parentSpawningPoolAutoSpawnInfo (oracle idx 3).
-        // Per-record deltas are all multiples of 4 (0 x14, 4 x22, 8 x13, 12 x10, …)
-        // = 4 bytes per list element — and the 14 zero-delta records are exactly
-        // the ones that still decoded, which is what pinned it to the element.
-        //
-        // Modelled as CString rather than u32: the observed bytes are
-        // `00 00 00 00` everywhere, so an empty string and a zero hash are
-        // indistinguishable HERE — but if it turns out to be a hash, a non-zero
-        // value makes CString fail LOUDLY (absurd length -> blob fallback) instead
-        // of a u32 silently desyncing the rest of the element. This table already
-        // uses CString for `level_name` / `gimmick_alias_name`.
-        pub prefab_path: CString<'a>,
-        pub level_name: CString<'a>,                // placement/area key (Shop_Hernand_0001_Phase00_05_sub_1_0)
-        pub related_game_level_info: u32,           // GameLevelKey
-        pub level_name_controlled_by_game_level_info: u32, // StringInfoKey
-        pub scene_object_uuid: [u32; 4],            // 16B UUID
-        pub root_gimmick_scene_object_uuid: [u32; 4],
-        pub spawn_reason: u32,
-        pub gimmick_alias_name: CString<'a>,        // scene/shop ref (Shop_Butcher_Hernand)
-        pub world_transform: WorldTransform,        // position lives here
-        pub teleport_offset_transform: WorldTransform,
-        pub guide_effect_offset_position: [f32; 3],
-        pub fog_reveal_bitmap_color_r: u8,
-        pub linked_complete_gimmick_list: CArray<LinkedCompleteGimmick>,
-    }
-}
-
-pabgh_typed_blob_table! {
     pub struct LevelGimmickSceneObjectInfo<'a> {
-        pub key: u32,
         pub string_key: CString<'a>,
+        pub key: u32,
         pub is_blocked: u8,
-        pub level_name: CString<'a>,
-        // the placements (THE spawn list)
-        pub level_gimmick_scene_object_data_list: CArray<LevelGimmickSceneObjectData<'a>>,
-        // map/fog/discover scalars (all key-lookups are u32 wire)
-        pub map_icon_texture_info: u32,
-        pub discover_near_fog: u8,
-        pub fog_map_icon_texture_info: u32,
-        pub fog_distance: u32,           // sub_100D392D8 = u32 (4B), NOT u64
-        pub over_abyss_icon_texture_info: u32,
-        pub over_abyss_fog_map_icon_texture_info: u32,
-        pub over_abyss_fog_distance: u32,
-        pub discover_distance: u32,
-        pub show_icon_condition_type: u8,
-        pub use_teleport: u8,
-        pub use_guide_effect: u8,
-        pub is_sub_inner_gimmick: u8,
-        pub check_game_level_load_state: u8,
-        pub use_gimmick_knowledge_for_ui: u8,
-        pub check_block_condition: u8,
-        pub is_restore_stock_target_item: u8,
-        pub completed_discover_map_icon_texture_info: u32,
-        pub over_abyss_completed_discover_map_icon_texture_info: u32,
-        pub guide_effect_socket_name: CString<'a>,
-        pub ore_vein_index: u32,
-        pub contents_phase_info_for_move_point: u16,  // ContentsPhaseKey reader = u16 wire
+        // +0..+9: u8 flags (0/1), except +2
+        pub unk_u8_0: u8,
+        pub unk_u8_1: u8,
+        // +2: enum 0..9 (5 x145, 9 x108, 6 x27, 7 x18, ...)
+        pub unk_u8_2: u8,
+        pub unk_u8_3: u8,
+        pub unk_u8_4: u8,
+        pub unk_u8_5: u8,
+        pub unk_u8_6: u8,
+        pub unk_u8_7: u8,
+        pub unk_u8_8: u8,
+        pub unk_u8_9: u8,
+        // +10: ContentsPhaseKey, u16 (C: set only on 9 *MovePoint / TeleportPoint
+        // records, e.g. HousingMovePoint 16960, ManagementMovePoint_Pub 16968)
+        pub contents_phase_info_for_move_point: u16,
+        // +12..+32: six u32 keys in the 5,000-6,000 range (inferred:
+        // uimaptextureinfo keys = the 1.18 map-icon fields `_mapIconTextureInfo`,
+        // `_fogMapIconTextureInfo`, `_overAbyss*`, `_completedDiscover*`;
+        // which is which not confirmed). +16 is the common one (216 records).
+        pub map_texture_info_12: u32,
+        pub map_texture_info_16: u32,
+        pub map_texture_info_20: u32,
+        pub map_texture_info_24: u32,
+        pub map_texture_info_28: u32,
+        pub map_texture_info_32: u32,
+        // +36: small enum (0, 1, 2, 3, 9, 16) (inferred: `_discoverType`)
         pub discover_type: u32,
-        pub ignore_same_gimmick_discover_distance: u32,
+        // +40: f32 (0, 2, 5, 6, 8, 25) (inferred: a distance)
+        pub unk_f32_40: f32,
+        // +44: hash on 5 records (SulfurStone_01..04, Mercury), 0 elsewhere
+        // (inferred: `_discoverGimmickStateHash`)
         pub discover_gimmick_state_hash: u32,
-        pub is_empty_info: u8,
+        // +48, +52, +56: f32 (0, 10, 30 / 0, 50 / 0, 50) (inferred: distances)
+        pub unk_f32_48: f32,
+        pub unk_f32_52: f32,
+        pub unk_f32_56: f32,
+        // +60: -1 except the Vein_Minerals_*_Levelindex_NN records, where it is
+        // NN (C: `_oreVeinIndex`)
+        pub ore_vein_index: i32,
+        // +64: "GuideFXSocket_01" on 18 records, empty elsewhere
+        // (C: `_guideEffectSocketName`)
+        pub guide_effect_socket_name: CString<'a>,
+        // 1 on SubInner_Dock_0001 / _0002 only (inferred: `_isSubInnerGimmick`)
+        pub is_sub_inner_gimmick: u8,
+        // level / area name ("Faction", "AbyssIsland", "rootlevel/SectorRootLevel",
+        // "Management_DLC01", ...); empty on 80 records (inferred: `_levelName`)
+        pub level_name: CString<'a>,
+        // 0 in every record
+        pub unk_u32_tail: u32,
+        pub unk_entry_list: CArray<LevelGimmickSceneObjectEntry>,
+        // 1 + 1013697 on SaveSearch_ShinyStone only, 0 elsewhere
+        pub unk_u8_tail: u8,
+        pub unk_key_tail: u32,
     }
-    tail: tail_blob;
+}
+
+impl<'a> LevelGimmickSceneObjectInfo<'a> {
+    /// pabgh-bounded read (dispatcher `p!`): the typed read must end exactly on
+    /// the record boundary, otherwise the dispatcher keeps the record as a
+    /// `_blob_b64` fallback.
+    pub fn read_with_size(
+        data: &'a [u8],
+        offset: &mut usize,
+        entry_size: usize,
+    ) -> std::io::Result<Self> {
+        let start = *offset;
+        let end = start.checked_add(entry_size).filter(|e| *e <= data.len()).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "LevelGimmickSceneObjectInfo: entry past end of data")
+        })?;
+        // Bound the read to this entry so a bad length cannot run into the next one.
+        let rec = Self::read_from(&data[..end], offset)?;
+        let local = *offset - start;
+        if local != entry_size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "LevelGimmickSceneObjectInfo: read {} bytes, pabgh entry is {} bytes",
+                    local, entry_size
+                ),
+            ));
+        }
+        Ok(rec)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A missing fixture is skipped.
+    const FIXTURES: &[&str] = &[
+        "levelgimmicksceneobjectinfo.pabgb",
+        "levelgimmicksceneobjectinfo.dlc_01.pabgb",
+    ];
+
+    fn load(name: &str) -> Option<(Vec<u8>, Vec<u8>)> {
+        let data = std::fs::read(crate::testenv::resolve(name)).ok()?;
+        let pabgh = std::fs::read(crate::testenv::resolve(&name.replace(".pabgb", ".pabgh"))).ok()?;
+        Some((data, pabgh))
+    }
+
+    /// pabgh = u32 count + count x (u32 key, u32 offset); records in body order.
+    fn offsets(pabgh: &[u8], body_len: usize) -> Vec<(u32, usize, usize)> {
+        let count = u32::from_le_bytes(pabgh[0..4].try_into().unwrap()) as usize;
+        assert_eq!(4 + count * 8, pabgh.len(), "pabgh = u32 count + count x (u32 key, u32 offset)");
+        let mut e: Vec<(u32, usize)> = (0..count)
+            .map(|i| {
+                let p = 4 + i * 8;
+                (
+                    u32::from_le_bytes(pabgh[p..p + 4].try_into().unwrap()),
+                    u32::from_le_bytes(pabgh[p + 4..p + 8].try_into().unwrap()) as usize,
+                )
+            })
+            .collect();
+        e.sort_by_key(|x| x.1);
+        let mut out = Vec::new();
+        for i in 0..e.len() {
+            let end = if i + 1 < e.len() { e[i + 1].1 } else { body_len };
+            out.push((e[i].0, e[i].1, end - e[i].1));
+        }
+        out
+    }
+
+    #[test]
+    fn roundtrip() {
+        for name in FIXTURES {
+            let Some((data, pabgh)) = load(name) else {
+                eprintln!("SKIP: fixture {name} not found");
+                continue;
+            };
+            let mut out = Vec::with_capacity(data.len());
+            let mut json_out = Vec::with_capacity(data.len());
+            for (key, off, size) in offsets(&pabgh, data.len()) {
+                let mut o = off;
+                let rec = LevelGimmickSceneObjectInfo::read_with_size(&data, &mut o, size).unwrap();
+                assert_eq!(rec.key, key, "{name}: pabgh key");
+                rec.write_to(&mut out).unwrap();
+                LevelGimmickSceneObjectInfo::write_from_json_dict(&mut json_out, &rec.to_json_dict()).unwrap();
+            }
+            assert!(out == data, "{name}: bytes differ after round-trip");
+            assert!(json_out == data, "{name}: bytes differ after JSON round-trip");
+        }
+    }
+
+    #[test]
+    fn named_fields_match_record_names() {
+        for name in FIXTURES {
+            let Some((data, pabgh)) = load(name) else {
+                eprintln!("SKIP: fixture {name} not found");
+                continue;
+            };
+            for (_, off, size) in offsets(&pabgh, data.len()) {
+                let mut o = off;
+                let r = LevelGimmickSceneObjectInfo::read_with_size(&data, &mut o, size).unwrap();
+                let sk = std::str::from_utf8(r.string_key.data.as_bytes()).unwrap().to_string();
+                if let Some(nn) = sk.rsplit("_Levelindex_").next().filter(|_| sk.contains("_Levelindex_")) {
+                    assert_eq!(r.ore_vein_index, nn.parse::<i32>().unwrap(), "{sk}");
+                } else {
+                    assert_eq!(r.ore_vein_index, -1, "{sk}");
+                }
+                if r.contents_phase_info_for_move_point != 0 {
+                    assert!(sk.contains("MovePoint") || sk.contains("TeleportPoint"), "{sk}");
+                }
+            }
+        }
+    }
 }

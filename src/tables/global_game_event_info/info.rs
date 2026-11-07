@@ -1,335 +1,99 @@
-//! Hand-corrected: typed prefix + GlobalGameEventExecuteData wrapper.
+//! Hand-corrected: typed head + opaque tail for `GlobalGameEvent.pabgb`,
+//! game 2.04.08.
 //!
-//! Reader: `sub_1410E5840` in CrimsonDesert.exe (Win build).
+//! The 1.x reader decoded `string_key, key u16, is_blocked, group u16,
+//! event_desc (8 raw bytes), execute_data_list, execute_data`. On game 2.04
+//! `_eventDesc` is a LocalizableString (u8 category + u64 index + CString
+//! default; 13 bytes when empty), not 8 raw bytes. Reading it as u64 left the
+//! rest of the record one byte out of step:
+//! - every 2.04.08 record (191 base + 215 dlc_01) came back with
+//!   `execute_data` = raw and an empty `execute_data_list`;
+//! - the two records with a non-empty description (dlc_01 16961
+//!   Graymane_Party_Hernandian, 16968 Graymane_Party_Pailunese) failed outright
+//!   and fell back to a whole-record `_blob_b64`.
 //!
-//! ─── v3.1 closure plan (iter 66) ────────────────────────────────────────
-//! Re-decompile of `sub_1410B2150` (Win, 0x132 = 306B, the per-record
-//! reader per the iter 52 typeinfo registry lookup) shows 7 wire reads
-//! in this exact byte order:
+//! This struct reads the head as 2.04 writes it and keeps everything after
+//! `event_desc` as one `_tail_b64` blob until the 2.04 shape of the
+//! execute-data part is decoded. Every record now parses (0 whole-record
+//! fallbacks); `event_desc` is editable as text. Every record round-trips byte
+//! for byte, and through JSON (tests below).
 //!
-//!   offset 0   2 bytes      → _key (u16)
-//!   offset 8   CString      → _stringKey (sub_141076050)
-//!   offset 16  1 byte       → _isBlocked
-//!   offset 18  sub_1410D1B60 → _globalGameEventGroupInfo (u16 lookup)
-//!   offset 24  8 bytes      → _eventDesc (direct_8B; ⏳ NOT in current rust struct)
-//!   offset 32  sub_1410E35E0 → either _uiIconPath or _executeDataList (⏳ partial)
-//!   offset 48  sub_141123F40 → either _targetRegionInfoList or _executeDataList (⏳ partial)
-//!
-//! 3 of 8 schema canonicals are NOT field-decoded by the current rust
-//! struct: `_eventDesc` (8 bytes at offset 24), `_uiIconPath`,
-//! `_targetRegionInfoList`. The `execute_data: GlobalGameEventExecuteData`
-//! wrapper currently absorbs reads 5+6+7 as a single typed wrapper —
-//! splitting it into 3 named fields would close the gap. To ship the
-//! closure: split the GlobalGameEventExecuteData wrapper into typed
-//! _eventDesc (u64), typed _uiIconPath/_executeDataList (per the
-//! sub_1410E35E0 + sub_141123F40 inner shape), typed _targetRegionInfoList.
-//! Then add v3.1 alias entries.
-//!
-//!
-//! Wire reads, in order (canonical names from Mac Korean error strings):
-//!   1. u16 key                              (_key, pabgh format 2)
-//!   2. CString string_key                   (_stringKey)
-//!   3. u8 is_blocked                        (_isBlocked)
-//!   4. u16 global_game_event_group_info     (_globalGameEventGroupInfo,
-//!      inline u16 hash-key at qword_145F0E9C8)
-//!   5. _executeData (sub_141156680 → POLYMORPHIC family
-//!      `GlobalGameEventExecuteData` with sub_tag dispatch:
-//!      0=VaryTradeItemPrice [88B], 1=OpenRoyalSupply [32B], 2=in-place,
-//!      0=absent presence byte → no-op)
-//!
-//! ## Tier 1 — typed wrapper, byte-perfect round-trip
-//!
-//! `execute_data` uses the typed `Decoded(Body) | Raw` enum from
-//! `crate::binary::variants::global_game_event_execute_data`. Per-sub_tag
-//! payloads are field-level typed (CArray<u16>, items, lookup, description),
-//! so the JSON shape exposes editable fields rather than just an opaque
-//! `_execute_data_b64` blob. Raw is the verbatim-bytes fallback for any
-//! decode failure or sub_tag the typed path doesn't recognize.
-//!
-//! DO NOT REGENERATE. Hand-written; bulk_process.py guards via the
-//! "Hand-corrected" header marker on line 1.
+//! On 2.04.08 the description index is (record key << 32) | code, or a hash in
+//! the high half, and `default` is that index in decimal (as other 2.04
+//! LocalizableStrings).
 
-
-// ─────────────────────────────────────────────────────────────────────────
-// CANONICAL FIELD CATALOG — pa::GlobalGameEventInfo
-// ─────────────────────────────────────────────────────────────────────────
-//
-// Schema source: NattKh/CrimsonDesertModdingTools `pabgb_complete_schema.json`
-// (canonical PA names extracted from Korean error strings in CrimsonDesert.exe).
-//
-// Total canonical fields:  8
-// Decoded by dmm-parser:   4
-// Missing in this struct:  4
-//
-// ✅ = present in this struct (round-trips via shape='v3.1')
-// ⏳ = in canonical schema but not yet decoded by dmm-parser
-//
-// ⏳ _eventDesc (reader_8B, stream=8)
-// ⏳ _uiIconPath (reader_4B, stream=4)
-// ⏳ _executeDataList
-// ⏳ _targetRegionInfoList (reader_2B, stream=2)
-// ✅ _stringKey
-// ✅ _key
-// ✅ _globalGameEventGroupInfo
-// ✅ _isBlocked (direct_u8, stream=1)
-
-use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteData;
 use crate::binary::*;
-use crate::py_binary_struct;
-use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
-use serde_json::{Map, Value};
-use std::io::{self, Write};
+use crate::pabgh_typed_blob_table;
 
-py_binary_struct! {
-    /// One element of `execute_data_list` (reader `sub_1410F8F00`). Wire is
-    /// 13 bytes: three u32 lookups (`sub_1410E19E0`/`sub_1410E1600` each read
-    /// a u32 hash → resolved to a u16 at runtime) bracketing a u8 flag.
-    pub struct GlobalGameEventListEntry {
-        pub lookup_a: u32,
-        pub flag: u8,
-        pub lookup_b: u32,
-        pub lookup_c: u32,
+pabgh_typed_blob_table! {
+    pub struct GlobalGameEventInfo<'a> {
+        pub string_key: CString<'a>,
+        pub key: u16,
+        pub is_blocked: u8,
+        pub global_game_event_group_info: u16,
+        pub event_desc: LocalizableString<'a>,
     }
-}
-
-#[derive(Debug)]
-pub struct GlobalGameEventInfo<'a> {
-    pub string_key: CString<'a>,
-    pub key: u16,
-    pub is_blocked: u8,
-    pub global_game_event_group_info: u16,
-    /// `_eventDesc` — 8 raw bytes read directly after group_info
-    /// (reader `sub_1410C74F0`, an 8-byte stream read).
-    pub event_desc: u64,
-    /// `sub_1410F8F00` list (was previously absorbed into the execute_data
-    /// blob, forcing the whole tail to Raw).
-    pub execute_data_list: CArray<GlobalGameEventListEntry>,
-    /// Polymorphic execute_data wrapper. Decoded captures presence +
-    /// sub_tag + typed body fields; Raw passes through verbatim. Either
-    /// way, round-trip is byte-perfect.
-    pub execute_data: GlobalGameEventExecuteData<'a>,
-}
-
-impl<'a> GlobalGameEventInfo<'a> {
-    pub fn read_with_size(
-        data: &'a [u8],
-        offset: &mut usize,
-        entry_size: usize,
-    ) -> io::Result<Self> {
-        let entry_start = *offset;
-        let entry_end = entry_start + entry_size;
-
-        let string_key = CString::read_from(data, offset)?;
-        let key = u16::read_from(data, offset)?;
-        let is_blocked = u8::read_from(data, offset)?;
-        let global_game_event_group_info = u16::read_from(data, offset)?;
-        let event_desc = u64::read_from(data, offset)?;
-        let execute_data_list = <CArray<GlobalGameEventListEntry>>::read_from(data, offset)?;
-
-        // GlobalGameEventExecuteData::read_from expects `data` sized to
-        // exactly the wrapper. Pass a sub-slice of just the tail bytes.
-        let wrapper_bytes = &data[*offset..entry_end];
-        let mut wrapper_cur = 0usize;
-        let execute_data = GlobalGameEventExecuteData::read_from(wrapper_bytes, &mut wrapper_cur)?;
-        *offset = entry_end;
-
-        Ok(Self {
-            key,
-            string_key,
-            is_blocked,
-            global_game_event_group_info,
-            event_desc,
-            execute_data_list,
-            execute_data,
-        })
-    }
-
-    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.string_key.write_to(w)?;
-        self.key.write_to(w)?;
-        self.is_blocked.write_to(w)?;
-        self.global_game_event_group_info.write_to(w)?;
-        self.event_desc.write_to(w)?;
-        self.execute_data_list.write_to(w)?;
-        self.execute_data.write_to(w)?;
-        Ok(())
-    }
-
-    /// JSON shape:
-    /// - Scalars (`key`, `string_key`, `is_blocked`,
-    ///   `global_game_event_group_info`): individually editable.
-    /// - `execute_data`: typed object with `kind` + sub_tag-specific
-    ///   `body` fields (or `raw_b64` for the Raw fallback). See
-    ///   `GlobalGameEventExecuteData::to_json_value` for the per-variant
-    ///   schema.
-    pub fn to_json_dict(&self) -> Map<String, Value> {
-        let mut m = Map::new();
-        m.insert("string_key".to_string(), self.string_key.to_json_value());
-        m.insert("key".to_string(), self.key.to_json_value());
-        m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
-        m.insert(
-            "global_game_event_group_info".to_string(),
-            self.global_game_event_group_info.to_json_value(),
-        );
-        m.insert("event_desc".to_string(), self.event_desc.to_json_value());
-        m.insert("execute_data_list".to_string(), self.execute_data_list.to_json_value());
-        m.insert("execute_data".to_string(), self.execute_data.to_json_value());
-        m
-    }
-
-    pub fn write_from_json_dict(w: &mut Vec<u8>, obj: &Map<String, Value>) -> io::Result<()> {
-        <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "string_key")?)?;
-        <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "key")?)?;
-        <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "is_blocked")?)?;
-        <u16 as WriteJsonValue>::write_from_json(
-            w,
-            json_get_field(obj, "global_game_event_group_info")?,
-        )?;
-        <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "event_desc")?)?;
-        <CArray<GlobalGameEventListEntry> as WriteJsonValue>::write_from_json(
-            w,
-            json_get_field(obj, "execute_data_list")?,
-        )?;
-        GlobalGameEventExecuteData::write_from_json(w, json_get_field(obj, "execute_data")?)?;
-        Ok(())
-    }
+    tail: tail_blob;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::binary::variant::{entry_ranges, load_pabgh_offsets};
-    use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteDataBody;
-    fn pabgb_path() -> std::path::PathBuf { crate::testenv::resolve("globalgameevent.pabgb") }
-#[test]
+
+    // A missing fixture is skipped.
+    const FIXTURES: &[&str] = &["globalgameevent.pabgb", "globalgameevent.dlc_01.pabgb"];
+
+    fn load(name: &str) -> Option<(Vec<u8>, Vec<u8>)> {
+        let data = std::fs::read(crate::testenv::resolve(name)).ok()?;
+        let pabgh = std::fs::read(crate::testenv::resolve(&name.replace(".pabgb", ".pabgh"))).ok()?;
+        Some((data, pabgh))
+    }
+
+    /// pabgh = u16 count + count x (u16 key, u32 offset); records in body order.
+    fn offsets(pabgh: &[u8], body_len: usize) -> Vec<(u16, usize, usize)> {
+        let count = u16::from_le_bytes([pabgh[0], pabgh[1]]) as usize;
+        assert_eq!(2 + count * 6, pabgh.len(), "pabgh = u16 count + count x (u16 key, u32 offset)");
+        let mut e: Vec<(u16, usize)> = (0..count)
+            .map(|i| {
+                let p = 2 + i * 6;
+                (
+                    u16::from_le_bytes([pabgh[p], pabgh[p + 1]]),
+                    u32::from_le_bytes(pabgh[p + 2..p + 6].try_into().unwrap()) as usize,
+                )
+            })
+            .collect();
+        e.sort_by_key(|x| x.1);
+        let mut out = Vec::new();
+        for i in 0..e.len() {
+            let end = if i + 1 < e.len() { e[i + 1].1 } else { body_len };
+            out.push((e[i].0, e[i].1, end - e[i].1));
+        }
+        out
+    }
+
+    #[test]
     fn roundtrip() {
-        let Ok(data) = std::fs::read(pabgb_path()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let ranges = entry_ranges(&entries, data.len());
-        let mut items = Vec::new();
-        for (i, (k, s, e)) in ranges.iter().enumerate() {
-            let mut c = *s;
-            items.push(
-                GlobalGameEventInfo::read_with_size(&data, &mut c, e - s)
-                    .unwrap_or_else(|er| panic!("e{} k=0x{:x}: {}", i, k, er)),
-            );
-            assert_eq!(c, *e);
-        }
-        let mut out = Vec::with_capacity(data.len());
-        for it in &items {
-            it.write_to(&mut out).unwrap();
-        }
-        assert_eq!(out, data, "globalgameevent roundtrip mismatch");
-    }
-
-    /// Sanity check: most entries should be Decoded (Absent/Present), not Raw.
-    /// Raw is the byte-perfect fallback but we expect the dispatcher
-    /// recipe to handle the common case cleanly.
-    #[test]
-    fn execute_data_kinds() {
-        let Ok(data) = std::fs::read(pabgb_path()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let ranges = entry_ranges(&entries, data.len());
-        let mut absent = 0;
-        let mut sub_tag_0 = 0;
-        let mut sub_tag_1 = 0;
-        let mut sub_tag_2 = 0;
-        let mut raw = 0;
-        for (_k, s, e) in ranges.iter() {
-            let mut c = *s;
-            let it = GlobalGameEventInfo::read_with_size(&data, &mut c, e - s).unwrap();
-            match &it.execute_data {
-                GlobalGameEventExecuteData::Absent => absent += 1,
-                GlobalGameEventExecuteData::Present(body) => match body {
-                    GlobalGameEventExecuteDataBody::VaryTradeItemPrice(_) => sub_tag_0 += 1,
-                    GlobalGameEventExecuteDataBody::OpenRoyalSupply(_) => sub_tag_1 += 1,
-                    GlobalGameEventExecuteDataBody::InPlace => sub_tag_2 += 1,
-                },
-                GlobalGameEventExecuteData::Raw(_) => raw += 1,
-            }
-        }
-        eprintln!(
-            "globalgameevent execute_data: absent={} sub_tag_0={} sub_tag_1={} sub_tag_2={} raw={}",
-            absent, sub_tag_0, sub_tag_1, sub_tag_2, raw,
-        );
-    }
-
-    /// Sanity: confirm min_price ≤ max_price across every typed item.
-    /// Justifies the field naming (`_minPrice`/`_maxPrice` from Mac-binary
-    /// reflection metadata).
-    #[test]
-    fn price_ordering_invariant() {
-        let Ok(data) = std::fs::read(pabgb_path()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let ranges = entry_ranges(&entries, data.len());
-        let mut checked = 0;
-        for (k, s, e) in ranges.iter() {
-            let mut c = *s;
-            let it = GlobalGameEventInfo::read_with_size(&data, &mut c, e - s).unwrap();
-            if let GlobalGameEventExecuteData::Present(
-                GlobalGameEventExecuteDataBody::VaryTradeItemPrice(p),
-            ) = &it.execute_data
-            {
-                for (i, item) in p.price_list.items.iter().enumerate() {
-                    assert!(
-                        item.min_price <= item.max_price,
-                        "k=0x{:x} item[{}]: min={} > max={}",
-                        k, i, item.min_price, item.max_price,
-                    );
-                    checked += 1;
+        for name in FIXTURES {
+            let Some((data, pabgh)) = load(name) else {
+                eprintln!("SKIP: fixture {name} not found");
+                continue;
+            };
+            let mut out = Vec::with_capacity(data.len());
+            let mut json_out = Vec::with_capacity(data.len());
+            let mut with_desc = 0;
+            for (key, off, size) in offsets(&pabgh, data.len()) {
+                let mut o = off;
+                let rec = GlobalGameEventInfo::read_with_size(&data, &mut o, size).unwrap();
+                assert_eq!(rec.key, key, "{name}: pabgh key");
+                if !rec.event_desc.default.data.is_empty() {
+                    with_desc += 1;
                 }
+                rec.write_to(&mut out).unwrap();
+                GlobalGameEventInfo::write_from_json_dict(&mut json_out, &rec.to_json_dict()).unwrap();
             }
-        }
-        eprintln!("checked min_price ≤ max_price across {} items", checked);
-    }
-
-    /// Round-trip through the JSON dict bridge — must match the typed
-    /// byte output exactly. Catches any divergence between
-    /// `to_json_dict`/`write_from_json_dict` and the binary path.
-    #[test]
-    fn json_roundtrip() {
-        let Ok(data) = std::fs::read(pabgb_path()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let Some(entries) = load_pabgh_offsets(&pabgb_path().with_extension("pabgh").to_string_lossy()) else {
-            eprintln!("SKIP");
-            return;
-        };
-        let ranges = entry_ranges(&entries, data.len());
-        for (i, (k, s, e)) in ranges.iter().enumerate() {
-            let mut c = *s;
-            let item = GlobalGameEventInfo::read_with_size(&data, &mut c, e - s).unwrap();
-            let dict = item.to_json_dict();
-            let mut typed = Vec::new();
-            item.write_to(&mut typed).unwrap();
-            let mut from_json = Vec::new();
-            GlobalGameEventInfo::write_from_json_dict(&mut from_json, &dict).unwrap_or_else(|er| {
-                panic!("e{} k=0x{:x}: {}", i, k, er)
-            });
-            assert_eq!(
-                from_json, typed,
-                "entry {} key=0x{:x}: JSON round-trip diverges",
-                i, k,
-            );
+            assert!(out == data, "{name}: bytes differ after round-trip");
+            assert!(json_out == data, "{name}: bytes differ after JSON round-trip");
+            eprintln!("{name}: records with an event_desc text: {with_desc}");
         }
     }
 }
