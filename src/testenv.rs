@@ -32,6 +32,10 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.04.08 - 2026-11-06 (Steam build 26480954, paver 0200040008000100...): no layout
+    // change. Value edits and new records only (action points, one stage, two local strings); no item,
+    // recipe or drop table changed in the base game.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-11-06-hotfix8",
     // GAME VERSION 2.04.07 - 2026-11-04 (Steam build 26448710, paver 0200040007000100...): no layout
     // change. New records in iteminfo, multichangeinfo and dropsetinfo, and every recipe from key
     // 1001902 on moved up by 18 numbers.

@@ -56,6 +56,7 @@ impl_primitive!(u16);
 impl_primitive!(u32);
 impl_primitive!(u64);
 impl_primitive!(i8);
+impl_primitive!(i32);
 impl_primitive!(i64);
 impl_primitive!(f32);
 impl_primitive!(f64);

@@ -211,6 +211,29 @@ impl WriteJsonValue for i8 {
     }
 }
 
+impl ToJsonValue for i32 {
+    fn to_json_value(&self) -> Value {
+        Value::from(*self)
+    }
+}
+impl WriteJsonValue for i32 {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        if v.is_null() { w.extend_from_slice(&0i32.to_le_bytes()); return Ok(()); }
+        let n = v
+            .as_i64()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                format!("expected i32 number, got {}", type_name(v))))?;
+        if !(i32::MIN as i64..=i32::MAX as i64).contains(&n) {
+            let c = n.clamp(i32::MIN as i64, i32::MAX as i64) as i32;
+            eprintln!("[V3_CLAMP] value {} out of i32 range — clamped to {} (over-range mod set-value)", n, c);
+            w.extend_from_slice(&c.to_le_bytes());
+            return Ok(());
+        }
+        w.extend_from_slice(&(n as i32).to_le_bytes());
+        Ok(())
+    }
+}
+
 impl ToJsonValue for i64 {
     fn to_json_value(&self) -> Value {
         Value::from(*self)
