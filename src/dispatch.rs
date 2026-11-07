@@ -232,6 +232,13 @@ pub fn parse_table_to_json(
         "housing_object_info"            => s!(crate::tables::housing_object_info::HousingObjectInfo),
         "management_needs_synergy_info"  => s!(crate::tables::management_needs_synergy_info::ManagementNeedsSynergyInfo),
         "management_buff_info"           => s!(crate::tables::management_buff_info::ManagementBuffInfo),
+        "activity_preset_info"           => s!(crate::tables::activity_preset_info::ActivityPresetInfo),
+        "faction_operation_group_info"   => s!(crate::tables::faction_operation_group_info::FactionOperationGroupInfo),
+        "personality_info"               => s!(crate::tables::personality_info::PersonalityInfo),
+        "stat_change_info"               => s!(crate::tables::stat_change_info::StatChangeInfo),
+        "ui_talk_tree_info"              => s!(crate::tables::ui_talk_tree_info::UITalkTreeInfo),
+        "npc_friendly_info"              => s!(crate::tables::npc_friendly_info::NpcFriendlyInfo),
+        "npc_name_info"                  => s!(crate::tables::npc_name_info::NpcNameInfo),
         "item_group_info"                => s!(crate::tables::item_group_info::ItemGroupInfo),
         "job_info"                       => s!(crate::tables::job_info::JobInfo),
         "key_map_setting_list_info"      => s!(crate::tables::key_map_setting_list_info::KeyMapSettingListInfo),
@@ -443,6 +450,13 @@ pub fn serialize_table_from_json(
         "housing_object_info"            => d!(crate::tables::housing_object_info::HousingObjectInfo),
         "management_needs_synergy_info"  => d!(crate::tables::management_needs_synergy_info::ManagementNeedsSynergyInfo),
         "management_buff_info"           => d!(crate::tables::management_buff_info::ManagementBuffInfo),
+        "activity_preset_info"           => d!(crate::tables::activity_preset_info::ActivityPresetInfo),
+        "faction_operation_group_info"   => d!(crate::tables::faction_operation_group_info::FactionOperationGroupInfo),
+        "personality_info"               => d!(crate::tables::personality_info::PersonalityInfo),
+        "stat_change_info"               => d!(crate::tables::stat_change_info::StatChangeInfo),
+        "ui_talk_tree_info"              => d!(crate::tables::ui_talk_tree_info::UITalkTreeInfo),
+        "npc_friendly_info"              => d!(crate::tables::npc_friendly_info::NpcFriendlyInfo),
+        "npc_name_info"                  => d!(crate::tables::npc_name_info::NpcNameInfo),
         "faction_management_info"        => d!(crate::tables::faction_management_info::FactionManagementInfo),
         "item_group_info"                => d!(crate::tables::item_group_info::ItemGroupInfo),
         "job_info"                       => d!(crate::tables::job_info::JobInfo),
@@ -1047,6 +1061,8 @@ pub fn supported_tables() -> &'static [&'static str] {
         "faction_reblockading_info", "quick_slot_info", "bank_info", "talk_tree_info",
         "housing_object_group_info", "housing_object_info",
         "management_buff_info", "management_needs_synergy_info",
+        "activity_preset_info", "faction_operation_group_info", "personality_info",
+        "stat_change_info", "ui_talk_tree_info", "npc_friendly_info", "npc_name_info",
         "auto_spawn_filter_info", "board_info", "breakable_object_info",
         "category_group_info", "category_info", "character_appearance_index_info",
         "character_group_info", "craft_tool_group_info", "craft_tool_info",
@@ -1391,6 +1407,20 @@ mod tests {
     }
 
     #[test]
+    fn normalize_target_name_game_2_04_tables() {
+        // Game file names of the seven tables added for game 2.04.08.
+        assert_eq!(normalize_target_name("activitypresetinfo.pabgb"), Some("activity_preset_info"));
+        assert_eq!(normalize_target_name("factionoperationgroupinfo.pabgb"), Some("faction_operation_group_info"));
+        assert_eq!(normalize_target_name("personalityinfo.pabgb"), Some("personality_info"));
+        assert_eq!(normalize_target_name("statchangeinfo.pabgb"), Some("stat_change_info"));
+        assert_eq!(normalize_target_name("uitalktreeinfo.pabgb"), Some("ui_talk_tree_info"));
+        assert_eq!(normalize_target_name("npcfriendlyinfo.pabgb"), Some("npc_friendly_info"));
+        assert_eq!(normalize_target_name("npcnameinfo.pabgb"), Some("npc_name_info"));
+        // uitalktreeinfo is its own table, not the old talk_tree_info.
+        assert_eq!(normalize_target_name("talktreeinfo.pabgb"), Some("talk_tree_info"));
+    }
+
+    #[test]
     fn normalize_target_name_info_dropped() {
         // 1.0.8+ client filenames drop the trailing "_info" word. Verified
         // against the live 0008 client table list (126 .pabgb files). The
@@ -1434,8 +1464,9 @@ mod tests {
         assert_eq!(normalize_target_name("keymap.pabgb"), Some("key_map_setting_list_info"));
         assert_eq!(normalize_target_name("levelinfo.pabgb"), Some("game_level_info"));
         assert_eq!(normalize_target_name("reviepointinfo.pabgb"), Some("field_revive_info"));
-        // factionoperationgroupinfo has no parser — must stay unresolved.
-        assert_eq!(normalize_target_name("factionoperationgroupinfo.pabgb"), None);
+        // factionoperationgroupinfo resolves by the generic rule since game 2.04.08
+        // tables were added (it had no parser before).
+        assert_eq!(normalize_target_name("factionoperationgroupinfo.pabgb"), Some("faction_operation_group_info"));
     }
 
     #[test]
