@@ -494,8 +494,8 @@ MANUAL_OVERRIDES = {
     # `_factionScheduleInfoList` is the ONLY "schedule list" canonical
     # missing; rust's `faction_schedule_list: CArray<FactionSchedule>`
     # is the obvious mate by both type+name.
-    ("faction_node_info",              "final_list_u16"):                    "_religionEffectRegionInfoList",
-    ("faction_node_info",              "faction_schedule_list"):             "_factionScheduleInfoList",
+    ("faction_node_info",              "religion_effect_region_info_list"):  "_religionEffectRegionInfoList",
+    ("faction_node_info",              "faction_schedule_info_list"):        "_factionScheduleInfoList",
 
     # Iter 128: faction_node_info `_subInnerTypeString` singleton close.
     # Rust `key_str_after: CString` is the only CString-shape unaliased
@@ -512,7 +512,7 @@ MANUAL_OVERRIDES = {
     # has the higher setter-string addr (0x14492aac0 vs _religionBlockCostList
     # at 0x14492a6d0) AND the rust "final" naming convention indicates last
     # wire read — both alignment cues say final_list_u32 → _factionEventDataList.
-    ("faction_node_info",              "final_list_u32"):                    "_factionEventDataList",
+    ("faction_node_info",              "faction_event_data_list"):           "_factionEventDataList",
 
     # Iter 130: faction_node_info `_religionMaxBlockDay` close. The only
     # missing direct_u32 canonical (= raw u32, no hash lookup). Rust's
@@ -595,7 +595,7 @@ MANUAL_OVERRIDES = {
     # the type-singleton match is unambiguous and the rust naming is
     # known-placeholder (faction_node_info has many unk_*/raw_*/lookup_*
     # placeholder names per iter-93 audit). Shipped on type-uniqueness.
-    ("faction_node_info",              "adjacency_list"):                    "_researchDataList",
+    ("faction_node_info",              "research_data_list"):                "_researchDataList",
 
     # Iter 154: gimmick_group_info `_spawnDistanceLevel` singleton close.
     # Schema's only direct_u32 missing canonical; rust struct has only

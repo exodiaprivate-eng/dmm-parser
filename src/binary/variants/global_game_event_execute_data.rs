@@ -8,62 +8,40 @@
 // of CDMTL v1.0 §4.9 (No Competing Implementation) and §4.10
 // (AI-Mediated Access). CMI removal violates 17 U.S.C. §1202.
 
-//! GlobalGameEventExecuteData polymorphic family wrapper — per-sub_tag typed.
+//! GlobalGameEventExecuteData polymorphic family wrapper, game 2.04.08 shape.
 //!
-//! Per Win-IDA dispatcher `sub_141156680`, the wire format is:
+//! Wire format (dispatcher `sub_141156680` in the 1.x Win build; the 2.04
+//! shape below is decoded from the 2.04.08 data, 408/408 records):
 //!   - u8 presence (0 = absent, 1 = present)
 //!   - if present:
 //!     - u8 sub_tag
-//!         - 0 → ConstructorVaryTradeItemPrice (88-byte runtime struct)
-//!         - 1 → ConstructorOpenRoyalSupply    (32-byte runtime struct)
-//!         - 2 → in-place reuse of existing pointer (no body bytes)
-//!         - other → error (return 0)
-//!     - body bytes per sub_tag-specific reader
-//!
-//! Body wire shapes (decompiled from the per-vtable readers + cross-checked
-//! against reflection-binding strings extracted from the Mac binary):
-//!
-//! - sub_tag 0 / VaryTradeItemPrice (`sub_141155000` calls these in order):
-//!     * `target_item_group_keys`: CArray<u16>  (sub_1410FFAC0, qword_DA80
-//!                                              ItemGroupKey hash; matches
-//!                                              `_targetItemGroupList`)
-//!     * `price_list`:             CArray<VaryTradeItemPriceData>
-//!                                              (sub_141155530; matches
-//!                                              `_priceList`)
-//!     * `item_lookup`:            u32          (read_u32_lookup_DA30 —
-//!                                              asset/category hash; wire u32
-//!                                              resolves to u16)
-//!     * `description`:            LocalizableString (read_LocalizableString)
-//!
-//!   Per element of `price_list` (sub_141155530's loop body):
-//!     * `target_region_keys`:  CArray<u16> (sub_1411022B0, qword_DA20 region
-//!                                          hash; matches `_targetRegionList`)
-//!     * `min_price`:           i64
-//!     * `max_price`:           i64
-//!
-//!   Empirical price patterns (matches `_minPrice`/`_maxPrice` reflection
-//!   strings): trade-up entries `min=500000, max=800000`; inverse trade-down
-//!   entries `min=-800000, max=-500000`. min ≤ max holds for all 80 entries.
-//!
-//! - sub_tag 1 / OpenRoyalSupply (`sub_141155300` → `sub_1411553D0`):
-//!     * `target_region_keys`: CArray<u16> (sub_1411553D0, qword_113A0 hash)
-//!
-//! - sub_tag 2 / InPlace: no body bytes. The dispatcher only handles this when
-//!   the caller already has a previously-constructed object; for fresh-pointer
-//!   table reads (our case) sub_tag 2 effectively produces an empty body.
+//!     - body. Every 2.04 body starts with the same head:
+//!         * `body_tag`: u8, equal to `sub_tag` in every 2.04.08 record
+//!         * `text_1`:   LocalizableString (category 44, index =
+//!                       (record key << 32) | 705 where set)
+//!         * `text_2`:   LocalizableString (empty except sub_tag 4, code 706)
+//!       then the per-sub_tag payload:
+//!         - 0 VaryTradeItemPrice: `target_item_group_keys` CArray<u16>,
+//!           `price_list` CArray<VaryTradeItemPriceData>, `item_lookup` u32,
+//!           `description` LocalizableString (= `text_1` in all 79 records).
+//!           Same payload as 1.x, now after the head.
+//!         - 1 OpenRoyalSupply: `target_region_keys` CArray<u16> (as 1.x).
+//!         - 2 FactionBlock (was "in place", no body, in 1.x): one u16.
+//!         - 3 (Graymane_Party_FarmersDay only): CArray<u32> of hashes + u8.
+//!         - 4 (Graymane_Party_Hernandian / _Pailunese): CArray<u16>.
+//!         - 5 ManagementSpecialEvent: u16 building key (one value per
+//!           building, 18) + CArray<u32> characterinfo keys.
+//!       Names for 2-5 come from the records that use them; the game's class
+//!       names for these constructors are not known.
 //!
 //! ## Decode strategy: Decoded | Raw fallback
 //!
 //! `read_from` tries the typed shape per sub_tag and falls back to `Raw(bytes)`
-//! on any decode failure or under-consume. That guarantees byte-perfect
-//! round-trip even if a future build of the game introduces a new sub_tag.
+//! on any decode failure, unknown sub_tag or under-consume, so a future build
+//! that adds a sub_tag still round-trips byte for byte.
 //!
-//! ### Lookup-table fields
-//!
-//! Several fields (`region_codes` u16 entries, `item_lookup` u32) are
-//! game-side hash keys that the runtime resolves via global hash tables. We
-//! store the **wire** values verbatim (no resolution) — the table's read/write
-//! cycle is byte-perfect, and downstream tooling can re-resolve at use time.
+//! Key fields (`*_keys` u16, `item_lookup` u32, ...) are stored as the wire
+//! values; the runtime resolves them through its own hash tables.
 
 use crate::binary::*;
 use crate::json_traits::get_field as json_get_field;
@@ -75,10 +53,9 @@ use std::io::{self, Write};
 // ── Per-sub_tag payload structs ────────────────────────────────────────────
 
 py_binary_struct! {
-    /// One element of `VaryTradeItemPricePayload.price_list` (sub_141155530's
-    /// loop). Wire: CArray<u16> region keys + two i64 price boundaries (16
-    /// bytes total). Field names match the Mac-binary reflection metadata
-    /// (`_targetRegionList`, `_minPrice`, `_maxPrice`).
+    /// One element of `VaryTradeItemPricePayload.price_list`. Wire: CArray<u16>
+    /// region keys + two i64 price bounds (`_targetRegionList`, `_minPrice`,
+    /// `_maxPrice`). 2.04.08 values: 500000..800000 or -800000..-500000.
     pub struct VaryTradeItemPriceData {
         pub target_region_keys: CArray<u16>,
         pub min_price: i64,
@@ -87,12 +64,11 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    /// sub_tag 0 body, per `sub_141155000`. Field names match Mac-binary
-    /// reflection metadata where known (`_targetItemGroupList`, `_priceList`).
-    /// `item_lookup` is a u32 asset/category hash key (qword_DA30 lookup;
-    /// runtime resolves to u16 at offset +48; specific reflection name not
-    /// recovered).
+    /// sub_tag 0 body (weather / disaster / trade events, group 16960).
     pub struct VaryTradeItemPricePayload<'a> {
+        pub body_tag: u8,
+        pub text_1: LocalizableString<'a>,
+        pub text_2: LocalizableString<'a>,
         pub target_item_group_keys: CArray<u16>,
         pub price_list: CArray<VaryTradeItemPriceData>,
         pub item_lookup: u32,
@@ -101,98 +77,158 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    /// sub_tag 1 body, per `sub_141155300` → `sub_1411553D0`. Single
-    /// `target_region_keys` array (qword_113A0 region hash).
-    pub struct OpenRoyalSupplyPayload {
+    /// sub_tag 1 body (RoyalSupply_* records).
+    pub struct OpenRoyalSupplyPayload<'a> {
+        pub body_tag: u8,
+        pub text_1: LocalizableString<'a>,
+        pub text_2: LocalizableString<'a>,
         pub target_region_keys: CArray<u16>,
+    }
+}
+
+py_binary_struct! {
+    /// sub_tag 2 body (FactionBlockEvent_* records). `unk_u16_0`: 108
+    /// distinct values over 111 records, rising with the record order; not
+    /// the factionnode key (those are u32, e.g. Node_Her_PervinFort 1000329).
+    pub struct FactionBlockPayload<'a> {
+        pub body_tag: u8,
+        pub text_1: LocalizableString<'a>,
+        pub text_2: LocalizableString<'a>,
+        pub unk_u16_0: u16,
+    }
+}
+
+py_binary_struct! {
+    /// sub_tag 3 body (only Graymane_Party_FarmersDay). One record: whether
+    /// the trailing u8 belongs to each list element is not confirmed.
+    pub struct PartyHashListPayload<'a> {
+        pub body_tag: u8,
+        pub text_1: LocalizableString<'a>,
+        pub text_2: LocalizableString<'a>,
+        pub unk_hash_list: CArray<u32>,
+        pub unk_u8: u8,
+    }
+}
+
+py_binary_struct! {
+    /// sub_tag 4 body (Graymane_Party_Hernandian / _Pailunese).
+    pub struct PartyKeyListPayload<'a> {
+        pub body_tag: u8,
+        pub text_1: LocalizableString<'a>,
+        pub text_2: LocalizableString<'a>,
+        pub unk_key_list: CArray<u16>,
+    }
+}
+
+py_binary_struct! {
+    /// sub_tag 5 body (ManagementSpecialEvent_<place>_<building>_<npc>).
+    /// `management_building_key`: one value per building (18), one-to-one
+    /// with the record's group. `character_info_list`: characterinfo keys
+    /// (e.g. 3452 NHW_Unique_Maegu for ..._Vellua_Pub_Maegu, 1002939
+    /// NHW_Unique_Wisdom_Witch_Store for ..._Wisdom_Witch).
+    pub struct ManagementSpecialEventPayload<'a> {
+        pub body_tag: u8,
+        pub text_1: LocalizableString<'a>,
+        pub text_2: LocalizableString<'a>,
+        pub management_building_key: u16,
+        pub character_info_list: CArray<u32>,
     }
 }
 
 // ── Body enum (per-sub_tag dispatch) ───────────────────────────────────────
 
-#[derive(Debug)]
-pub enum GlobalGameEventExecuteDataBody<'a> {
-    /// sub_tag 0
-    VaryTradeItemPrice(VaryTradeItemPricePayload<'a>),
-    /// sub_tag 1
-    OpenRoyalSupply(OpenRoyalSupplyPayload),
-    /// sub_tag 2 — no body bytes
-    InPlace,
+macro_rules! gge_bodies {
+    ($( $tag:literal => $variant:ident($payload:ident) = $label:literal ),* $(,)?) => {
+        #[derive(Debug)]
+        pub enum GlobalGameEventExecuteDataBody<'a> {
+            $( $variant($payload<'a>), )*
+        }
+
+        impl<'a> GlobalGameEventExecuteDataBody<'a> {
+            pub fn sub_tag(&self) -> u8 {
+                match self { $( Self::$variant(_) => $tag, )* }
+            }
+            /// Name used in JSON `body_type`.
+            pub fn body_type(&self) -> &'static str {
+                match self { $( Self::$variant(_) => $label, )* }
+            }
+            fn read_body(sub_tag: u8, data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+                match sub_tag {
+                    $( $tag => $payload::read_from(data, offset).map(Self::$variant), )*
+                    other => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("GlobalGameEventExecuteData: unknown sub_tag {}", other),
+                    )),
+                }
+            }
+            fn write_body(&self, w: &mut dyn Write) -> io::Result<()> {
+                match self { $( Self::$variant(p) => p.write_to(w), )* }
+            }
+            fn body_json(&self) -> Map<String, Value> {
+                match self { $( Self::$variant(p) => p.to_json_dict(), )* }
+            }
+            fn write_body_from_json(sub_tag: u8, w: &mut Vec<u8>, body: &Map<String, Value>) -> io::Result<()> {
+                match sub_tag {
+                    $( $tag => $payload::write_from_json_dict(w, body), )*
+                    other => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("GlobalGameEventExecuteData: unknown sub_tag {}", other),
+                    )),
+                }
+            }
+        }
+    };
 }
 
-impl GlobalGameEventExecuteDataBody<'_> {
-    pub fn sub_tag(&self) -> u8 {
-        match self {
-            Self::VaryTradeItemPrice(_) => 0,
-            Self::OpenRoyalSupply(_) => 1,
-            Self::InPlace => 2,
-        }
-    }
+gge_bodies! {
+    0 => VaryTradeItemPrice(VaryTradeItemPricePayload) = "vary_trade_item_price",
+    1 => OpenRoyalSupply(OpenRoyalSupplyPayload) = "open_royal_supply",
+    2 => FactionBlock(FactionBlockPayload) = "faction_block",
+    3 => PartyHashList(PartyHashListPayload) = "party_hash_list",
+    4 => PartyKeyList(PartyKeyListPayload) = "party_key_list",
+    5 => ManagementSpecialEvent(ManagementSpecialEventPayload) = "management_special_event",
 }
 
 // ── Wrapper enum ───────────────────────────────────────────────────────────
 
 #[derive(Debug)]
 pub enum GlobalGameEventExecuteData<'a> {
-    /// Wrapper has presence byte == 0; no sub_tag, no body.
-    /// On wire: `[0x00]`.
+    /// Presence byte == 0; no sub_tag, no body. On wire: `[0x00]`.
     Absent,
-    /// Wrapper has presence byte == 1; sub_tag-driven typed body.
+    /// Presence byte == 1; sub_tag-driven typed body.
     /// On wire: `[0x01, sub_tag, ...body]`.
     Present(GlobalGameEventExecuteDataBody<'a>),
     /// Fallback for unrecognized presence/sub_tag, decode failure, or
-    /// trailing bytes the typed reader didn't consume.
-    /// Bytes preserved verbatim — round-trips byte-perfect.
+    /// trailing bytes the typed reader didn't consume. Bytes kept verbatim.
     Raw(Vec<u8>),
 }
 
 impl<'a> GlobalGameEventExecuteData<'a> {
-    /// `data` should be sized to exactly the wrapper bytes (table-level
-    /// tail_blob). Any decode that doesn't cleanly consume all bytes
-    /// produces a Raw fallback.
+    /// `data` must end where the wrapper ends (the record end). Any decode
+    /// that doesn't consume exactly to the end produces a Raw fallback.
     pub fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let start = *offset;
         if start >= data.len() {
             return Ok(Self::Raw(Vec::new()));
         }
-        let presence = data[start];
-        match presence {
-            0 if data.len() - start == 1 => {
-                *offset = data.len();
-                Ok(Self::Absent)
-            }
+        let typed = match data[start] {
+            0 if data.len() - start == 1 => Some(Self::Absent),
             1 if data.len() - start >= 2 => {
-                let sub_tag = data[start + 1];
                 let mut probe = start + 2;
-                let typed = match sub_tag {
-                    0 => VaryTradeItemPricePayload::read_from(data, &mut probe)
-                        .map(GlobalGameEventExecuteDataBody::VaryTradeItemPrice),
-                    1 => OpenRoyalSupplyPayload::read_from(data, &mut probe)
-                        .map(GlobalGameEventExecuteDataBody::OpenRoyalSupply),
-                    2 => Ok(GlobalGameEventExecuteDataBody::InPlace),
-                    _ => Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("GlobalGameEventExecuteData: unknown sub_tag {}", sub_tag),
-                    )),
-                };
-                match typed {
-                    Ok(body) if probe == data.len() => {
-                        *offset = data.len();
-                        Ok(Self::Present(body))
-                    }
-                    _ => {
-                        let raw = data[start..].to_vec();
-                        *offset = data.len();
-                        Ok(Self::Raw(raw))
-                    }
+                match GlobalGameEventExecuteDataBody::read_body(data[start + 1], data, &mut probe) {
+                    Ok(body) if probe == data.len() => Some(Self::Present(body)),
+                    _ => None,
                 }
             }
-            _ => {
-                let raw = data[start..].to_vec();
-                *offset = data.len();
-                Ok(Self::Raw(raw))
-            }
-        }
+            _ => None,
+        };
+        *offset = data.len();
+        Ok(typed.unwrap_or_else(|| Self::Raw(data[start..].to_vec())))
+    }
+
+    /// True for the verbatim fallback.
+    pub fn is_raw(&self) -> bool {
+        matches!(self, Self::Raw(_))
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
@@ -201,11 +237,7 @@ impl<'a> GlobalGameEventExecuteData<'a> {
             Self::Present(body) => {
                 1u8.write_to(w)?;
                 body.sub_tag().write_to(w)?;
-                match body {
-                    GlobalGameEventExecuteDataBody::VaryTradeItemPrice(p) => p.write_to(w),
-                    GlobalGameEventExecuteDataBody::OpenRoyalSupply(p) => p.write_to(w),
-                    GlobalGameEventExecuteDataBody::InPlace => Ok(()),
-                }
+                body.write_body(w)
             }
             Self::Raw(bytes) => w.write_all(bytes),
         }
@@ -213,7 +245,9 @@ impl<'a> GlobalGameEventExecuteData<'a> {
 
     /// JSON shape:
     /// - `kind`: "absent" | "present" | "raw"
-    /// - when "present": `sub_tag` (u8), `body_type` (string), `body` (typed object)
+    /// - when "present": `sub_tag` (u8, decides the wire shape), `body_type`
+    ///   (informational name), `body` (typed object: `body_tag`, `text_1`,
+    ///   `text_2`, then the payload fields)
     /// - when "raw": `raw_b64` (base64 string)
     pub fn to_json_value(&self) -> Value {
         let mut m = Map::new();
@@ -224,25 +258,8 @@ impl<'a> GlobalGameEventExecuteData<'a> {
             Self::Present(body) => {
                 m.insert("kind".into(), Value::String("present".into()));
                 m.insert("sub_tag".into(), Value::Number(body.sub_tag().into()));
-                match body {
-                    GlobalGameEventExecuteDataBody::VaryTradeItemPrice(p) => {
-                        m.insert(
-                            "body_type".into(),
-                            Value::String("vary_trade_item_price".into()),
-                        );
-                        m.insert("body".into(), Value::Object(p.to_json_dict()));
-                    }
-                    GlobalGameEventExecuteDataBody::OpenRoyalSupply(p) => {
-                        m.insert(
-                            "body_type".into(),
-                            Value::String("open_royal_supply".into()),
-                        );
-                        m.insert("body".into(), Value::Object(p.to_json_dict()));
-                    }
-                    GlobalGameEventExecuteDataBody::InPlace => {
-                        m.insert("body_type".into(), Value::String("in_place".into()));
-                    }
-                }
+                m.insert("body_type".into(), Value::String(body.body_type().into()));
+                m.insert("body".into(), Value::Object(body.body_json()));
             }
             Self::Raw(bytes) => {
                 m.insert("kind".into(), Value::String("raw".into()));
@@ -253,91 +270,42 @@ impl<'a> GlobalGameEventExecuteData<'a> {
     }
 
     pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
-        let obj = v.as_object().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "GlobalGameEventExecuteData: expected object",
-            )
-        })?;
+        let bad = |msg: String| io::Error::new(io::ErrorKind::InvalidData, msg);
+        let obj = v
+            .as_object()
+            .ok_or_else(|| bad("GlobalGameEventExecuteData: expected object".into()))?;
         let kind = json_get_field(obj, "kind")?
             .as_str()
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "GlobalGameEventExecuteData.kind: expected string",
-                )
-            })?;
+            .ok_or_else(|| bad("GlobalGameEventExecuteData.kind: expected string".into()))?;
         match kind {
             "absent" => {
                 w.push(0);
                 Ok(())
             }
             "present" => {
-                let sub_tag_v = json_get_field(obj, "sub_tag")?
+                let sub_tag = json_get_field(obj, "sub_tag")?
                     .as_u64()
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "GlobalGameEventExecuteData.sub_tag: expected u8",
-                        )
-                    })?;
-                if sub_tag_v > u8::MAX as u64 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("sub_tag {} out of u8 range", sub_tag_v),
-                    ));
-                }
-                let sub_tag = sub_tag_v as u8;
+                    .filter(|t| *t <= u8::MAX as u64)
+                    .ok_or_else(|| bad("GlobalGameEventExecuteData.sub_tag: expected u8".into()))?
+                    as u8;
+                let body = json_get_field(obj, "body")?.as_object().ok_or_else(|| {
+                    bad(format!("GlobalGameEventExecuteData.body: expected object for sub_tag {}", sub_tag))
+                })?;
                 w.push(1);
                 w.push(sub_tag);
-                match sub_tag {
-                    0 => {
-                        let body = json_get_field(obj, "body")?.as_object().ok_or_else(|| {
-                            io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                "GlobalGameEventExecuteData.body: expected object for sub_tag 0",
-                            )
-                        })?;
-                        VaryTradeItemPricePayload::write_from_json_dict(w, body)
-                    }
-                    1 => {
-                        let body = json_get_field(obj, "body")?.as_object().ok_or_else(|| {
-                            io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                "GlobalGameEventExecuteData.body: expected object for sub_tag 1",
-                            )
-                        })?;
-                        OpenRoyalSupplyPayload::write_from_json_dict(w, body)
-                    }
-                    2 => Ok(()),
-                    other => Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("GlobalGameEventExecuteData: unknown sub_tag {}", other),
-                    )),
-                }
+                GlobalGameEventExecuteDataBody::write_body_from_json(sub_tag, w, body)
             }
             "raw" => {
                 let b64 = json_get_field(obj, "raw_b64")?
                     .as_str()
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "GlobalGameEventExecuteData.raw_b64: expected base64 string",
-                        )
-                    })?;
-                let bytes = B64.decode(b64).map_err(|e| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("GlobalGameEventExecuteData.raw_b64: invalid base64: {}", e),
-                    )
-                })?;
+                    .ok_or_else(|| bad("GlobalGameEventExecuteData.raw_b64: expected base64 string".into()))?;
+                let bytes = B64
+                    .decode(b64)
+                    .map_err(|e| bad(format!("GlobalGameEventExecuteData.raw_b64: invalid base64: {}", e)))?;
                 w.extend_from_slice(&bytes);
                 Ok(())
             }
-            other => Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("GlobalGameEventExecuteData.kind: unknown value {:?}", other),
-            )),
+            other => Err(bad(format!("GlobalGameEventExecuteData.kind: unknown value {:?}", other))),
         }
     }
 }

@@ -423,6 +423,272 @@ py_binary_struct! {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// 2.04 TAIL (game 2.04.08, build 26480954, FileVersion 1.0.0.3576)
+// ─────────────────────────────────────────────────────────────────────────
+// Everything after `_wayPointDataList_deprecated` used to stay in
+// `tail_blob`. The types below type it completely: all 1,120 base + 206
+// dlc_01 records read to the end of their pabgh range (tail_blob empty) and
+// write back byte-exact. Wire order and names come from the Win exe reader
+// (inline after the waypoint list) and its Korean error strings
+// ("<Type>의 <_field>를 읽어들이는데 실패했다"). Fields named
+// raw_*/flag_*/value_*/stat_* have no matching error string; their meaning
+// is not claimed. A `u32` marked "lookup" is a key on the wire that the game
+// maps to an index (u16/u32) in memory.
+
+py_binary_struct! {
+    // FactionSchedulePlayInfo: one phase of a dispatch operation (always 3 per
+    // schedule on 2.04.08; complete types 1, 2, 1). Phase 2 carries the work
+    // amount (_operationProgress 40..720; 0 in phases 1 and 3).
+    pub struct FactionSchedulePlayInfo {
+        pub schedule_complete_type: u8,
+        pub schedule_file_name_hash: u32,
+        pub operation_progress: u32,
+        pub spawn_position: [f32; 3],
+        pub spawn_radius: u32,
+        pub skip_schedule: u8,
+        pub additional_list: CArray<FactionU32Pair>,
+    }
+}
+
+py_binary_struct! {
+    pub struct FactionU32Pair {
+        pub a: u32,
+        pub b: u32,
+    }
+}
+
+py_binary_struct! {
+    // _resourceDataList element (operation cost), 30 wire bytes.
+    pub struct FactionResourceData {
+        pub resource_type: u32, // 11..15 = resource kinds, otherwise an item key
+        pub lookup_b: u32,
+        pub lookup_c: u32,
+        pub amount: u64,
+        pub raw_b: u64,
+        pub raw_c: u16,
+    }
+}
+
+py_binary_struct! {
+    pub struct FactionScheduleStatData {
+        pub stat_a: u32,
+        pub stat_b: u32,
+        pub stat_c: u64,
+    }
+}
+
+py_binary_struct! {
+    // _conditionOptionList element (schedules and research).
+    pub struct FactionConditionOption {
+        pub condition: u32, // lookup
+        pub flag: u8,
+        pub value_a: u32,
+        pub value_b: u32,
+    }
+}
+
+py_binary_struct! {
+    // FactionScheduleInfo = one dispatch operation (1,112 on 2.04.08).
+    pub struct FactionScheduleInfo<'a> {
+        pub flag_a: u8,                                   // always 2 on 2.04.08
+        pub schedule_play_info_list: CArray<FactionSchedulePlayInfo>,
+        pub state: FactionNodeRawDataExt,                 // FactionStateData, same wire shape
+        pub pairs: CArray<FactionScheduleU128Pair>,
+        pub list_u32: CArray<u32>,
+        pub raw_a: u32,
+        pub raw_b: u32,
+        pub raw_c: u32,
+        pub flag_b: u8,
+        pub flag_c: u8,
+        pub operation_key: u32,
+        pub operation_name: LocalizableString<'a>,
+        pub operation_group_info: u16,
+        pub resource_data_list: CArray<FactionResourceData>,
+        pub reward_drop_set_info: u32,                    // lookup
+        pub reward_drop_money: u32,                       // lookup (a key, not an amount)
+        pub equip_item_info: u32,                         // lookup
+        pub target_level_info: u32,                       // lookup
+        pub operation_day: u32,
+        pub need_operator_min_count: u32,
+        pub need_operator_max_count: u32,
+        pub max_combat_power: u32,
+        pub operation_type_string: CString<'a>,           // Combat, Building, Farming, ...
+        pub stat_data: FactionScheduleStatData,
+        pub schedule_spawn_pivot: [f32; 3],
+        pub condition_option_list: CArray<FactionConditionOption>,
+        pub operation_additional_data_list: CArray<FactionScheduleU32Triple>,
+        pub is_repeatable: u8,
+        pub is_unlock_operation: u8,
+        pub need_request_for_complete: u8,
+        pub target_sub_inner_type: CString<'a>,
+        pub gimmick_alias_name: CString<'a>,
+        pub reward_housing_save_preset_name: CString<'a>,
+        pub operation_string_key: CString<'a>,
+    }
+}
+
+py_binary_struct! {
+    pub struct FactionResearchProgress {
+        pub progress_info: u32, // lookup
+        pub value: u32,
+    }
+}
+
+py_binary_struct! {
+    pub struct FactionResearchData<'a> {
+        pub key: u32,
+        pub research_name: LocalizableString<'a>,
+        pub research_desc: LocalizableString<'a>,
+        pub ui_texture_name: u32,                            // hash
+        pub drop_set_info: u32,                              // lookup
+        pub connect_faction_node_info: u32,                  // lookup
+        pub condition_option_list: CArray<FactionConditionOption>,
+        pub progress_data_list: CArray<FactionResearchProgress>,
+        pub cost_item_list: CArray<FactionAdjacencyMobItem>, // u32 item + 3x u64, same wire shape
+        pub research_total_progress: u32,
+    }
+}
+
+py_binary_struct! {
+    // _researchDataList is a map on the wire: u32 count, then per entry
+    // u32 map key + FactionResearchData (same bytes as a CArray of this).
+    pub struct FactionResearchEntry<'a> {
+        pub map_key: u32,
+        pub data: FactionResearchData<'a>,
+    }
+}
+
+py_binary_struct! {
+    // FactionEventData_ExecuteCondition (element header).
+    pub struct FactionEventExecuteCondition {
+        pub event_type: u8,              // = slot index (3, 4, 6 used on 2.04.08)
+        pub player_condition: u32,       // lookup
+        pub quest_info: u32,             // lookup
+        pub stage_info: u32,             // lookup
+        pub mission_info: u32,           // lookup
+        pub faction_node_info: u32,      // lookup
+        pub faction_info: u32,           // lookup
+        pub game_variable_info: u32,     // lookup
+        pub close_stage_on_end_type: u8,
+        pub sub_inner_complete: u8,
+    }
+}
+
+py_binary_struct! {
+    // FactionBlockadingData (FactionEventData._blockData).
+    pub struct FactionEventBlockadingData {
+        pub blockading_faction_info: u32,                  // lookup
+        pub blockading_line_start_node_info: u32,          // lookup
+        pub use_block_day: u8,
+        pub is_block_by_player: u8,
+        pub block_sub_type: u8,
+        pub block_end_day: u32,
+        pub block_event_key: u32,
+        pub sub_blockading_faction_info_list: CArray<u32>, // lookups
+    }
+}
+
+py_binary_struct! {
+    pub struct FactionDailyDeliveryItemPair {
+        pub item: u32,   // hashed key
+        pub count: u64,
+    }
+}
+
+py_binary_struct! {
+    // FactionEventData (element body).
+    pub struct FactionEventData<'a> {
+        pub event_data_type: u8,
+        pub faction_info: u32,                     // lookup
+        pub faction_node_info: u32,                // lookup
+        pub leader_character_info: u32,            // lookup
+        pub target_faction_node_info: u32,         // lookup
+        pub target_faction_info: u32,              // lookup
+        pub faction_relation: u8,
+        pub due_date_in_seconds: u32,
+        pub relation_group_info: u16,              // wire u16
+        pub conquered_node_info: u32,              // lookup
+        pub is_conquer_enable: u8,
+        pub is_capital: u8,
+        pub block_data: FactionEventBlockadingData,
+        pub is_block_enable: u8,
+        pub daily_delivery_item_pair: FactionDailyDeliveryItemPair,
+        pub range_value: u32,
+        pub spawn_rate: u64,
+        pub target_quest_list: CArray<u32>,        // lookups
+        pub target_stage: u32,                     // lookup
+        pub target_faction_list: CArray<u32>,      // lookups
+        pub apply_skill_data: u64,
+        pub target_faction_node_list: CArray<u32>, // lookups
+        pub target_region_list: CArray<u16>,       // wire u16
+        pub target_position: [f32; 3],
+        pub is_skill_enable: u8,
+        pub is_revive_enable: u8,
+        pub is_save_enable: u8,
+        pub is_sub_inner_enable: u8,
+        pub is_node_enable: u8,
+        pub fire_arm_range_type: u32,
+        pub target_faction_type: u8,
+        pub level_name: u32,                       // lookup (hash)
+        pub alias_name: u32,                       // lookup (hash)
+        pub desc: LocalizableString<'a>,
+        pub event_data_file_line_number: u32,
+        pub event_data_file_name: CString<'a>,
+    }
+}
+
+py_binary_struct! {
+    pub struct FactionEventDataEntry<'a> {
+        pub execute_condition: FactionEventExecuteCondition,
+        pub event_data: FactionEventData<'a>,
+    }
+}
+
+py_binary_struct! {
+    // _factionEventDataList: 13 fixed lists, index = _eventType.
+    pub struct FactionEventDataSlots<'a> {
+        pub slot_00: CArray<FactionEventDataEntry<'a>>,
+        pub slot_01: CArray<FactionEventDataEntry<'a>>,
+        pub slot_02: CArray<FactionEventDataEntry<'a>>,
+        pub slot_03: CArray<FactionEventDataEntry<'a>>,
+        pub slot_04: CArray<FactionEventDataEntry<'a>>,
+        pub slot_05: CArray<FactionEventDataEntry<'a>>,
+        pub slot_06: CArray<FactionEventDataEntry<'a>>,
+        pub slot_07: CArray<FactionEventDataEntry<'a>>,
+        pub slot_08: CArray<FactionEventDataEntry<'a>>,
+        pub slot_09: CArray<FactionEventDataEntry<'a>>,
+        pub slot_10: CArray<FactionEventDataEntry<'a>>,
+        pub slot_11: CArray<FactionEventDataEntry<'a>>,
+        pub slot_12: CArray<FactionEventDataEntry<'a>>,
+    }
+}
+
+py_binary_struct! {
+    // FactionBlockConditionData (_factionBlockadingDataList element).
+    pub struct FactionBlockConditionData {
+        pub blockading_condition_info: u32,                // lookup
+        pub blockading_faction_info: u32,                  // lookup
+        pub blockading_line_start_node_info: u32,          // lookup
+        pub use_block_day: u8,
+        pub is_block_by_player: u8,
+        pub block_sub_type: u8,
+        pub block_end_day: u32,
+        pub block_event_key: u32,
+        pub sub_blockading_faction_info_list: CArray<u32>,
+        pub block_quest: u32,                              // lookup
+        pub block_mission: u32,                            // lookup
+    }
+}
+
+py_binary_struct! {
+    pub struct FactionConquerData {
+        pub conqueror_faction_info: u32,   // lookup
+        pub conquer_condition_info: u32,   // lookup
+        pub is_capital: u8,
+    }
+}
+
 pabgh_typed_blob_table! {
     // 2.04.00 order (Mac reader sub_10204FA84). The reader moved most one-byte and key fields
     // to the front, so the typed prefix now runs through `_wayPointDataList_deprecated` with
@@ -457,17 +723,19 @@ pabgh_typed_blob_table! {
         pub resource_item_list: CArray<ResourceItemData>,
         pub revival_stage_info_list: CArray<u32>,
         pub way_point_data_list_deprecated: CArray<WayPointDeprData>,
+        pub faction_schedule_info_list: CArray<FactionScheduleInfo<'a>>,
+        pub research_data_list: CArray<FactionResearchEntry<'a>>,
+        pub faction_event_data_list: FactionEventDataSlots<'a>,
+        pub religion_block_cost_list: CArray<u32>,
+        pub religion_effect_region_info_list: CArray<u16>,   // wire u16
+        pub faction_blockading_data_list: CArray<FactionBlockConditionData>,
+        pub faction_conquer_data_list: CArray<FactionConquerData>,
     }
-    // TYPED-PREFIX TRUNCATION (NattKh): fields 1–17 (_key … _wayPointDataList_
-    // deprecated) are typed & JSON-addressable; everything from
-    // _factionScheduleInfoList (field 18) onward is captured raw in tail_blob.
-    // The FactionSchedule (31-wire-field) element decoder is still incorrect —
-    // the 359 records with populated schedule/adjacency lists over-consume —
-    // so typing it would corrupt those records → in-game CTD. Blobbing the tail
-    // guarantees byte-exact roundtrip on ALL 1141 records while keeping the
-    // editable prefix exposed. The FactionSchedule/FactionAdjacency*/
-    // FactionNodeBigComposite* structs below remain as documented RE for a
-    // future dedicated typing pass.
+    // 2.04 TAIL TYPED (see the "2.04 TAIL" block above): fields 18+ are typed
+    // with the 2.04.08 reader layout; tail_blob is empty on every 2.04.08
+    // record (test tail_fully_typed) and only keeps unknown future bytes.
+    // The 1.10 FactionSchedule/FactionAdjacency*/FactionNodeBigComposite*
+    // structs above are no longer used by this table.
     tail: tail_blob;
 }
 
@@ -493,6 +761,25 @@ mod tests {
         let mut out = Vec::with_capacity(data.len());
         for it in &items { it.write_to(&mut out).unwrap(); }
         assert_eq!(out, data, "factionnode roundtrip mismatch");
+    }
+
+    #[test]
+    fn tail_fully_typed() {
+        for name in ["factionnode.pabgb", "factionnode.dlc_01.pabgb"] {
+            let p = crate::testenv::resolve(name);
+            let Ok(data) = std::fs::read(&p) else { eprintln!("SKIP {}", name); continue; };
+            let Some(entries) = load_pabgh_offsets(&p.with_extension("pabgh").to_string_lossy()) else { eprintln!("SKIP {}", name); continue; };
+            let ranges = entry_ranges(&entries, data.len());
+            let mut out = Vec::with_capacity(data.len());
+            for (i, (k, s, e)) in ranges.iter().enumerate() {
+                let mut c = *s;
+                let it = FactionNodeInfo::read_with_size(&data, &mut c, e - s)
+                    .unwrap_or_else(|er| panic!("{} e{} k=0x{:x}: {}", name, i, k, er));
+                assert!(it.tail_blob.is_empty(), "{} e{} k=0x{:x}: {} tail bytes left", name, i, k, it.tail_blob.len());
+                it.write_to(&mut out).unwrap();
+            }
+            assert_eq!(out, data, "{} roundtrip mismatch", name);
+        }
     }
 
     #[test]

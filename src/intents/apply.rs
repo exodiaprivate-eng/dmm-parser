@@ -158,6 +158,9 @@ fn apply_single(
             if let Some(reason) = blob_fallback_skip("set", &records[idx], entry.as_deref(), *key, field) {
                 return Ok(Some(reason));
             }
+            if let Some(reason) = unknown_field_skip("set", &records[idx], entry.as_deref(), *key, field) {
+                return Ok(Some(reason));
+            }
             set_value_at_path(&mut records[idx], field, new.clone())?;
             refresh_views_of_raw_bytes(&mut records[idx], field);
             index.refresh(records, idx);
@@ -288,6 +291,47 @@ fn same_named_record(existing: &Value, minted: &Value, named_by_intent: bool, ke
         name,
         op,
         if differs.is_empty() { String::new() } else { format!("; differs in {}", differs.join(", ")) }
+    ))
+}
+
+/// Guard against the other silent drop: a `set` on a top-level name the
+/// record does not have. `set_value_at_path` inserts a missing leaf, and the
+/// serializer only writes the struct's own fields, so the edit used to come
+/// back `Applied` while the bytes stayed the same. Typical causes: a typo, a
+/// field this parser version still keeps raw (inside `_tail_b64` /
+/// `_blob_b64`), or a v3.1 name that skipped normalization.
+///
+/// Every typed field is emitted on every record (a `COptional` absent value is
+/// `null`, not a missing key), so a missing top-level key really is a name the
+/// table does not have. Only the leading segment is checked: nested paths keep
+/// their current behaviour (a missing intermediate is already a hard error).
+fn unknown_field_skip(
+    op: &str,
+    record: &Value,
+    entry: Option<&str>,
+    key: Option<i64>,
+    field: &str,
+) -> Option<String> {
+    let map = record.as_object()?;
+    if field.contains('.') || field.contains('[') {
+        return None;
+    }
+    if map.contains_key(field) {
+        return None;
+    }
+    // `_tail_b64` is emitted only when a record's tail is non-empty, and the
+    // writer reads it when present, so setting it on a record without one is a
+    // real edit, not a phantom key.
+    if field == "_tail_b64" {
+        return None;
+    }
+    Some(format!(
+        "{}: record '{}' / key {:?} has no field '{}' (unknown name, or a field this \
+         parser version keeps raw); nothing written",
+        op,
+        entry.unwrap_or(""),
+        key,
+        field
     ))
 }
 
@@ -860,6 +904,56 @@ mod tests {
         };
         apply_resolved_intents(&mut records, &[intent]).unwrap();
         assert_eq!(records[1]["cooltime"], 99);
+    }
+
+    #[test]
+    fn set_unknown_field_is_skipped_not_silently_inserted() {
+        // A set on a name the record does not have used to insert a phantom
+        // JSON key and report Applied; the serializer only writes the
+        // struct's own fields, so nothing changed and the mount log could not
+        // tell. It must be reported as Skipped, with the field named.
+        let mut records = fake_records();
+        let before = records.clone();
+        let intent = Intent {
+            entry: Some("Sword_Of_Vanilla".into()),
+            field: Some("cooltyme".into()),
+            new: Some(json!(5)),
+            ..Default::default()
+        };
+        let outcomes = apply_resolved_intents(&mut records, &[intent]).unwrap();
+        match &outcomes[0].status {
+            ApplyStatus::Skipped(r) => assert!(r.contains("cooltyme"), "reason: {}", r),
+            other => panic!("expected Skipped, got {:?}", other),
+        }
+        assert_eq!(records, before, "no phantom key may be inserted");
+    }
+
+    #[test]
+    fn set_tail_b64_on_record_without_tail_is_not_skipped() {
+        let mut records = fake_records();
+        let intent = Intent {
+            entry: Some("Apple".into()),
+            field: Some("_tail_b64".into()),
+            new: Some(json!("AAAA")),
+            ..Default::default()
+        };
+        let outcomes = apply_resolved_intents(&mut records, &[intent]).unwrap();
+        assert!(matches!(outcomes[0].status, ApplyStatus::Applied));
+        assert_eq!(records[1]["_tail_b64"], "AAAA");
+    }
+
+    #[test]
+    fn set_known_field_still_applies() {
+        let mut records = fake_records();
+        let intent = Intent {
+            entry: Some("Sword_Of_Vanilla".into()),
+            field: Some("cooltime".into()),
+            new: Some(json!(5)),
+            ..Default::default()
+        };
+        let outcomes = apply_resolved_intents(&mut records, &[intent]).unwrap();
+        assert!(matches!(outcomes[0].status, ApplyStatus::Applied));
+        assert_eq!(records[0]["cooltime"], 5);
     }
 
     #[test]
