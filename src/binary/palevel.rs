@@ -90,7 +90,7 @@ use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::io;
 
-fn bad(m: impl Into<String>) -> io::Error {
+pub(crate) fn bad(m: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, m.into())
 }
 
@@ -291,12 +291,12 @@ fn wl(out: &mut Vec<u8>, s: &[u8]) {
     out.extend_from_slice(s);
 }
 
-struct Cx<'a> {
-    classes: &'a [ClassDef],
-    parc: bool,
-    version: u32,
+pub(crate) struct Cx<'a> {
+    pub(crate) classes: &'a [ClassDef],
+    pub(crate) parc: bool,
+    pub(crate) version: u32,
     /// doc offset of byte 0 of the buffer being read / written.
-    base: usize,
+    pub(crate) base: usize,
 }
 
 fn always(kind: u16) -> bool {
@@ -456,7 +456,7 @@ fn read_rec(r: &mut Rd, cx: &Cx) -> io::Result<Rec> {
     })
 }
 
-fn write_values(out: &mut Vec<u8>, c: &ClassDef, vals: &[(usize, Val)], cx: &Cx) -> io::Result<()> {
+pub(crate) fn write_values(out: &mut Vec<u8>, c: &ClassDef, vals: &[(usize, Val)], cx: &Cx) -> io::Result<()> {
     for (i, v) in vals {
         let f = c
             .fields
@@ -603,7 +603,7 @@ fn write_body(b: &Body, c: &ClassDef, cx: &Cx) -> io::Result<Vec<u8>> {
 
 // ---------------------------------------------------------------- doc / container
 
-fn parse_doc(b: &[u8], o: usize, restab: bool) -> io::Result<(Doc, usize)> {
+pub(crate) fn parse_doc(b: &[u8], o: usize, restab: bool) -> io::Result<(Doc, usize)> {
     let d0 = o;
     let mut r = Rd { b, p: o };
     let h = r.take(4)?;
@@ -707,7 +707,7 @@ fn parse_doc(b: &[u8], o: usize, restab: bool) -> io::Result<(Doc, usize)> {
     Ok((doc, r.p))
 }
 
-fn build_doc(out: &mut Vec<u8>, d: &Doc) -> io::Result<()> {
+pub(crate) fn build_doc(out: &mut Vec<u8>, d: &Doc) -> io::Result<()> {
     let d0 = out.len();
     out.extend_from_slice(&[0xff, 0xff, d.format, 0]);
     out.extend_from_slice(&d.zero.to_le_bytes());
@@ -774,7 +774,7 @@ fn build_doc(out: &mut Vec<u8>, d: &Doc) -> io::Result<()> {
     Ok(())
 }
 
-fn parse_parc(b: &[u8], o: usize) -> io::Result<(Parc, usize)> {
+pub(crate) fn parse_parc(b: &[u8], o: usize) -> io::Result<(Parc, usize)> {
     if b.get(o..o + 4) != Some(&b"PARC"[..]) {
         return Err(bad(format!("no PARC at {o:#x}")));
     }
@@ -790,7 +790,7 @@ fn parse_parc(b: &[u8], o: usize) -> io::Result<(Parc, usize)> {
     ))
 }
 
-fn build_parc(out: &mut Vec<u8>, p: &Parc) {
+pub(crate) fn build_parc(out: &mut Vec<u8>, p: &Parc) {
     out.extend_from_slice(b"PARC");
     out.push(p.kind);
     out.push(p.v);
@@ -904,7 +904,7 @@ pub fn build_level(m: &LevelFile) -> io::Result<Vec<u8>> {
 
 // ---------------------------------------------------------------- JSON
 
-fn hx(b: &[u8]) -> String {
+pub(crate) fn hx(b: &[u8]) -> String {
     let mut s = String::with_capacity(b.len() * 2);
     for x in b {
         s.push_str(&format!("{x:02x}"));
@@ -912,7 +912,7 @@ fn hx(b: &[u8]) -> String {
     s
 }
 
-fn unhx(s: &str) -> io::Result<Vec<u8>> {
+pub(crate) fn unhx(s: &str) -> io::Result<Vec<u8>> {
     if s.len() % 2 != 0 {
         return Err(bad("odd hex length"));
     }
@@ -1003,7 +1003,7 @@ fn val_json(v: &Val, cl: &[ClassDef]) -> Value {
     }
 }
 
-fn field_index(c: &ClassDef, name: &[u8]) -> Option<usize> {
+pub(crate) fn field_index(c: &ClassDef, name: &[u8]) -> Option<usize> {
     c.fields.iter().position(|f| f.name == name)
 }
 
@@ -1062,7 +1062,7 @@ fn rec_from(v: &Value, cx: &Cx) -> io::Result<Rec> {
     })
 }
 
-fn val_from(v: &Value, f: &FieldDef, cx: &Cx) -> io::Result<Val> {
+pub(crate) fn val_from(v: &Value, f: &FieldDef, cx: &Cx) -> io::Result<Val> {
     if v.is_null() {
         return if matches!(f.kind, 3 | 5 | 6 | 7 | 10) {
             Ok(Val::Null)
@@ -1103,7 +1103,7 @@ fn val_from(v: &Value, f: &FieldDef, cx: &Cx) -> io::Result<Val> {
     })
 }
 
-fn doc_json(d: &Doc) -> Value {
+pub(crate) fn doc_json(d: &Doc) -> Value {
     let objects: Vec<Value> = d
         .objects
         .iter()
@@ -1140,7 +1140,7 @@ fn doc_json(d: &Doc) -> Value {
     })
 }
 
-fn doc_from(v: &Value) -> io::Result<Doc> {
+pub(crate) fn doc_from(v: &Value) -> io::Result<Doc> {
     let mut classes = Vec::new();
     for c in v
         .get("classes")
@@ -1251,10 +1251,10 @@ fn doc_from(v: &Value) -> io::Result<Doc> {
     Ok(doc)
 }
 
-fn parc_json(p: &Parc) -> Value {
+pub(crate) fn parc_json(p: &Parc) -> Value {
     json!({"kind": p.kind, "v": p.v, "hash": format!("{:016x}", p.hash), "z": p.z})
 }
-fn parc_from(v: &Value) -> io::Result<Parc> {
+pub(crate) fn parc_from(v: &Value) -> io::Result<Parc> {
     Ok(Parc {
         kind: ju(v.get("kind"), "kind")? as u8,
         v: ju(v.get("v"), "v")? as u8,

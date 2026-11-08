@@ -2370,6 +2370,71 @@ pub fn apply_palevel_intents(py: Python<'_>, data: &[u8], intents: &Bound<'_, Py
     Ok(result.into_any().unbind())
 }
 
+/// Decode a whole `.pae` / `.paem` / `.parg` effect file to a dict (PARC
+/// header + reflection doc, every object's field values; see
+/// `binary::effect`). Byte-exact with [`encode_effect`].
+#[pyfunction]
+pub fn decode_effect(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let v = crate::binary::effect::decode_effect(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &v)
+}
+
+/// Encode a dict from [`decode_effect`] back to file bytes.
+#[pyfunction]
+pub fn encode_effect(py: Python<'_>, doc: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let v = py_to_json(doc)?;
+    let b = crate::binary::effect::encode_effect(&v).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &b).into_any().unbind())
+}
+
+/// Every leaf of an effect file as `{"path", "type", "value"}` (typed
+/// values; `path` is what a `set` intent takes, e.g.
+/// `EffectData#0._emitterVariationDataArray[1]._internalEmitterData._renderData._emissiveColor`).
+#[pyfunction]
+pub fn list_effect_fields(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let rows = crate::binary::effect::list_effect_fields(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &serde_json::Value::Array(rows))
+}
+
+/// Byte round-trip check of one effect file: `(exact, raw_objects)`.
+#[pyfunction]
+pub fn effect_roundtrip(data: &[u8]) -> PyResult<(bool, usize)> {
+    crate::binary::effect::effect_roundtrip(data).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Apply field intents (`set` by path, typed values, `"x1.5"` multiplies)
+/// to a `.pae` / `.paem` / `.parg`.
+/// Returns `{"body": bytes, "outcomes": [{"op", "status", "reason"?}]}`.
+#[pyfunction]
+pub fn apply_effect_intents(py: Python<'_>, data: &[u8], intents: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    let intent_list: Vec<crate::intents::Intent> = intents
+        .iter()
+        .map(|item| {
+            let v = py_to_json(&item)?;
+            crate::intents::Intent::from_value(&v).map_err(|e| PyValueError::new_err(format!("intent: {}", e)))
+        })
+        .collect::<PyResult<_>>()?;
+    let (body, outcomes) =
+        crate::binary::effect::apply_effect_intents(data, &intent_list).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, &body))?;
+    let outcome_list = PyList::empty(py);
+    for o in outcomes {
+        let d = PyDict::new(py);
+        d.set_item("op", &o.op)?;
+        match o.status {
+            crate::intents::ApplyStatus::Applied => d.set_item("status", "applied")?,
+            crate::intents::ApplyStatus::Skipped(reason) => {
+                d.set_item("status", "skipped")?;
+                d.set_item("reason", &reason)?;
+            }
+        }
+        outcome_list.append(d)?;
+    }
+    result.set_item("outcomes", outcome_list)?;
+    Ok(result.into_any().unbind())
+}
+
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_iteminfo_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_iteminfo_from_bytes, m)?)?;
@@ -2492,5 +2557,10 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_palevel_objects, m)?)?;
     m.add_function(wrap_pyfunction!(palevel_roundtrip, m)?)?;
     m.add_function(wrap_pyfunction!(apply_palevel_intents, m)?)?;
+    m.add_function(wrap_pyfunction!(decode_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(encode_effect, m)?)?;
+    m.add_function(wrap_pyfunction!(list_effect_fields, m)?)?;
+    m.add_function(wrap_pyfunction!(effect_roundtrip, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_effect_intents, m)?)?;
     Ok(())
 }
