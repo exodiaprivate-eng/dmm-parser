@@ -1190,6 +1190,108 @@ pub fn parse_skillinfo_from_file(
     parse_skillinfo_from_bytes(py, &data, &pabgh)
 }
 
+/// Decode a whole `.uibinary` (compiled UI screen) to a dict: root element
+/// tree, css / template lists, components, events, actions and compiled
+/// expressions (see `binary::uibinary`). Byte-exact with [`encode_uibinary`].
+#[pyfunction]
+pub fn decode_uibinary(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let v = crate::binary::uibinary::decode_uibinary(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &v)
+}
+
+/// Encode a dict from [`decode_uibinary`] back to file bytes.
+#[pyfunction]
+pub fn encode_uibinary(py: Python<'_>, doc: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let v = py_to_json(doc)?;
+    let b = crate::binary::uibinary::encode_uibinary(&v).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &b).into_any().unbind())
+}
+
+/// Byte round-trip check of one `.uibinary`.
+#[pyfunction]
+pub fn uibinary_roundtrip(data: &[u8]) -> PyResult<bool> {
+    crate::binary::uibinary::roundtrip_check(data).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// One dict per element / component (ctx, selector, id, classes, script,
+/// depth) - for finding the `entry` selector a UI intent uses.
+#[pyfunction]
+pub fn list_uibinary_elements(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let rows = crate::binary::uibinary::list_uibinary_elements(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &serde_json::Value::Array(rows))
+}
+
+/// html `css` token sets / script / shared attributes vs the uibinary, per id
+/// unique in both -> `{id: {"classes"|"script"|"attributes": ...}}`.
+#[pyfunction]
+pub fn check_uibinary_html_pair(py: Python<'_>, data: &[u8], html: &[u8]) -> PyResult<Py<PyAny>> {
+    let h = std::str::from_utf8(html).map_err(|e| PyValueError::new_err(format!("html: {}", e)))?;
+    let v = crate::binary::uibinary::check_uibinary_html_pair(data, h).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &v)
+}
+
+fn ui_outcomes<'py>(py: Python<'py>, outs: Vec<crate::binary::uibinary::UiOutcome>) -> PyResult<Bound<'py, PyList>> {
+    let outcome_list = PyList::empty(py);
+    for o in outs {
+        let d = PyDict::new(py);
+        d.set_item("op", &o.op)?;
+        match o.status {
+            crate::intents::ApplyStatus::Applied => d.set_item("status", "applied")?,
+            crate::intents::ApplyStatus::Skipped(reason) => {
+                d.set_item("status", "skipped")?;
+                d.set_item("reason", &reason)?;
+            }
+        }
+        if let Some(h) = o.html {
+            d.set_item("html", h)?;
+        }
+        outcome_list.append(d)?;
+    }
+    Ok(outcome_list)
+}
+
+fn json_list(intents: &Bound<'_, PyList>) -> PyResult<Vec<serde_json::Value>> {
+    intents.iter().map(|item| py_to_json(&item)).collect::<PyResult<_>>()
+}
+
+/// Apply element intents (set / array_append / array_remove on `classes` /
+/// clone_record / delete_record; `entry` = `#Id[@n|@*]`, `comp:Name[#Id]`,
+/// `root`) to a `.uibinary`, editing the `.html` in step when given.
+/// Returns `{"body": bytes, "html": bytes | None, "outcomes": [{"op", "status", "reason"?, "html"?}]}`.
+#[pyfunction]
+#[pyo3(signature = (data, intents, html=None))]
+pub fn apply_ui_intents(py: Python<'_>, data: &[u8], intents: &Bound<'_, PyList>, html: Option<&[u8]>) -> PyResult<Py<PyAny>> {
+    let list = json_list(intents)?;
+    let h = match html {
+        Some(b) => Some(std::str::from_utf8(b).map_err(|e| PyValueError::new_err(format!("html: {}", e)))?),
+        None => None,
+    };
+    let (body, nh, outs) =
+        crate::binary::uibinary::apply_ui_intents(data, h, &list).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, &body))?;
+    match nh {
+        Some(t) => result.set_item("html", PyBytes::new(py, t.as_bytes()))?,
+        None => result.set_item("html", py.None())?,
+    }
+    result.set_item("outcomes", ui_outcomes(py, outs)?)?;
+    Ok(result.into_any().unbind())
+}
+
+/// Apply css intents (`set`: entry = selector, field = property, value;
+/// `add_rule`: value = rule text, after = selector) to a `.css` file.
+/// Returns `{"body": bytes, "outcomes": [...]}`.
+#[pyfunction]
+pub fn apply_ui_css_intents(py: Python<'_>, css: &[u8], intents: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    let list = json_list(intents)?;
+    let t = std::str::from_utf8(css).map_err(|e| PyValueError::new_err(format!("css: {}", e)))?;
+    let (body, outs) = crate::binary::uibinary::apply_ui_css_intents(t, &list);
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, body.as_bytes()))?;
+    result.set_item("outcomes", ui_outcomes(py, outs)?)?;
+    Ok(result.into_any().unbind())
+}
+
 #[pyfunction]
 pub fn parse_skillinfo_from_bytes(
     py: Python<'_>,
@@ -2386,6 +2488,13 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialize_paccd, m)?)?;
     m.add_function(wrap_pyfunction!(parse_hkx_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_hkx, m)?)?;
+    m.add_function(wrap_pyfunction!(decode_uibinary, m)?)?;
+    m.add_function(wrap_pyfunction!(encode_uibinary, m)?)?;
+    m.add_function(wrap_pyfunction!(uibinary_roundtrip, m)?)?;
+    m.add_function(wrap_pyfunction!(list_uibinary_elements, m)?)?;
+    m.add_function(wrap_pyfunction!(check_uibinary_html_pair, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_ui_intents, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_ui_css_intents, m)?)?;
     m.add_function(wrap_pyfunction!(parse_binarystring_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(serialize_binarystring, m)?)?;
     m.add_function(wrap_pyfunction!(parse_xml_bytes, m)?)?;
