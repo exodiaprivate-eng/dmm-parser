@@ -2306,6 +2306,70 @@ fn json_value_to_py<'py>(py: Python<'py>, v: &serde_json::Value) -> PyResult<Bou
 
 // ── Registration ───────────────────────────────────────────────────────────
 
+/// Decode a whole `.palevel` (or bare reflection `.prefab`) to a dict:
+/// container, docs, classes, string/resource tables and every object's
+/// field values (see `binary::palevel`). Byte-exact with [`encode_palevel`].
+#[pyfunction]
+pub fn decode_palevel(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let v = crate::binary::palevel::decode_palevel(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &v)
+}
+
+/// Encode a dict from [`decode_palevel`] back to file bytes.
+#[pyfunction]
+pub fn encode_palevel(py: Python<'_>, doc: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let v = py_to_json(doc)?;
+    let b = crate::binary::palevel::encode_palevel(&v).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &b).into_any().unbind())
+}
+
+/// One dict per top-level object (doc, index, class, parent, uid, uids,
+/// position) - for finding the `_sceneObjectUid` an intent selects.
+#[pyfunction]
+pub fn list_palevel_objects(py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+    let rows = crate::binary::palevel::list_palevel_objects(data).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    json_to_py(py, &serde_json::Value::Array(rows))
+}
+
+/// Byte round-trip check of one `.palevel`: `(exact, raw_objects)`.
+#[pyfunction]
+pub fn palevel_roundtrip(data: &[u8]) -> PyResult<(bool, usize)> {
+    crate::binary::palevel::roundtrip_check(data).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Apply object intents (set / move / clone_record / delete_record, key =
+/// `_sceneObjectUid`) to a `.palevel`.
+/// Returns `{"body": bytes, "outcomes": [{"op", "status", "reason"?}]}`.
+#[pyfunction]
+pub fn apply_palevel_intents(py: Python<'_>, data: &[u8], intents: &Bound<'_, PyList>) -> PyResult<Py<PyAny>> {
+    let intent_list: Vec<crate::intents::Intent> = intents
+        .iter()
+        .map(|item| {
+            let v = py_to_json(&item)?;
+            crate::intents::Intent::from_value(&v).map_err(|e| PyValueError::new_err(format!("intent: {}", e)))
+        })
+        .collect::<PyResult<_>>()?;
+    let (body, outcomes) =
+        crate::binary::palevel::apply_palevel_intents(data, &intent_list).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let result = PyDict::new(py);
+    result.set_item("body", PyBytes::new(py, &body))?;
+    let outcome_list = PyList::empty(py);
+    for o in outcomes {
+        let d = PyDict::new(py);
+        d.set_item("op", &o.op)?;
+        match o.status {
+            crate::intents::ApplyStatus::Applied => d.set_item("status", "applied")?,
+            crate::intents::ApplyStatus::Skipped(reason) => {
+                d.set_item("status", "skipped")?;
+                d.set_item("reason", &reason)?;
+            }
+        }
+        outcome_list.append(d)?;
+    }
+    result.set_item("outcomes", outcome_list)?;
+    Ok(result.into_any().unbind())
+}
+
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_iteminfo_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_iteminfo_from_bytes, m)?)?;
@@ -2423,5 +2487,10 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(write_paatt_to_file, m)?)?;
     m.add_function(wrap_pyfunction!(paatt_decode_base_data, m)?)?;
     m.add_function(wrap_pyfunction!(paatt_encode_base_data, m)?)?;
+    m.add_function(wrap_pyfunction!(decode_palevel, m)?)?;
+    m.add_function(wrap_pyfunction!(encode_palevel, m)?)?;
+    m.add_function(wrap_pyfunction!(list_palevel_objects, m)?)?;
+    m.add_function(wrap_pyfunction!(palevel_roundtrip, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_palevel_intents, m)?)?;
     Ok(())
 }
