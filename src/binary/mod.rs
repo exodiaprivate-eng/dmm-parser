@@ -28,6 +28,7 @@ pub mod paseq;
 pub mod paseqc;
 pub mod paschedule;
 pub mod paschedulepath;
+pub mod paschedule_body;
 pub mod dds;
 pub mod wem;
 pub mod bnk;
