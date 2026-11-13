@@ -42,6 +42,8 @@ pub mod binarystring;
 pub mod xml_resource;
 pub mod xml_patch;
 pub mod prefab;
+pub mod palevel;
+pub mod effect;
 pub mod impostor;
 pub mod count_record_table;
 
