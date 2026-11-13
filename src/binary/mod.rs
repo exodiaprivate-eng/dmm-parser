@@ -35,6 +35,7 @@ pub mod pami;
 pub mod par_resource;
 pub mod motionblending;
 pub mod pamlod;
+pub mod uibinary;
 pub mod hkx;
 pub mod paasmt;
 pub mod paccd;
