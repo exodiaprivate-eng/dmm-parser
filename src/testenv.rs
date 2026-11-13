@@ -32,6 +32,12 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.05.00 - 2026-11-12 (Steam build 26636972, paver 0200050000000100...): layout
+    // changes. GameCondition +1 from 144; DropInfoData +1 byte after _enchantLevel (dropset +
+    // storeinfo copies); dropset isToVehicle; skillgroup groupType; patrol group spawnGroupType +
+    // formationInfo; FrameEventAttribute aiMove*; equipslot stringKey filled; detectinfo absorbs
+    // DetectDetailInfo; bitmapposition useR/G/B; uimaptexture platform icon fields.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-11-12-205",
     // GAME VERSION 2.04.08 - 2026-11-06 (Steam build 26480954, paver 0200040008000100...): no layout
     // change. Value edits and new records only (action points, one stage, two local strings); no item,
     // recipe or drop table changed in the base game.

@@ -50,6 +50,8 @@ pub struct DropSetInfo<'a> {
     pub is_blocked: u8,
     // ── 1.18.00: `_isEqualPercent` (appended after original_string then; fourth since 2.04).
     pub is_equal_percent: u8,
+    // ── 2.05.00: `_isToVehicle` (field 4, after `_isEqualPercent`): the drop goes to the vehicle.
+    pub is_to_vehicle: u8,
     pub drop_roll_type: u8,
     pub nee_slot_count: u16,
     pub drop_tag_name_hash: u32,
@@ -85,6 +87,7 @@ impl<'a> DropSetInfo<'a> {
         let key = u32::read_from(data, offset)?;
         let is_blocked = u8::read_from(data, offset)?;
         let is_equal_percent = u8::read_from(data, offset)?;
+        let is_to_vehicle = u8::read_from(data, offset)?;
         let drop_roll_type = u8::read_from(data, offset)?;
         let nee_slot_count = u16::read_from(data, offset)?;
         let drop_tag_name_hash = u32::read_from(data, offset)?;
@@ -97,7 +100,7 @@ impl<'a> DropSetInfo<'a> {
         let original_string = CString::read_from(data, offset)?;
 
         Ok(Self {
-            string_key, key, is_blocked, is_equal_percent, drop_roll_type, nee_slot_count,
+            string_key, key, is_blocked, is_equal_percent, is_to_vehicle, drop_roll_type, nee_slot_count,
             drop_tag_name_hash, drop_roll_count, list, need_weight, total_drop_rate,
             roll_dice_skip_rate, drop_condition_string, original_string,
         })
@@ -114,6 +117,7 @@ impl<'a> DropSetInfo<'a> {
         let key = track_read_field::<u32>(data, offset, path, ranges, "key", "u32")?;
         let is_blocked = track_read_field::<u8>(data, offset, path, ranges, "is_blocked", "u8")?;
         let is_equal_percent = track_read_field::<u8>(data, offset, path, ranges, "is_equal_percent", "u8")?;
+        let is_to_vehicle = track_read_field::<u8>(data, offset, path, ranges, "is_to_vehicle", "u8")?;
         let drop_roll_type = track_read_field::<u8>(data, offset, path, ranges, "drop_roll_type", "u8")?;
         let nee_slot_count = track_read_field::<u16>(data, offset, path, ranges, "nee_slot_count", "u16")?;
         let drop_tag_name_hash = track_read_field::<u32>(data, offset, path, ranges, "drop_tag_name_hash", "u32")?;
@@ -125,7 +129,7 @@ impl<'a> DropSetInfo<'a> {
         let drop_condition_string = track_read_field::<u32>(data, offset, path, ranges, "drop_condition_string", "u32")?;
         let original_string = track_read_field::<CString<'a>>(data, offset, path, ranges, "original_string", "CString")?;
         Ok(Self {
-            string_key, key, is_blocked, is_equal_percent, drop_roll_type, nee_slot_count,
+            string_key, key, is_blocked, is_equal_percent, is_to_vehicle, drop_roll_type, nee_slot_count,
             drop_tag_name_hash, drop_roll_count, list, need_weight, total_drop_rate,
             roll_dice_skip_rate, drop_condition_string, original_string,
         })
@@ -136,6 +140,7 @@ impl<'a> DropSetInfo<'a> {
         self.key.write_to(w)?;
         self.is_blocked.write_to(w)?;
         self.is_equal_percent.write_to(w)?;
+        self.is_to_vehicle.write_to(w)?;
         self.drop_roll_type.write_to(w)?;
         self.nee_slot_count.write_to(w)?;
         self.drop_tag_name_hash.write_to(w)?;
@@ -155,6 +160,7 @@ impl<'a> DropSetInfo<'a> {
         m.insert("key".to_string(), self.key.to_json_value());
         m.insert("is_blocked".to_string(), self.is_blocked.to_json_value());
         m.insert("is_equal_percent".to_string(), self.is_equal_percent.to_json_value());
+        m.insert("is_to_vehicle".to_string(), self.is_to_vehicle.to_json_value());
         m.insert("drop_roll_type".to_string(), self.drop_roll_type.to_json_value());
         m.insert("nee_slot_count".to_string(), self.nee_slot_count.to_json_value());
         m.insert("drop_tag_name_hash".to_string(), self.drop_tag_name_hash.to_json_value());
@@ -175,6 +181,10 @@ impl<'a> DropSetInfo<'a> {
         // Null-tolerant: a V3 mod authored before 1.18 has no key for this.
         <u8 as WriteJsonValue>::write_from_json(
             w, obj.get("is_equal_percent").unwrap_or(&Value::Null))?;
+        // Null-tolerant: a V3 mod authored before 2.05 has no key for this (whole-record dropset
+        // clones, Stormsteel and the loot mods).
+        <u8 as WriteJsonValue>::write_from_json(
+            w, obj.get("is_to_vehicle").unwrap_or(&Value::Null))?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_roll_type")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "nee_slot_count")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "drop_tag_name_hash")?)?;

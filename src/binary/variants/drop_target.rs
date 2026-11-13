@@ -31,6 +31,7 @@
 //!  10.  u64 raw_40             (wire 45..52, mem +40)
 //!  11.  u64 raw_48             (wire 53..60, mem +48)
 //!  12.  u16 raw_56             (wire 61..62, mem +56)
+//!  13.  u8  raw_58             (2.05.00: new byte after `_enchantLevel`, before the tail)
 //!
 //! Variant tail (dispatched on `dispatch_tag` from step 2):
 //!   tag 0       : u32 (sub_1410FF5C0,  qword_DA00 hash)
@@ -319,6 +320,8 @@ pub struct DropTargetData {
     pub raw_40: u64,
     pub raw_48: u64,
     pub raw_56: u16,
+    /// 2.05.00: one new byte after `_enchantLevel` (0 in vanilla records checked).
+    pub raw_58: u8,
     pub variant: DropTargetVariant,
 }
 
@@ -335,10 +338,11 @@ impl<'a> BinaryRead<'a> for DropTargetData {
         let raw_40 = u64::read_from(data, offset)?;
         let raw_48 = u64::read_from(data, offset)?;
         let raw_56 = u16::read_from(data, offset)?;
+        let raw_58 = u8::read_from(data, offset)?;
         let variant = DropTargetVariant::read_from(dispatch_tag, data, offset)?;
         Ok(Self {
             raw_at_120, dispatch_tag, lookup_4, lookup_6, lookup_8,
-            raw_12, raw_16, raw_32, raw_40, raw_48, raw_56, variant,
+            raw_12, raw_16, raw_32, raw_40, raw_48, raw_56, raw_58, variant,
         })
     }
 }
@@ -356,6 +360,7 @@ impl BinaryWrite for DropTargetData {
         self.raw_40.write_to(w)?;
         self.raw_48.write_to(w)?;
         self.raw_56.write_to(w)?;
+        self.raw_58.write_to(w)?;
         self.variant.write_to(w)
     }
 }
@@ -374,6 +379,7 @@ impl ToJsonValue for DropTargetData {
         m.insert("raw_40".into(), self.raw_40.to_json_value());
         m.insert("raw_48".into(), self.raw_48.to_json_value());
         m.insert("raw_56".into(), self.raw_56.to_json_value());
+        m.insert("raw_58".into(), self.raw_58.to_json_value());
         m.insert("variant".into(), self.variant.to_json_value());
         Value::Object(m)
     }
@@ -430,6 +436,8 @@ impl WriteJsonValue for DropTargetData {
         let raw_40 = pick_u64(obj, &["raw_40", "min_amt"], 0);
         let raw_48 = pick_u64(obj, &["raw_48", "max_amt"], 0);
         let raw_56 = pick_u16(obj, &["raw_56"], 0);
+        // 2.05.00. Absent in a mod made before 2.05: 0, the value vanilla records carry.
+        let raw_58 = pick_u8(obj, &["raw_58"], 0);
 
         item_key.write_to(w)?;
         dispatch_tag.write_to(w)?;
@@ -442,6 +450,7 @@ impl WriteJsonValue for DropTargetData {
         raw_40.write_to(w)?;
         raw_48.write_to(w)?;
         raw_56.write_to(w)?;
+        raw_58.write_to(w)?;
 
         // Variant tail. Wire-faithful path: explicit `variant` object.
         // Semantic path: synthesize from dispatch_tag + item_key.

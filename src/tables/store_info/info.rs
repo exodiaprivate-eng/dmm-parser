@@ -328,6 +328,9 @@ pub struct StoreStockDataValue {
     pub raw_e: u64,
     pub raw_f: u64,
     pub raw_g: u16,
+    /// 2.05.00: one new byte after `_enchantLevel` (raw_g), before the payload: the same
+    /// DropInfoData change as `DropTargetData::raw_58`. 0 in vanilla stock rows.
+    pub raw_h: u8,
     pub payload: StoreStockDataValuePayload,
 }
 
@@ -344,10 +347,11 @@ impl StoreStockDataValue {
         let raw_e = u64::read_from(data, offset)?;
         let raw_f = u64::read_from(data, offset)?;
         let raw_g = u16::read_from(data, offset)?;
+        let raw_h = u8::read_from(data, offset)?;
         let payload = StoreStockDataValuePayload::read_from(disc, data, offset)?;
         Ok(Self {
             raw_q, disc, lookup_a, lookup_b, lookup_c,
-            raw_a, raw_b, raw_d, raw_e, raw_f, raw_g, payload,
+            raw_a, raw_b, raw_d, raw_e, raw_f, raw_g, raw_h, payload,
         })
     }
 
@@ -363,6 +367,7 @@ impl StoreStockDataValue {
         self.raw_e.write_to(w)?;
         self.raw_f.write_to(w)?;
         self.raw_g.write_to(w)?;
+        self.raw_h.write_to(w)?;
         self.payload.write_to(w)
     }
 
@@ -379,6 +384,7 @@ impl StoreStockDataValue {
         m.insert("raw_e".to_string(), self.raw_e.to_json_value());
         m.insert("raw_f".to_string(), self.raw_f.to_json_value());
         m.insert("raw_g".to_string(), self.raw_g.to_json_value());
+        m.insert("raw_h".to_string(), self.raw_h.to_json_value());
         m.insert("payload".to_string(), self.payload.to_json_value());
         Value::Object(m)
     }
@@ -401,6 +407,8 @@ impl StoreStockDataValue {
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_e")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_f")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_g")?)?;
+        // 2.05.00; absent from rows a mod made before 2.05 (shop rows, EVI): 0, as vanilla.
+        <u8 as WriteJsonValue>::write_from_json(w, obj.get("raw_h").unwrap_or(&Value::Null))?;
         StoreStockDataValuePayload::write_from_json(disc, w, json_get_field(obj, "payload")?)?;
         Ok(())
     }

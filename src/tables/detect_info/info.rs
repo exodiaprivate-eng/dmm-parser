@@ -62,6 +62,112 @@ py_binary_struct! {
         pub decrease_value_per_sec: u32,
         pub target_lost_distance: u32,
         pub detect_sense_data: DetectSenseData,
+        // 2.05.00: `_detectDetailData` (field 8). The DetectDetailInfo table is gone; its 64-entry
+        // list now sits in each DetectInfo record behind a presence byte (25 records 0, 19 records
+        // 1 + exactly the old table's 2688 / 2982 bytes).
+        pub detect_detail_data: COptional<DetectDetailList>,
+    }
+}
+
+/// The 64 DetectSenseData entries of 2.05's `_detectDetailData` (`_detectDetailDataListNew`): a
+/// FIXED count with no prefix, as the old DetectDetailInfo table stored them.
+#[derive(Debug)]
+pub struct DetectDetailList(pub Vec<DetectSenseData>);
+
+pub const DETECT_DETAIL_LEN: usize = 0x40;
+
+impl<'a> BinaryRead<'a> for DetectDetailList {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> std::io::Result<Self> {
+        let mut v = Vec::with_capacity(DETECT_DETAIL_LEN);
+        for _ in 0..DETECT_DETAIL_LEN {
+            v.push(DetectSenseData::read_from(data, offset)?);
+        }
+        Ok(Self(v))
+    }
+}
+
+impl<'a> BinaryReadTracked<'a> for DetectDetailList {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<FieldRange>,
+    ) -> std::io::Result<Self> {
+        let mut v = Vec::with_capacity(DETECT_DETAIL_LEN);
+        for i in 0..DETECT_DETAIL_LEN {
+            let saved = push_path(path, &i.to_string());
+            v.push(DetectSenseData::read_tracked(data, offset, path, ranges)?);
+            pop_path(path, saved);
+        }
+        Ok(Self(v))
+    }
+}
+
+impl BinaryWrite for DetectDetailList {
+    fn write_to(&self, w: &mut dyn std::io::Write) -> std::io::Result<()> {
+        if self.0.len() != DETECT_DETAIL_LEN {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("detect_detail_data must have exactly {} entries (got {})", DETECT_DETAIL_LEN, self.0.len()),
+            ));
+        }
+        for e in &self.0 {
+            e.write_to(w)?;
+        }
+        Ok(())
+    }
+}
+
+impl crate::json_traits::ToJsonValue for DetectDetailList {
+    fn to_json_value(&self) -> serde_json::Value {
+        serde_json::Value::Array(self.0.iter().map(|e| e.to_json_value()).collect())
+    }
+}
+
+impl crate::json_traits::WriteJsonValue for DetectDetailList {
+    fn write_from_json(w: &mut Vec<u8>, v: &serde_json::Value) -> std::io::Result<()> {
+        let arr = v.as_array().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "detect_detail_data: expected an array")
+        })?;
+        if arr.len() != DETECT_DETAIL_LEN {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("detect_detail_data must have exactly {} entries (got {})", DETECT_DETAIL_LEN, arr.len()),
+            ));
+        }
+        for e in arr {
+            <DetectSenseData as crate::json_traits::WriteJsonValue>::write_from_json(w, e)?;
+        }
+        Ok(())
+    }
+}
+
+impl crate::python_traits::ToPyValue for DetectDetailList {
+    fn to_py_value(&self, py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        use pyo3::types::PyListMethods;
+        let list = pyo3::types::PyList::empty(py);
+        for e in &self.0 {
+            list.append(e.to_py_value(py)?)?;
+        }
+        Ok(list.into_any().unbind())
+    }
+}
+
+impl crate::python_traits::WritePyValue for DetectDetailList {
+    fn write_from_py(w: &mut Vec<u8>, obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        use pyo3::types::PyListMethods;
+        let list = obj.cast::<pyo3::types::PyList>()?;
+        if list.len() != DETECT_DETAIL_LEN {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "detect_detail_data must have exactly {} entries (got {})",
+                DETECT_DETAIL_LEN,
+                list.len()
+            )));
+        }
+        for item in list.iter() {
+            <DetectSenseData as crate::python_traits::WritePyValue>::write_from_py(w, &item)?;
+        }
+        Ok(())
     }
 }
 

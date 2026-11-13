@@ -351,11 +351,9 @@ impl EquipSlotInfo {
                 format!("EquipSlotInfo k={}: under/over-read ({} of {} bytes; tail_magic=0x{:x})",
                     key, *offset - entry_start, entry_size, tail_magic)));
         }
-        if tail_magic != EQUIP_SLOT_TAIL_MAGIC {
-            return Err(io::Error::new(io::ErrorKind::InvalidData,
-                format!("EquipSlotInfo k={}: tail_magic = 0x{:x}, expected 0x{:x}",
-                    key, tail_magic, EQUIP_SLOT_TAIL_MAGIC)));
-        }
+        // 2.05.00: no longer checked against EQUIP_SLOT_TAIL_MAGIC. Since 2.04 this field is
+        // `uiComponentName` (a StringInfoKey), not a terminator, and 2.05 gives record k=201 its
+        // own (0xaab11894). The size check above still catches a misread record.
 
         Ok(Self { key, header, flag_u8, flag_u16, entries, extra_entries, tail_magic })
     }

@@ -41,6 +41,11 @@ py_binary_struct! {
         pub character_rotation_acc: f32,
         pub character_rotation_dcc: f32,
         pub jump_height: f32,
+        // 2.05.00: `_aiMoveSpeed`, `_aiMoveAcc`, `_aiMoveDcc` (fields 16-18, after `_jumpHeight`);
+        // six levels x 12 B = the +72 B on each of the seven *Level records.
+        pub ai_move_speed: f32,
+        pub ai_move_acc: f32,
+        pub ai_move_dcc: f32,
     }
 }
 
