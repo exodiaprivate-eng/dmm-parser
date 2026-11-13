@@ -178,6 +178,10 @@ pub struct BitmapPositionInfo<'a> {
     /// (oracle BitmapPositionInfo 11 -> 12 fields). Each BitmapCookData is one
     /// field, `_contentsGroupKey`; empty in every vanilla record (+4 B = the count).
     pub bitmap_cook_data_list: CArray<u32>,
+    /// 2.05.00: `_useR`, `_useG`, `_useB` (fields 12-14), one byte each, appended after the list.
+    pub use_r: u8,
+    pub use_g: u8,
+    pub use_b: u8,
 }
 
 impl<'a> BitmapPositionInfo<'a> {
@@ -209,11 +213,14 @@ impl<'a> BitmapPositionInfo<'a> {
         let boundary_position_max = <[f32; 2]>::read_from(data, offset)?;
         let center_position = <[f32; 2]>::read_from(data, offset)?;
         let bitmap_cook_data_list = CArray::<u32>::read_from(data, offset)?;
+        let use_r = u8::read_from(data, offset)?;
+        let use_g = u8::read_from(data, offset)?;
+        let use_b = u8::read_from(data, offset)?;
         Ok(Self {
             key, string_key, is_blocked, scale_type, values,
             boundary_position_min, boundary_position_max, center_position,
             scale_per_pixel, max_using_height, export_texture_on_editing,
-            bitmap_cook_data_list,
+            bitmap_cook_data_list, use_r, use_g, use_b,
         })
     }
 
@@ -230,6 +237,9 @@ impl<'a> BitmapPositionInfo<'a> {
         self.boundary_position_max.write_to(w)?;
         self.center_position.write_to(w)?;
         self.bitmap_cook_data_list.write_to(w)?;
+        self.use_r.write_to(w)?;
+        self.use_g.write_to(w)?;
+        self.use_b.write_to(w)?;
         Ok(())
     }
 
@@ -247,6 +257,9 @@ impl<'a> BitmapPositionInfo<'a> {
         m.insert("boundary_position_max".to_string(), self.boundary_position_max.to_json_value());
         m.insert("center_position".to_string(), self.center_position.to_json_value());
         m.insert("bitmap_cook_data_list".to_string(), self.bitmap_cook_data_list.to_json_value());
+        m.insert("use_r".to_string(), self.use_r.to_json_value());
+        m.insert("use_g".to_string(), self.use_g.to_json_value());
+        m.insert("use_b".to_string(), self.use_b.to_json_value());
         m
     }
 
@@ -263,6 +276,10 @@ impl<'a> BitmapPositionInfo<'a> {
         <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "boundary_position_max")?)?;
         <[f32; 2] as WriteJsonValue>::write_from_json(w, json_get_field(obj, "center_position")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, obj.get("bitmap_cook_data_list").unwrap_or(&Value::Null))?;
+        // 2.05.00; absent from older JSON: 0.
+        for f in ["use_r", "use_g", "use_b"] {
+            <u8 as WriteJsonValue>::write_from_json(w, obj.get(f).unwrap_or(&Value::Null))?;
+        }
         Ok(())
     }
 }

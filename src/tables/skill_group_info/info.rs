@@ -36,6 +36,9 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub key: u16,
         pub is_blocked: u8,
+        // 2.05.00: `_groupType` (field 3, after `_isBlocked`); `_skillKeyList` became
+        // `_skillInfoList` with the same wire shape.
+        pub group_type: u8,
         pub group_name: CString<'a>,
         pub skill_key_list: CArray<u32>,
     }

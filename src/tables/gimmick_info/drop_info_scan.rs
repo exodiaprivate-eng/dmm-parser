@@ -47,7 +47,10 @@ struct Layout {
 
 /// Known layouts, newest first.
 const LAYOUTS: &[Layout] = &[
-    Layout { header: 59, off_min: 41, off_max: 49 }, // game 1.18.00+
+    // game 2.05.00+: one new byte after `_enchantLevel`, the header's last field (the same change
+    // as `DropTargetData::raw_58` / StoreInfo `raw_h`), so min/max keep their offsets.
+    Layout { header: 60, off_min: 41, off_max: 49 },
+    Layout { header: 59, off_min: 41, off_max: 49 }, // game 1.18.00 - 2.04
     Layout { header: 63, off_min: 45, off_max: 53 }, // game <= 1.17
 ];
 /// Byte offset of `_typeTag` (u8) inside a `DropInfoData` record.

@@ -57,7 +57,7 @@ py_binary_struct! {
         pub ui_map_layer_type: u8,
         pub is_flexible_size: u8,
         pub is_flexible_icon: u8,
-        pub is_moving_platform: u8,
+        // 2.05.00: `_isMovingPlatform` removed (the u8 that sat here).
         pub filter_type: u8,
         pub ui_template_name: u32,
         pub filter_group_parent_info: u32,
@@ -75,9 +75,14 @@ py_binary_struct! {
         pub lerp_icon_min_size: u32,
         pub auto_remove_distance: u32,
         pub z_index: u32,
-        pub platform_z_index: u32,
+        // 2.05.00: `_platformZIndex` -> `_platformIconZIndex`, same place and width.
+        pub platform_icon_z_index: u32,
         pub min_scale: u32,
         pub max_scale: u32,
+        // 2.05.00: `_platformIconSize`, `_platformIconCenterOffset` (16 B together; modelled as two
+        // 2D vectors, zero in the records checked).
+        pub platform_icon_size: [f32; 2],
+        pub platform_icon_center_offset: [f32; 2],
         pub world_position: [f32; 3],
         pub filter_group_name: LocalizableString<'a>,
         pub tooltip_text: LocalizableString<'a>,

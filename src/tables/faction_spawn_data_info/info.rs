@@ -112,6 +112,10 @@ py_binary_struct! {
     /// `_patrolGroupDataList`. The pre-2.04 `PatrolElement` folded the party level into the
     /// group; 2.04 records carry real party lists, so the levels are modelled as the game has them.
     pub struct PatrolElement<'a> {
+        // 2.05.00: `PatrolGroupSetData` gained `_spawnGroupType` + `_formationInfo` as fields 0-1
+        // (byte diff: 02 00000000 in front of every group). Same names as the party's own pair.
+        pub spawn_group_type: u8,
+        pub formation_info: u32,
         pub spawn_party_name_hash: u32,
         pub spawn_rate: u32,
         pub spline_tag_hash: u32,
