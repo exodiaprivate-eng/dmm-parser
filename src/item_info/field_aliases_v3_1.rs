@@ -67,6 +67,8 @@ pub const FIELD_ALIASES_V3_1: &[(&str, &str)] = &[
     ("multi_change_info_list", "_multiChangeInfoList"),
     ("is_editor_usable", "_isEditorUsable"),
     ("discardable", "_discardable"),
+    // 2.05.01 addition, read right after _discardable.
+    ("discard_single_count", "_discardSingleCount"),
     ("is_dyeable", "_isDyeable"),
     ("is_editable_grime", "_isEditableGrime"),
     ("quick_slot_index", "_quickSlotIndex"),
