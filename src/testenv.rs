@@ -32,6 +32,11 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.05.01 - 2026-11-19 hotfix (Steam build 26776744, paver 0200050001000100...): layout
+    // changes. ItemInfo +_discardSingleCount u8 after _discardable (1 on 133 items); PageData
+    // +_uiTextureRotationType u8 (~800 items gained examine pages: maps, posters, books);
+    // MissionResultData +_levelGimmickSceneObjectInfo u32 after _completeStageInfo.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-11-20-20501",
     // GAME VERSION 2.05.00 - 2026-11-12 (Steam build 26636972, paver 0200050000000100...): layout
     // changes. GameCondition +1 from 144; DropInfoData +1 byte after _enchantLevel (dropset +
     // storeinfo copies); dropset isToVehicle; skillgroup groupType; patrol group spawnGroupType +

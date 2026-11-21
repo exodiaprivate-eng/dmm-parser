@@ -211,6 +211,8 @@ py_binary_struct! {
         pub raw_b: u32,                  // _savePresetIndex
         pub lookup_e: u32,               // _completeMissionInfo
         pub complete_stage_info: u32,
+        // 2.05.01: `_levelGimmickSceneObjectInfo` (oracle idx 10, after `_completeStageInfo`), 4 B, 0 in all vanilla data
+        pub level_gimmick_scene_object_info: u32,
         pub flag_b: u8,                  // _showUI
         pub flag_c: u8,                  // _isCheat
         pub is_optional: u8,

@@ -403,6 +403,8 @@ py_binary_struct! {
         pub right_page_texture_path: CString<'a>,
         pub left_page_related_knowledge_info: KnowledgeKey,
         pub right_page_related_knowledge_info: KnowledgeKey,
+        // 2.05.01: `_uiTextureRotationType` (PageData oracle idx 4), with the hotfix's "examine from the inventory".
+        pub ui_texture_rotation_type: u8,
     }
 }
 

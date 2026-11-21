@@ -82,6 +82,9 @@ py_binary_struct! {
         pub is_editable_grime: u8,
         pub is_dyeable: u8,
         pub discardable: u8,
+        // 2.05.01: `_discardSingleCount` (oracle idx 10, after `_discardable`), +1 B on every record.
+        // Came with the hotfix's Kuku Pot fix (discarding several identical items).
+        pub discard_single_count: u8,
         pub use_average_price: u8,
         // Restored 2026-05-06 per IDA decomp of sub_101885C38 in
         // CrimsonDesert_Steam: ItemInfo의 _isHousingOnly is read between
