@@ -390,12 +390,6 @@ mod tests {
         assert!(Pabgh206::detect(&ph, &body).is_none());
     }
 
-    /// Every 2.06 pair in `DMM_PARSER_PABGB_DIR`: parse -> write must give
-    /// back both files byte for byte, through the JSON API and through the
-    /// intent pipeline (no intents). Prints one line per table and the totals;
-    /// `P206_REPORT=<file>` also writes them as JSON, `P206_OUT205=<dir>`
-    /// writes each pair in the 2.05 layout (for the per-table reader tests),
-    /// `P206_STRICT=1` fails on any table that is not byte-exact.
     /// Any key ending in `_b64` anywhere in a record's JSON (raw bytes kept as base64).
     fn has_b64(v: &serde_json::Value) -> bool {
         match v {
@@ -405,6 +399,12 @@ mod tests {
         }
     }
 
+    /// Every 2.06 pair in `DMM_PARSER_PABGB_DIR`: parse -> write must give
+    /// back both files byte for byte, through the JSON API and through the
+    /// intent pipeline (no intents). Prints one line per table and the totals;
+    /// `GATE206_REPORT=<file>` also writes them as JSON, `GATE206_OUT205=<dir>`
+    /// writes each pair in the 2.05 layout (for the per-table reader tests),
+    /// `GATE206_STRICT=1` fails on any table that is not byte-exact.
     #[test]
     fn gate_206_fixture_round_trip() {
         use crate::dispatch::{apply_intents_to_table_body, normalize_target_name,
@@ -413,14 +413,14 @@ mod tests {
             eprintln!("SKIP: DMM_PARSER_PABGB_DIR not set");
             return;
         };
-        let out205 = std::env::var("P206_OUT205").ok();
+        let out205 = std::env::var("GATE206_OUT205").ok();
         let mut names: Vec<String> = std::fs::read_dir(&dir).unwrap()
             .filter_map(|e| e.ok()?.file_name().into_string().ok())
             .filter_map(|n| n.strip_suffix(".pabgh").map(str::to_string))
             .collect();
         names.sort();
-        // P206_ONLY=t1,t2 limits the run to those file stems.
-        if let Ok(only) = std::env::var("P206_ONLY") {
+        // GATE206_ONLY=t1,t2 limits the run to those file stems.
+        if let Ok(only) = std::env::var("GATE206_ONLY") {
             let keep: Vec<&str> = only.split(',').collect();
             names.retain(|n| keep.contains(&n.as_str()));
         }
@@ -452,7 +452,7 @@ mod tests {
                     Err(e) => return format!("parse_error: {}", e).chars().take(200).collect(),
                 };
                 let fallback = items.iter().filter(|v| v.get("_blob_b64").is_some()).count();
-                // P206L run 3: typed records that still hold raw bytes somewhere inside (a
+                // Typed records that still hold raw bytes somewhere inside (a
                 // `*_b64` key below the top level, e.g. a Decoded|Raw enum that fell back).
                 // byte-exact either way; reported so a hidden fallback is seen.
                 let inner = items.iter().filter(|v| v.get("_blob_b64").is_none() && has_b64(v)).count();
@@ -468,7 +468,7 @@ mod tests {
                     Err(e) => return format!("apply_error: {}", e).chars().take(200).collect(),
                 }
                 if fallback > 0 {
-                    // P206L: name the first fallback records (key / string_key) so they can be
+                    // Name the first fallback records (key / string_key) so they can be
                     // dumped and diffed without a second tool.
                     let eg: Vec<String> = items.iter().filter(|v| v.get("_blob_b64").is_some()).take(3)
                         .map(|v| format!("{}/{}", v.get("key").map(|k| k.to_string()).unwrap_or_default(),
@@ -487,17 +487,17 @@ mod tests {
             })();
             let kind = verdict.split([':', ' ']).next().unwrap().to_string();
             *totals.entry(kind).or_default() += 1;
-            println!("P206 {:<44} {}", stem, verdict);
+            println!("GATE206 {:<44} {}", stem, verdict);
             report.insert(stem.clone(), serde_json::json!({"table": table, "v": verdict}));
         }
-        println!("P206 TOTALS {:?} of {}", totals, names.len());
-        if let Ok(p) = std::env::var("P206_REPORT") {
+        println!("GATE206 TOTALS {:?} of {}", totals, names.len());
+        if let Ok(p) = std::env::var("GATE206_REPORT") {
             let j = serde_json::json!({"totals": totals, "tables": report});
             std::fs::write(p, serde_json::to_string_pretty(&j).unwrap()).unwrap();
         }
-        if std::env::var("P206_STRICT").is_ok() {
+        if std::env::var("GATE206_STRICT").is_ok() {
             let ok = totals.iter().filter(|(k, _)| k.starts_with("roundtrip_ok")).map(|(_, n)| n).sum::<usize>();
-            assert_eq!(ok, names.len(), "P206 gate: not every table is byte-exact");
+            assert_eq!(ok, names.len(), "gate_206: not every table is byte-exact");
         }
     }
 
