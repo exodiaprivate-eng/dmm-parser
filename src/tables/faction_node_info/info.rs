@@ -31,10 +31,10 @@
 //!      sub_141102FF0)
 //!  12. [f32; 3] world_position                      (_worldPosition, Vec3)
 //!  13. f32 node_radius                              (_nodeRadius)
-//!  14. CArray<ApplySkillData> apply_skill_data_list (_applySkillDataList,
+//!  14. CArray<ApplySkillData<'a>> apply_skill_data_list (_applySkillDataList,
 //!      sub_141115FD0; per element: u32 lookup + u64 raw +
 //!      FactionNodeRawDataExt — 40 mem bytes)
-//!  15. CArray<ResourceItemData> resource_item_list  (_resourceItemList,
+//!  15. CArray<ResourceItemData<'a>> resource_item_list  (_resourceItemList,
 //!      sub_141115D90; per element: u32 + u32 + u64 + u64 +
 //!      FactionNodeRawDataExt — 48 mem bytes)
 //!  16. CArray<u32> revival_stage_info_list          (_revivalStageInfoList,
@@ -127,29 +127,33 @@ use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    pub struct FactionNodeRawDataExt {
+    // FactionStateData (quest_info names: activateFactionStateList, playerConditionInfo,
+    // relationTargetFactionInfo, relationType).
+    pub struct FactionNodeRawDataExt<'a> {
         pub raw_bytes: CArray<u8>,
-        pub lookup_a: u32,
+        // 2.06.00: was `lookup_a: u32` (playerConditionInfo, a conditioninfo key); the condition
+        // is now inline (-3 B per element when empty).
+        pub lookup_a: OptionalGameCondition<'a>,
         pub lookup_b: u32,
         pub flag: u8,
     }
 }
 
 py_binary_struct! {
-    pub struct ApplySkillData {
+    pub struct ApplySkillData<'a> {
         pub lookup: u32,
         pub raw: u64,
-        pub ext: FactionNodeRawDataExt,
+        pub ext: FactionNodeRawDataExt<'a>,
     }
 }
 
 py_binary_struct! {
-    pub struct ResourceItemData {
+    pub struct ResourceItemData<'a> {
         pub lookup_a: u32,
         pub lookup_b: u32,
         pub raw_a: u64,
         pub raw_b: u64,
-        pub ext: FactionNodeRawDataExt,
+        pub ext: FactionNodeRawDataExt<'a>,
     }
 }
 
@@ -381,7 +385,7 @@ py_binary_struct! {
     pub struct FactionSchedule<'a> {
         pub flag_a: u8,
         pub schedule_entries: CArray<FactionScheduleEntry48>,
-        pub raw_data_ext: FactionNodeRawDataExt,
+        pub raw_data_ext: FactionNodeRawDataExt<'a>,
         pub list_u128: CArray<FactionScheduleU128Pair>,
         pub player_list: CArray<u32>,        // sub_1410FF890 wire u32
         pub raw_a: u32,
@@ -495,7 +499,7 @@ py_binary_struct! {
     pub struct FactionScheduleInfo<'a> {
         pub flag_a: u8,                                   // always 2 on 2.04.08
         pub schedule_play_info_list: CArray<FactionSchedulePlayInfo>,
-        pub state: FactionNodeRawDataExt,                 // FactionStateData, same wire shape
+        pub state: FactionNodeRawDataExt<'a>,             // FactionStateData
         pub pairs: CArray<FactionScheduleU128Pair>,
         pub list_u32: CArray<u32>,
         pub raw_a: u32,
@@ -531,8 +535,10 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    pub struct FactionResearchProgress {
-        pub progress_info: u32, // lookup
+    pub struct FactionResearchProgress<'a> {
+        // 2.06.00: was `progress_info: u32` (a conditioninfo key, e.g. 0x0f69b3); the condition is
+        // now inline (Node_Her_ScholastoneInstitute 0xf4351).
+        pub progress_info: OptionalGameCondition<'a>,
         pub value: u32,
     }
 }
@@ -546,7 +552,7 @@ py_binary_struct! {
         pub drop_set_info: u32,                              // lookup
         pub connect_faction_node_info: u32,                  // lookup
         pub condition_option_list: CArray<FactionConditionOption<'a>>,
-        pub progress_data_list: CArray<FactionResearchProgress>,
+        pub progress_data_list: CArray<FactionResearchProgress<'a>>,
         pub cost_item_list: CArray<FactionAdjacencyMobItem>, // u32 item + 3x u64, same wire shape
         pub research_total_progress: u32,
     }
@@ -687,9 +693,11 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FactionConquerData<'a> {
-        pub conqueror_faction_info: u32,   // lookup
-        // 2.06.00: was `conquer_condition_info: u32` (a conditioninfo key); the condition is now inline.
+        // 2.06.00: the condition comes FIRST on the wire, then the faction key. 2.05.01 already
+        // had this order (Node_Her_GreymaneCampCB 0xf4243: a2710f00 = a conditioninfo key, then
+        // 40420f00 = a faction key) under swapped names. Was `conquer_condition_info: u32`.
         pub conquer_condition_info: OptionalGameCondition<'a>,
+        pub conqueror_faction_info: u32,   // lookup
         pub is_capital: u8,
     }
 }
@@ -725,8 +733,8 @@ pabgh_typed_blob_table! {
         pub memo: CString<'a>,
         pub child_faction_info_list: CArray<u32>,
         pub node_line_main_faction_info_list: CArray<u32>,
-        pub apply_skill_data_list: CArray<ApplySkillData>,
-        pub resource_item_list: CArray<ResourceItemData>,
+        pub apply_skill_data_list: CArray<ApplySkillData<'a>>,
+        pub resource_item_list: CArray<ResourceItemData<'a>>,
         pub revival_stage_info_list: CArray<u32>,
         pub way_point_data_list_deprecated: CArray<WayPointDeprData>,
         pub faction_schedule_info_list: CArray<FactionScheduleInfo<'a>>,

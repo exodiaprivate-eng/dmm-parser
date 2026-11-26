@@ -62,10 +62,11 @@ use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    pub struct BoardSubItem {
+    pub struct BoardSubItem<'a> {
         pub u32_a: u32,
         pub lookup_b: u32,
-        pub lookup_c: u32,
+        // 2.06.00: was `lookup_c: u32` (a conditioninfo key, 0x0f6cd6..); the condition is now inline.
+        pub lookup_c: OptionalGameCondition<'a>,
     }
 }
 
@@ -77,11 +78,12 @@ py_binary_struct! {
         pub total_rate: u32,
         pub category: u8,
         pub name: LocalizableString<'a>,
-        // 2.06.00: was `condition: u32` (a conditioninfo key); the condition is now inline.
+        // 2.06.00: was `condition: u32` (a conditioninfo key, 0 in every 2.05.01 group); the
+        // condition is now inline (Board_Common 0xf4247: 1 byte 0).
         pub condition: OptionalGameCondition<'a>,
         // 2.06.00: was `player_condition: u32` (a conditioninfo key); the condition is now inline.
         pub player_condition: OptionalGameCondition<'a>,
-        pub board_data_list: CArray<BoardSubItem>,
+        pub board_data_list: CArray<BoardSubItem<'a>>,
     }
 }
 
@@ -90,7 +92,7 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub key: u32,
         pub is_blocked: u8,
-        pub board_data_list: CArray<BoardSubItem>,
+        pub board_data_list: CArray<BoardSubItem<'a>>,
         pub board_data_group_list: CArray<BoardDataGroup<'a>>,
     }
 }

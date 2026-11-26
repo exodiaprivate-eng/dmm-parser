@@ -830,10 +830,10 @@ py_binary_struct! {
         pub is_player_only: u8,
         // 2.04.00: `_isNpcOnly` (a ConditionKey) became `_playerCondition`, and `_ownerCondition`
         // follows it, as in ItemInfo's DockingChildData.
-        // 2.06.00: was `player_condition: u32` (a conditioninfo key); the condition is now inline.
-        pub player_condition: OptionalGameCondition<'a>,
-        // 2.06.00: was `owner_condition: u32` (a conditioninfo key); the condition is now inline.
-        pub owner_condition: OptionalGameCondition<'a>,
+        // 2.06.00: still u32 conditioninfo keys (as in ItemInfo's DockingChildData); the bag docking
+        // data of NHM_MiddleCitizen_University_BackPack_3043 (0xbe3) is byte-identical 2.05.01 vs 2.06.
+        pub player_condition: u32,
+        pub owner_condition: u32,
         pub is_sync_break_parent: u8,
         pub hit_part: u8,
         pub detected_by_npc: u8,
@@ -1012,7 +1012,8 @@ py_binary_struct! {
         pub stat_data_level_b: u32,
         pub stat_data_level_c: u32,
         pub stat_data_level_d: u32,
-        pub frame_event_attr_group_info_name: u32,
+        // 2.06.00: frame_event_attr_group_info_name (u32, 0 in every 2.05.01 record) removed: -4 B per
+        // level entry. Removing learn_skill_list instead fails the 2.06 read; hidden_skill_list not tried.
         pub learn_skill_list: CArray<u32>,            // SkillKey
         pub hidden_skill_list: CArray<u32>,           // SkillKey
         pub stat_list_data_defined_static: CArray<StatEntry24>,
@@ -1073,9 +1074,10 @@ py_binary_struct! {
 // Field 151 element (sub_101FAF870): ConditionKey u32 + StringInfoKey u32 (sub_1015FBC3C=4B)
 // + random parts StringInfoKey list.
 py_binary_struct! {
-    pub struct CharacterAdditionalPartsData<'a> {
-        // 2.06.00: was `parts_condition: u32` (a conditioninfo key); the condition is now inline.
-        pub parts_condition: OptionalGameCondition<'a>,
+    pub struct CharacterAdditionalPartsData {
+        // 2.06.00: still a u32 conditioninfo key (Animal_Lumif_Wild_31357 0x7a7d: 3 entries
+        // 0x0f42a9.. byte-identical 2.05.01 vs 2.06).
+        pub parts_condition: u32,
         pub parts_file_name: u32,
         pub random_parts_name_list: CArray<u32>,
     }
@@ -1265,6 +1267,9 @@ pabgh_typed_blob_table! {
         pub daily_routine_info: u32,
         pub interaction_category_group_info: u16,
         pub activity_preset_info: u32,
+        // 2.06.00: new 2-byte field, 0 in all 7,315 records. INFERRED slot: after
+        // interaction_category_group_info round-trips too (PDIFF1 also allows after stat_change_info_wrapper).
+        pub unk_u16_206: u16,
         pub stat_change_info_wrapper: u32,                   // NEW
         pub detect_reaction_info: u32,
         pub knowledge_info: u32,
@@ -1382,7 +1387,7 @@ pabgh_typed_blob_table! {
         pub character_friendly_knowledge_data_list: CharacterFriendlyKnowledgeDataLists,
         pub ai_dialog_override_list: COptional<CArray<AiDialogOverride>>,
         pub trap_food_data: COptional<TrapFoodData>,
-        pub additional_parts_data_list: COptional<CArray<CharacterAdditionalPartsData<'a>>>,
+        pub additional_parts_data_list: COptional<CArray<CharacterAdditionalPartsData>>,
         pub detect_reaction_override_list: CArray<DetectReactionOverride<'a>>,
         pub stage_info_for_npc_shop_list: COptional<CArray<u32>>,
         pub game_play_object_share_data: COptional<GamePlayObjectShareData>,

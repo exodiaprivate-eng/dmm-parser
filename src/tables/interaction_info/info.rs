@@ -203,7 +203,7 @@ py_binary_struct! {
         pub category_info: u16,
         pub input_key_map_name: u32,                // StringInfoKey
         pub on_preemption_success_ai_event_key: u32,
-        pub dialog_set_info: u32,
+        // 2.06.00: dialog_set_info (u32, 0 in every 2.05.01 record) is gone from here.
         pub interaction_name: LocalizableString<'a>,
         pub interaction_pivot_list: CArray<InteractionPivotData<'a>>,
         pub cond_data_list: ConditionPairCArray<'a>, // _interactionConditionDataList
@@ -213,6 +213,9 @@ py_binary_struct! {
         pub interaction_pop_item_list: CArray<FactionAdjacencyMobItem>,
         pub interaction_tag: CArray<u32>,           // StringInfoKeys
         pub child_interaction_info_list: CArray<u32>,
+        // 2.06.00: new CArray<u32> of interactioninfo keys (new record 'ShowListView' 0xf43e7 holds 34);
+        // empty in every other record. Name is ours.
+        pub interaction_list_206: CArray<u32>,
         pub show_main_menu_panel_name: u32,         // StringInfoKey
         pub show_main_menu_event_name: u32,         // StringInfoKey
     }

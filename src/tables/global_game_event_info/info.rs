@@ -12,7 +12,7 @@
 //!   7. CArray<u16> target_region_info_list (_targetRegionInfoList; empty in
 //!                                         every 2.04.08 record, element type
 //!                                         from the 1.x schema)
-//!   8. CArray<GlobalGameEventConditionEntry> execute_data_list (13-byte
+//!   8. CArray<GlobalGameEventConditionEntry<'a>> execute_data_list (13-byte
 //!      entries; `condition_info` = conditioninfo key)
 //!   9. GlobalGameEventExecuteData execute_data (u8 presence, u8 sub_tag,
 //!      2.04 body: see `binary::variants::global_game_event_execute_data`)
@@ -24,6 +24,7 @@
 
 use crate::binary::variants::global_game_event_execute_data::GlobalGameEventExecuteData;
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::json_traits::{get_field as json_get_field, ToJsonValue, WriteJsonValue};
 use crate::py_binary_struct;
 use serde_json::{Map, Value};
@@ -37,8 +38,10 @@ py_binary_struct! {
     /// 1015378 CheckFactionManagementOpen(...) on
     /// ManagementSpecialEvent_Vellua_Pub_Maegu). `flag`, `lookup_b` and
     /// `lookup_c` are 0 in all 336 entries on 2.04.08.
-    pub struct GlobalGameEventConditionEntry {
-        pub condition_info: u32,
+    pub struct GlobalGameEventConditionEntry<'a> {
+        // 2.06.00: was `condition_info: u32` (a conditioninfo key); the condition is now inline
+        // (RoyalSupply_Her: 0x0f4280 -> CompleteQuest(0x0f434b), +9 B).
+        pub condition_info: OptionalGameCondition<'a>,
         pub flag: u8,
         pub lookup_b: u32,
         pub lookup_c: u32,
@@ -54,7 +57,7 @@ pub struct GlobalGameEventInfo<'a> {
     pub event_desc: LocalizableString<'a>,
     pub ui_icon_path: u32,
     pub target_region_info_list: CArray<u16>,
-    pub execute_data_list: CArray<GlobalGameEventConditionEntry>,
+    pub execute_data_list: CArray<GlobalGameEventConditionEntry<'a>>,
     pub execute_data: GlobalGameEventExecuteData<'a>,
 }
 
@@ -73,7 +76,7 @@ impl<'a> GlobalGameEventInfo<'a> {
         let event_desc = LocalizableString::read_from(entry, offset)?;
         let ui_icon_path = u32::read_from(entry, offset)?;
         let target_region_info_list = <CArray<u16>>::read_from(entry, offset)?;
-        let execute_data_list = <CArray<GlobalGameEventConditionEntry>>::read_from(entry, offset)?;
+        let execute_data_list = <CArray<GlobalGameEventConditionEntry<'a>>>::read_from(entry, offset)?;
         // Reads to the entry end; anything it cannot type stays `Raw`.
         let execute_data = GlobalGameEventExecuteData::read_from(entry, offset)?;
         Ok(Self {
@@ -123,7 +126,7 @@ impl<'a> GlobalGameEventInfo<'a> {
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "event_desc")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "ui_icon_path")?)?;
         <CArray<u16> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "target_region_info_list")?)?;
-        <CArray<GlobalGameEventConditionEntry> as WriteJsonValue>::write_from_json(
+        <CArray<GlobalGameEventConditionEntry<'a>> as WriteJsonValue>::write_from_json(
             w,
             json_get_field(obj, "execute_data_list")?,
         )?;

@@ -396,6 +396,15 @@ mod tests {
     /// `P206_REPORT=<file>` also writes them as JSON, `P206_OUT205=<dir>`
     /// writes each pair in the 2.05 layout (for the per-table reader tests),
     /// `P206_STRICT=1` fails on any table that is not byte-exact.
+    /// Any key ending in `_b64` anywhere in a record's JSON (raw bytes kept as base64).
+    fn has_b64(v: &serde_json::Value) -> bool {
+        match v {
+            serde_json::Value::Object(m) => m.iter().any(|(k, x)| k.ends_with("_b64") || has_b64(x)),
+            serde_json::Value::Array(a) => a.iter().any(has_b64),
+            _ => false,
+        }
+    }
+
     #[test]
     fn gate_206_fixture_round_trip() {
         use crate::dispatch::{apply_intents_to_table_body, normalize_target_name,
@@ -426,8 +435,9 @@ mod tests {
                 let Some(h) = Pabgh206::detect(&ph, &body) else {
                     // Older pair: report its blob fallback count for comparison.
                     return match parse_table_to_json(&table, &body, Some(&ph)) {
-                        Ok(v) => format!("not_206 fallback {}",
-                                         v.iter().filter(|x| x.get("_blob_b64").is_some()).count()),
+                        Ok(v) => format!("not_206 fallback {} inner_b64 {}",
+                                         v.iter().filter(|x| x.get("_blob_b64").is_some()).count(),
+                                         v.iter().filter(|x| x.get("_blob_b64").is_none() && has_b64(x)).count()),
                         Err(e) => format!("not_206 parse_error: {}", e).chars().take(120).collect(),
                     };
                 };
@@ -442,6 +452,10 @@ mod tests {
                     Err(e) => return format!("parse_error: {}", e).chars().take(200).collect(),
                 };
                 let fallback = items.iter().filter(|v| v.get("_blob_b64").is_some()).count();
+                // P206L run 3: typed records that still hold raw bytes somewhere inside (a
+                // `*_b64` key below the top level, e.g. a Decoded|Raw enum that fell back).
+                // byte-exact either way; reported so a hidden fallback is seen.
+                let inner = items.iter().filter(|v| v.get("_blob_b64").is_none() && has_b64(v)).count();
                 match serialize_table_from_json_with_pabgh(&table, &items, &ph) {
                     Ok((b2, h2)) if b2 == body && h2 == ph => {}
                     Ok((b2, h2)) => return format!("mismatch body {} header {}",
@@ -461,6 +475,13 @@ mod tests {
                                          v.get("string_key").and_then(|s| s.as_str()).unwrap_or("")))
                         .collect();
                     format!("roundtrip_ok_blob_fallback {} e.g. {}", fallback, eg.join(" "))
+                }
+                else if inner > 0 {
+                    let eg: Vec<String> = items.iter().filter(|v| v.get("_blob_b64").is_none() && has_b64(v)).take(3)
+                        .map(|v| format!("{}/{}", v.get("key").map(|k| k.to_string()).unwrap_or_default(),
+                                         v.get("string_key").and_then(|s| s.as_str()).unwrap_or("")))
+                        .collect();
+                    format!("roundtrip_ok_inner_b64 {} e.g. {}", inner, eg.join(" "))
                 }
                 else { "roundtrip_ok".into() }
             })();
