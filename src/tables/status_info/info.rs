@@ -37,7 +37,9 @@ py_binary_struct! {
         pub character_rotation_speed: f32,
         pub changing_rotation_speed_x: f32,
         pub changing_rotation_speed_y: f32,
-        pub changing_rotation_speed_z: f32,
+        // 2.06.00: the element is 80 B, one float fewer. The removed float sits at
+        // index 14-16 (z / rotation_acc / rotation_dcc are all 1.0 in vanilla, so the
+        // data cannot tell which); modelled as the vector's z (INFERRED, not from the exe).
         pub character_rotation_acc: f32,
         pub character_rotation_dcc: f32,
         pub jump_height: f32,

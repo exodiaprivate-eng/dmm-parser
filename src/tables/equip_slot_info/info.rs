@@ -301,9 +301,11 @@ pub struct EquipSlotInfo {
     pub flag_u8: u8,
     pub flag_u16: u16,
     pub entries: Vec<EquipInfoData>,
-    /// Trailing per-class extra entries (typed via field_a..field_e per row).
-    /// Empty in 12/13 vanilla records; record k=0x2bd has 5 rows.
-    pub extra_entries: CArray<EquipExtraEntry>,
+    /// The trailing ragdoll list (2.04 order), as raw bytes to the end of the record.
+    /// 2.06.00 stores its condition keys inline (variable size), and the element shape
+    /// was never decoded (the 2.05 `EquipExtraEntry` 5 x u32 model only matched the length),
+    /// so it is kept opaque: `[0,0,0,0]` = empty list (all records but k=0x2bd).
+    pub extra_entries_raw: Vec<u8>,
     /// Constant tail terminator = `EQUIP_SLOT_TAIL_MAGIC` (0xb954d87c).
     pub tail_magic: u32,
 }
@@ -344,7 +346,12 @@ impl EquipSlotInfo {
             entries.push(e);
         }
 
-        let extra_entries = CArray::<EquipExtraEntry>::read_from(data, offset)?;
+        if *offset + 4 > entry_end {
+            return Err(io::Error::new(io::ErrorKind::InvalidData,
+                format!("EquipSlotInfo k={}: no room for the ragdoll list ({} of {} bytes)", key, *offset - entry_start, entry_size)));
+        }
+        let extra_entries_raw = data[*offset..entry_end].to_vec();
+        *offset = entry_end;
 
         if *offset != entry_end {
             return Err(io::Error::new(io::ErrorKind::InvalidData,
@@ -355,7 +362,7 @@ impl EquipSlotInfo {
         // `uiComponentName` (a StringInfoKey), not a terminator, and 2.05 gives record k=201 its
         // own (0xaab11894). The size check above still catches a misread record.
 
-        Ok(Self { key, header, flag_u8, flag_u16, entries, extra_entries, tail_magic })
+        Ok(Self { key, header, flag_u8, flag_u16, entries, extra_entries_raw, tail_magic })
     }
 
     pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
@@ -368,7 +375,7 @@ impl EquipSlotInfo {
         for e in &self.entries {
             e.write_to(w)?;
         }
-        self.extra_entries.write_to(w)?;
+        w.write_all(&self.extra_entries_raw)?;
         Ok(())
     }
 }
@@ -388,7 +395,7 @@ impl ToJsonValue for EquipSlotInfo {
             "flag_u8": self.flag_u8,
             "flag_u16": self.flag_u16,
             "entries": Value::Array(self.entries.iter().map(|e| e.to_json_value()).collect()),
-            "extra_entries": self.extra_entries.to_json_value(),
+            "extra_entries_raw": self.extra_entries_raw.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
             "tail_magic": self.tail_magic,
         })
     }
@@ -412,8 +419,21 @@ impl WriteJsonValue for EquipSlotInfo {
             <EquipInfoData as WriteJsonValue>::write_from_json(w, e).map_err(|err| io::Error::new(
                 err.kind(), format!("entries[{}]: {}", i, err)))?;
         }
-        <CArray<EquipExtraEntry> as WriteJsonValue>::write_from_json(
-            w, json_get_field(obj, "extra_entries")?)?;
+        // 2.06.00: the ragdoll list is raw hex (`extra_entries_raw`); an older `extra_entries`
+        // array is accepted only when empty.
+        if let Some(h) = obj.get("extra_entries_raw").and_then(|v| v.as_str()) {
+            if h.len() % 2 != 0 { return Err(io::Error::new(io::ErrorKind::InvalidData, "extra_entries_raw: odd hex length")); }
+            for i in (0..h.len()).step_by(2) {
+                w.push(u8::from_str_radix(&h[i..i + 2], 16).map_err(|e| io::Error::new(
+                    io::ErrorKind::InvalidData, format!("extra_entries_raw: {e}")))?);
+            }
+        } else {
+            match obj.get("extra_entries").and_then(|v| v.as_array()) {
+                Some(a) if !a.is_empty() => return Err(io::Error::new(io::ErrorKind::InvalidData,
+                    "extra_entries: the 2.05 ragdoll rows cannot be written on 2.06; use extra_entries_raw")),
+                _ => w.extend_from_slice(&0u32.to_le_bytes()),
+            }
+        }
         Ok(())
     }
 }

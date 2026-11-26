@@ -31,7 +31,11 @@
 //!  10.  u64 raw_40             (wire 45..52, mem +40)
 //!  11.  u64 raw_48             (wire 53..60, mem +48)
 //!  12.  u16 raw_56             (wire 61..62, mem +56)
-//!  13.  u8  raw_58             (2.05.00: new byte after `_enchantLevel`, before the tail)
+//!  13.  [REMOVED in 2.06.00] u8 raw_58 (2.05.00 byte after `_enchantLevel`)
+//!
+//! Game 2.06.00: lookup_4 / lookup_6 / lookup_8 (owner / player / gimmick-target condition)
+//! are inline conditions (`OwnedGameCondition`, 1 byte when empty), so the prefix is no
+//! longer fixed-size; offsets above are 2.05's.
 //!
 //! Variant tail (dispatched on `dispatch_tag` from step 2):
 //!   tag 0       : u32 (sub_1410FF5C0,  qword_DA00 hash)
@@ -51,6 +55,7 @@
 //! value losslessly for round-trip.
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OwnedGameCondition;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use serde_json::{Map, Value};
@@ -281,9 +286,11 @@ impl DropTargetVariant {
 pub struct DropTargetData {
     pub raw_at_120: u64,
     pub dispatch_tag: u8,
-    pub lookup_4: u32,
-    pub lookup_6: u32,
-    pub lookup_8: u32,
+    // 2.06.00: lookup_4 / lookup_6 / lookup_8 were u32 conditioninfo keys (_ownerConditionInfo,
+    // _playerConditionInfo, _gimmickCachedTargetConditionInfo); the conditions are now inline.
+    pub lookup_4: OwnedGameCondition,
+    pub lookup_6: OwnedGameCondition,
+    pub lookup_8: OwnedGameCondition,
     pub raw_12: u32,
     pub raw_16: u64,
     // ── 1.18.00: the u32 that used to sit here (`raw_24`) was REMOVED.
@@ -320,8 +327,7 @@ pub struct DropTargetData {
     pub raw_40: u64,
     pub raw_48: u64,
     pub raw_56: u16,
-    /// 2.05.00: one new byte after `_enchantLevel` (0 in vanilla records checked).
-    pub raw_58: u8,
+    // 2.06.00: the 2.05.00 byte after `_enchantLevel` (`raw_58`) is gone again.
     pub variant: DropTargetVariant,
 }
 
@@ -329,20 +335,19 @@ impl<'a> BinaryRead<'a> for DropTargetData {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let raw_at_120 = u64::read_from(data, offset)?;
         let dispatch_tag = u8::read_from(data, offset)?;
-        let lookup_4 = u32::read_from(data, offset)?;
-        let lookup_6 = u32::read_from(data, offset)?;
-        let lookup_8 = u32::read_from(data, offset)?;
+        let lookup_4 = OwnedGameCondition::read_from(data, offset)?;
+        let lookup_6 = OwnedGameCondition::read_from(data, offset)?;
+        let lookup_8 = OwnedGameCondition::read_from(data, offset)?;
         let raw_12 = u32::read_from(data, offset)?;
         let raw_16 = u64::read_from(data, offset)?;
         let raw_32 = u64::read_from(data, offset)?;
         let raw_40 = u64::read_from(data, offset)?;
         let raw_48 = u64::read_from(data, offset)?;
         let raw_56 = u16::read_from(data, offset)?;
-        let raw_58 = u8::read_from(data, offset)?;
         let variant = DropTargetVariant::read_from(dispatch_tag, data, offset)?;
         Ok(Self {
             raw_at_120, dispatch_tag, lookup_4, lookup_6, lookup_8,
-            raw_12, raw_16, raw_32, raw_40, raw_48, raw_56, raw_58, variant,
+            raw_12, raw_16, raw_32, raw_40, raw_48, raw_56, variant,
         })
     }
 }
@@ -360,7 +365,6 @@ impl BinaryWrite for DropTargetData {
         self.raw_40.write_to(w)?;
         self.raw_48.write_to(w)?;
         self.raw_56.write_to(w)?;
-        self.raw_58.write_to(w)?;
         self.variant.write_to(w)
     }
 }
@@ -379,7 +383,6 @@ impl ToJsonValue for DropTargetData {
         m.insert("raw_40".into(), self.raw_40.to_json_value());
         m.insert("raw_48".into(), self.raw_48.to_json_value());
         m.insert("raw_56".into(), self.raw_56.to_json_value());
-        m.insert("raw_58".into(), self.raw_58.to_json_value());
         m.insert("variant".into(), self.variant.to_json_value());
         Value::Object(m)
     }
@@ -427,30 +430,26 @@ impl WriteJsonValue for DropTargetData {
         // Pick wire field; fall back to semantic alias; then default.
         let item_key = pick_u64(obj, &["raw_at_120", "item_key"], 0);
         let dispatch_tag = pick_u8(obj, &["dispatch_tag"], 0);
-        let lookup_4 = pick_u32(obj, &["lookup_4"], 0xFFFFFFFF);
-        let lookup_6 = pick_u32(obj, &["lookup_6"], 0xFFFFFFFF);
-        let lookup_8 = pick_u32(obj, &["lookup_8"], 0xFFFFFFFF);
+
         let raw_12 = pick_u32(obj, &["raw_12"], 0);
         let raw_16 = pick_u64(obj, &["raw_16", "rates"], 0);
         let raw_32 = pick_u64(obj, &["raw_32"], 0);
         let raw_40 = pick_u64(obj, &["raw_40", "min_amt"], 0);
         let raw_48 = pick_u64(obj, &["raw_48", "max_amt"], 0);
         let raw_56 = pick_u16(obj, &["raw_56"], 0);
-        // 2.05.00. Absent in a mod made before 2.05: 0, the value vanilla records carry.
-        let raw_58 = pick_u8(obj, &["raw_58"], 0);
+        // 2.06.00: `raw_58` is gone; a value in an older mod is ignored.
 
         item_key.write_to(w)?;
         dispatch_tag.write_to(w)?;
-        lookup_4.write_to(w)?;
-        lookup_6.write_to(w)?;
-        lookup_8.write_to(w)?;
+        write_condition_json(w, obj.get("lookup_4"), "lookup_4")?;
+        write_condition_json(w, obj.get("lookup_6"), "lookup_6")?;
+        write_condition_json(w, obj.get("lookup_8"), "lookup_8")?;
         raw_12.write_to(w)?;
         raw_16.write_to(w)?;
         raw_32.write_to(w)?;
         raw_40.write_to(w)?;
         raw_48.write_to(w)?;
         raw_56.write_to(w)?;
-        raw_58.write_to(w)?;
 
         // Variant tail. Wire-faithful path: explicit `variant` object.
         // Semantic path: synthesize from dispatch_tag + item_key.
@@ -502,6 +501,25 @@ fn write_default_variant_tail(w: &mut Vec<u8>, dispatch_tag: u8, item_key: u64) 
         }
         other => Err(io::Error::new(io::ErrorKind::InvalidData,
             format!("DropTargetData semantic shape: dispatch_tag {} requires explicit `variant` object", other))),
+    }
+}
+
+/// 2.06.00 condition field from JSON. null / absent = empty. A bare number is a pre-2.06 mod's
+/// conditioninfo key: 0xFFFFFFFF or 0 (none) writes an empty condition; any other key was
+/// removed from conditioninfo in 2.06, so it is refused rather than silently dropped.
+pub fn write_condition_json(w: &mut Vec<u8>, v: Option<&Value>, name: &str) -> io::Result<()> {
+    match v {
+        None => OwnedGameCondition::write_from_json(w, &Value::Null),
+        Some(x) if x.is_number() => {
+            let k = x.as_u64().unwrap_or(u64::MAX) as u32;
+            if k == 0xFFFF_FFFF || k == 0 {
+                OwnedGameCondition::write_from_json(w, &Value::Null)
+            } else {
+                Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                    "{name}: a pre-2.06 conditioninfo key ({k:#x}); game 2.06 stores the condition inline, re-export the row")))
+            }
+        }
+        Some(x) => OwnedGameCondition::write_from_json(w, x),
     }
 }
 

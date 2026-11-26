@@ -43,6 +43,9 @@ py_binary_struct! {
         // +20: (x, y, z); 0 except MainField_UIMap_Texture (inferred:
         // `_returnPosition`)
         pub return_position: [f32; 3],
+        // 2.06.00: 12 new bytes here, 0 in every vanilla record (modelled as a second
+        // 3-float vector; slot next to return_position INFERRED, the zero run allows others).
+        pub unk_f32x3_206: [f32; 3],
         // +32: sector (x, z) of boundary_position_min, 64-unit sectors
         // (inferred: within one sector of min / 64 in every record)
         pub start_sector_index_x: i32,

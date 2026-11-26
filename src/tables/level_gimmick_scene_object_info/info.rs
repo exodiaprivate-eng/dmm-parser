@@ -25,15 +25,17 @@
 //! `is_blocked`.
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
     /// 13-byte element of `unk_entry_list` (same wire shape as
     /// `GlobalGameEventListEntry`: u32, u8, u32, u32). Present only on the 18
     /// dlc_01 `Management_Structure_*` records (2 entries each).
-    pub struct LevelGimmickSceneObjectEntry {
+    pub struct LevelGimmickSceneObjectEntry<'a> {
         // a key in the 1,000,000+ range (1000064, 1001228, 1015521, ...)
-        pub unk_key: u32,
+        // 2.06.00: was `unk_key: u32` (a conditioninfo key); the condition is now inline.
+        pub condition: OptionalGameCondition<'a>,
         pub unk_u8: u8,
         // hash-like value
         pub unk_hash: u32,
@@ -95,7 +97,7 @@ py_binary_struct! {
         pub level_name: CString<'a>,
         // 0 in every record
         pub unk_u32_tail: u32,
-        pub unk_entry_list: CArray<LevelGimmickSceneObjectEntry>,
+        pub unk_entry_list: CArray<LevelGimmickSceneObjectEntry<'a>>,
         // 1 + 1013697 on SaveSearch_ShinyStone only, 0 elsewhere
         pub unk_u8_tail: u8,
         pub unk_key_tail: u32,

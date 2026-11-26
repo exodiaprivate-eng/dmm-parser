@@ -279,3 +279,96 @@ impl crate::python_traits::WritePyValue for OptionalGameCondition<'_> {
             "OptionalGameCondition: use JSON path"))
     }
 }
+
+/// Game 2.06.00: an inline `OptionalGameCondition` held by its wire bytes, for structs that
+/// carry no lifetime (DropInfoData and its users). Reading parses the condition to find its
+/// end and keeps a copy of those bytes; JSON is exactly that of `OptionalGameCondition`
+/// (null = empty), produced by re-parsing the copy.
+#[derive(Debug, Clone, Default)]
+pub struct OwnedGameCondition {
+    pub bytes: Vec<u8>,
+}
+
+impl OwnedGameCondition {
+    pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
+        let start = *offset;
+        OptionalGameCondition::read_from(data, offset)?;
+        Ok(Self { bytes: data[start..*offset].to_vec() })
+    }
+
+    pub fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        if self.bytes.is_empty() { 0u8.write_to(w) } else { w.write_all(&self.bytes) }
+    }
+
+    pub fn to_json_value(&self) -> Value {
+        if self.bytes.is_empty() {
+            return Value::Null;
+        }
+        let mut o = 0usize;
+        match OptionalGameCondition::read_from(&self.bytes, &mut o) {
+            Ok(c) => c.to_json_value(),
+            Err(_) => Value::Null,
+        }
+    }
+
+    pub fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        OptionalGameCondition::write_from_json(w, v)
+    }
+}
+
+impl<'a> crate::binary::BinaryRead<'a> for OwnedGameCondition {
+    fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
+        OwnedGameCondition::read_from(data, offset)
+    }
+}
+
+impl crate::binary::BinaryWrite for OwnedGameCondition {
+    fn write_to(&self, w: &mut dyn Write) -> io::Result<()> {
+        OwnedGameCondition::write_to(self, w)
+    }
+}
+
+impl<'a> crate::binary::BinaryReadTracked<'a> for OwnedGameCondition {
+    fn read_tracked(
+        data: &'a [u8],
+        offset: &mut usize,
+        path: &mut String,
+        ranges: &mut Vec<crate::binary::FieldRange>,
+    ) -> io::Result<Self> {
+        let start = *offset;
+        let v = OwnedGameCondition::read_from(data, offset)?;
+        ranges.push(crate::binary::FieldRange {
+            path: path.clone(),
+            start,
+            end: *offset,
+            ty: "OptionalGameCondition",
+        });
+        Ok(v)
+    }
+}
+
+impl crate::json_traits::ToJsonValue for OwnedGameCondition {
+    fn to_json_value(&self) -> Value {
+        OwnedGameCondition::to_json_value(self)
+    }
+}
+
+impl crate::json_traits::WriteJsonValue for OwnedGameCondition {
+    fn write_from_json(w: &mut Vec<u8>, v: &Value) -> io::Result<()> {
+        OwnedGameCondition::write_from_json(w, v)
+    }
+}
+
+impl crate::python_traits::ToPyValue for OwnedGameCondition {
+    fn to_py_value(&self, _py: pyo3::Python<'_>) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "OwnedGameCondition: use JSON path"))
+    }
+}
+
+impl crate::python_traits::WritePyValue for OwnedGameCondition {
+    fn write_from_py(_w: &mut Vec<u8>, _obj: &pyo3::Bound<'_, pyo3::PyAny>) -> pyo3::PyResult<()> {
+        Err(pyo3::exceptions::PyNotImplementedError::new_err(
+            "OwnedGameCondition: use JSON path"))
+    }
+}

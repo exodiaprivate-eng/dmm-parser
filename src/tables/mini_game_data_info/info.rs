@@ -44,6 +44,15 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
+    /// 2.06.00: element of the new list after `name` (8 bytes). ArmWrestling_Quest has one:
+    /// (1000064, 1). Meaning unknown: a key and a count / value (INFERRED from the values).
+    pub struct MiniGameUnkEntry206 {
+        pub unk_key: u32,
+        pub unk_value: u32,
+    }
+}
+
+py_binary_struct! {
     pub struct MiniGameDataInfo<'a> {
         pub string_key: CString<'a>,
         pub key: u16,
@@ -65,6 +74,8 @@ py_binary_struct! {
         pub tag: CString<'a>,
         pub difficulty_buff_level_list: DifficultyBuffLevelList,
         pub name: LocalizableString<'a>,
+        // 2.06.00: new list (u32 count + 8-byte elements; empty on most records).
+        pub unk_list_206: CArray<MiniGameUnkEntry206>,
         pub ui_leader_board_sound: u32,           // StringInfoKey
         pub ui_leader_board_modal_sound: u32,     // StringInfoKey
         pub entrance_fee_list: CArray<EntranceFee>,

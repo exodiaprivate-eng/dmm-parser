@@ -57,6 +57,8 @@ py_binary_struct! {
         pub object_type: u8,
         // rarely non-zero
         pub unk_u8_2: u8,
+        // new in game 2.06 (meaning unknown)
+        pub unk_u8_206: u8,
         pub unk_u8_3: u8,
         pub unk_u8_4: u8,
         pub unk_u8_5: u8,

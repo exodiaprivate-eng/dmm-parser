@@ -58,7 +58,8 @@ py_binary_struct! {
         pub is_flexible_size: u8,
         pub is_flexible_icon: u8,
         // 2.05.00: `_isMovingPlatform` removed (the u8 that sat here).
-        pub filter_type: u8,
+        // 2.06.00: the `filter_type` u8 that sat here is gone (inferred from the
+        // data diff: one byte fewer at this place in every record).
         pub ui_template_name: u32,
         pub filter_group_parent_info: u32,
         pub knowledge_info: u32,
@@ -66,6 +67,8 @@ py_binary_struct! {
         pub ui_filter_texture_name: u32,
         pub ui_filter_group_component_name: u32,
         pub ui_small_texture_name: u32,
+        // new in game 2.06: a u32 that looks like a hash (meaning unknown)
+        pub unk_u32_206: u32,
         pub map_icon_type: u32,
         pub gameplay_trigger_info: u32,
         pub lerp_max_zoom: u32,

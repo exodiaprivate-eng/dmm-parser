@@ -453,7 +453,15 @@ mod tests {
                     Ok(_) => return "apply_mismatch".into(),
                     Err(e) => return format!("apply_error: {}", e).chars().take(200).collect(),
                 }
-                if fallback > 0 { format!("roundtrip_ok_blob_fallback {}", fallback) }
+                if fallback > 0 {
+                    // P206L: name the first fallback records (key / string_key) so they can be
+                    // dumped and diffed without a second tool.
+                    let eg: Vec<String> = items.iter().filter(|v| v.get("_blob_b64").is_some()).take(3)
+                        .map(|v| format!("{}/{}", v.get("key").map(|k| k.to_string()).unwrap_or_default(),
+                                         v.get("string_key").and_then(|s| s.as_str()).unwrap_or("")))
+                        .collect();
+                    format!("roundtrip_ok_blob_fallback {} e.g. {}", fallback, eg.join(" "))
+                }
                 else { "roundtrip_ok".into() }
             })();
             let kind = verdict.split([':', ' ']).next().unwrap().to_string();

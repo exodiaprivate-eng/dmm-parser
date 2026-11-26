@@ -48,6 +48,9 @@ py_binary_struct! {
         pub sub_spawn_reason: u32,  // 1.18 `_subSpawnReason`
         pub flag_a: u8,
         pub flag_b: u8,
+        // 2.06.00: 4 new bytes between flag_b and zone_tag (0 in every vanilla record, so the
+        // exact slot among flag_a..zone_tag is INFERRED; the width is what the round-trip proves).
+        pub unk_u32_206: u32,
         // 2.04.00 (Mac reader sub_10206C718): two zone fields after the counts.
         pub zone_tag: u32,
         pub sub_zone_tag_hash: u32,
@@ -145,6 +148,8 @@ py_binary_struct! {
         pub raw_e: u32,
         pub raw_f: u32,
         pub flag_a: u8,
+        // 2.06.00: one new byte among the flags (0 in vanilla; slot after flag_a INFERRED).
+        pub unk_u8_206: u8,
         pub flag_b: u8,
         pub flag_c: u8,
         pub flag_d: u8,

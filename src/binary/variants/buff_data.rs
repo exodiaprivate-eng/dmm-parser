@@ -1585,8 +1585,11 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct DetectReactionOverrideBuffDataPayload {
-        pub f00: u32,
-        pub f01: u32,
+        // 2.06.00: f00 / f01 were u32 conditioninfo keys (the same shape as characterinfo's
+        // DetectReactionOverride condition_a / condition_b); the conditions are now inline
+        // (skill 1000012: 0x0f7771 / 0x0f6e11 -> condition trees).
+        pub f00: crate::binary::optional_game_condition::OwnedGameCondition,
+        pub f01: crate::binary::optional_game_condition::OwnedGameCondition,
         pub f02: u8,
         pub f03: u32,
     }

@@ -41,6 +41,9 @@ py_binary_struct! {
         pub offset_a: f32,
         pub offset_b: f32,
         pub offset_c: f32,
+        // 2.06.00: three new floats (a second vector; e.g. 0.6, 0, 0.75 on Formation_Mercenary
+        // member 1, meaning unknown).
+        pub unk_f32x3_206: [f32; 3],
         pub param_a: f32,
         pub param_b: f32,
         pub flag: u8,
@@ -52,7 +55,8 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub key: u32,
         pub is_blocked: u8,
-        pub is_super_strict: u8,
+        // 2.06.00: `is_super_strict` removed (CONFIRMED by the data: the 7 records with it set
+        // lose that byte, the 3 with absolute_offset set keep theirs).
         pub absolute_offset: u8,
         pub member_data_list: CArray<FormationMemberData>,
     }
