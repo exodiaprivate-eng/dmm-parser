@@ -2304,9 +2304,39 @@ fn json_value_to_py<'py>(py: Python<'py>, v: &serde_json::Value) -> PyResult<Bou
     })
 }
 
+// ── Game 2.06 names-in-the-index layout ────────────────────────────────────
+
+/// True when (pabgh, pabgb) is a game 2.06 pair (record names in the index).
+#[pyfunction]
+pub fn is_named_pair(pabgh: &[u8], pabgb: &[u8]) -> bool {
+    crate::binary::named_index::is_named_pair(pabgh, pabgb)
+}
+
+/// A game 2.06 pair -> (legacy pabgh, legacy pabgb, sidecar bytes) in the 2.05 layout.
+#[pyfunction]
+pub fn named_to_legacy(py: Python<'_>, pabgh: &[u8], pabgb: &[u8]) -> PyResult<Py<PyAny>> {
+    let (h, b, sc) = crate::binary::named_index::to_legacy(pabgh, pabgb)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let t = PyTuple::new(py, [PyBytes::new(py, &h), PyBytes::new(py, &b), PyBytes::new(py, &sc.to_bytes())])?;
+    Ok(t.into_any().unbind())
+}
+
+/// (legacy pabgh, legacy pabgb, sidecar bytes) -> (pabgh, pabgb) in the game 2.06 layout.
+#[pyfunction]
+pub fn named_from_legacy(py: Python<'_>, pabgh: &[u8], pabgb: &[u8], sidecar: &[u8]) -> PyResult<Py<PyAny>> {
+    use crate::binary::named_index::{from_legacy, LegacySidecar};
+    let sc = LegacySidecar::from_bytes(sidecar).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let (h, b) = from_legacy(pabgh, pabgb, &sc).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let t = PyTuple::new(py, [PyBytes::new(py, &h), PyBytes::new(py, &b)])?;
+    Ok(t.into_any().unbind())
+}
+
 // ── Registration ───────────────────────────────────────────────────────────
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(is_named_pair, m)?)?;
+    m.add_function(wrap_pyfunction!(named_to_legacy, m)?)?;
+    m.add_function(wrap_pyfunction!(named_from_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(parse_iteminfo_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_iteminfo_from_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(parse_iteminfo_tracked, m)?)?;

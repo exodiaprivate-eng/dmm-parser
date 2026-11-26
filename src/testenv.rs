@@ -32,6 +32,12 @@ use std::path::PathBuf;
 /// up the new files without touching any env var.
 const FALLBACK_DIRS: &[&str] = &[
     // Add new entries here (newest first) after each game update
+    // GAME VERSION 2.06.00 - 2026-11-26 (Steam build 26949954, paver 0200060000000100...): record names
+    // moved into the .pabgh (binary::named_index). This is the LEGACY-shape copy written by
+    // tools/patchday/legacy_fixtures.py, so the table readers see the 2.05 record prelude. Real drift:
+    // ConditionInfo-key fields became inline conditions (InlineCondition), DropInfoData lost raw_58,
+    // DropSetInfo lost is_to_vehicle, characterinfo +interaction_category_group_info_for_player.
+    r"C:\temp\GIT\CrimsonDesertUpdates\pabgb\2026-11-26-20600-legacy",
     // GAME VERSION 2.05.01 - 2026-11-19 hotfix (Steam build 26776744, paver 0200050001000100...): layout
     // changes. ItemInfo +_discardSingleCount u8 after _discardable (1 on 133 items); PageData
     // +_uiTextureRotationType u8 (~800 items gained examine pages: maps, posters, books);

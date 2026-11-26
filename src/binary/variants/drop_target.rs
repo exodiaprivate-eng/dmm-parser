@@ -281,9 +281,12 @@ impl DropTargetVariant {
 pub struct DropTargetData {
     pub raw_at_120: u64,
     pub dispatch_tag: u8,
-    pub lookup_4: u32,
-    pub lookup_6: u32,
-    pub lookup_8: u32,
+    // 2.06.00: `_ownerCondition`, `_playerCondition`, `_gimmickCachedTargetCondition` hold the
+    // condition INLINE (they were u32 ConditionInfo keys `_...ConditionInfo`). Names kept: they
+    // are the mod contract. See `InlineCondition`.
+    pub lookup_4: crate::binary::optional_game_condition::InlineCondition,
+    pub lookup_6: crate::binary::optional_game_condition::InlineCondition,
+    pub lookup_8: crate::binary::optional_game_condition::InlineCondition,
     pub raw_12: u32,
     pub raw_16: u64,
     // ── 1.18.00: the u32 that used to sit here (`raw_24`) was REMOVED.
@@ -320,8 +323,9 @@ pub struct DropTargetData {
     pub raw_40: u64,
     pub raw_48: u64,
     pub raw_56: u16,
-    /// 2.05.00: one new byte after `_enchantLevel` (0 in vanilla records checked).
-    pub raw_58: u8,
+    // 2.05.00 added a byte after `_enchantLevel` (`raw_58`); 2.06.00 removed it again (Mac 2.06
+    // reader sub_101919670 goes from `_enchantLevel` straight to the union). A mod's `raw_58`
+    // key is ignored.
     pub variant: DropTargetVariant,
 }
 
@@ -329,20 +333,19 @@ impl<'a> BinaryRead<'a> for DropTargetData {
     fn read_from(data: &'a [u8], offset: &mut usize) -> io::Result<Self> {
         let raw_at_120 = u64::read_from(data, offset)?;
         let dispatch_tag = u8::read_from(data, offset)?;
-        let lookup_4 = u32::read_from(data, offset)?;
-        let lookup_6 = u32::read_from(data, offset)?;
-        let lookup_8 = u32::read_from(data, offset)?;
+        let lookup_4 = crate::binary::optional_game_condition::InlineCondition::read_from(data, offset)?;
+        let lookup_6 = crate::binary::optional_game_condition::InlineCondition::read_from(data, offset)?;
+        let lookup_8 = crate::binary::optional_game_condition::InlineCondition::read_from(data, offset)?;
         let raw_12 = u32::read_from(data, offset)?;
         let raw_16 = u64::read_from(data, offset)?;
         let raw_32 = u64::read_from(data, offset)?;
         let raw_40 = u64::read_from(data, offset)?;
         let raw_48 = u64::read_from(data, offset)?;
         let raw_56 = u16::read_from(data, offset)?;
-        let raw_58 = u8::read_from(data, offset)?;
         let variant = DropTargetVariant::read_from(dispatch_tag, data, offset)?;
         Ok(Self {
             raw_at_120, dispatch_tag, lookup_4, lookup_6, lookup_8,
-            raw_12, raw_16, raw_32, raw_40, raw_48, raw_56, raw_58, variant,
+            raw_12, raw_16, raw_32, raw_40, raw_48, raw_56, variant,
         })
     }
 }
@@ -360,7 +363,6 @@ impl BinaryWrite for DropTargetData {
         self.raw_40.write_to(w)?;
         self.raw_48.write_to(w)?;
         self.raw_56.write_to(w)?;
-        self.raw_58.write_to(w)?;
         self.variant.write_to(w)
     }
 }
@@ -379,7 +381,6 @@ impl ToJsonValue for DropTargetData {
         m.insert("raw_40".into(), self.raw_40.to_json_value());
         m.insert("raw_48".into(), self.raw_48.to_json_value());
         m.insert("raw_56".into(), self.raw_56.to_json_value());
-        m.insert("raw_58".into(), self.raw_58.to_json_value());
         m.insert("variant".into(), self.variant.to_json_value());
         Value::Object(m)
     }
@@ -401,9 +402,9 @@ impl WriteJsonValue for DropTargetData {
     ///    |----------------|---------------------|----------------|------|---------|
     ///    | `item_key`     | `_keyRaw`           | `raw_at_120`   | u64  | 0       |
     ///    | (no alias)     | `_dropResultType`   | `dispatch_tag` | u8   | 0 (item)|
-    ///    | (no alias)     | `_ownerConditionInfo` | `lookup_4`   | u32  | 0xFFFFFFFF |
-    ///    | (no alias)     | `_playerConditionInfo` | `lookup_6`  | u32  | 0xFFFFFFFF |
-    ///    | (no alias)     | `_gimmickCachedTargetConditionInfo` | `lookup_8` | u32 | 0xFFFFFFFF |
+    ///    | (no alias)     | `_ownerCondition` | `lookup_4`   | inline condition (2.06) | null |
+    ///    | (no alias)     | `_playerCondition` | `lookup_6`  | inline condition (2.06) | null |
+    ///    | (no alias)     | `_gimmickCachedTargetCondition` | `lookup_8` | inline condition (2.06) | null |
     ///    | (no alias)     | `_dropTagNameHash`  | `raw_12`       | u32  | 0       |
     ///    | `rates`        | `_percent` (main)   | `raw_16`       | u64  | 0       |
     ///    | `rates_100`    | REMOVED in 1.18. ⚠ It mapped to `raw_24`, which was the low half of `_subPercent`, NOT the drop chance — that is `raw_16` (`_percent`, u64). |
@@ -427,9 +428,7 @@ impl WriteJsonValue for DropTargetData {
         // Pick wire field; fall back to semantic alias; then default.
         let item_key = pick_u64(obj, &["raw_at_120", "item_key"], 0);
         let dispatch_tag = pick_u8(obj, &["dispatch_tag"], 0);
-        let lookup_4 = pick_u32(obj, &["lookup_4"], 0xFFFFFFFF);
-        let lookup_6 = pick_u32(obj, &["lookup_6"], 0xFFFFFFFF);
-        let lookup_8 = pick_u32(obj, &["lookup_8"], 0xFFFFFFFF);
+
         let raw_12 = pick_u32(obj, &["raw_12"], 0);
         let raw_16 = pick_u64(obj, &["raw_16", "rates"], 0);
         let raw_32 = pick_u64(obj, &["raw_32"], 0);
@@ -437,20 +436,22 @@ impl WriteJsonValue for DropTargetData {
         let raw_48 = pick_u64(obj, &["raw_48", "max_amt"], 0);
         let raw_56 = pick_u16(obj, &["raw_56"], 0);
         // 2.05.00. Absent in a mod made before 2.05: 0, the value vanilla records carry.
-        let raw_58 = pick_u8(obj, &["raw_58"], 0);
 
         item_key.write_to(w)?;
         dispatch_tag.write_to(w)?;
-        lookup_4.write_to(w)?;
-        lookup_6.write_to(w)?;
-        lookup_8.write_to(w)?;
+        // 2.06.00 inline conditions; absent (a semantic-shape mod) = no condition.
+        for k in ["lookup_4", "lookup_6", "lookup_8"] {
+            match obj.get(k) {
+                Some(v) => <crate::binary::optional_game_condition::InlineCondition as WriteJsonValue>::write_from_json(w, v)?,
+                None => w.push(0),
+            }
+        }
         raw_12.write_to(w)?;
         raw_16.write_to(w)?;
         raw_32.write_to(w)?;
         raw_40.write_to(w)?;
         raw_48.write_to(w)?;
         raw_56.write_to(w)?;
-        raw_58.write_to(w)?;
 
         // Variant tail. Wire-faithful path: explicit `variant` object.
         // Semantic path: synthesize from dispatch_tag + item_key.

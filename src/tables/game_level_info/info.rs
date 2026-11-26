@@ -51,7 +51,8 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct GameLevelData {
         pub lookup_a: u32,
-        pub lookup_b: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE (levelinfo GameLevel_Tutorial). Name kept.
+        pub lookup_b: crate::binary::optional_game_condition::InlineCondition,
         pub lookup_c: u32,
         pub list: CArray<u32>,
         // NEW 1.10: second list (Mac element reader sub_101C905DC @a2+24, reader

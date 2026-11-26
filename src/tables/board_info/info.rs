@@ -64,7 +64,8 @@ py_binary_struct! {
     pub struct BoardSubItem {
         pub u32_a: u32,
         pub lookup_b: u32,
-        pub lookup_c: u32,
+        // BoardData `_playerCondition`. // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub lookup_c: crate::binary::optional_game_condition::InlineCondition,
     }
 }
 
@@ -76,8 +77,9 @@ py_binary_struct! {
         pub total_rate: u32,
         pub category: u8,
         pub name: LocalizableString<'a>,
-        pub condition: u32,
-        pub player_condition: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub condition: crate::binary::optional_game_condition::InlineCondition,
+        pub player_condition: crate::binary::optional_game_condition::InlineCondition,
         pub board_data_list: CArray<BoardSubItem>,
     }
 }

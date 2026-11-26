@@ -43,15 +43,40 @@ struct Layout {
     off_min: usize,
     /// Byte offset of `_maxValue` (i64) inside a `DropInfoData` record.
     off_max: usize,
+    /// Game 2.06.00+: the three conditions after `_dropResultType` are INLINE (variable length,
+    /// `OptionalGameCondition` each), so the header has no fixed size. When set, `header`,
+    /// `off_min`, `off_max` are measured from the END of the third condition instead of the
+    /// record start (`[cond_end] dropTagNameHash u32, percent u64, subPercent u64, minValue i64,
+    /// maxValue i64, enchantLevel u16`).
+    inline_conditions: bool,
+}
+
+/// Where a record's fixed offsets are measured from: the record start, or (inline layouts) the
+/// end of its three inline conditions, which start right after `_dropResultType` (offset 9).
+fn header_base(b: &[u8], off: usize, ly: Layout) -> Option<usize> {
+    if !ly.inline_conditions {
+        return Some(off);
+    }
+    let mut p = off + 9;
+    for _ in 0..3 {
+        if p >= b.len() {
+            return None;
+        }
+        crate::binary::optional_game_condition::OptionalGameCondition::read_from(b, &mut p).ok()?;
+    }
+    Some(p)
 }
 
 /// Known layouts, newest first.
 const LAYOUTS: &[Layout] = &[
-    // game 2.05.00+: one new byte after `_enchantLevel`, the header's last field (the same change
-    // as `DropTargetData::raw_58` / StoreInfo `raw_h`), so min/max keep their offsets.
-    Layout { header: 60, off_min: 41, off_max: 49 },
-    Layout { header: 59, off_min: 41, off_max: 49 }, // game 1.18.00 - 2.04
-    Layout { header: 63, off_min: 45, off_max: 53 }, // game <= 1.17
+    // game 2.06.00+: inline conditions, and 2.05's byte after `_enchantLevel` is gone again.
+    // Offsets from the end of the third condition.
+    Layout { header: 38, off_min: 20, off_max: 28, inline_conditions: true },
+    // game 2.05.00 - 2.05.01: one new byte after `_enchantLevel`, the header's last field (the same
+    // change as `DropTargetData::raw_58` / StoreInfo `raw_h`), so min/max keep their offsets.
+    Layout { header: 60, off_min: 41, off_max: 49, inline_conditions: false },
+    Layout { header: 59, off_min: 41, off_max: 49, inline_conditions: false }, // game 1.18.00 - 2.04
+    Layout { header: 63, off_min: 45, off_max: 53, inline_conditions: false }, // game <= 1.17
 ];
 /// Byte offset of `_typeTag` (u8) inside a `DropInfoData` record.
 const OFF_TYPE_TAG: usize = 8;
@@ -63,6 +88,13 @@ const OFF_VARY_IN_BODY: usize = 18;
 /// small (observed 1–10); a generous cap rejects garbage i64s from false matches
 /// while never clipping a legitimate reward.
 const COUNT_CAP: i64 = 1_000_000;
+
+/// `_percent` sits 16 bytes before `_minValue` (then `_subPercent`) in every layout, in ppm
+/// (1,000,000 = 100%). A real record never exceeds it. The false hits this rejects (found on
+/// 2.06.00, also present on 2.05.01): an in-range item key followed by zeros and `00 00 80 bf`
+/// (-1.0f), which put a value near 2^63 in the `_percent` slot while min = max = 0 passed the
+/// other checks. 2.05's scanner accepted 20 such lists (item 1000004), 2.06's 267 (item 1000311).
+const PERCENT_CAP: u64 = 1_000_000;
 
 /// Union-body byte size for each `_typeTag`. `None` = unknown tag (reject).
 fn case_size(tag: u8) -> Option<usize> {
@@ -127,15 +159,20 @@ fn rd_i64(b: &[u8], o: usize) -> Option<i64> {
 fn read_drop_info(b: &[u8], off: usize, ly: Layout) -> Option<(RewardEntry, usize)> {
     let tag = *b.get(off + OFF_TYPE_TAG)?;
     let cs = case_size(tag)?;
-    let end = off + ly.header + cs;
+    let base = header_base(b, off, ly)?;
+    let end = base + ly.header + cs;
     if end > b.len() {
         return None;
     }
     let key_raw = rd_i64(b, off)?;
-    let min_value = rd_i64(b, off + ly.off_min)?;
-    let max_value = rd_i64(b, off + ly.off_max)?;
+    let percent = rd_i64(b, base + ly.off_min - 16)? as u64;
+    if percent > PERCENT_CAP {
+        return None;
+    }
+    let min_value = rd_i64(b, base + ly.off_min)?;
+    let max_value = rd_i64(b, base + ly.off_max)?;
     let (vary_friendly, off_vary) = if matches!(tag, 7 | 8 | 15) {
-        let vo = off + ly.header + OFF_VARY_IN_BODY;
+        let vo = base + ly.header + OFF_VARY_IN_BODY;
         (Some(rd_i64(b, vo)?), Some(vo))
     } else {
         (None, None)
@@ -147,8 +184,8 @@ fn read_drop_info(b: &[u8], off: usize, ly: Layout) -> Option<(RewardEntry, usiz
             min_value,
             max_value,
             vary_friendly,
-            off_min: off + ly.off_min,
-            off_max: off + ly.off_max,
+            off_min: base + ly.off_min,
+            off_max: base + ly.off_max,
             off_vary,
         },
         end,
@@ -380,11 +417,13 @@ mod tests {
         b.push(1); // present
         let start = b.len();
         let ly = LAYOUTS[0];
-        b.resize(start + ly.header + 4, 0); // header + tag-0 body(4)
+        // inline layout: three empty conditions (bytes 9..12) precede the fixed offsets
+        let base_of = |start: usize| start + if ly.inline_conditions { 12 } else { 0 };
+        b.resize(base_of(start) + ly.header + 4, 0); // header + tag-0 body(4)
         b[start..start + 8].copy_from_slice(&(item_key as i64).to_le_bytes()); // _keyRaw
         b[start + OFF_TYPE_TAG] = 0; // _typeTag
-        b[start + ly.off_min..start + ly.off_min + 8].copy_from_slice(&min.to_le_bytes());
-        b[start + ly.off_max..start + ly.off_max + 8].copy_from_slice(&max.to_le_bytes());
+        b[base_of(start) + ly.off_min..base_of(start) + ly.off_min + 8].copy_from_slice(&min.to_le_bytes());
+        b[base_of(start) + ly.off_max..base_of(start) + ly.off_max + 8].copy_from_slice(&max.to_le_bytes());
         b.extend_from_slice(&0u32.to_le_bytes()); // trailing u32
         b
     }
@@ -455,9 +494,11 @@ mod tests {
         b.push(1);
         let start = b.len();
         let ly = LAYOUTS[0];
-        b.resize(start + ly.header + 32, 0);
+        // inline layout: three empty conditions (bytes 9..12) precede the fixed offsets
+        let base_of = |start: usize| start + if ly.inline_conditions { 12 } else { 0 };
+        b.resize(base_of(start) + ly.header + 32, 0);
         b[start + OFF_TYPE_TAG] = 7;
-        let vo = start + ly.header + OFF_VARY_IN_BODY;
+        let vo = base_of(start) + ly.header + OFF_VARY_IN_BODY;
         b[vo..vo + 8].copy_from_slice(&5i64.to_le_bytes()); // +5 friendship
         b.extend_from_slice(&0u32.to_le_bytes());
         // friendship tags carry no item key, so this list needs an item entry to
@@ -465,5 +506,59 @@ mod tests {
         let (e, _) = read_drop_info(&b, start, LAYOUTS[0]).unwrap();
         assert_eq!(e.type_tag, 7);
         assert_eq!(e.vary_friendly, Some(5));
+    }
+}
+
+#[cfg(test)]
+mod real_data {
+    /// Counts gimmick records whose tail exposes a non-empty reward list, on the fixture set.
+    /// Patch-day check that the scanner still finds the lists (compare with the previous build).
+    #[test]
+    #[ignore]
+    fn count_reward_lists() {
+        let b = std::fs::read(crate::testenv::resolve("gimmickinfo.pabgb")).unwrap();
+        let h = std::fs::read(crate::testenv::resolve("gimmickinfo.pabgh")).unwrap();
+        let recs = crate::dispatch::parse_table_to_json("gimmickinfo", &b, Some(&h)).unwrap();
+        let s = serde_json::to_string(&recs).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&s).unwrap();
+        let mut lists = 0usize;
+        let mut entries = 0usize;
+        fn walk(v: &serde_json::Value, lists: &mut usize, entries: &mut usize) {
+            match v {
+                serde_json::Value::Object(m) => {
+                    for (k, x) in m {
+                        if k == "drop_info_data_list" {
+                            if let Some(a) = x.as_array() {
+                                if !a.is_empty() { *lists += 1; *entries += a.len(); }
+                            }
+                        }
+                        walk(x, lists, entries);
+                    }
+                }
+                serde_json::Value::Array(a) => a.iter().for_each(|x| walk(x, lists, entries)),
+                _ => {}
+            }
+        }
+        walk(&v, &mut lists, &mut entries);
+        eprintln!("gimmickinfo: {} records, {} non-empty reward lists, {} entries", recs.len(), lists, entries);
+        if let Ok(out) = std::env::var("DMM_REWARD_DUMP") {
+            let mut m = serde_json::Map::new();
+            for r in &recs {
+                let mut found = Vec::new();
+                fn grab(v: &serde_json::Value, f: &mut Vec<serde_json::Value>) {
+                    match v {
+                        serde_json::Value::Object(m) => for (k, x) in m {
+                            if k == "drop_info_data_list" { if let Some(a) = x.as_array() { f.extend(a.iter().cloned()); } }
+                            grab(x, f);
+                        },
+                        serde_json::Value::Array(a) => a.iter().for_each(|x| grab(x, f)),
+                        _ => {}
+                    }
+                }
+                grab(r, &mut found);
+                if !found.is_empty() { m.insert(r["key"].to_string(), serde_json::Value::Array(found)); }
+            }
+            std::fs::write(out, serde_json::to_vec(&serde_json::Value::Object(m)).unwrap()).unwrap();
+        }
     }
 }

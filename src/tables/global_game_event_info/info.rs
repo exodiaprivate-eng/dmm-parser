@@ -38,7 +38,8 @@ py_binary_struct! {
     /// ManagementSpecialEvent_Vellua_Pub_Maegu). `flag`, `lookup_b` and
     /// `lookup_c` are 0 in all 336 entries on 2.04.08.
     pub struct GlobalGameEventConditionEntry {
-        pub condition_info: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub condition_info: crate::binary::optional_game_condition::InlineCondition,
         pub flag: u8,
         pub lookup_b: u32,
         pub lookup_c: u32,

@@ -37,11 +37,13 @@ py_binary_struct! {
         // ref -> conditioninfo, 0 = none (8 of 110 slots set), e.g. 1012111
         // '!CheckFocusActorMountedVehicleType(Ship)' on Sailor, 1013756
         // '!HasSummonTag(Worker_*)' on Management_Worker
-        pub condition_info: u32,
+        // 2.06.00: CandidateActivityGroupSet `_condition`, now INLINE (was a key). Name kept.
+        pub condition_info: crate::binary::optional_game_condition::InlineCondition,
         // ref -> conditioninfo, 0 = none (10 of 110 slots set), e.g. 1011683
         // 'IsGimmickPlacedByHousing()' on Married and Castle. Name inferred
         // (the old TalkTreeInfo pairs condition_info with target_condition_info)
-        pub target_condition_info: u32,
+        // 2.06.00: `_targetCondition`, now INLINE. Name kept.
+        pub target_condition_info: crate::binary::optional_game_condition::InlineCondition,
         // ref -> npcactivitygroupinfo (30 of 30 distinct values resolve, e.g.
         // RanchedAnimal -> ActivityGroup_Life_Animal, 1000002 ActivityGroup_Rest)
         pub npc_activity_group_list: CArray<u32>,

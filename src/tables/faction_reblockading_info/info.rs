@@ -8,7 +8,8 @@ py_binary_struct! {
     // playerCondition(ConditionKey u32) + rate(f64) + closeTime(u32) = 20B.
     pub struct ReoccupationQuestData {
         pub quest_info: u32,
-        pub player_condition: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE (Mac sub_101FFC64C). Name kept.
+        pub player_condition: crate::binary::optional_game_condition::InlineCondition,
         pub rate: f64,
         pub close_time: u32,
     }

@@ -39,7 +39,9 @@ pub struct BuffDataBase<'a> {
     pub asset_path: CString<'a>,
     pub category: u32,
     pub by58: u8,
-    pub lookup_a_60: u32,
+    // 2.06.00: a ConditionInfo key until 2.05, now the condition INLINE (old key 1000531 on
+    // buffinfo BuffLevel_MinHP reads as an empty condition). Name kept: mod contract.
+    pub lookup_a_60: crate::binary::optional_game_condition::InlineCondition,
     pub lookup_b_62: u32,
     pub lookup_c_64: u32,
     pub lookup_d_66: u32,
@@ -71,7 +73,7 @@ impl<'a> BuffDataBase<'a> {
         let asset_path = CString::read_from(data, offset)?;
         let category = u32::read_from(data, offset)?;
         let by58 = u8::read_from(data, offset)?;
-        let lookup_a_60 = u32::read_from(data, offset)?;
+        let lookup_a_60 = <crate::binary::optional_game_condition::InlineCondition as BinaryRead>::read_from(data, offset)?;
         let lookup_b_62 = u32::read_from(data, offset)?;
         let lookup_c_64 = u32::read_from(data, offset)?;
         let lookup_d_66 = u32::read_from(data, offset)?;
@@ -167,7 +169,7 @@ impl<'a> BuffDataBase<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "asset_path")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "category")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by58")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a_60")?)?;
+        <crate::binary::optional_game_condition::InlineCondition as WriteJsonValue>::write_from_json(w, obj.get("lookup_a_60").unwrap_or(&Value::Null))?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b_62")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c_64")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_d_66")?)?;
@@ -1583,8 +1585,9 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct DetectReactionOverrideBuffDataPayload {
-        pub f00: u32,
-        pub f01: u32,
+        // 2.06.00: two ConditionInfo keys until 2.05, now INLINE conditions (skill 0xf424c).
+        pub f00: crate::binary::optional_game_condition::InlineCondition,
+        pub f01: crate::binary::optional_game_condition::InlineCondition,
         pub f02: u8,
         pub f03: u32,
     }

@@ -47,8 +47,18 @@ py_binary_struct! {
         pub unk_bytes_4: [u8; 16],
         // +20: 0xFFFFFFFF, 0xFFFFFFFF in every record (an unset key pair?)
         pub unk_u32x2_20: [u32; 2],
-        // +28: 0 in every record
-        pub unk_bytes_28: [u8; 24],
+        // 2.06.00 ActionPointAccessor (Mac reader sub_101FFB660, 8 fields): after the key and the
+        // 24-byte `_autoSpawnKey` (unk_bytes_4 + unk_u32x2_20) come `_actionPointZoneKey`
+        // (GamePlayTriggerInfo u32 + 16-byte uuid), `_levelActionPointKey`, `_sceneObjectUuid`,
+        // `_socketNameHash`, `_sectorKeyX/Z`. Until 2.05 this was 24 bytes (`unk_bytes_28`:
+        // socketNameHash, sceneObjectUuid, gimmickActorKey). Layout proven on all 34,902 records.
+        pub action_point_zone_trigger_info: u32,
+        pub action_point_zone_uuid: [u8; 16],
+        pub level_action_point_key: u32,
+        pub scene_object_uuid: [u8; 16],
+        pub socket_name_hash: u32,
+        pub sector_key_x: u32,
+        pub sector_key_z: u32,
         // +52: ref -> levelactionpointinfo (12 of 12 distinct values; names match
         // the string_key, e.g. Action_Sailor 1000060 on `..._Action_Sailor`)
         pub level_action_point_info: u32,
@@ -62,12 +72,11 @@ py_binary_struct! {
         pub platform_character_info: u32,
         // +68: 0xEAC5E173 in every record (inferred: `_levelName` lookup hash)
         pub level_name: u32,
-        // +72: 0 in every record
-        pub unk_bytes_72: [u8; 16],
-        // +88: 0xFFFFFFFF in every record
-        pub unk_u32_88: u32,
-        // +92: 0 in every record
-        pub unk_bytes_92: [u8; 24],
+        // 2.06.00 ActionPoint: `_sceneObjectUuid`, `_socketIndex`, `_parentSceneObjectUuid`,
+        // `_parentGamePlayTriggerZone` REMOVED (were unk_bytes_72 / unk_u32_88 / unk_bytes_92);
+        // `_gimmickActorKey` moved here from the accessor, then `_subZoneTag`.
+        pub gimmick_actor_key: u32,
+        pub sub_zone_tag: u32,
         // +116: position on the platform (x, y, z); 0 on level-placed records
         pub action_position: [f32; 3],
         // +128: rotation quaternion (x, y, z, w): unit length in every record,

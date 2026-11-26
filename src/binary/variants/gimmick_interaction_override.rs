@@ -62,7 +62,8 @@ pub struct GimmickInteractionOverrideData<'a> {
     pub cond_pair_list: BareConditionPairCArray<'a>,
     pub mob_list: CArray<FactionAdjacencyMobItem>,
     pub list_a: CArray<u32>,
-    pub lookup_b: u32,
+    // 2.06.00: `_interactionDialogSetOverrideData` (was `lookup_b`, u32) REMOVED with DialogSetInfo
+    // (oracle InteractionOverrideData 15 -> 14). A mod's `lookup_b` key is ignored.
     pub lookup_c: u32,
     pub flag_a: u8,
     pub flag_b: u8,
@@ -84,7 +85,6 @@ impl<'a> BinaryRead<'a> for GimmickInteractionOverrideData<'a> {
             cond_pair_list: f!("cond_pair", BareConditionPairCArray::read_from(data, offset)),
             mob_list: f!("mob_list", CArray::<FactionAdjacencyMobItem>::read_from(data, offset)),
             list_a: f!("list_a", CArray::<u32>::read_from(data, offset)),
-            lookup_b: u32::read_from(data, offset)?,
             lookup_c: u32::read_from(data, offset)?,
             flag_a: u8::read_from(data, offset)?,
             flag_b: u8::read_from(data, offset)?,
@@ -105,7 +105,6 @@ impl<'a> BinaryWrite for GimmickInteractionOverrideData<'a> {
         self.cond_pair_list.write_to(w)?;
         self.mob_list.write_to(w)?;
         self.list_a.write_to(w)?;
-        self.lookup_b.write_to(w)?;
         self.lookup_c.write_to(w)?;
         self.flag_a.write_to(w)?;
         self.flag_b.write_to(w)?;
@@ -127,7 +126,6 @@ impl<'a> ToJsonValue for GimmickInteractionOverrideData<'a> {
         m.insert("cond_pair_list".to_string(), self.cond_pair_list.to_json_value());
         m.insert("mob_list".to_string(), self.mob_list.to_json_value());
         m.insert("list_a".to_string(), self.list_a.to_json_value());
-        m.insert("lookup_b".to_string(), self.lookup_b.to_json_value());
         m.insert("lookup_c".to_string(), self.lookup_c.to_json_value());
         m.insert("flag_a".to_string(), self.flag_a.to_json_value());
         m.insert("flag_b".to_string(), self.flag_b.to_json_value());
@@ -152,7 +150,6 @@ impl<'a> WriteJsonValue for GimmickInteractionOverrideData<'a> {
         <BareConditionPairCArray as WriteJsonValue>::write_from_json(w, json_get_field(obj, "cond_pair_list")?)?;
         <CArray<FactionAdjacencyMobItem> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mob_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "list_a")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_a")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "flag_b")?)?;

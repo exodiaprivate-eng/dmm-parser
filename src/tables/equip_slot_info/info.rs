@@ -266,21 +266,22 @@ impl WriteJsonValue for EquipInfoData {
 // trailing per-class data into JSON addressability.
 
 py_binary_struct! {
-    /// Trailing per-record extra entry (20 bytes / 5 × u32). Field semantics
-    /// not yet fully reversed (only 1 record has nonzero entries in vanilla);
-    /// generically exposed as 5 named u32 fields so JSON consumers can edit
-    /// any byte. Empirical layout from k=0x2bd's 5 rows:
-    ///   - field_a: small int / signed sentinel (e.g. 0, 2, 4, -744, -745)
-    ///   - field_b: small int OR hash (e.g. 1, 2, 0x4425304d, 0x0bb2ba9b)
-    ///   - field_c: u32 (often 0)
-    ///   - field_d: u32 hash-like (e.g. 0xa02a, 0x1550, 0xfc000, 0x750be4d5)
-    ///   - field_e: u8-style flag widened to u32 (0 or 1)
+    /// `RagdollEquipTableData` (Mac 2.06 reader sub_10204F2D0): `_condition`, `_toEquipSlotName`,
+    /// `_equipSlotNameIndex`. 2.06.00: `_condition` is INLINE (a u32 ConditionInfo key until 2.05).
+    pub struct RagdollEquipTableData {
+        pub condition: crate::binary::optional_game_condition::InlineCondition,
+        pub to_equip_slot_name: u32,
+        pub equip_slot_name_index: u32,
+    }
+}
+
+py_binary_struct! {
+    /// `RagdollEquipTableGroupData`: `_fromRagdollTag` + `_ragdollEquipTableList`. Until 2.05 the
+    /// parser read this list as flat 20-byte rows (`EquipExtraEntry`, field_a..field_e), which only
+    /// fitted while every condition was a 4-byte key. Only record 0x2bd uses it in vanilla.
     pub struct EquipExtraEntry {
-        pub field_a: u32,
-        pub field_b: u32,
-        pub field_c: u32,
-        pub field_d: u32,
-        pub field_e: u32,
+        pub from_ragdoll_tag: u32,
+        pub ragdoll_equip_table_list: CArray<RagdollEquipTableData>,
     }
 }
 

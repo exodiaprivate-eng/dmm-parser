@@ -303,9 +303,12 @@ impl StoreStockDataValuePayload {
 pub struct StoreStockDataValue {
     pub raw_q: u64,
     pub disc: u8,
-    pub lookup_a: u32,    // sub_1410FF430
-    pub lookup_b: u32,    // sub_1410FF430
-    pub lookup_c: u32,    // sub_1410FF430
+    // 2.06.00: the engine's DropInfoData `_ownerCondition` / `_playerCondition` /
+    // `_gimmickCachedTargetCondition`, now INLINE conditions (were u32 ConditionInfo keys).
+    // Names kept: they are the mod contract. See `InlineCondition`.
+    pub lookup_a: crate::binary::optional_game_condition::InlineCondition,
+    pub lookup_b: crate::binary::optional_game_condition::InlineCondition,
+    pub lookup_c: crate::binary::optional_game_condition::InlineCondition,
     pub raw_a: u32,
     pub raw_b: u64,
     // ── 1.18.00: the u32 that used to sit here (`raw_c`) was REMOVED.
@@ -328,9 +331,8 @@ pub struct StoreStockDataValue {
     pub raw_e: u64,
     pub raw_f: u64,
     pub raw_g: u16,
-    /// 2.05.00: one new byte after `_enchantLevel` (raw_g), before the payload: the same
-    /// DropInfoData change as `DropTargetData::raw_58`. 0 in vanilla stock rows.
-    pub raw_h: u8,
+    // 2.05.00 added a byte after `_enchantLevel` (`raw_h`); 2.06.00 removed it again, the same
+    // DropInfoData change as `DropTargetData::raw_58`. A mod's `raw_h` key is ignored.
     pub payload: StoreStockDataValuePayload,
 }
 
@@ -338,20 +340,19 @@ impl StoreStockDataValue {
     pub fn read_from(data: &[u8], offset: &mut usize) -> io::Result<Self> {
         let raw_q = u64::read_from(data, offset)?;
         let disc = u8::read_from(data, offset)?;
-        let lookup_a = u32::read_from(data, offset)?;
-        let lookup_b = u32::read_from(data, offset)?;
-        let lookup_c = u32::read_from(data, offset)?;
+        let lookup_a = <crate::binary::optional_game_condition::InlineCondition as BinaryRead>::read_from(data, offset)?;
+        let lookup_b = <crate::binary::optional_game_condition::InlineCondition as BinaryRead>::read_from(data, offset)?;
+        let lookup_c = <crate::binary::optional_game_condition::InlineCondition as BinaryRead>::read_from(data, offset)?;
         let raw_a = u32::read_from(data, offset)?;
         let raw_b = u64::read_from(data, offset)?;
         let raw_d = u64::read_from(data, offset)?;
         let raw_e = u64::read_from(data, offset)?;
         let raw_f = u64::read_from(data, offset)?;
         let raw_g = u16::read_from(data, offset)?;
-        let raw_h = u8::read_from(data, offset)?;
         let payload = StoreStockDataValuePayload::read_from(disc, data, offset)?;
         Ok(Self {
             raw_q, disc, lookup_a, lookup_b, lookup_c,
-            raw_a, raw_b, raw_d, raw_e, raw_f, raw_g, raw_h, payload,
+            raw_a, raw_b, raw_d, raw_e, raw_f, raw_g, payload,
         })
     }
 
@@ -367,7 +368,6 @@ impl StoreStockDataValue {
         self.raw_e.write_to(w)?;
         self.raw_f.write_to(w)?;
         self.raw_g.write_to(w)?;
-        self.raw_h.write_to(w)?;
         self.payload.write_to(w)
     }
 
@@ -384,7 +384,6 @@ impl StoreStockDataValue {
         m.insert("raw_e".to_string(), self.raw_e.to_json_value());
         m.insert("raw_f".to_string(), self.raw_f.to_json_value());
         m.insert("raw_g".to_string(), self.raw_g.to_json_value());
-        m.insert("raw_h".to_string(), self.raw_h.to_json_value());
         m.insert("payload".to_string(), self.payload.to_json_value());
         Value::Object(m)
     }
@@ -398,17 +397,16 @@ impl StoreStockDataValue {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "disc: expected u64"))?
             as u8;
         disc.write_to(w)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c")?)?;
+        // 2.06.00 inline conditions; absent = no condition.
+        for k in ["lookup_a", "lookup_b", "lookup_c"] {
+            <crate::binary::optional_game_condition::InlineCondition as WriteJsonValue>::write_from_json(w, obj.get(k).unwrap_or(&Value::Null))?;
+        }
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_a")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_b")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_d")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_e")?)?;
         <u64 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_f")?)?;
         <u16 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "raw_g")?)?;
-        // 2.05.00; absent from rows a mod made before 2.05 (shop rows, EVI): 0, as vanilla.
-        <u8 as WriteJsonValue>::write_from_json(w, obj.get("raw_h").unwrap_or(&Value::Null))?;
         StoreStockDataValuePayload::write_from_json(disc, w, json_get_field(obj, "payload")?)?;
         Ok(())
     }
@@ -459,7 +457,9 @@ impl OptionalStoreStockDataValue {
 // sub_1410D9E90 inner — 8 mem bytes / 4 wire fields = 13 wire bytes.
 py_binary_struct! {
     pub struct StoreStockSubData {
-        pub lookup_a: u32,    // sub_1410FF430 wire u32
+        // The engine's ConditionOptionData: `_condition`, `_failType`, `_message`, `_summaryMessage`.
+        // 2.06.00: `_condition` is INLINE (was a u32 ConditionInfo key); name kept (mod contract).
+        pub lookup_a: crate::binary::optional_game_condition::InlineCondition,
         pub flag: u8,
         pub lookup_b: u32,    // sub_1410FF050 wire u32
         pub lookup_c: u32,    // sub_1410FF050 wire u32

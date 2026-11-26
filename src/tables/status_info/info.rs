@@ -37,7 +37,9 @@ py_binary_struct! {
         pub character_rotation_speed: f32,
         pub changing_rotation_speed_x: f32,
         pub changing_rotation_speed_y: f32,
-        pub changing_rotation_speed_z: f32,
+        // 2.06.00: `_changingRotationSpeed` is 8 bytes (two floats; Mac 2.06 element reader
+        // sub_101FF9C04 reads 8 at +48), so `changing_rotation_speed_z` is gone: -4 B per level,
+        // -24 on each of the seven *Level records.
         pub character_rotation_acc: f32,
         pub character_rotation_dcc: f32,
         pub jump_height: f32,

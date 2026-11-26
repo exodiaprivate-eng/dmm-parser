@@ -43,6 +43,9 @@ py_binary_struct! {
         // +20: (x, y, z); 0 except MainField_UIMap_Texture (inferred:
         // `_returnPosition`)
         pub return_position: [f32; 3],
+        // 2.06.00: `_fixedEntryPosition` (oracle idx 7, right after `_uiMapTextureStart`, which is the
+        // field above despite its inferred name): +12 on every record.
+        pub fixed_entry_position: [f32; 3],
         // +32: sector (x, z) of boundary_position_min, 64-unit sectors
         // (inferred: within one sector of min / 64 in every record)
         pub start_sector_index_x: i32,

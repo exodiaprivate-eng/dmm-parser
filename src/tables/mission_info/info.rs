@@ -162,6 +162,10 @@ py_binary_struct! {
         pub have_count_mission_info: u32,
         pub have_count_stage_info: u32,
         pub have_count_quest_gauge_info: u32,
+        // 2.06.00: `_haveCountPlayerCharacterInfo`, `_haveCountMarriedCharacterInfo` (oracle idx
+        // 11-12), CharacterKeys, +8 on every challenge element.
+        pub have_count_player_character_info: u32,
+        pub have_count_married_character_info: u32,
         pub have_count_level_gimmick_name: CString<'a>,
         pub have_count_level_gimmick_index: u32,
         pub flag_b: u8,                     // _challengeFunctionType
