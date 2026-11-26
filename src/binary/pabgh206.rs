@@ -410,6 +410,11 @@ mod tests {
             .filter_map(|n| n.strip_suffix(".pabgh").map(str::to_string))
             .collect();
         names.sort();
+        // P206_ONLY=t1,t2 limits the run to those file stems.
+        if let Ok(only) = std::env::var("P206_ONLY") {
+            let keep: Vec<&str> = only.split(',').collect();
+            names.retain(|n| keep.contains(&n.as_str()));
+        }
         let mut report = serde_json::Map::new();
         let mut totals = std::collections::BTreeMap::<String, usize>::new();
         for stem in &names {

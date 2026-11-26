@@ -4,6 +4,7 @@
 //! runtime): bank_investment_item_info/bank_pass_item_info=ItemKey,
 //! use_bank_condition=ConditionKey, bank_license_knowledge_info=KnowledgeKey.
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -41,7 +42,8 @@ py_binary_struct! {
         pub fix_interest_rate_on_investment: u8,
         pub bank_pass_item_info: u32,
         pub bank_license_knowledge_info: u32,
-        pub use_bank_condition: u32,            // _activeBankCondition
+        // 2.06.00: was `use_bank_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub use_bank_condition: OptionalGameCondition<'a>,
         pub bank_investment_item_info: u32,
         pub bank_step: u32,
         pub bank_refresh_game_time_day: u32,

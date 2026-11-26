@@ -12,7 +12,7 @@
 //!      read_u32_lookup_DA30 — wire u32, mem u16)
 //!   5. u16 update_region_info                (_updateRegionInfo,
 //!      sub_1410FF220 — wire u16, mem u16)
-//!   6. CArray<GameLevelData> level_data_list (_levelDataList,
+//!   6. CArray<GameLevelData<'a>> level_data_list (_levelDataList,
 //!      sub_141112EA0; per element: 3× u32 lookup + CArray<u32> + u8 —
 //!      32 mem bytes / 5 wire fields)
 //!
@@ -46,12 +46,14 @@
 // ✅ _updateRegionInfo (reader_2B, stream=2)
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    pub struct GameLevelData {
+    pub struct GameLevelData<'a> {
         pub lookup_a: u32,
-        pub lookup_b: u32,
+        // 2.06.00: was `lookup_b: u32` (a conditioninfo key); the condition is now inline.
+        pub lookup_b: OptionalGameCondition<'a>,
         pub lookup_c: u32,
         pub list: CArray<u32>,
         // NEW 1.10: second list (Mac element reader sub_101C905DC @a2+24, reader
@@ -74,7 +76,7 @@ py_binary_struct! {
         pub teleport_transform_a: [f32; 3],
         pub teleport_transform_rotation: [f32; 4],
         pub teleport_transform_b: [f32; 3],
-        pub level_data_list: CArray<GameLevelData>,
+        pub level_data_list: CArray<GameLevelData<'a>>,
     }
 }
 

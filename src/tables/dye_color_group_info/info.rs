@@ -26,12 +26,14 @@
 // ✅ _key
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    pub struct DyeColorEntry {
+    pub struct DyeColorEntry<'a> {
         pub raw_color: u32,
-        pub texture_lookup: u32,
+        // 2.06.00: was `texture_lookup: u32` (a conditioninfo key); the condition is now inline.
+        pub texture_lookup: OptionalGameCondition<'a>,
     }
 }
 
@@ -41,7 +43,7 @@ py_binary_struct! {
         pub key: u32,
         pub is_blocked: u8,
         pub icon_path: u32,
-        pub dye_color_data_list: CArray<DyeColorEntry>,
+        pub dye_color_data_list: CArray<DyeColorEntry<'a>>,
         pub dye_color_group_name: LocalizableString<'a>,
     }
 }

@@ -58,6 +58,7 @@
 // ✅ _stringKey
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -76,8 +77,10 @@ py_binary_struct! {
         pub total_rate: u32,
         pub category: u8,
         pub name: LocalizableString<'a>,
-        pub condition: u32,
-        pub player_condition: u32,
+        // 2.06.00: was `condition: u32` (a conditioninfo key); the condition is now inline.
+        pub condition: OptionalGameCondition<'a>,
+        // 2.06.00: was `player_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub player_condition: OptionalGameCondition<'a>,
         pub board_data_list: CArray<BoardSubItem>,
     }
 }

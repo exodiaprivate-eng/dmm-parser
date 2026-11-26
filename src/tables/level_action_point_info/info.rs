@@ -57,6 +57,8 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub key: u32,
         pub is_blocked: u8,
+        // 2.06.00: new u8 (0 in vanilla), meaning unknown.
+        pub unk_206_a: u8,
         pub access_type: u8,
         pub level_action_point_group_list: CArray<LevelActionPointGroupElem>,
     }

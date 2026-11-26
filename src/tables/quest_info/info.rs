@@ -74,7 +74,7 @@
 //!  11. BranchData branch_data          (sub_101652724, fixed 6-field struct,
 //!       18 bytes wire: u32 QuestKey + u32 ConditionKey + u8 + u8 + u32 + u32)
 //!  12. CArray<u32> start_player_list   (CharacterKey hash list)
-//!  13. CArray<BranchData> branch_data_list  (sub_101885280)
+//!  13. CArray<BranchData<'a>> branch_data_list  (sub_101885280)
 //!  14. CArray<u32> executor_quest_list  (sub_10186F2C4, QuestKey hash)
 //!  15. CArray<u32> gauge_list          (sub_101885460, QuestGaugeKey)
 //!  16. CArray<u32> mission_list        (sub_10186E494, MissionKey hash)
@@ -107,6 +107,7 @@
 use crate::binary::variant::find_variant_boundary;
 use crate::binary::variants::filter_condition::QuestDialogFilterData;
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -193,9 +194,10 @@ impl<'a> QuestDialogFilterDataList<'a> {
 use std::io::{self, Write};
 
 py_binary_struct! {
-    pub struct FactionStateData {
+    pub struct FactionStateData<'a> {
         pub activate_faction_state_list: CArray<u8>,
-        pub player_condition_info: u32,
+        // 2.06.00: was `player_condition_info: u32` (a conditioninfo key); the condition is now inline.
+        pub player_condition_info: OptionalGameCondition<'a>,
         pub relation_target_faction_info: u32,
         pub relation_type: u8,
     }
@@ -205,9 +207,10 @@ py_binary_struct! {
     // 2.04.00 `QuestBranchData` (Mac reader sub_10205AA38): the two delay times now precede
     // the flags, and `_isOnClose` was added (19 bytes). u32_a/u32_b = from/toDelayTime,
     // byte_a/byte_b = useDelay/useDelay_loading.
-    pub struct BranchData {
+    pub struct BranchData<'a> {
         pub quest_key: u32,
-        pub condition_key: u32,
+        // 2.06.00: was `condition_key: u32` (a conditioninfo key); the condition is now inline.
+        pub condition_key: OptionalGameCondition<'a>,
         pub u32_a: u32,
         pub u32_b: u32,
         pub byte_a: u8,
@@ -227,11 +230,11 @@ pub struct QuestInfo<'a> {
     pub desc: LocalizableString<'a>,
     pub quest_group_info: u16,
     pub faction_info: u32,
-    pub faction_state_data: FactionStateData,
-    pub branch_data: BranchData,
+    pub faction_state_data: FactionStateData<'a>,
+    pub branch_data: BranchData<'a>,
     pub global_game_event_info: u16,
     pub start_player_list: CArray<u32>,
-    pub branch_data_list: CArray<BranchData>,
+    pub branch_data_list: CArray<BranchData<'a>>,
     pub executor_quest_list: CArray<u32>,
     pub gauge_list: CArray<u32>,
     pub mission_list: CArray<u32>,
@@ -342,7 +345,7 @@ impl<'a> QuestInfo<'a> {
         let desc = LocalizableString::read_from(data, offset)?;
         let faction_state_data = FactionStateData::read_from(data, offset)?;
         let start_player_list = CArray::<u32>::read_from(data, offset)?;
-        let branch_data_list = CArray::<BranchData>::read_from(data, offset)?;
+        let branch_data_list = CArray::<BranchData<'a>>::read_from(data, offset)?;
         let executor_quest_list = CArray::<u32>::read_from(data, offset)?;
         let gauge_list = CArray::<u32>::read_from(data, offset)?;
         let mission_list = CArray::<u32>::read_from(data, offset)?;
@@ -433,12 +436,12 @@ impl<'a> QuestInfo<'a> {
         let start_stage = track_read_field::<u32>(data, offset, path, ranges, "start_stage", "u32")?;
         let game_start_stage = track_read_field::<u32>(data, offset, path, ranges, "game_start_stage", "u32")?;
         let playable_stage_count = track_read_field::<u32>(data, offset, path, ranges, "playable_stage_count", "u32")?;
-        let branch_data = track_read_field::<BranchData>(data, offset, path, ranges, "branch_data", "BranchData")?;
+        let branch_data = track_read_field::<BranchData<'a>>(data, offset, path, ranges, "branch_data", "BranchData")?;
         let name = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "name", "LocalizableString")?;
         let desc = track_read_field::<LocalizableString<'a>>(data, offset, path, ranges, "desc", "LocalizableString")?;
-        let faction_state_data = track_read_field::<FactionStateData>(data, offset, path, ranges, "faction_state_data", "FactionStateData")?;
+        let faction_state_data = track_read_field::<FactionStateData<'a>>(data, offset, path, ranges, "faction_state_data", "FactionStateData")?;
         let start_player_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "start_player_list", "CArray<u32>")?;
-        let branch_data_list = track_read_field::<CArray<BranchData>>(data, offset, path, ranges, "branch_data_list", "CArray<BranchData>")?;
+        let branch_data_list = track_read_field::<CArray<BranchData<'a>>>(data, offset, path, ranges, "branch_data_list", "CArray<BranchData<'a>>")?;
         let executor_quest_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "executor_quest_list", "CArray<u32>")?;
         let gauge_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "gauge_list", "CArray<u32>")?;
         let mission_list = track_read_field::<CArray<u32>>(data, offset, path, ranges, "mission_list", "CArray<u32>")?;
@@ -586,7 +589,7 @@ impl<'a> QuestInfo<'a> {
         <LocalizableString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "desc")?)?;
         <FactionStateData as WriteJsonValue>::write_from_json(w, json_get_field(obj, "faction_state_data")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "start_player_list")?)?;
-        <CArray<BranchData> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data_list")?)?;
+        <CArray<BranchData<'a>> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "branch_data_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "executor_quest_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "gauge_list")?)?;
         <CArray<u32> as WriteJsonValue>::write_from_json(w, json_get_field(obj, "mission_list")?)?;

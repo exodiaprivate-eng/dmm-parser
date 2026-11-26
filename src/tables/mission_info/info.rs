@@ -163,6 +163,8 @@ py_binary_struct! {
         pub have_count_stage_info: u32,
         pub have_count_quest_gauge_info: u32,
         pub have_count_level_gimmick_name: CString<'a>,
+        // 2.06.00: new 8 bytes (0 in vanilla), meaning unknown.
+        pub unk_206_u64: u64,
         pub have_count_level_gimmick_index: u32,
         pub flag_b: u8,                     // _challengeFunctionType
         pub affinity_character_info: u32,

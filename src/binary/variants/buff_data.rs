@@ -3,6 +3,7 @@
 //! Total variants: 120
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::json_traits::{ToJsonValue, WriteJsonValue, get_field as json_get_field};
 use crate::py_binary_struct;
 use serde_json::{Map, Value};
@@ -39,7 +40,8 @@ pub struct BuffDataBase<'a> {
     pub asset_path: CString<'a>,
     pub category: u32,
     pub by58: u8,
-    pub lookup_a_60: u32,
+    // 2.06.00: was `lookup_a_60: u32` (a conditioninfo key); the condition is now inline.
+    pub lookup_a_60: OptionalGameCondition<'a>,
     pub lookup_b_62: u32,
     pub lookup_c_64: u32,
     pub lookup_d_66: u32,
@@ -71,7 +73,7 @@ impl<'a> BuffDataBase<'a> {
         let asset_path = CString::read_from(data, offset)?;
         let category = u32::read_from(data, offset)?;
         let by58 = u8::read_from(data, offset)?;
-        let lookup_a_60 = u32::read_from(data, offset)?;
+        let lookup_a_60 = OptionalGameCondition::read_from(data, offset)?;
         let lookup_b_62 = u32::read_from(data, offset)?;
         let lookup_c_64 = u32::read_from(data, offset)?;
         let lookup_d_66 = u32::read_from(data, offset)?;
@@ -167,7 +169,7 @@ impl<'a> BuffDataBase<'a> {
         <CString as WriteJsonValue>::write_from_json(w, json_get_field(obj, "asset_path")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "category")?)?;
         <u8 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "by58")?)?;
-        <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a_60")?)?;
+        <OptionalGameCondition as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_a_60")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_b_62")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_c_64")?)?;
         <u32 as WriteJsonValue>::write_from_json(w, json_get_field(obj, "lookup_d_66")?)?;

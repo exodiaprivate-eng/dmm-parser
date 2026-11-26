@@ -327,6 +327,7 @@
 // ⏳ _farmDropInfoList (reader_4B, stream=4)
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::binary::variants::gimmick_interaction_override::GimmickInteractionOverrideCArray;
 use crate::json_traits::{ToJsonValue, WriteJsonValue};
 use crate::pabgh_typed_blob_table;
@@ -829,8 +830,10 @@ py_binary_struct! {
         pub is_player_only: u8,
         // 2.04.00: `_isNpcOnly` (a ConditionKey) became `_playerCondition`, and `_ownerCondition`
         // follows it, as in ItemInfo's DockingChildData.
-        pub player_condition: u32,
-        pub owner_condition: u32,
+        // 2.06.00: was `player_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub player_condition: OptionalGameCondition<'a>,
+        // 2.06.00: was `owner_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub owner_condition: OptionalGameCondition<'a>,
         pub is_sync_break_parent: u8,
         pub hit_part: u8,
         pub detected_by_npc: u8,
@@ -1070,17 +1073,20 @@ py_binary_struct! {
 // Field 151 element (sub_101FAF870): ConditionKey u32 + StringInfoKey u32 (sub_1015FBC3C=4B)
 // + random parts StringInfoKey list.
 py_binary_struct! {
-    pub struct CharacterAdditionalPartsData {
-        pub parts_condition: u32,
+    pub struct CharacterAdditionalPartsData<'a> {
+        // 2.06.00: was `parts_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub parts_condition: OptionalGameCondition<'a>,
         pub parts_file_name: u32,
         pub random_parts_name_list: CArray<u32>,
     }
 }
 // Field 154 element (sub_1017A1A24): 2× ConditionKey u32 + u8 + u32.
 py_binary_struct! {
-    pub struct DetectReactionOverride {
-        pub condition_a: u32,
-        pub condition_b: u32,
+    pub struct DetectReactionOverride<'a> {
+        // 2.06.00: was `condition_a: u32` (a conditioninfo key); the condition is now inline.
+        pub condition_a: OptionalGameCondition<'a>,
+        // 2.06.00: was `condition_b: u32` (a conditioninfo key); the condition is now inline.
+        pub condition_b: OptionalGameCondition<'a>,
         pub flag: u8,
         pub value: u32,
     }
@@ -1376,8 +1382,8 @@ pabgh_typed_blob_table! {
         pub character_friendly_knowledge_data_list: CharacterFriendlyKnowledgeDataLists,
         pub ai_dialog_override_list: COptional<CArray<AiDialogOverride>>,
         pub trap_food_data: COptional<TrapFoodData>,
-        pub additional_parts_data_list: COptional<CArray<CharacterAdditionalPartsData>>,
-        pub detect_reaction_override_list: CArray<DetectReactionOverride>,
+        pub additional_parts_data_list: COptional<CArray<CharacterAdditionalPartsData<'a>>>,
+        pub detect_reaction_override_list: CArray<DetectReactionOverride<'a>>,
         pub stage_info_for_npc_shop_list: COptional<CArray<u32>>,
         pub game_play_object_share_data: COptional<GamePlayObjectShareData>,
         pub weak_point_effect_data_list: COptional<CArray<WeakPointEffectData<'a>>>,

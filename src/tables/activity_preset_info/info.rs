@@ -30,18 +30,21 @@
 //! records are contiguous in offset order, so the table reads sequentially.
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
-    pub struct ActivityPresetSlot {
+    pub struct ActivityPresetSlot<'a> {
         // ref -> conditioninfo, 0 = none (8 of 110 slots set), e.g. 1012111
         // '!CheckFocusActorMountedVehicleType(Ship)' on Sailor, 1013756
         // '!HasSummonTag(Worker_*)' on Management_Worker
-        pub condition_info: u32,
+        // 2.06.00: was `condition_info: u32` (a conditioninfo key); the condition is now inline.
+        pub condition_info: OptionalGameCondition<'a>,
         // ref -> conditioninfo, 0 = none (10 of 110 slots set), e.g. 1011683
         // 'IsGimmickPlacedByHousing()' on Married and Castle. Name inferred
         // (the old TalkTreeInfo pairs condition_info with target_condition_info)
-        pub target_condition_info: u32,
+        // 2.06.00: was `target_condition_info: u32` (a conditioninfo key); the condition is now inline.
+        pub target_condition_info: OptionalGameCondition<'a>,
         // ref -> npcactivitygroupinfo (30 of 30 distinct values resolve, e.g.
         // RanchedAnimal -> ActivityGroup_Life_Animal, 1000002 ActivityGroup_Rest)
         pub npc_activity_group_list: CArray<u32>,
@@ -57,16 +60,16 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub key: u32,
         pub is_blocked: u8,
-        pub slot_0: ActivityPresetSlot,
-        pub slot_1: ActivityPresetSlot,
-        pub slot_2: ActivityPresetSlot,
-        pub slot_3: ActivityPresetSlot,
-        pub slot_4: ActivityPresetSlot,
-        pub slot_5: ActivityPresetSlot,
-        pub slot_6: ActivityPresetSlot,
-        pub slot_7: ActivityPresetSlot,
-        pub slot_8: ActivityPresetSlot,
-        pub slot_9: ActivityPresetSlot,
+        pub slot_0: ActivityPresetSlot<'a>,
+        pub slot_1: ActivityPresetSlot<'a>,
+        pub slot_2: ActivityPresetSlot<'a>,
+        pub slot_3: ActivityPresetSlot<'a>,
+        pub slot_4: ActivityPresetSlot<'a>,
+        pub slot_5: ActivityPresetSlot<'a>,
+        pub slot_6: ActivityPresetSlot<'a>,
+        pub slot_7: ActivityPresetSlot<'a>,
+        pub slot_8: ActivityPresetSlot<'a>,
+        pub slot_9: ActivityPresetSlot<'a>,
     }
 }
 

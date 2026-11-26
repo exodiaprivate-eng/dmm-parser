@@ -74,6 +74,7 @@
 // ✅ _flagComponentName (reader_4B, stream=4)
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -86,7 +87,8 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct StealthOption<'a> {
         pub tag: CString<'a>,
-        pub condition_logic: u32,
+        // 2.06.00: was `condition_logic: u32` (a conditioninfo key); the condition is now inline.
+        pub condition_logic: OptionalGameCondition<'a>,
         pub flag: u8,
     }
 }
@@ -122,7 +124,8 @@ py_binary_struct! {
     pub struct FactionEventData<'a> {
         // ExecuteCondition
         pub event_type: u8,
-        pub player_condition: u32,
+        // 2.06.00: was `player_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub player_condition: OptionalGameCondition<'a>,
         pub quest_info: u32,
         pub stage_info: u32,
         pub mission_info: u32,
@@ -195,8 +198,9 @@ py_binary_struct! {
 
 py_binary_struct! {
     /// 2.04.00 `FactionDependencyConditionData` (Mac reader sub_10206991C).
-    pub struct FactionDependencyData {
-        pub dependency_condition_info: u32,
+    pub struct FactionDependencyData<'a> {
+        // 2.06.00: was `dependency_condition_info: u32` (a conditioninfo key); the condition is now inline.
+        pub dependency_condition_info: OptionalGameCondition<'a>,
         pub parent_faction_info: u32,
         pub use_self_faction_flag: u8,
     }
@@ -229,7 +233,7 @@ py_binary_struct! {
         pub memo: CString<'a>,
         pub faction_ui_card_list: CArray<FactionUiCardEntry>,
         pub stealth_option_list: CArray<StealthOption<'a>>,
-        pub dependency_data_list: CArray<FactionDependencyData>,
+        pub dependency_data_list: CArray<FactionDependencyData<'a>>,
         pub faction_event_data_list: FactionEventDataSlots<'a>,
     }
 }

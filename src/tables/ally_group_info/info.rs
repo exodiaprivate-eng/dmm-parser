@@ -34,6 +34,7 @@
 //!   - interesting_order_list: CArray<u32> (sub_1410FF4A0 thunk)
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
@@ -46,7 +47,8 @@ py_binary_struct! {
         pub is_wild: u8,
         pub killer_detection_time: u8,
         pub apply_reporting: u8,
-        pub interesting_condition: u32,
+        // 2.06.00: was `interesting_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub interesting_condition: OptionalGameCondition<'a>,
         pub relation_type_list_0: CArray<u32>,
         pub relation_type_list_1: CArray<u32>,
         pub relation_type_list_2: CArray<u32>,

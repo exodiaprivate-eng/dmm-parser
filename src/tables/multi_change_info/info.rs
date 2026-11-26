@@ -62,11 +62,13 @@
 //!      sub_141100510)
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct ConditionListItem<'a> {
-        pub condition_info: u32,
+        // 2.06.00: was `condition_info: u32` (a conditioninfo key); the condition is now inline.
+        pub condition_info: OptionalGameCondition<'a>,
         pub label: LocalizableString<'a>,
     }
 }

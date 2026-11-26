@@ -25,11 +25,13 @@
 // ✅ _key
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct FailMessageEntry<'a> {
-        pub lookup_key: u32,
+        // 2.06.00: was `lookup_key: u32` (a conditioninfo key); the condition is now inline.
+        pub condition: OptionalGameCondition<'a>,
         pub label: LocalizableString<'a>,
     }
 }

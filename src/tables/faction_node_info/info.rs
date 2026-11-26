@@ -122,6 +122,7 @@
 // ✅ _key (direct_u32, stream=4)
 
 use crate::binary::*;
+use crate::binary::optional_game_condition::OptionalGameCondition;
 use crate::pabgh_typed_blob_table;
 use crate::py_binary_struct;
 
@@ -480,8 +481,9 @@ py_binary_struct! {
 
 py_binary_struct! {
     // _conditionOptionList element (schedules and research).
-    pub struct FactionConditionOption {
-        pub condition: u32, // lookup
+    pub struct FactionConditionOption<'a> {
+        // 2.06.00: was `condition: u32` (a conditioninfo key); the condition is now inline.
+        pub condition: OptionalGameCondition<'a>,
         pub flag: u8,
         pub value_a: u32,
         pub value_b: u32,
@@ -516,7 +518,7 @@ py_binary_struct! {
         pub operation_type_string: CString<'a>,           // Combat, Building, Farming, ...
         pub stat_data: FactionScheduleStatData,
         pub schedule_spawn_pivot: [f32; 3],
-        pub condition_option_list: CArray<FactionConditionOption>,
+        pub condition_option_list: CArray<FactionConditionOption<'a>>,
         pub operation_additional_data_list: CArray<FactionScheduleU32Triple>,
         pub is_repeatable: u8,
         pub is_unlock_operation: u8,
@@ -543,7 +545,7 @@ py_binary_struct! {
         pub ui_texture_name: u32,                            // hash
         pub drop_set_info: u32,                              // lookup
         pub connect_faction_node_info: u32,                  // lookup
-        pub condition_option_list: CArray<FactionConditionOption>,
+        pub condition_option_list: CArray<FactionConditionOption<'a>>,
         pub progress_data_list: CArray<FactionResearchProgress>,
         pub cost_item_list: CArray<FactionAdjacencyMobItem>, // u32 item + 3x u64, same wire shape
         pub research_total_progress: u32,
@@ -561,9 +563,10 @@ py_binary_struct! {
 
 py_binary_struct! {
     // FactionEventData_ExecuteCondition (element header).
-    pub struct FactionEventExecuteCondition {
+    pub struct FactionEventExecuteCondition<'a> {
         pub event_type: u8,              // = slot index (3, 4, 6 used on 2.04.08)
-        pub player_condition: u32,       // lookup
+        // 2.06.00: was `player_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub player_condition: OptionalGameCondition<'a>,
         pub quest_info: u32,             // lookup
         pub stage_info: u32,             // lookup
         pub mission_info: u32,           // lookup
@@ -640,7 +643,7 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FactionEventDataEntry<'a> {
-        pub execute_condition: FactionEventExecuteCondition,
+        pub execute_condition: FactionEventExecuteCondition<'a>,
         pub event_data: FactionEventData<'a>,
     }
 }
@@ -666,8 +669,9 @@ py_binary_struct! {
 
 py_binary_struct! {
     // FactionBlockConditionData (_factionBlockadingDataList element).
-    pub struct FactionBlockConditionData {
-        pub blockading_condition_info: u32,                // lookup
+    pub struct FactionBlockConditionData<'a> {
+        // 2.06.00: was `blockading_condition_info: u32` (a conditioninfo key); the condition is now inline.
+        pub blockading_condition_info: OptionalGameCondition<'a>,
         pub blockading_faction_info: u32,                  // lookup
         pub blockading_line_start_node_info: u32,          // lookup
         pub use_block_day: u8,
@@ -682,9 +686,10 @@ py_binary_struct! {
 }
 
 py_binary_struct! {
-    pub struct FactionConquerData {
+    pub struct FactionConquerData<'a> {
         pub conqueror_faction_info: u32,   // lookup
-        pub conquer_condition_info: u32,   // lookup
+        // 2.06.00: was `conquer_condition_info: u32` (a conditioninfo key); the condition is now inline.
+        pub conquer_condition_info: OptionalGameCondition<'a>,
         pub is_capital: u8,
     }
 }
@@ -701,7 +706,8 @@ pabgh_typed_blob_table! {
         pub worker_count: u8,
         pub use_custom_way_point_for_dev: u8,
         pub faction_type: u8,
-        pub knock_down_condition: u32,
+        // 2.06.00: was `knock_down_condition: u32` (a conditioninfo key); the condition is now inline.
+        pub knock_down_condition: OptionalGameCondition<'a>,
         pub bit_map_color_key_r: u8,
         pub bit_map_color_key_g: u8,
         pub knowledge_info: u32,
@@ -728,8 +734,8 @@ pabgh_typed_blob_table! {
         pub faction_event_data_list: FactionEventDataSlots<'a>,
         pub religion_block_cost_list: CArray<u32>,
         pub religion_effect_region_info_list: CArray<u16>,   // wire u16
-        pub faction_blockading_data_list: CArray<FactionBlockConditionData>,
-        pub faction_conquer_data_list: CArray<FactionConquerData>,
+        pub faction_blockading_data_list: CArray<FactionBlockConditionData<'a>>,
+        pub faction_conquer_data_list: CArray<FactionConquerData<'a>>,
     }
     // 2.04 TAIL TYPED (see the "2.04 TAIL" block above): fields 18+ are typed
     // with the 2.04.08 reader layout; tail_blob is empty on every 2.04.08
