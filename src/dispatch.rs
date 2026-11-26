@@ -59,6 +59,28 @@ pub fn parse_table_to_json(
     pabgb: &[u8],
     pabgh: Option<&[u8]>,
 ) -> io::Result<Vec<serde_json::Value>> {
+    use crate::binary::pabgh206::{annotate, to_205, Pabgh206};
+    // Game 2.06: names live in the index, records carry a row index. Read the
+    // pair through the 2.05 layout and tag each record with what the
+    // conversion took out (see binary::pabgh206).
+    if let Some(ph) = pabgh {
+        if let Some(h) = Pabgh206::detect(ph, pabgb) {
+            let a = to_205(&h, pabgb)?;
+            let mut items = parse_table_to_json_205(table_name, &a.body, Some(&a.pabgh))?;
+            annotate(&mut items, &h, &a.row_index)?;
+            return Ok(items);
+        }
+    }
+    parse_table_to_json_205(table_name, pabgb, pabgh)
+}
+
+/// `parse_table_to_json` for the 2.05 container (name at the front of each
+/// record, `{key, offset}` index). Every table reader is written for it.
+fn parse_table_to_json_205(
+    table_name: &str,
+    pabgb: &[u8],
+    pabgh: Option<&[u8]>,
+) -> io::Result<Vec<serde_json::Value>> {
     use crate::binary::BinaryRead;
     use crate::tables::blob_runtime::parse_typed_blob_table_to_json_with_pabgh;
 
@@ -312,7 +334,45 @@ pub fn parse_table_to_json(
 /// the companion `.pabgh` (offsets file) for pabgh-bounded tables — see
 /// `dmm_parser::binary::variant::build_pabgh_for_modified_body` (TODO: rename)
 /// or DMM's `iteminfo/v3_overlay::build_pabgh_for_modified_body`.
+///
+/// Records parsed from a game 2.06 pair (tagged `_row_index` / `_key_width`)
+/// come back as a 2.06 body. Its index holds the record names, so rebuild it
+/// with [`serialize_table_from_json_with_pabgh`] or
+/// [`serialize_table_from_json_206`], not from the body.
 pub fn serialize_table_from_json(
+    table_name: &str,
+    json_items: &[serde_json::Value],
+) -> io::Result<Vec<u8>> {
+    if crate::binary::pabgh206::items_are_206(json_items) {
+        return Ok(serialize_table_from_json_206(table_name, json_items, 2, None)?.0);
+    }
+    serialize_table_from_json_205(table_name, json_items)
+}
+
+/// Write records as a game 2.06 pair: `(body, pabgh)`.
+///
+/// Each record is written by its table writer in the 2.05 layout, then split
+/// into name (to the index), key, and data; the row index comes from
+/// `_row_index` (see [`crate::binary::pabgh206::assign_row_index`] for new
+/// and cloned records). `key_width` = None takes the records' `_key_width`.
+pub fn serialize_table_from_json_206(
+    table_name: &str,
+    json_items: &[serde_json::Value],
+    count_width: u8,
+    key_width: Option<u8>,
+) -> io::Result<(Vec<u8>, Vec<u8>)> {
+    use crate::binary::pabgh206::{assign_row_index, from_205_records, key_width_of};
+    let kw = key_width_of(json_items, key_width)?;
+    let rows = assign_row_index(json_items);
+    let recs = json_items
+        .iter()
+        .map(|item| serialize_table_from_json_205(table_name, std::slice::from_ref(item)))
+        .collect::<io::Result<Vec<_>>>()?;
+    from_205_records(&recs, &rows, count_width, kw)
+}
+
+/// `serialize_table_from_json` for the 2.05 container.
+fn serialize_table_from_json_205(
     table_name: &str,
     json_items: &[serde_json::Value],
 ) -> io::Result<Vec<u8>> {
@@ -551,6 +611,11 @@ pub fn apply_intents_to_table_body(
     // Iteminfo is exposed via the dedicated item_info module rather than
     // this dispatcher's match table, so route it explicitly.
     if matches!(table_name, "iteminfo") {
+        // Game 2.06: run the iteminfo path on the 2.05 layout, then split the
+        // result back into records and rebuild the named index.
+        if let Some(h) = pabgh.and_then(|ph| crate::binary::pabgh206::Pabgh206::detect(ph, body)) {
+            return apply_intents_to_iteminfo_206(&h, body, intents);
+        }
         let (new_body, outcomes) =
             crate::intents::apply_intents_to_iteminfo(body, intents)?;
         return Ok((new_body, None, outcomes));
@@ -647,6 +712,43 @@ pub fn apply_intents_to_table_body(
     Ok((new_body, new_pabgh, outcomes))
 }
 
+/// iteminfo intents on a game 2.06 pair. Records keep their row index by key;
+/// a new key gets the next free one (`assign_row_index` rules).
+fn apply_intents_to_iteminfo_206(
+    h: &crate::binary::pabgh206::Pabgh206,
+    body: &[u8],
+    intents: &[crate::intents::Intent],
+) -> io::Result<(Vec<u8>, Option<Vec<u8>>, Vec<crate::intents::ApplyOutcome>)> {
+    use crate::binary::BinaryRead;
+    use crate::binary::pabgh206::{assign_rows, from_205_records, to_205};
+    let a = to_205(h, body)?;
+    let (new205, outcomes) = crate::intents::apply_intents_to_iteminfo(&a.body, intents)?;
+    let kw = h.key_width as usize;
+    let mut row_by_key = std::collections::HashMap::with_capacity(h.entries.len());
+    for (e, r) in h.entries.iter().zip(&a.row_index) {
+        row_by_key.entry(e.key).or_insert(*r);
+    }
+    let mut recs = Vec::new();
+    let mut given = Vec::new();
+    let mut off = 0usize;
+    while off < new205.len() {
+        let start = off;
+        crate::item_info::ItemInfo::read_from(&new205, &mut off).map_err(|e| io::Error::new(
+            io::ErrorKind::InvalidData, format!("iteminfo 2.06: re-read at 0x{:x}: {}", start, e)))?;
+        let rec = new205[start..off].to_vec();
+        let name_len = u32::from_le_bytes(rec[0..4].try_into().unwrap()) as usize;
+        let mut key = 0u64;
+        for (i, b) in rec[4 + name_len..4 + name_len + kw].iter().enumerate() {
+            key |= (*b as u64) << (8 * i);
+        }
+        given.push(row_by_key.get(&key).copied());
+        recs.push(rec);
+    }
+    let rows = assign_rows(given);
+    let (b, p) = from_205_records(&recs, &rows, h.count_width, kw)?;
+    Ok((b, Some(p), outcomes))
+}
+
 /// Re-read `body` and confirm every key a record-creating intent asked for is
 /// present, exactly once.
 ///
@@ -737,6 +839,16 @@ pub fn serialize_table_from_json_with_pabgh(
     original_pabgh: &[u8],
 ) -> io::Result<(Vec<u8>, Vec<u8>)> {
     use crate::binary::pabgh::{Pabgh, PabghEntry, PabghFormat};
+
+    // Game 2.06 index: the pair is rebuilt whole (names go in the index), for
+    // sequential and index-bounded tables alike.
+    // Records parsed from 2.06 carry `_key_width`; an untagged list goes this
+    // way only when the index reads as 2.06 and as no older format.
+    if let Some(h) = crate::binary::pabgh206::Pabgh206::parse_index(original_pabgh) {
+        if crate::binary::pabgh206::items_are_206(items) || Pabgh::parse(original_pabgh).is_err() {
+            return serialize_table_from_json_206(table_name, items, h.count_width, Some(h.key_width));
+        }
+    }
 
     // Serialize FIRST, parse the index second. A sequential table has a sister
     // .pabgh on disk that nothing reads for record bounds, and callers pass it

@@ -13,6 +13,7 @@ mod arrays;
 pub(crate) mod trie;
 pub use trie::TrieFormat;
 pub mod pabgh;
+pub mod pabgh206;
 pub mod papgt;
 pub mod pamt;
 pub mod paz;
