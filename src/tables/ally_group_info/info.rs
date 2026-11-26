@@ -46,7 +46,8 @@ py_binary_struct! {
         pub is_wild: u8,
         pub killer_detection_time: u8,
         pub apply_reporting: u8,
-        pub interesting_condition: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub interesting_condition: crate::binary::optional_game_condition::InlineCondition,
         pub relation_type_list_0: CArray<u32>,
         pub relation_type_list_1: CArray<u32>,
         pub relation_type_list_2: CArray<u32>,

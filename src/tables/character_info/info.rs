@@ -1009,7 +1009,8 @@ py_binary_struct! {
         pub stat_data_level_b: u32,
         pub stat_data_level_c: u32,
         pub stat_data_level_d: u32,
-        pub frame_event_attr_group_info_name: u32,
+        // 2.06.00: `_frameEventAttrGroupInfoName` REMOVED (oracle CharacterLevelData 12 -> 11;
+        // FrameEventAttrGroupInfo is gone as a table). A mod's key for it is ignored.
         pub learn_skill_list: CArray<u32>,            // SkillKey
         pub hidden_skill_list: CArray<u32>,           // SkillKey
         pub stat_list_data_defined_static: CArray<StatEntry24>,
@@ -1079,8 +1080,10 @@ py_binary_struct! {
 // Field 154 element (sub_1017A1A24): 2× ConditionKey u32 + u8 + u32.
 py_binary_struct! {
     pub struct DetectReactionOverride {
-        pub condition_a: u32,
-        pub condition_b: u32,
+        // 2.06.00: ConditionInfo keys until 2.05, now INLINE conditions (same element as
+        // BuffData's DetectReactionOverrideBuffData). Names kept: mod contract.
+        pub condition_a: crate::binary::optional_game_condition::InlineCondition,
+        pub condition_b: crate::binary::optional_game_condition::InlineCondition,
         pub flag: u8,
         pub value: u32,
     }
@@ -1258,6 +1261,9 @@ pabgh_typed_blob_table! {
         pub f34: u8,                                         // _playerTargetableType
         pub daily_routine_info: u32,
         pub interaction_category_group_info: u16,
+        // 2.06.00: `_interactionCategoryGroupInfoForPlayer` (oracle idx 76, right after
+        // `_interactionCategoryGroupInfo`), the same 2-byte key.
+        pub interaction_category_group_info_for_player: u16,
         pub activity_preset_info: u32,
         pub stat_change_info_wrapper: u32,                   // NEW
         pub detect_reaction_info: u32,

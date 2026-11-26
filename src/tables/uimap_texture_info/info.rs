@@ -58,7 +58,8 @@ py_binary_struct! {
         pub is_flexible_size: u8,
         pub is_flexible_icon: u8,
         // 2.05.00: `_isMovingPlatform` removed (the u8 that sat here).
-        pub filter_type: u8,
+        // 2.06.00: `_filterType` (u8) REMOVED; the filter is now `ui_filter_data_key` below. A mod's
+        // `filter_type` key is ignored.
         pub ui_template_name: u32,
         pub filter_group_parent_info: u32,
         pub knowledge_info: u32,
@@ -66,6 +67,8 @@ py_binary_struct! {
         pub ui_filter_texture_name: u32,
         pub ui_filter_group_component_name: u32,
         pub ui_small_texture_name: u32,
+        // 2.06.00: `_uiFilterDataKey` (oracle idx 37, after `_uiSmallTextureName`), 4 bytes.
+        pub ui_filter_data_key: u32,
         pub map_icon_type: u32,
         pub gameplay_trigger_info: u32,
         pub lerp_max_zoom: u32,

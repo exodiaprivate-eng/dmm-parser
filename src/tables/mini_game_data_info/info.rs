@@ -26,6 +26,13 @@ py_binary_struct! {
 
 py_binary_struct! {
     /// `_entranceFeeList` element (Mac sub_101A71520): u32 + 3x u64.
+    pub struct MiniGameSkillLevel {
+        pub skill: u32,
+        pub level: u32,
+    }
+}
+
+py_binary_struct! {
     pub struct EntranceFee {
         pub count_or_flag: u32,
         pub value_a: u64,
@@ -65,6 +72,8 @@ py_binary_struct! {
         pub tag: CString<'a>,
         pub difficulty_buff_level_list: DifficultyBuffLevelList,
         pub name: LocalizableString<'a>,
+        // 2.06.00: `_gamePlaySkillKeyAndLevelList` (oracle idx 20, after `_name`): {SkillKey, level}.
+        pub game_play_skill_key_and_level_list: CArray<MiniGameSkillLevel>,
         pub ui_leader_board_sound: u32,           // StringInfoKey
         pub ui_leader_board_modal_sound: u32,     // StringInfoKey
         pub entrance_fee_list: CArray<EntranceFee>,

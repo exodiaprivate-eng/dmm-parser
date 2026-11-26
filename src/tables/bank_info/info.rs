@@ -41,7 +41,8 @@ py_binary_struct! {
         pub fix_interest_rate_on_investment: u8,
         pub bank_pass_item_info: u32,
         pub bank_license_knowledge_info: u32,
-        pub use_bank_condition: u32,            // _activeBankCondition
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub use_bank_condition: crate::binary::optional_game_condition::InlineCondition, // _activeBankCondition
         pub bank_investment_item_info: u32,
         pub bank_step: u32,
         pub bank_refresh_game_time_day: u32,

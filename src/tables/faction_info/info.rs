@@ -86,7 +86,8 @@ py_binary_struct! {
 py_binary_struct! {
     pub struct StealthOption<'a> {
         pub tag: CString<'a>,
-        pub condition_logic: u32,
+        // FactionStealthOptionData `_playerCondition`: 2.06.00 INLINE (was a key). Name kept.
+        pub condition_logic: crate::binary::optional_game_condition::InlineCondition,
         pub flag: u8,
     }
 }
@@ -122,7 +123,8 @@ py_binary_struct! {
     pub struct FactionEventData<'a> {
         // ExecuteCondition
         pub event_type: u8,
-        pub player_condition: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub player_condition: crate::binary::optional_game_condition::InlineCondition,
         pub quest_info: u32,
         pub stage_info: u32,
         pub mission_info: u32,
@@ -196,7 +198,8 @@ py_binary_struct! {
 py_binary_struct! {
     /// 2.04.00 `FactionDependencyConditionData` (Mac reader sub_10206991C).
     pub struct FactionDependencyData {
-        pub dependency_condition_info: u32,
+        // 2.06.00: `_dependencyCondition`, now INLINE (was a key). Name kept.
+        pub dependency_condition_info: crate::binary::optional_game_condition::InlineCondition,
         pub parent_faction_info: u32,
         pub use_self_faction_flag: u8,
     }

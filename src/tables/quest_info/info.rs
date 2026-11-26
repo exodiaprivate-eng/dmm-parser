@@ -195,7 +195,8 @@ use std::io::{self, Write};
 py_binary_struct! {
     pub struct FactionStateData {
         pub activate_faction_state_list: CArray<u8>,
-        pub player_condition_info: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE (Mac sub_101FE934C). Name kept.
+        pub player_condition_info: crate::binary::optional_game_condition::InlineCondition,
         pub relation_target_faction_info: u32,
         pub relation_type: u8,
     }

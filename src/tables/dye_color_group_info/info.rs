@@ -31,7 +31,8 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct DyeColorEntry {
         pub raw_color: u32,
-        pub texture_lookup: u32,
+        // DyeColorData `_condition`. // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub texture_lookup: crate::binary::optional_game_condition::InlineCondition,
     }
 }
 

@@ -29,7 +29,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct FailMessageEntry<'a> {
-        pub lookup_key: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub lookup_key: crate::binary::optional_game_condition::InlineCondition,
         pub label: LocalizableString<'a>,
     }
 }

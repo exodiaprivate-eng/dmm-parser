@@ -203,7 +203,7 @@ py_binary_struct! {
         pub category_info: u16,
         pub input_key_map_name: u32,                // StringInfoKey
         pub on_preemption_success_ai_event_key: u32,
-        pub dialog_set_info: u32,
+        // 2.06.00: `_dialogSetInfo` REMOVED (DialogSetInfo is gone as a table).
         pub interaction_name: LocalizableString<'a>,
         pub interaction_pivot_list: CArray<InteractionPivotData<'a>>,
         pub cond_data_list: ConditionPairCArray<'a>, // _interactionConditionDataList
@@ -213,6 +213,9 @@ py_binary_struct! {
         pub interaction_pop_item_list: CArray<FactionAdjacencyMobItem>,
         pub interaction_tag: CArray<u32>,           // StringInfoKeys
         pub child_interaction_info_list: CArray<u32>,
+        // 2.06.00: `_targetInteractionInfoList` (oracle idx 41, after `_childInteractionInfoList`);
+        // InteractionKeys like its neighbour, empty in vanilla.
+        pub target_interaction_info_list: CArray<u32>,
         pub show_main_menu_panel_name: u32,         // StringInfoKey
         pub show_main_menu_event_name: u32,         // StringInfoKey
     }

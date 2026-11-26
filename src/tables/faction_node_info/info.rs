@@ -128,7 +128,21 @@ use crate::py_binary_struct;
 py_binary_struct! {
     pub struct FactionNodeRawDataExt {
         pub raw_bytes: CArray<u8>,
-        pub lookup_a: u32,
+        // FactionStateData `_playerConditionInfo` (apply-skill / resource-item `ext` too):
+        // 2.06.00 INLINE (was a key). Name kept.
+        pub lookup_a: crate::binary::optional_game_condition::InlineCondition,
+        pub lookup_b: u32,
+        pub flag: u8,
+    }
+}
+
+py_binary_struct! {
+    /// FactionStateData proper (`_activateFactionStateList`, `_playerConditionInfo`,
+    /// `_relationTargetFactionInfo`, `_relationType`). Same JSON names as FactionNodeRawDataExt,
+    /// which it shared until 2.05; 2.06.00 made `_playerConditionInfo` an INLINE condition.
+    pub struct FactionNodeStateData {
+        pub raw_bytes: CArray<u8>,
+        pub lookup_a: crate::binary::optional_game_condition::InlineCondition,
         pub lookup_b: u32,
         pub flag: u8,
     }
@@ -481,7 +495,8 @@ py_binary_struct! {
 py_binary_struct! {
     // _conditionOptionList element (schedules and research).
     pub struct FactionConditionOption {
-        pub condition: u32, // lookup
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub condition: crate::binary::optional_game_condition::InlineCondition,
         pub flag: u8,
         pub value_a: u32,
         pub value_b: u32,
@@ -493,7 +508,7 @@ py_binary_struct! {
     pub struct FactionScheduleInfo<'a> {
         pub flag_a: u8,                                   // always 2 on 2.04.08
         pub schedule_play_info_list: CArray<FactionSchedulePlayInfo>,
-        pub state: FactionNodeRawDataExt,                 // FactionStateData, same wire shape
+        pub state: FactionNodeStateData,                 // FactionStateData, same wire shape
         pub pairs: CArray<FactionScheduleU128Pair>,
         pub list_u32: CArray<u32>,
         pub raw_a: u32,
@@ -530,7 +545,9 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FactionResearchProgress {
-        pub progress_info: u32, // lookup
+        // FactionResearchProgressData `_condition` (Mac 2.06 sub_1020290A0): INLINE since 2.06.00
+        // (was a u32 key). Name kept.
+        pub progress_info: crate::binary::optional_game_condition::InlineCondition,
         pub value: u32,
     }
 }
@@ -563,7 +580,8 @@ py_binary_struct! {
     // FactionEventData_ExecuteCondition (element header).
     pub struct FactionEventExecuteCondition {
         pub event_type: u8,              // = slot index (3, 4, 6 used on 2.04.08)
-        pub player_condition: u32,       // lookup
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub player_condition: crate::binary::optional_game_condition::InlineCondition,
         pub quest_info: u32,             // lookup
         pub stage_info: u32,             // lookup
         pub mission_info: u32,           // lookup
@@ -667,7 +685,8 @@ py_binary_struct! {
 py_binary_struct! {
     // FactionBlockConditionData (_factionBlockadingDataList element).
     pub struct FactionBlockConditionData {
-        pub blockading_condition_info: u32,                // lookup
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub blockading_condition_info: crate::binary::optional_game_condition::InlineCondition,
         pub blockading_faction_info: u32,                  // lookup
         pub blockading_line_start_node_info: u32,          // lookup
         pub use_block_day: u8,
@@ -683,8 +702,12 @@ py_binary_struct! {
 
 py_binary_struct! {
     pub struct FactionConquerData {
+        // FactionConquerConditionData (Mac 2.06 sub_101FEA478): `_conquerConditionInfo` FIRST, then
+        // `_conquerorFactionInfo`, `_isCaptial`. Until 2.05 the parser had the two names swapped
+        // (both were u32 keys, so it round-tripped); 2.06.00 made the condition INLINE, so the
+        // names are corrected here: a mod's `conqueror_faction_info` now lands on the faction.
+        pub conquer_condition_info: crate::binary::optional_game_condition::InlineCondition,
         pub conqueror_faction_info: u32,   // lookup
-        pub conquer_condition_info: u32,   // lookup
         pub is_capital: u8,
     }
 }
@@ -701,7 +724,8 @@ pabgh_typed_blob_table! {
         pub worker_count: u8,
         pub use_custom_way_point_for_dev: u8,
         pub faction_type: u8,
-        pub knock_down_condition: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now INLINE (Mac sub_101FEAE3C). Name kept.
+        pub knock_down_condition: crate::binary::optional_game_condition::InlineCondition,
         pub bit_map_color_key_r: u8,
         pub bit_map_color_key_g: u8,
         pub knowledge_info: u32,

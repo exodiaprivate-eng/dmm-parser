@@ -56,7 +56,9 @@ py_binary_struct! {
         // inferred: object kind; 7 on most records, also 1, 2, 4, 5, 6 and 14
         pub object_type: u8,
         // rarely non-zero
-        pub unk_u8_2: u8,
+        pub unk_u8_2: u8,                 // _housingObjectBatchType
+        // 2.06.00: `_placementRule` (oracle idx 5, after `_housingObjectBatchType`), one byte.
+        pub placement_rule: u8,
         pub unk_u8_3: u8,
         pub unk_u8_4: u8,
         pub unk_u8_5: u8,

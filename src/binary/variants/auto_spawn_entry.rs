@@ -51,6 +51,8 @@ py_binary_struct! {
         // 2.04.00 (Mac reader sub_10206C718): two zone fields after the counts.
         pub zone_tag: u32,
         pub sub_zone_tag_hash: u32,
+        // 2.06.00: `_spawnActionPointTagHash` (oracle AutoSpawnCharacterData idx 10, last), 4 bytes.
+        pub spawn_action_point_tag_hash: u32,
     }
 }
 
@@ -146,7 +148,9 @@ py_binary_struct! {
         pub raw_f: u32,
         pub flag_a: u8,
         pub flag_b: u8,
-        pub flag_c: u8,
+        pub flag_c: u8,                              // _usingActionPoint
+        // 2.06.00: `_disableRoaming` (oracle AutoSpawnTargetData idx 14, after `_usingActionPoint`).
+        pub disable_roaming: u8,
         pub flag_d: u8,
         pub flag_e: u8,
         pub flag_f: u8,

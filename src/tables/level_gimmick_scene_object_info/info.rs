@@ -33,7 +33,9 @@ py_binary_struct! {
     /// dlc_01 `Management_Structure_*` records (2 entries each).
     pub struct LevelGimmickSceneObjectEntry {
         // a key in the 1,000,000+ range (1000064, 1001228, 1015521, ...)
-        pub unk_key: u32,
+        // 2.06.00: a ConditionInfo key until 2.05 (e.g. 1000064 on the Timberham sawmill), now
+        // INLINE. Name kept.
+        pub unk_key: crate::binary::optional_game_condition::InlineCondition,
         pub unk_u8: u8,
         // hash-like value
         pub unk_hash: u32,

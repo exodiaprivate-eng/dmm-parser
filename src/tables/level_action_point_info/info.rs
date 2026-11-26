@@ -57,6 +57,8 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub key: u32,
         pub is_blocked: u8,
+        // 2.06.00: `_allowWithoutNavi` (oracle idx 3, before `_accessType`): +1 on every record.
+        pub allow_without_navi: u8,
         pub access_type: u8,
         pub level_action_point_group_list: CArray<LevelActionPointGroupElem>,
     }

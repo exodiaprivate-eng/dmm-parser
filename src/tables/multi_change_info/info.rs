@@ -66,7 +66,8 @@ use crate::py_binary_struct;
 
 py_binary_struct! {
     pub struct ConditionListItem<'a> {
-        pub condition_info: u32,
+        // 2.06.00: a ConditionInfo key until 2.05, now the condition INLINE. Name kept.
+        pub condition_info: crate::binary::optional_game_condition::InlineCondition,
         pub label: LocalizableString<'a>,
     }
 }

@@ -41,6 +41,9 @@ py_binary_struct! {
         pub offset_a: f32,
         pub offset_b: f32,
         pub offset_c: f32,
+        // 2.06.00: a second vec3 after the first (Mac element reader sub_101A139C0: vec3, vec3, f32,
+        // u32, u8); +12 per member. Name from position only.
+        pub offset2: [f32; 3],
         pub param_a: f32,
         pub param_b: f32,
         pub flag: u8,
@@ -52,7 +55,7 @@ py_binary_struct! {
         pub string_key: CString<'a>,
         pub key: u32,
         pub is_blocked: u8,
-        pub is_super_strict: u8,
+        // 2.06.00: `_isSuperStrict` REMOVED (oracle FormationInfo 6 -> 5). A mod's key is ignored.
         pub absolute_offset: u8,
         pub member_data_list: CArray<FormationMemberData>,
     }

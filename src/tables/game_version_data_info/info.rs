@@ -22,7 +22,8 @@ py_binary_struct! {
         pub raw_data: u64,
         // 1.10: u8 inserted here. Element grew 16→17 bytes; observed 0x00.
         pub unknown_flag_110: u8,
-        pub target_key: u32,
+        // RestoreItemData `_restoreCondition`. // 2.06.00: a ConditionInfo key until 2.05, now INLINE. Name kept.
+        pub target_key: crate::binary::optional_game_condition::InlineCondition,
     }
 }
 
